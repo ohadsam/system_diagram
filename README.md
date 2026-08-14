@@ -116,7 +116,13 @@ npm test              # both
 
 ## Deploying to GitHub Pages
 
-A workflow at `.github/workflows/deploy.yml` publishes the repo root to
-GitHub Pages on every push to `main`/`master`. In the repo's **Settings →
-Pages**, set the source to **GitHub Actions** once, and it deploys
-automatically from then on.
+Since this is a static site with no build step, it deploys via GitHub's
+classic Pages setup: in the repo's **Settings → Pages**, set **Source** to
+**Deploy from a branch**, pick branch `main` and folder `/ (root)`. From
+then on, every push to `main` publishes automatically — no CI run
+involved.
+
+`.github/workflows/deploy.yml` (an Actions-based alternative) is kept in
+the repo on standby, triggered manually only (`workflow_dispatch`) — see
+the comment at the top of that file if you ever want to switch to it
+instead (e.g. after adding a real build step).

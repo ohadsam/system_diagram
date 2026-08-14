@@ -1,8 +1,14 @@
 name: Deploy to GitHub Pages
 
+# On standby: the repo currently deploys via the simpler classic Pages
+# setup instead (Settings → Pages → Source: "Deploy from a branch",
+# branch main, folder /root) — no build step, so there's nothing for an
+# Actions workflow to add, and it avoids extra environment/permission
+# setup. This workflow is kept for reference and manual use; it no longer
+# runs automatically on push. To switch back to Actions-based deploys,
+# restore a `push:` trigger below and set Pages' source back to
+# "GitHub Actions".
 on:
-  push:
-    branches: [main, master]
   workflow_dispatch:
 
 permissions:
