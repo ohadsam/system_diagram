@@ -29,14 +29,37 @@
   background: var(--color-surface-alt);
 }
 
-.details-close {
+.details-close,
+.details-collapse-toggle {
   font-size: 14px;
   padding: 4px 8px;
   border-radius: var(--radius-sm);
+  flex: 0 0 auto;
 }
 
-.details-close:hover {
+.details-close:hover,
+.details-collapse-toggle:hover {
   background: var(--color-surface-alt);
+}
+
+/* Collapsed: a slim clickable strip — just the toggle button, full height. */
+.details-panel.collapsed .details-icon,
+.details-panel.collapsed .details-title-input,
+.details-panel.collapsed .details-close,
+.details-panel.collapsed .details-body {
+  display: none;
+}
+
+.details-panel.collapsed .details-header {
+  padding: 0;
+  border-bottom: none;
+  height: 100%;
+}
+
+.details-panel.collapsed .details-collapse-toggle {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
 }
 
 .details-body {

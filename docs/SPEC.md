@@ -110,6 +110,27 @@ Complements the existing **AI / ML** category, which stays focused on
 general ML *infrastructure* (training pipelines, feature stores, vector
 DBs, MLflow, ...) rather than duplicating it.
 
+#### 4.2.4 Global default component settings
+A "🎛️ Default settings" toolbar button opens a modal for defaults applied
+when a component is **created**, always overridable per component
+afterwards via the toolbar style editor / details panel:
+- **No background color** — new components get a transparent fill instead
+  of their category's tinted color (border/icon/text still show).
+- **Show icon** — off hides every new component's icon.
+- **Text position** — where the label renders: `Center`/`Top`/`Bottom`
+  (inside the shape) or `Above`/`Below` (floating outside it, e.g. for a
+  minimalist icon-only look with a caption).
+- **Sub-components display** — `Compact chips` (default, small pills,
+  truncated after 4) or `Full list` (every sub-component on its own row,
+  untruncated) — also settable per node from its details panel next to the
+  sub-components list, since it's really about *that* list's own display.
+- **"Apply to all existing components now"** — besides saving the defaults
+  for future components, explicitly bulk-updates every component already
+  on the canvas to match (one undo step) — a deliberate, visible action
+  rather than a silent retroactive global override, so "what changed" is
+  always predictable, and per-component customization after that remains
+  a normal single-node edit.
+
 ### 4.3 Canvas node interactions
 - Drag to move, resize via handles, rotate not required.
 - Delete via `Delete`/`Backspace`, right-click menu, or toolbar button.
@@ -134,9 +155,9 @@ DBs, MLflow, ...) rather than duplicating it.
   ("dynamic reshaping").
 
 ### 4.5 Toolbar
-- Style controls for current selection: fill color, border color, border
-  width/style, shape, text, font size, text align, opacity, corner
-  radius.
+- Style controls for current selection: fill color, "no background"
+  toggle, border color, border width/style, shape, text, font size, text
+  align, text position, show-icon toggle, corner radius.
 - Arrow style controls (see 4.4) shown when an edge is selected.
 - Undo / Redo.
 - Save (autosave to localStorage), Save As (named project), Load (from
@@ -157,8 +178,14 @@ DBs, MLflow, ...) rather than duplicating it.
 ### 4.6 Node details panel
 - Opens on demand (ⓘ button / double-click). Shows: name, icon/color
   summary, free-text notes, labels (tag chips), and an editable list of
-  sub-components (name + icon, add/remove/reorder). For "server with rows"
+  sub-components (name + icon, add/remove/reorder, plus a "compact chips
+  vs full list" display-mode control — see 4.2.4). For "server with rows"
   nodes, this is also where rows are managed.
+- **Collapse / expand**: a chevron button in the panel header shrinks it to
+  a slim clickable strip (content hidden, selection/edits untouched) —
+  distinct from the **✕ close** button, which fully closes it and clears
+  the details context. Opening a different component's details always
+  starts expanded.
 
 ### 4.7 Persistence
 - Autosave current project to `localStorage` on every change (debounced).

@@ -23,6 +23,17 @@ test('createNode applies defaults and overrides', () => {
   assert.equal(node.subComponents.length, 1);
   assert.ok(node.subComponents[0].id);
   assert.notEqual(node.id, undefined);
+  assert.equal(node.iconVisible, true, 'icon visible by default');
+  assert.equal(node.textPosition, 'center', 'text position centered by default');
+  assert.equal(node.subComponentsDisplay, 'chips', 'sub-components shown as chips by default');
+});
+
+test('createNode overrides can set iconVisible/textPosition/subComponentsDisplay', () => {
+  const node = createNode(null, 0, 0, { iconVisible: false, textPosition: 'above', subComponentsDisplay: 'full', fill: 'transparent' });
+  assert.equal(node.iconVisible, false);
+  assert.equal(node.textPosition, 'above');
+  assert.equal(node.subComponentsDisplay, 'full');
+  assert.equal(node.fill, 'transparent');
 });
 
 test('createEdge applies sane defaults', () => {
@@ -95,13 +106,26 @@ test('validateProject drops edges referencing unknown nodes (no dangling referen
 
 test('validateProject clamps unknown enum values to safe defaults instead of throwing', () => {
   const raw = {
-    nodes: [{ id: 'n1', x: 0, y: 0, shape: 'not-a-real-shape', textAlign: 'diagonal' }],
+    nodes: [{ id: 'n1', x: 0, y: 0, shape: 'not-a-real-shape', textAlign: 'diagonal', textPosition: 'sideways', subComponentsDisplay: 'exploded' }],
     edges: [],
   };
   const result = validateProject(raw);
   assert.equal(result.ok, true);
   assert.equal(result.project.nodes[0].shape, 'rounded');
   assert.equal(result.project.nodes[0].textAlign, 'center');
+  assert.equal(result.project.nodes[0].textPosition, 'center');
+  assert.equal(result.project.nodes[0].subComponentsDisplay, 'chips');
+});
+
+test('validateProject preserves valid textPosition/iconVisible/subComponentsDisplay values', () => {
+  const raw = {
+    nodes: [{ id: 'n1', x: 0, y: 0, textPosition: 'below', iconVisible: false, subComponentsDisplay: 'full' }],
+    edges: [],
+  };
+  const result = validateProject(raw);
+  assert.equal(result.project.nodes[0].textPosition, 'below');
+  assert.equal(result.project.nodes[0].iconVisible, false);
+  assert.equal(result.project.nodes[0].subComponentsDisplay, 'full');
 });
 
 test('validateProject never throws on malformed/malicious input', () => {

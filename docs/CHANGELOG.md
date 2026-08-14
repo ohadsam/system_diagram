@@ -63,3 +63,25 @@ Keep this in sync with `PLAN.md` as stages complete.
   attach/instantiate behavior, complements the existing AI/ML (ML infra)
   category rather than duplicating it.
 - Library now totals ~490 components across 22 categories.
+
+## Unreleased (4)
+
+- Added a global **"🎛️ Default settings"** toolbar button/modal: no
+  background color, show/hide icon, text position (center/top/bottom
+  inside the shape, or above/below floating outside it), and
+  sub-components display mode (compact chips vs full list) — applied to
+  newly created components from then on, plus an explicit "apply to all
+  existing components now" bulk action (one undo step). Every one of
+  these remains fully overridable per component via the toolbar style
+  editor at any time.
+- Added a **collapse/expand toggle** to the details panel header (a
+  chevron next to the existing ✕ close button) — shrinks it to a slim
+  strip without losing the current selection/edit context; opening a
+  different component's details always starts expanded.
+- Sub-components can now render on the node itself as either compact
+  truncated chips (previous/default behavior) or a full untruncated list
+  of rows, settable per node from its details panel or via the new global
+  default.
+- New node fields: `iconVisible`, `textPosition`, `subComponentsDisplay`
+  (see `docs/SPEC.md` 4.2.4, `docs/ARCHITECTURE.md` "Node label
+  placement").

@@ -48,3 +48,9 @@
   width: var(--panel-width);
   overflow-y: auto;
 }
+
+#details-panel.open.collapsed {
+  flex: 0 0 var(--panel-collapsed-width);
+  width: var(--panel-collapsed-width);
+  overflow: hidden;
+}

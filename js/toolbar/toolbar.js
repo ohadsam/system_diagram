@@ -14,6 +14,7 @@ import { openSaveAsModal } from '../modals/saveAsModal.js';
 import { openLoadProjectModal } from '../modals/loadProjectModal.js';
 import { openCustomComponentModal } from '../modals/customComponentModal.js';
 import { openCustomShapeModal } from '../modals/customShapeModal.js';
+import { openDefaultSettingsModal } from '../modals/defaultSettingsModal.js';
 import { confirmAction } from '../modals/confirmModal.js';
 import { showToast } from '../utils/toast.js';
 import { readJSON, writeJSON } from '../io/storage.js';
@@ -115,7 +116,8 @@ function buildCreateGroup() {
     },
   });
   const addShapeBtn = el('button', { type: 'button', class: 'btn', title: 'Add a basic shape', text: '🔷 Add Shape', onClick: openCustomShapeModal });
-  return group(newComponentBtn, addShapeBtn);
+  const defaultsBtn = el('button', { type: 'button', class: 'btn btn-icon', title: 'Default settings for new components', text: '🎛️', onClick: openDefaultSettingsModal });
+  return group(newComponentBtn, addShapeBtn, defaultsBtn);
 }
 
 function buildExportGroup() {

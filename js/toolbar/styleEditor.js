@@ -2,14 +2,17 @@
 // one or more nodes are selected.
 import * as store from '../core/store.js';
 import { el, clear } from '../utils/dom.js';
-import { field, colorInput, numberInput, selectInput, textInput } from '../utils/formControls.js';
-import { SHAPES } from '../core/project.js';
+import { field, colorInput, numberInput, selectInput, textInput, checkbox } from '../utils/formControls.js';
+import { SHAPES, TEXT_POSITIONS } from '../core/project.js';
 
 const SHAPE_LABELS = {
   rect: 'Rectangle', rounded: 'Rounded', circle: 'Circle', diamond: 'Diamond',
   cylinder: 'Cylinder (DB)', hexagon: 'Hexagon', cloud: 'Cloud', note: 'Note', rows: 'Rows',
 };
 const ALIGN_LABELS = { left: 'Left', center: 'Center', right: 'Right' };
+const TEXT_POSITION_LABELS = {
+  center: 'Center (inside)', top: 'Top (inside)', bottom: 'Bottom (inside)', above: 'Above shape', below: 'Below shape',
+};
 
 export function renderNodeStyleEditor(container, nodeIds) {
   clear(container);
@@ -26,11 +29,14 @@ export function renderNodeStyleEditor(container, nodeIds) {
   });
 
   container.appendChild(field('Fill', colorInput(first.fill, (v) => updateAll((n) => { n.fill = v; }))));
+  container.appendChild(checkbox(first.fill === 'transparent', (v) => updateAll((n) => { n.fill = v ? 'transparent' : '#FFFFFF'; }), 'No background'));
   container.appendChild(field('Border', colorInput(first.stroke, (v) => updateAll((n) => { n.stroke = v; }))));
   container.appendChild(field('Border width', numberInput(first.strokeWidth, 0, 12, 1, (v) => updateAll((n) => { n.strokeWidth = v; }))));
   container.appendChild(field('Shape', selectInput(SHAPES.filter((s) => s !== 'rows'), first.shape === 'rows' ? 'rounded' : first.shape, (v) => updateAll((n) => { n.shape = v; }), SHAPE_LABELS)));
   container.appendChild(field('Font size', numberInput(first.fontSize, 8, 48, 1, (v) => updateAll((n) => { n.fontSize = v; }))));
   container.appendChild(field('Align', selectInput(['left', 'center', 'right'], first.textAlign, (v) => updateAll((n) => { n.textAlign = v; }), ALIGN_LABELS)));
+  container.appendChild(field('Text position', selectInput(TEXT_POSITIONS, first.textPosition, (v) => updateAll((n) => { n.textPosition = v; }), TEXT_POSITION_LABELS)));
+  container.appendChild(checkbox(first.iconVisible !== false, (v) => updateAll((n) => { n.iconVisible = v; }), 'Show icon'));
 
   if (nodeIds.length === 1) {
     container.appendChild(field('Icon', textInput(first.icon, (v) => updateAll((n) => { n.icon = v; }), { maxLength: 4, class: 'icon-field' })));

@@ -124,38 +124,84 @@ export function updateNodeEl(rootEl, node, { selected = false } = {}) {
   } else {
     body.appendChild(buildStandardBody(node));
   }
+
+  updateExternalLabel(rootEl, node);
+}
+
+const OUTSIDE_POSITIONS = ['above', 'below'];
+
+function renameNode(node, value) {
+  store.dispatch((draft) => {
+    const n = draft.nodes.find((x) => x.id === node.id);
+    if (n) n.text = value;
+  });
 }
 
 function buildStandardBody(node) {
-  const wrap = el('div', { class: 'node-standard' });
-  if (node.icon) wrap.appendChild(el('div', { class: 'node-icon', text: node.icon }));
-  const label = el('div', { class: 'node-label', title: 'Double-click to rename' });
-  label.textContent = node.text;
-  label.addEventListener('dblclick', (e) => {
-    e.stopPropagation();
-    startInlineEdit(label, node.text, (value) => {
-      store.dispatch((draft) => {
-        const n = draft.nodes.find((x) => x.id === node.id);
-        if (n) n.text = value;
-      });
+  const position = node.textPosition || 'center';
+  const wrap = el('div', { class: `node-standard pos-${position}` });
+  if (node.iconVisible !== false && node.icon) wrap.appendChild(el('div', { class: 'node-icon', text: node.icon }));
+
+  if (!OUTSIDE_POSITIONS.includes(position)) {
+    const label = el('div', { class: 'node-label', title: 'Double-click to rename' });
+    label.textContent = node.text;
+    label.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+      startInlineEdit(label, node.text, (value) => renameNode(node, value));
     });
-  });
-  wrap.appendChild(label);
+    wrap.appendChild(label);
+  }
+
   if (node.subComponents?.length) {
-    const chips = el('div', { class: 'node-subchips' });
-    for (const sc of node.subComponents.slice(0, 4)) {
-      chips.appendChild(el('span', { class: 'node-subchip', text: `${sc.icon || ''} ${sc.name}`.trim() }));
-    }
-    if (node.subComponents.length > 4) chips.appendChild(el('span', { class: 'node-subchip more', text: `+${node.subComponents.length - 4}` }));
-    wrap.appendChild(chips);
+    wrap.appendChild(buildSubComponentsDisplay(node));
   }
   return wrap;
+}
+
+function buildSubComponentsDisplay(node) {
+  if (node.subComponentsDisplay === 'full') {
+    const list = el('div', { class: 'node-subcomponents-full' });
+    for (const sc of node.subComponents) {
+      list.appendChild(el('div', { class: 'node-subcomponent-row', text: `${sc.icon || ''} ${sc.name}`.trim() }));
+    }
+    return list;
+  }
+  const chips = el('div', { class: 'node-subchips' });
+  for (const sc of node.subComponents.slice(0, 4)) {
+    chips.appendChild(el('span', { class: 'node-subchip', text: `${sc.icon || ''} ${sc.name}`.trim() }));
+  }
+  if (node.subComponents.length > 4) chips.appendChild(el('span', { class: 'node-subchip more', text: `+${node.subComponents.length - 4}` }));
+  return chips;
+}
+
+/** For textPosition 'above'/'below': the label must live outside .node-body
+ * (which has overflow:hidden to respect clip-path shapes) as a direct child
+ * of the node root, or it would be clipped — see docs/ARCHITECTURE.md. */
+function updateExternalLabel(rootEl, node) {
+  const position = node.textPosition || 'center';
+  let labelEl = rootEl.querySelector('.node-external-label');
+  if (!OUTSIDE_POSITIONS.includes(position)) {
+    labelEl?.remove();
+    return;
+  }
+  if (!labelEl) {
+    labelEl = el('div', { class: 'node-external-label', title: 'Double-click to rename' });
+    labelEl.addEventListener('pointerdown', (e) => e.stopPropagation());
+    rootEl.appendChild(labelEl);
+  }
+  labelEl.classList.toggle('pos-above', position === 'above');
+  labelEl.classList.toggle('pos-below', position === 'below');
+  labelEl.textContent = node.text;
+  labelEl.ondblclick = (e) => {
+    e.stopPropagation();
+    startInlineEdit(labelEl, node.text, (value) => renameNode(node, value));
+  };
 }
 
 function buildRowsBody(node) {
   const wrap = el('div', { class: 'node-rows' });
   const header = el('div', { class: 'node-rows-header' });
-  if (node.icon) header.appendChild(el('span', { class: 'node-icon', text: node.icon }));
+  if (node.iconVisible !== false && node.icon) header.appendChild(el('span', { class: 'node-icon', text: node.icon }));
   const label = el('span', { class: 'node-label', text: node.text, title: 'Double-click to rename' });
   label.addEventListener('dblclick', (e) => {
     e.stopPropagation();

@@ -112,6 +112,28 @@ handles them instead of the default single-node placement:
 - `exportImage.js` / `exportPdf.js`: dynamically `import()` the CDN
   `html2canvas`/`jsPDF` scripts only when the user actually exports (not on
   page load), rasterize the canvas content layer, crop to diagram bounds.
+- `nodeDefaults.js`: global "new component" defaults (transparent fill,
+  icon visibility, text position, sub-components display — see
+  docs/SPEC.md 4.2.4), stored under their own key, independent of any one
+  project. `buildCreationOverrides()` returns the `overrides` object every
+  `canvas.js` node-creation call site (`createNodeFromDrop`,
+  `addCustomShapeNode`, `instantiatePattern`) spreads into `createNode()`.
+  `duplicateSelection()` deliberately does **not** apply them — a
+  duplicate copies its source node's actual values, not the current
+  defaults. `modals/defaultSettingsModal.js`'s "apply to all" button is a
+  separate, explicit bulk `store.dispatch` over every existing node — the
+  defaults themselves never retroactively change what's already on the
+  canvas on their own.
+
+## Node label placement (`canvas/node.js`)
+
+A node's label normally renders inside `.node-body` (which has
+`overflow: hidden` so content respects clip-path shapes like
+diamond/hexagon). `textPosition: 'above'|'below'` is the exception: that
+label is appended as a sibling of `.node-body`, directly under the `.node`
+root (`updateExternalLabel()`), positioned with `position: absolute`
+relative to it — appending it *inside* `.node-body` would clip it, since
+by definition it needs to render outside the shape's box.
 
 ## Security notes
 

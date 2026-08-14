@@ -280,9 +280,12 @@
 
     <section id="styling">
       <h2><span class="icon-badge">🎨</span> Styling components</h2>
-      <p>Select one or more components — the toolbar's second row fills in with style controls: fill color, border color/width, shape, font size, text alignment, and (for a single selection) icon, text, width and height.</p>
+      <p>Select one or more components — the toolbar's second row fills in with style controls: fill color, "no background" toggle, border color/width, shape, font size, text alignment, text position, show/hide icon, and (for a single selection) icon, text, width and height.</p>
       <p><span class="mock-node">🖥️ API Server</span> — example of a styled component with an icon and label.</p>
+      <p><strong>Text position</strong> controls where the label sits: centered/top/bottom inside the shape, or floating above/below it — handy for a minimalist icon-only look with a caption underneath.</p>
       <div class="tip">💡 Style changes apply to every selected component at once, so you can restyle a whole group in one go.</div>
+      <h3>Default settings for new components</h3>
+      <p>Click "🎛️" in the toolbar to set defaults applied whenever you add a <em>new</em> component from then on: no background color, show/hide icon, text position, and how sub-components display (compact chips or a full list). A component's own style always wins after that — these are just the starting point. There's also an "Apply to all existing components now" action, if you want your current diagram to match too (undoable in one step).</p>
     </section>
 
     <section id="connectors">
@@ -297,10 +300,11 @@
       <ul>
         <li><strong>Notes</strong> — free-form text about that component.</li>
         <li><strong>Labels</strong> — short tags shown as chips (e.g. "prod", "critical").</li>
-        <li><strong>Sub-components</strong> — a list of internal parts (e.g. an API Gateway's routes, or a service's modules).</li>
+        <li><strong>Sub-components</strong> — a list of internal parts (e.g. an API Gateway's routes, or a service's modules). Choose whether they show on the component as compact chips (default, truncated after 4) or a full untruncated list.</li>
         <li><strong>Rows</strong> — for "server with rows" style components, manage each internal row directly (also editable right on the node with the "+ Add row" button).</li>
       </ul>
       <p>Any component with notes, labels or sub-components shows a small dot badge, so you always know where extra detail is hiding.</p>
+      <div class="tip">💡 Use the small ‹ / › button next to the ✕ in the panel header to collapse it to a slim strip without losing your place — handy when you want to see more of the canvas but aren't done editing. The ✕ fully closes it instead.</div>
     </section>
 
     <section id="custom">

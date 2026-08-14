@@ -3,11 +3,15 @@
 import * as store from '../core/store.js';
 import { el, clear } from '../utils/dom.js';
 import { nextId } from '../core/id.js';
-import { textInput } from '../utils/formControls.js';
+import { textInput, field, selectInput } from '../utils/formControls.js';
 import { LAYER_DATALIST_ID, ensureLayerDatalist, findLayerByName } from '../utils/layerDatalist.js';
+import { SUBCOMPONENTS_DISPLAY_MODES } from '../core/project.js';
+
+const SUBCOMPONENTS_DISPLAY_LABELS = { chips: 'Compact chips', full: 'Full list' };
 
 let rootEl = null;
 let currentNodeId = null;
+let isCollapsed = false;
 
 export function initDetailsPanel(root) {
   rootEl = root;
@@ -27,13 +31,20 @@ function open(nodeId) {
   currentNodeId = nodeId;
   const node = store.getState().nodes.find((n) => n.id === nodeId);
   if (!node) return;
+  isCollapsed = false;
   render(node);
   rootEl.classList.add('open');
 }
 
 export function close() {
   currentNodeId = null;
-  rootEl.classList.remove('open');
+  isCollapsed = false;
+  rootEl.classList.remove('open', 'collapsed');
+}
+
+function toggleCollapsed() {
+  isCollapsed = !isCollapsed;
+  rootEl.classList.toggle('collapsed', isCollapsed);
 }
 
 function updateNode(fn) {
@@ -45,10 +56,19 @@ function updateNode(fn) {
 
 function render(node) {
   clear(rootEl);
+  rootEl.classList.toggle('collapsed', isCollapsed);
 
   const header = el('div', { class: 'details-header' });
   header.appendChild(el('span', { class: 'details-icon', text: node.icon || '📦' }));
   header.appendChild(textInput(node.text, (v) => updateNode((n) => { n.text = v; }), { class: 'details-title-input' }));
+  header.appendChild(el('button', {
+    type: 'button',
+    class: 'details-collapse-toggle',
+    text: isCollapsed ? '‹' : '›',
+    title: isCollapsed ? 'Expand details' : 'Collapse details',
+    'aria-label': isCollapsed ? 'Expand details panel' : 'Collapse details panel',
+    onClick: toggleCollapsed,
+  }));
   header.appendChild(el('button', { type: 'button', class: 'details-close', text: '✕', 'aria-label': 'Close details', onClick: close }));
   rootEl.appendChild(header);
 
@@ -109,6 +129,12 @@ function renderLabels(node) {
 
 function renderSubComponents(node) {
   const wrap = el('div', { class: 'subcomponent-editor' });
+  wrap.appendChild(field('On the canvas, show as', selectInput(
+    SUBCOMPONENTS_DISPLAY_MODES,
+    node.subComponentsDisplay || 'chips',
+    (v) => updateNode((n) => { n.subComponentsDisplay = v; }),
+    SUBCOMPONENTS_DISPLAY_LABELS,
+  )));
   (node.subComponents || []).forEach((sc, idx) => {
     const row = el('div', { class: 'field-row subcomponent-row' });
     row.appendChild(textInput(sc.icon, (v) => updateNode((n) => { n.subComponents[idx].icon = v; }), { maxLength: 4, class: 'sub-icon-input', placeholder: '🔧' }));

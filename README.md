@@ -49,11 +49,18 @@ Or open `index.html` directly in a browser.
 - **Connectors** — drag between components to draw arrows with
   configurable routing (straight/elbow/curved), independent start/end
   arrow-head styles, color, thickness, dash pattern and labels.
-- **Style toolbar** — colors, shape, border, font, text alignment, size —
-  applies to your whole selection at once.
-- **Details panel** — notes, labels and sub-components per component,
-  with a badge indicator for components that have extra info; "server
-  with rows" components manage their internal rows here too.
+- **Style toolbar** — colors, shape, border, font, text alignment/position
+  (including outside-the-shape captions), icon visibility, size — applies
+  to your whole selection at once.
+- **Global default settings** — set defaults (transparent background, show
+  icon, text position, sub-components display) applied to every newly
+  created component, with a one-click "apply to all existing components"
+  action — any component can still be styled differently at any time.
+- **Details panel** — notes, labels and sub-components per component
+  (shown as compact chips or a full list), with a badge indicator for
+  components that have extra info, and a collapse/expand toggle alongside
+  the close button; "server with rows" components manage their internal
+  rows here too.
 - **Custom components & shapes** — build and save your own styled
   components ("My Components"), or drop in basic shapes (rectangle,
   circle, diamond, cylinder, cloud, sticky note, server-with-rows, ...).

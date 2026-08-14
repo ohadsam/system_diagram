@@ -46,6 +46,7 @@ this repo" quick-start.
 | Change what the details panel shows/edits         | `js/panel/detailsPanel.js` |
 | Add a modal                                       | `js/modals/*.js`, register it in `modals/modal.js` |
 | Change project JSON shape                         | `js/core/project.js` (bump `formatVersion`, keep a migration path) |
+| Change global new-component defaults              | `js/io/nodeDefaults.js` (storage) + `js/modals/defaultSettingsModal.js` (UI) |
 | Change localStorage keys/behavior                 | `js/io/storage.js`, `io/autosave.js` |
 | Change PNG/PDF export                             | `js/io/exportImage.js` / `exportPdf.js` |
 | Add/change a hint                                 | `js/hints/hintData.js` |

@@ -8,6 +8,12 @@ export const SHAPES = ['rect', 'rounded', 'circle', 'diamond', 'cylinder', 'hexa
 export const ROUTINGS = ['straight', 'orthogonal', 'curved'];
 export const ARROW_HEADS = ['none', 'open', 'filled', 'diamond', 'circle'];
 export const DASH_STYLES = ['solid', 'dashed', 'dotted'];
+// Where a node's label renders: inside the shape (center/top/bottom) or
+// outside it, floating above/below — see docs/SPEC.md 4.2.4.
+export const TEXT_POSITIONS = ['center', 'top', 'bottom', 'above', 'below'];
+// Whether a node's sub-components render as compact truncated chips or as
+// a full untruncated list of rows — see docs/SPEC.md 4.2.4.
+export const SUBCOMPONENTS_DISPLAY_MODES = ['chips', 'full'];
 
 export function createEmptyProject(name = 'Untitled Diagram') {
   const now = new Date().toISOString();
@@ -38,10 +44,13 @@ export function createNode(def, x, y, overrides = {}) {
     text: def?.name ?? 'Component',
     fontSize: 13,
     textAlign: 'center',
+    textPosition: 'center',
     icon: def?.icon ?? '',
+    iconVisible: true,
     notes: '',
     labels: [],
     subComponents: (def?.subComponents ?? []).map((sc) => ({ id: nextId('sc'), ...sc })),
+    subComponentsDisplay: 'chips',
     rows: def?.shape === 'rows' ? ['Row 1'] : [],
     zIndex: 1,
     ...overrides,
@@ -114,7 +123,9 @@ export function validateProject(input) {
           text: typeof n.text === 'string' ? n.text : '',
           fontSize: Number.isFinite(n.fontSize) ? n.fontSize : 13,
           textAlign: ['left', 'center', 'right'].includes(n.textAlign) ? n.textAlign : 'center',
+          textPosition: TEXT_POSITIONS.includes(n.textPosition) ? n.textPosition : 'center',
           icon: typeof n.icon === 'string' ? n.icon : '',
+          iconVisible: n.iconVisible !== false,
           notes: typeof n.notes === 'string' ? n.notes : '',
           labels: Array.isArray(n.labels) ? n.labels.filter((l) => typeof l === 'string') : [],
           subComponents: Array.isArray(n.subComponents)
@@ -122,6 +133,7 @@ export function validateProject(input) {
                 .filter((sc) => sc && typeof sc.name === 'string')
                 .map((sc) => ({ id: typeof sc.id === 'string' ? sc.id : nextId('sc'), name: sc.name, icon: typeof sc.icon === 'string' ? sc.icon : '' }))
             : [],
+          subComponentsDisplay: SUBCOMPONENTS_DISPLAY_MODES.includes(n.subComponentsDisplay) ? n.subComponentsDisplay : 'chips',
           rows: Array.isArray(n.rows) ? n.rows.filter((r) => typeof r === 'string') : [],
           zIndex: Number.isFinite(n.zIndex) ? n.zIndex : 1,
         };

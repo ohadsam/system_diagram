@@ -42,9 +42,49 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 4px;
+  width: 100%;
+  height: 100%;
   max-width: 100%;
   pointer-events: none;
+}
+
+.node-standard.pos-top {
+  justify-content: flex-start;
+  padding-top: 4px;
+}
+
+.node-standard.pos-bottom {
+  justify-content: flex-end;
+  padding-bottom: 4px;
+}
+
+/* Rendered outside .node-body (see node.js#updateExternalLabel) so it isn't
+   clipped by the shape's overflow:hidden / clip-path. */
+.node-external-label {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--color-text);
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  pointer-events: auto;
+  overflow-wrap: anywhere;
+}
+
+.node-external-label.pos-above {
+  bottom: calc(100% + 6px);
+}
+
+.node-external-label.pos-below {
+  top: calc(100% + 6px);
 }
 
 .node-icon {
@@ -81,6 +121,27 @@
 
 .node-subchip.more {
   opacity: 0.75;
+}
+
+.node-subcomponents-full {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  margin-top: 2px;
+  pointer-events: none;
+}
+
+.node-subcomponent-row {
+  font-size: 10.5px;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.55);
+  border-radius: 4px;
+  padding: 1px 6px;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* rows shape */

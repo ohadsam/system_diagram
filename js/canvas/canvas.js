@@ -5,6 +5,7 @@ import * as store from '../core/store.js';
 import { createEdge, nextZIndex, removeNode as removeNodeFromProject, removeEdge as removeEdgeFromProject, createNode } from '../core/project.js';
 import { getComponentById } from '../data/index.js';
 import { getCustomComponents } from '../io/customComponents.js';
+import { buildCreationOverrides } from '../io/nodeDefaults.js';
 import { el, svgEl } from '../utils/dom.js';
 import { rectsIntersect } from '../core/geometry.js';
 import { nextId } from '../core/id.js';
@@ -251,6 +252,7 @@ export function createNodeFromDrop(defId, clientX, clientY) {
   const state = store.getState();
   const node = createNode(def, canvasPoint.x - def.defaultSize.w / 2, canvasPoint.y - def.defaultSize.h / 2, {
     zIndex: nextZIndex(state),
+    ...buildCreationOverrides(),
   });
   store.dispatch((draft) => {
     draft.nodes.push(node);
@@ -292,12 +294,14 @@ export function instantiatePattern(defId, clientX, clientY) {
 
   const state = store.getState();
   let z = nextZIndex(state);
+  const creationOverrides = buildCreationOverrides();
   const idByKey = new Map();
   const newNodes = patternDef.pattern.nodes.map((spec) => {
     const def = resolveComponentDef(spec.defId);
     const node = createNode(def, point.x + spec.dx - (def?.defaultSize.w ?? 160) / 2, point.y + spec.dy - (def?.defaultSize.h ?? 84) / 2, {
       zIndex: z++,
       text: spec.label || def?.name || spec.key,
+      ...creationOverrides,
     });
     idByKey.set(spec.key, node.id);
     return node;
@@ -329,6 +333,7 @@ export function addCustomShapeNode(shapeDef, centerPoint) {
   const point = centerPoint || screenCenterCanvasPoint();
   const node = createNode(shapeDef, point.x - shapeDef.defaultSize.w / 2, point.y - shapeDef.defaultSize.h / 2, {
     zIndex: nextZIndex(state),
+    ...buildCreationOverrides(),
   });
   store.dispatch((draft) => {
     draft.nodes.push(node);
