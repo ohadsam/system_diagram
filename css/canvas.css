@@ -63,3 +63,11 @@
   outline: 2px solid var(--color-success) !important;
   outline-offset: 2px;
 }
+
+/* Dragging a "layer" sidebar item over a node — dropping attaches it as a
+   sub-component instead of placing a new standalone node. */
+.layer-drop-target {
+  outline: 2px dashed #0EA472 !important;
+  outline-offset: 3px;
+  background: rgba(14, 164, 114, 0.06);
+}

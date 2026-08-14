@@ -1,11 +1,12 @@
 # System Design Diagram Builder
 
 A 100% client-side web app for designing system architecture diagrams —
-drag components from a library of 300+ predefined items (AWS services,
-databases, caches, message queues, frameworks, DevOps tools, and more)
-onto a canvas, connect them with configurable arrows, style everything,
-and export the result. No backend, no build step, no account — everything
-lives in your browser.
+drag components from a library of 400+ predefined items (AWS services,
+databases, caches, message queues, frameworks, code-level layers like
+Controller/Service/DAL, and ready-made design pattern blueprints like
+MVC/CQRS/API Gateway) onto a canvas, connect them with configurable
+arrows, style everything, and export the result. No backend, no build
+step, no account — everything lives in your browser.
 
 ## Quick start
 
@@ -21,11 +22,20 @@ Or open `index.html` directly in a browser.
 
 ## Features
 
-- **Huge component library** — 300+ predefined components across 19
+- **Huge component library** — 400+ predefined components across 21
   categories (AWS, Databases, Cache, Messaging, Monitoring, DevOps,
   Containers, Networking, Security, Servers, Client/Frontend, Frontend &
   Backend frameworks, Storage, Logging, AI/ML, Cloud providers, Basic
   shapes, and more), searchable and alphabetically sorted.
+- **Layers & Roles** — ~100 code-level building blocks (Controller,
+  Service, DAL, Authentication, React Hook, Angular Guard, DDD terms, ...).
+  Drag one onto an existing component to attach it as a sub-component, or
+  add it via that component's details panel (with autocomplete).
+- **Design Patterns** — 24 one-click blueprints (MVC, MVVM, Layered
+  Architecture, Repository, CQRS, API Gateway, Circuit Breaker,
+  Publish-Subscribe, Saga, Hexagonal Architecture, Singleton, Observer,
+  Strategy, and more) that drop a whole ready-made cluster of connected
+  components onto the canvas at once.
 - **Full canvas editing** — drag, resize, multi-select, duplicate, delete,
   rename inline, pan/zoom, right-click context menu.
 - **Connectors** — drag between components to draw arrows with

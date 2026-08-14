@@ -7,6 +7,8 @@ import { getComponentById } from '../data/index.js';
 import { getCustomComponents } from '../io/customComponents.js';
 import { el, svgEl } from '../utils/dom.js';
 import { rectsIntersect } from '../core/geometry.js';
+import { nextId } from '../core/id.js';
+import { showToast } from '../utils/toast.js';
 import * as viewport from './viewport.js';
 import { createNodeEl, updateNodeEl, configureNodeHandlers } from './node.js';
 import { attachNodeInteractions } from './nodeInteractions.js';
@@ -238,7 +240,7 @@ export function focusEdge(edgeId) {
 }
 
 /** Looks up a component definition by id across both the built-in library and the user's custom "My Components". */
-function resolveComponentDef(defId) {
+export function resolveComponentDef(defId) {
   return getComponentById(defId) || getCustomComponents().find((c) => c.id === defId) || null;
 }
 
@@ -260,6 +262,66 @@ export function createNodeFromDrop(defId, clientX, clientY) {
 export function addComponentAtCenter(defId) {
   const rect = viewportEl.getBoundingClientRect();
   createNodeFromDrop(defId, rect.left + rect.width / 2, rect.top + rect.height / 2);
+}
+
+/** Attaches a "layer" component (see data/categories/layers.js) as a
+ * sub-component of an existing node, instead of creating a standalone node. */
+export function addLayerToNode(defId, nodeId) {
+  const def = resolveComponentDef(defId);
+  const targetExists = store.getState().nodes.some((n) => n.id === nodeId);
+  if (!def || !targetExists) return;
+  store.dispatch((draft) => {
+    const n = draft.nodes.find((x) => x.id === nodeId);
+    if (n) n.subComponents.push({ id: nextId('sc'), name: def.name, icon: def.icon });
+  });
+  store.select([nodeId], []);
+  focusNode(nodeId);
+  showToast(`Added "${def.name}" to the selected component.`, 'success', 1800);
+}
+
+/** Instantiates a whole "design pattern" (see data/categories/design-patterns.js)
+ * as a cluster of real nodes + connecting edges, positioned around `clientX/clientY`
+ * (or the current view's center if omitted). Every generated node reuses a
+ * real component/layer def for consistent styling. */
+export function instantiatePattern(defId, clientX, clientY) {
+  const patternDef = resolveComponentDef(defId);
+  if (!patternDef?.pattern) return;
+  const point = clientX != null && clientY != null
+    ? viewport.screenToCanvas(clientX, clientY)
+    : screenCenterCanvasPoint();
+
+  const state = store.getState();
+  let z = nextZIndex(state);
+  const idByKey = new Map();
+  const newNodes = patternDef.pattern.nodes.map((spec) => {
+    const def = resolveComponentDef(spec.defId);
+    const node = createNode(def, point.x + spec.dx - (def?.defaultSize.w ?? 160) / 2, point.y + spec.dy - (def?.defaultSize.h ?? 84) / 2, {
+      zIndex: z++,
+      text: spec.label || def?.name || spec.key,
+    });
+    idByKey.set(spec.key, node.id);
+    return node;
+  });
+  const newEdges = (patternDef.pattern.edges || [])
+    .filter((edgeSpec) => idByKey.has(edgeSpec.from) && idByKey.has(edgeSpec.to))
+    .map((edgeSpec) => createEdge(idByKey.get(edgeSpec.from), idByKey.get(edgeSpec.to), {
+      label: edgeSpec.label || '',
+      routing: edgeSpec.routing || 'orthogonal',
+      dash: edgeSpec.dash || 'solid',
+      startArrow: edgeSpec.startArrow || 'none',
+      endArrow: edgeSpec.endArrow || 'filled',
+    }));
+
+  store.dispatch((draft) => {
+    draft.nodes.push(...newNodes);
+    draft.edges.push(...newEdges);
+  });
+  store.select(newNodes.map((nd) => nd.id), []);
+  showToast(`Added the "${patternDef.name}" pattern (${newNodes.length} components).`, 'success', 2400);
+}
+
+export function instantiatePatternAtCenter(defId) {
+  instantiatePattern(defId, null, null);
 }
 
 export function addCustomShapeNode(shapeDef, centerPoint) {

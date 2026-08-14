@@ -203,6 +203,7 @@
     <ul>
       <li><a href="#getting-started">Getting started</a></li>
       <li><a href="#library">Component library</a></li>
+      <li><a href="#layers-patterns">Layers &amp; design patterns</a></li>
       <li><a href="#canvas">Working on the canvas</a></li>
       <li><a href="#styling">Styling components</a></li>
       <li><a href="#connectors">Connectors &amp; arrows</a></li>
@@ -242,6 +243,22 @@
         <li><strong>Click to add</strong> — on touch devices (or if you just want it centered), a single tap/click drops the component in the middle of your current view.</li>
         <li><strong>My Components</strong> — your own saved components (see "Custom components" below) appear in their own category at the top, with right-click Edit/Delete.</li>
       </ul>
+    </section>
+
+    <section id="layers-patterns">
+      <h2><span class="icon-badge">🧱</span> Layers &amp; design patterns</h2>
+      <h3>Layers &amp; Roles</h3>
+      <p>This category holds ~100 code-level building blocks — Controller, Service, DAL, Authentication, React Hook, Angular Guard, DDD terms, and more. They behave differently from other components:</p>
+      <ul>
+        <li><strong>Drag one onto an existing component</strong> and it attaches as a sub-component of that component instead of becoming a separate box — you'll see a green dashed outline previewing this while you drag.</li>
+        <li><strong>Click one while a single component is selected</strong> to attach it the same way without dragging.</li>
+        <li>Dropped on empty canvas (or with nothing selected), it's placed as a normal standalone component instead.</li>
+        <li>You can also add these from a component's details panel (ⓘ button) — the sub-component name field autocompletes against this same library and fills in the matching icon.</li>
+      </ul>
+      <p><span class="mock-node">🎮 API Server <small style="opacity:.7">+ Controller, + Auth</small></span></p>
+      <h3>Design Patterns</h3>
+      <p>This category holds 24 ready-made architecture blueprints — MVC, MVVM, Layered Architecture, Repository, CQRS, API Gateway, Circuit Breaker, Publish-Subscribe, Event Sourcing, Saga, Hexagonal Architecture, Cache-Aside, plus classic patterns like Singleton, Observer, Strategy, Adapter and Decorator. Dragging or clicking one instantiates the <em>whole cluster</em> at once — every component and connector it needs, positioned and selected together so you can immediately move or restyle the group, or undo it as a single step.</p>
+      <div class="tip">💡 Pattern components reuse the same styling as the regular library, so once dropped in they're just normal components — resize, restyle, rename, or delete any of them individually.</div>
     </section>
 
     <section id="canvas">

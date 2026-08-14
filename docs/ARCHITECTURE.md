@@ -73,6 +73,29 @@ category), and asserts id-uniqueness (thrown in dev, tested in
 to the right category file. Adding a whole new category is: new file +
 one import line in `index.js`.
 
+Two categories carry an extra `kind` field that changes how the canvas
+handles them instead of the default single-node placement:
+
+- **`categories/layers.js`** (`kind: 'layer'`) — code-level building
+  blocks (Controller, Service, DAL, React Hook, ...). `sidebar/dragSource.js`
+  checks `resolveComponentDef(defId).kind` on drop: dropped on an existing
+  `.node` element it calls `canvas.js#addLayerToNode(defId, nodeId)`
+  (pushes into that node's `subComponents`, no new node created); dropped
+  on empty canvas it falls through to the normal `createNodeFromDrop` path.
+  The same library backs the details panel's sub-component name
+  `<datalist>` (`utils/layerDatalist.js`) so typing "Controller" there
+  autocompletes and auto-fills its icon.
+- **`categories/design-patterns.js`** (`kind: 'pattern'`, built with
+  `definePattern()` in `schema.js`) — a blueprint of `{key, defId, dx, dy,
+  label?}` nodes and `{from, to, ...edgeStyle}` edges, where every node's
+  `defId` references a *real* component/layer elsewhere in the library.
+  `canvas.js#instantiatePattern(defId, clientX, clientY)` resolves each
+  node's def, creates real nodes offset from the drop point (`dx`/`dy`),
+  builds the edges by mapping blueprint `key`s to the new node ids, and
+  pushes everything to the store in one dispatch (one undo step). Reusing
+  real defIds means pattern nodes get correct styling for free and the
+  blueprint data stays tiny — no node-shape/color duplication.
+
 ## Persistence (`io/`)
 
 - `storage.js`: thin wrapper around `localStorage` with a versioned key

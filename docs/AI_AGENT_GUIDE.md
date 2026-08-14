@@ -37,6 +37,8 @@ this repo" quick-start.
 |-------------------------------------------------|------------|
 | Add a predefined component                       | `js/data/categories/<category>.js` |
 | Add a new category                                | new file in `js/data/categories/` + import in `js/data/index.js` |
+| Add a "layer/role" (attachable to any node)       | `js/data/categories/layers.js` — just `c(id, name, icon, { kind: 'layer', ... })` |
+| Add a "design pattern" (multi-node blueprint)     | `js/data/categories/design-patterns.js` — `definePattern(id, name, icon, { nodes, edges })`, node `defId`s must reference real components/layers |
 | Change node drag/resize behavior                  | `js/canvas/nodeInteractions.js` |
 | Change arrow routing/markers                      | `js/canvas/connector.js`, `connectorInteractions.js` |
 | Add a toolbar button                              | `js/toolbar/toolbar.js` (+ new module if it needs its own state) |
@@ -77,3 +79,11 @@ npm test
   than using raw client coordinates.
 - Sidebar drag uses pointer events, not HTML5 DnD — don't mix the two
   paradigms when extending it.
+- Every `components` array entry (including `layer`/`pattern` kinds) still
+  needs `defaultSize`/`shape`/`color`/`fill` even if a pattern never
+  renders as a single node — `componentData.test.mjs` checks every
+  library entry has them, and other code paths assume they exist.
+- A pattern's node `defId`s must resolve via `canvas.js#resolveComponentDef`
+  (built-ins *or* custom "My Components") and its edges must only
+  reference `key`s that exist in its own `nodes` list —
+  `componentData.test.mjs` checks both.

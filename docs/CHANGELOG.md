@@ -29,3 +29,21 @@ Keep this in sync with `PLAN.md` as stages complete.
   beyond swallowing the browser's Save Page dialog while typing).
   Added: the mobile sidebar drawer now auto-closes after a component is
   placed or the canvas is tapped, instead of requiring an extra tap.
+
+## Unreleased (2)
+
+- Added **Layers & Roles** category (~97 items: Controller, Service, DAL,
+  Authentication, React Hook, Angular Guard, DDD building blocks, ...).
+  Drag one onto an existing node to attach it as a sub-component (green
+  dashed drop highlight); drop/click on empty canvas places it as a
+  normal standalone node. The details panel's sub-component name field
+  now autocompletes against this library and auto-fills the icon.
+- Added **Design Patterns** category (24 blueprints: MVC, MVVM, Layered
+  Architecture, Repository, CQRS, API Gateway, Circuit Breaker,
+  Publish-Subscribe, Event Sourcing, Saga, Sidecar, Strangler Fig, BFF,
+  Hexagonal Architecture, Service Discovery, Cache-Aside, Rate Limiting,
+  plus classic GoF patterns Singleton/Factory Method/Observer/Strategy/
+  Adapter/Decorator). Dropping or clicking one instantiates the whole
+  cluster of nodes + connectors at once, positioned around the drop
+  point, selected together as a single undo step.
+- Library now totals ~430 components across 21 categories.

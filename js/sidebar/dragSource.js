@@ -1,7 +1,11 @@
 // Pointer-based (mouse + touch) drag from a sidebar item onto the canvas.
 // Deliberately not HTML5 Drag & Drop — see docs/ARCHITECTURE.md.
 import { el } from '../utils/dom.js';
-import { createNodeFromDrop, addComponentAtCenter } from '../canvas/canvas.js';
+import * as store from '../core/store.js';
+import {
+  createNodeFromDrop, addComponentAtCenter, addLayerToNode, instantiatePattern,
+  instantiatePatternAtCenter, resolveComponentDef,
+} from '../canvas/canvas.js';
 
 const DRAG_THRESHOLD = 5;
 
@@ -15,9 +19,11 @@ function closeMobileSidebarDrawer() {
 export function makeDraggable(itemEl, defId) {
   itemEl.addEventListener('pointerdown', (e) => {
     if (e.button !== undefined && e.button !== 0) return;
+    const def = resolveComponentDef(defId);
     const start = { x: e.clientX, y: e.clientY };
     let dragging = false;
     let ghost = null;
+    let hoveredNodeEl = null;
 
     const onMove = (ev) => {
       const dx = ev.clientX - start.x;
@@ -31,8 +37,12 @@ export function makeDraggable(itemEl, defId) {
       if (dragging && ghost) {
         ghost.style.left = `${ev.clientX + 12}px`;
         ghost.style.top = `${ev.clientY + 12}px`;
-        const overCanvas = !!document.elementFromPoint(ev.clientX, ev.clientY)?.closest('.canvas-viewport');
-        ghost.classList.toggle('drop-ready', overCanvas);
+        const elAtPoint = document.elementFromPoint(ev.clientX, ev.clientY);
+        const nodeElUnder = def?.kind === 'layer' ? elAtPoint?.closest('.node') : null;
+        if (hoveredNodeEl && hoveredNodeEl !== nodeElUnder) hoveredNodeEl.classList.remove('layer-drop-target');
+        if (nodeElUnder) nodeElUnder.classList.add('layer-drop-target');
+        hoveredNodeEl = nodeElUnder || null;
+        ghost.classList.toggle('drop-ready', !!(nodeElUnder || elAtPoint?.closest('.canvas-viewport')));
       }
     };
 
@@ -40,13 +50,29 @@ export function makeDraggable(itemEl, defId) {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       itemEl.classList.remove('dragging-source');
+      hoveredNodeEl?.classList.remove('layer-drop-target');
+
       if (dragging) {
-        const overCanvas = document.elementFromPoint(ev.clientX, ev.clientY)?.closest('.canvas-viewport');
-        if (overCanvas) {
+        const elAtPoint = document.elementFromPoint(ev.clientX, ev.clientY);
+        const targetNodeId = elAtPoint?.closest('.node')?.dataset.nodeId;
+        const overCanvas = elAtPoint?.closest('.canvas-viewport');
+        if (def?.kind === 'layer' && targetNodeId) {
+          addLayerToNode(defId, targetNodeId);
+          closeMobileSidebarDrawer();
+        } else if (def?.kind === 'pattern' && overCanvas) {
+          instantiatePattern(defId, ev.clientX, ev.clientY);
+          closeMobileSidebarDrawer();
+        } else if (overCanvas) {
           createNodeFromDrop(defId, ev.clientX, ev.clientY);
           closeMobileSidebarDrawer();
         }
         ghost?.remove();
+      } else if (def?.kind === 'pattern') {
+        instantiatePatternAtCenter(defId);
+        closeMobileSidebarDrawer();
+      } else if (def?.kind === 'layer' && store.getSelection().nodeIds.length === 1) {
+        addLayerToNode(defId, store.getSelection().nodeIds[0]);
+        closeMobileSidebarDrawer();
       } else {
         addComponentAtCenter(defId);
         closeMobileSidebarDrawer();

@@ -13,12 +13,16 @@
  * @param {string[]} [opts.tags] extra search keywords
  * @param {{name:string, icon:string}[]} [opts.subComponents] pre-attached sub-components
  * @param {{w:number,h:number}} [opts.defaultSize]
+ * @param {'component'|'layer'} [opts.kind] 'layer' items (see categories/layers.js)
+ *   can also be dropped onto an existing node (or added via its details panel)
+ *   to attach as one of its sub-components, instead of only standing alone.
  */
 export function c(id, name, icon, opts = {}) {
   return {
     id,
     name,
     icon,
+    kind: opts.kind || 'component',
     shape: opts.shape || 'rounded',
     color: opts.color || '#4F46E5',
     fill: opts.fill || tint(opts.color || '#4F46E5'),
@@ -26,6 +30,33 @@ export function c(id, name, icon, opts = {}) {
     tags: opts.tags || [],
     subComponents: opts.subComponents || [],
     defaultSize: opts.defaultSize || { w: 160, h: 84 },
+  };
+}
+
+/**
+ * Defines a "design pattern": not a single placeable node but a small
+ * blueprint of nodes (each referencing a real component/layer defId, with a
+ * position offset from the drop point) and the edges connecting them.
+ * Dropping/clicking a pattern in the sidebar instantiates the whole cluster
+ * at once — see canvas/canvas.js#instantiatePattern.
+ *
+ * @param {{key:string, defId:string, dx:number, dy:number, label?:string}[]} nodes
+ * @param {{from:string, to:string, label?:string, dash?:string, startArrow?:string, endArrow?:string, routing?:string}[]} edges
+ */
+export function definePattern(id, name, icon, { description = '', tags = [], nodes, edges } = {}) {
+  return {
+    id,
+    name,
+    icon,
+    kind: 'pattern',
+    shape: 'rounded',
+    color: '#0F766E',
+    fill: '#F0FDFA',
+    description,
+    tags,
+    subComponents: [],
+    defaultSize: { w: 1, h: 1 }, // patterns never render as a single node — see instantiatePattern
+    pattern: { nodes, edges: edges || [] },
   };
 }
 

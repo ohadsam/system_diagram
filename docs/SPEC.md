@@ -55,13 +55,45 @@ owner; code/UI/comments are English only.
 - Components grouped by category (AWS, Databases, Cache, Messaging,
   Monitoring, DevOps, Containers, Networking, Security, Storage, Servers,
   Client/Frontend, Frontend Frameworks, Backend Frameworks, Logging,
-  AI/ML, Cloud Providers, Basic Shapes, Misc).
+  AI/ML, Cloud Providers, Basic Shapes, Layers & Roles, Design Patterns,
+  Misc).
 - Categories sorted A→Z; components inside each category sorted A→Z.
 - Search box filters across all categories by name/tag/description, with
   live highlighting and auto-expanding matched categories.
 - Drag-and-drop (pointer-based, works with mouse & touch) from sidebar to
   canvas creates a node. Predefined sub-components (if any) are attached to
   the new node automatically.
+
+#### 4.2.1 Layers & Roles
+A `kind: 'layer'` item (Controller, Service, DAL, Authentication, React
+Hook, Angular Guard, DDD building blocks, ~100 items total — see
+`js/data/categories/layers.js`) represents a code-level building block
+rather than an infrastructure component. Unlike other items:
+- Dropping one **onto an existing node** attaches it as a sub-component of
+  that node instead of creating a separate node (a green dashed outline
+  previews the attach target while dragging).
+- Clicking one while exactly one node is selected attaches it to that
+  node the same way; otherwise (or when dropped on empty canvas) it's
+  placed as a normal standalone node.
+- The details panel's "Add sub-component" name field also autocompletes
+  against this same library and auto-fills the matching icon — see 4.6.
+- **Design decision**: this is one flat, richly-tagged, searchable
+  category rather than a duplicate list nested under every top-level
+  category. A layer like "Controller" or "Auth" is equally relevant to a
+  Server, a Lambda, or an AWS ECS task, so one findable list (search +
+  `tags` like `backend`/`frontend`/`ddd`/`security`) scales better than
+  ~20 near-identical copies. Extending it is one line in `layers.js`.
+
+#### 4.2.2 Design Patterns
+A `kind: 'pattern'` item (MVC, Repository, CQRS, API Gateway, Circuit
+Breaker, Saga, Hexagonal Architecture, plus a few classic GoF patterns
+like Singleton/Observer/Strategy/Adapter/Decorator — ~24 total, see
+`js/data/categories/design-patterns.js`) is not a single placeable
+component. Dropping or clicking one instantiates a whole small cluster of
+real nodes (each reusing an existing component/layer definition, so
+styling stays consistent for free) plus the connectors between them, laid
+out relative to the drop point and selected together afterwards so they
+can be immediately restyled or moved as a group.
 
 ### 4.3 Canvas node interactions
 - Drag to move, resize via handles, rotate not required.

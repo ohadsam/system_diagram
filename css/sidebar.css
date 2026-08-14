@@ -98,6 +98,36 @@
   background: var(--color-surface-alt);
 }
 
+.sidebar-item[data-kind="layer"] {
+  background: linear-gradient(to right, transparent, transparent);
+  border-left: 2px solid #0EA47233;
+}
+
+.sidebar-item[data-kind="pattern"] {
+  border-left: 2px solid #0F766E33;
+}
+
+.item-kind-badge {
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  font-size: 9px;
+  line-height: 15px;
+  text-align: center;
+  color: #fff;
+  opacity: 0.85;
+}
+
+.item-kind-badge.kind-layer {
+  background: #0EA472;
+}
+
+.item-kind-badge.kind-pattern {
+  background: #0F766E;
+  font-size: 8px;
+}
+
 .sidebar-item.dragging-source {
   opacity: 0.4;
 }

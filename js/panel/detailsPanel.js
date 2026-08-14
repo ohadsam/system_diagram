@@ -4,6 +4,7 @@ import * as store from '../core/store.js';
 import { el, clear } from '../utils/dom.js';
 import { nextId } from '../core/id.js';
 import { textInput } from '../utils/formControls.js';
+import { LAYER_DATALIST_ID, ensureLayerDatalist, findLayerByName } from '../utils/layerDatalist.js';
 
 let rootEl = null;
 let currentNodeId = null;
@@ -11,6 +12,7 @@ let currentNodeId = null;
 export function initDetailsPanel(root) {
   rootEl = root;
   rootEl.classList.add('details-panel');
+  ensureLayerDatalist();
 
   window.addEventListener('sdb:open-details', (e) => open(e.detail.nodeId));
   store.subscribe('change', () => {
@@ -110,7 +112,21 @@ function renderSubComponents(node) {
   (node.subComponents || []).forEach((sc, idx) => {
     const row = el('div', { class: 'field-row subcomponent-row' });
     row.appendChild(textInput(sc.icon, (v) => updateNode((n) => { n.subComponents[idx].icon = v; }), { maxLength: 4, class: 'sub-icon-input', placeholder: '🔧' }));
-    row.appendChild(textInput(sc.name, (v) => updateNode((n) => { n.subComponents[idx].name = v; }), { placeholder: 'Sub-component name' }));
+
+    const nameInput = textInput(sc.name, (v) => updateNode((n) => { n.subComponents[idx].name = v; }), {
+      placeholder: 'Name — try "Controller", "DAL", "React Hook"…',
+      list: LAYER_DATALIST_ID,
+    });
+    nameInput.addEventListener('change', () => {
+      const match = findLayerByName(nameInput.value);
+      if (!match) return;
+      updateNode((n) => {
+        const item = n.subComponents[idx];
+        if (item && !item.icon) item.icon = match.icon;
+      });
+    });
+    row.appendChild(nameInput);
+
     row.appendChild(el('button', {
       type: 'button', class: 'btn btn-icon', text: '×', 'aria-label': 'Remove sub-component',
       onClick: () => updateNode((n) => n.subComponents.splice(idx, 1)),
@@ -121,6 +137,7 @@ function renderSubComponents(node) {
     type: 'button', class: 'btn btn-secondary', text: '+ Add sub-component',
     onClick: () => updateNode((n) => { n.subComponents = [...(n.subComponents || []), { id: nextId('sc'), name: '', icon: '' }]; }),
   }));
+  wrap.appendChild(el('p', { class: 'modal-hint', text: 'Tip: names matching the Layers & Roles library (Controller, Service, DAL, React Hook, …) auto-fill their icon.' }));
   return wrap;
 }
 

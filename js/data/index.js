@@ -9,8 +9,10 @@ import * as client from './categories/client.js';
 import * as cloudProviders from './categories/cloud-providers.js';
 import * as containers from './categories/containers.js';
 import * as databases from './categories/databases.js';
+import * as designPatterns from './categories/design-patterns.js';
 import * as devops from './categories/devops.js';
 import * as frontendFrameworks from './categories/frontend-frameworks.js';
+import * as layers from './categories/layers.js';
 import * as logging from './categories/logging.js';
 import * as messaging from './categories/messaging.js';
 import * as misc from './categories/misc.js';
@@ -23,8 +25,8 @@ import * as storage from './categories/storage.js';
 
 const MODULES = [
   aiMl, aws, backendFrameworks, cache, client, cloudProviders, containers,
-  databases, devops, frontendFrameworks, logging, messaging, misc,
-  monitoring, networking, security, servers, shapes, storage,
+  databases, designPatterns, devops, frontendFrameworks, layers, logging,
+  messaging, misc, monitoring, networking, security, servers, shapes, storage,
 ];
 
 function build() {
@@ -63,4 +65,10 @@ export function getComponentById(id) {
 
 export function getComponentsForCategory(categoryId) {
   return COMPONENTS_BY_CATEGORY.get(categoryId) || [];
+}
+
+/** All "layer" components (see categories/layers.js), used by the details
+ * panel's sub-component autocomplete and by drag-onto-node attachment. */
+export function getLayerComponents() {
+  return ALL_COMPONENTS.filter((comp) => comp.kind === 'layer');
 }

@@ -105,18 +105,22 @@ function renderCategory(cat, matches, q) {
 }
 
 function renderItem(def, q, isCustom) {
+  const kindLabel = def.kind === 'layer' ? 'Drag onto a component to attach, or click to add standalone: ' : def.kind === 'pattern' ? 'Drag or click to add this whole pattern: ' : '';
   const item = el('div', {
     class: 'sidebar-item',
     'data-name': def.name,
-    title: def.description || def.name,
+    'data-kind': def.kind,
+    title: `${kindLabel}${def.description || def.name}`,
     tabIndex: 0,
     role: 'button',
-    'aria-label': `Add ${def.name}`,
+    'aria-label': def.kind === 'layer' ? `Add or attach layer ${def.name}` : def.kind === 'pattern' ? `Add pattern ${def.name}` : `Add ${def.name}`,
   });
   item.appendChild(el('span', { class: 'item-icon', text: def.icon, 'aria-hidden': 'true' }));
   const nameEl = el('span', { class: 'item-name' });
   renderHighlighted(nameEl, def.name, q);
   item.appendChild(nameEl);
+  if (def.kind === 'layer') item.appendChild(el('span', { class: 'item-kind-badge kind-layer', text: '+', title: 'Can attach to a component', 'aria-hidden': 'true' }));
+  if (def.kind === 'pattern') item.appendChild(el('span', { class: 'item-kind-badge kind-pattern', text: '⎈', title: 'Adds a group of components', 'aria-hidden': 'true' }));
 
   makeDraggable(item, def.id);
   item.addEventListener('keydown', (e) => {

@@ -7,6 +7,7 @@ import { SHAPES } from '../core/project.js';
 import { saveCustomComponent, exportCustomComponents, importCustomComponents } from '../io/customComponents.js';
 import { pickJSONFile } from '../io/fileIO.js';
 import { showToast } from '../utils/toast.js';
+import { LAYER_DATALIST_ID, ensureLayerDatalist, findLayerByName } from '../utils/layerDatalist.js';
 
 const SHAPE_LABELS = {
   rect: 'Rectangle', rounded: 'Rounded rectangle', circle: 'Circle', diamond: 'Diamond',
@@ -56,7 +57,12 @@ export function openCustomComponentModal({ editDef = null, seedFromNode = null }
         model.subComponents.forEach((sc, idx) => {
           const row = el('div', { class: 'field-row subcomponent-row' });
           row.appendChild(textInput(sc.icon, (v) => { sc.icon = v; }, { maxLength: 4, class: 'sub-icon-input', placeholder: '🔧' }));
-          row.appendChild(textInput(sc.name, (v) => { sc.name = v; }, { placeholder: 'Sub-component name' }));
+          const nameInput = textInput(sc.name, (v) => { sc.name = v; }, { placeholder: 'Name — try "Controller", "DAL"…', list: LAYER_DATALIST_ID });
+          nameInput.addEventListener('change', () => {
+            const match = findLayerByName(nameInput.value);
+            if (match && !sc.icon) { sc.icon = match.icon; renderSubs(); }
+          });
+          row.appendChild(nameInput);
           row.appendChild(el('button', {
             type: 'button', class: 'btn btn-icon', text: '×', 'aria-label': 'Remove',
             onClick: () => { model.subComponents.splice(idx, 1); renderSubs(); },
