@@ -88,3 +88,12 @@ test('pattern node keys are unique within each pattern (no ambiguous edge target
     assert.equal(new Set(keys).size, keys.length, `pattern "${pattern.id}" has duplicate node keys`);
   }
 });
+
+test('the "AI Providers & Agents" category is rich and covers providers, models, MCP, agents and skills', () => {
+  const aiAgents = getComponentsForCategory('ai-agents');
+  assert.ok(aiAgents.length >= 40, `expected at least 40 AI Providers & Agents items, got ${aiAgents.length}`);
+  const names = aiAgents.map((c) => c.name).join(' | ');
+  for (const expected of ['OpenAI', 'Anthropic', 'MCP Server', 'AI Agent', 'Skill']) {
+    assert.ok(names.includes(expected), `expected "${expected}" to be present in AI Providers & Agents`);
+  }
+});

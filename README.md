@@ -1,10 +1,11 @@
 # System Design Diagram Builder
 
 A 100% client-side web app for designing system architecture diagrams —
-drag components from a library of 400+ predefined items (AWS services,
+drag components from a library of 480+ predefined items (AWS services,
 databases, caches, message queues, frameworks, code-level layers like
-Controller/Service/DAL, and ready-made design pattern blueprints like
-MVC/CQRS/API Gateway) onto a canvas, connect them with configurable
+Controller/Service/DAL, ready-made design pattern blueprints like
+MVC/CQRS/API Gateway, and generative-AI building blocks like model
+providers/MCP/agents) onto a canvas, connect them with configurable
 arrows, style everything, and export the result. No backend, no build
 step, no account — everything lives in your browser.
 
@@ -22,11 +23,18 @@ Or open `index.html` directly in a browser.
 
 ## Features
 
-- **Huge component library** — 400+ predefined components across 21
+- **Huge component library** — 480+ predefined components across 22
   categories (AWS, Databases, Cache, Messaging, Monitoring, DevOps,
   Containers, Networking, Security, Servers, Client/Frontend, Frontend &
   Backend frameworks, Storage, Logging, AI/ML, Cloud providers, Basic
   shapes, and more), searchable and alphabetically sorted.
+- **AI Providers & Agents** — ~57 generative-AI building blocks: model
+  providers (OpenAI, Anthropic, Google, Bedrock, Azure OpenAI, Mistral,
+  Cohere, Hugging Face, Ollama, ...), model families (GPT, Claude,
+  Gemini, Llama, Whisper, DALL·E, ...), MCP (Server/Client/Tool/Resource/
+  Prompt), agents & agent frameworks (LangGraph, AutoGen, CrewAI,
+  Semantic Kernel, LlamaIndex), and skills/tools/RAG (Skill, System
+  Prompt, RAG Pipeline, Knowledge Base, Guardrails, Function Calling).
 - **Layers & Roles** — ~100 code-level building blocks (Controller,
   Service, DAL, Authentication, React Hook, Angular Guard, DDD terms, ...).
   Drag one onto an existing component to attach it as a sub-component, or

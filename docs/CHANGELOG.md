@@ -47,3 +47,19 @@ Keep this in sync with `PLAN.md` as stages complete.
   cluster of nodes + connectors at once, positioned around the drop
   point, selected together as a single undo step.
 - Library now totals ~430 components across 21 categories.
+
+## Unreleased (3)
+
+- Added **AI Providers & Agents** category (~57 items): model providers
+  (OpenAI, Anthropic, Google, AWS Bedrock, Azure OpenAI, Mistral, Cohere,
+  Hugging Face, Ollama, Groq, ...), specific model families (GPT, Claude,
+  Gemini, Llama, Whisper, DALL·E, Stable Diffusion, ...), the Model
+  Context Protocol (MCP Server/Client/Tool/Resource/Prompt), agents and
+  agent frameworks (LangGraph, AutoGen, CrewAI, Semantic Kernel,
+  LlamaIndex, agent memory/planner/orchestrator), and the skills/tools/RAG
+  building blocks around them (Skill, Skill Library, System Prompt, Prompt
+  Template, RAG Pipeline, Knowledge Base, Guardrails, Fine-Tuning Job,
+  Function/Tool Calling). A plain component category — no special
+  attach/instantiate behavior, complements the existing AI/ML (ML infra)
+  category rather than duplicating it.
+- Library now totals ~490 components across 22 categories.

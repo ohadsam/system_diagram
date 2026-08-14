@@ -2,6 +2,7 @@
 // To add a category: create js/data/categories/<name>.js exporting
 // { category, components } and add one import + entry below.
 import * as aiMl from './categories/ai-ml.js';
+import * as aiProvidersAgents from './categories/ai-providers-agents.js';
 import * as aws from './categories/aws.js';
 import * as backendFrameworks from './categories/backend-frameworks.js';
 import * as cache from './categories/cache.js';
@@ -24,8 +25,8 @@ import * as shapes from './categories/shapes.js';
 import * as storage from './categories/storage.js';
 
 const MODULES = [
-  aiMl, aws, backendFrameworks, cache, client, cloudProviders, containers,
-  databases, designPatterns, devops, frontendFrameworks, layers, logging,
+  aiMl, aiProvidersAgents, aws, backendFrameworks, cache, client, cloudProviders,
+  containers, databases, designPatterns, devops, frontendFrameworks, layers, logging,
   messaging, misc, monitoring, networking, security, servers, shapes, storage,
 ];
 

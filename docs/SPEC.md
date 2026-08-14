@@ -55,8 +55,8 @@ owner; code/UI/comments are English only.
 - Components grouped by category (AWS, Databases, Cache, Messaging,
   Monitoring, DevOps, Containers, Networking, Security, Storage, Servers,
   Client/Frontend, Frontend Frameworks, Backend Frameworks, Logging,
-  AI/ML, Cloud Providers, Basic Shapes, Layers & Roles, Design Patterns,
-  Misc).
+  AI/ML, AI Providers & Agents, Cloud Providers, Basic Shapes,
+  Layers & Roles, Design Patterns, Misc).
 - Categories sorted A→Z; components inside each category sorted A→Z.
 - Search box filters across all categories by name/tag/description, with
   live highlighting and auto-expanding matched categories.
@@ -94,6 +94,21 @@ real nodes (each reusing an existing component/layer definition, so
 styling stays consistent for free) plus the connectors between them, laid
 out relative to the drop point and selected together afterwards so they
 can be immediately restyled or moved as a group.
+
+#### 4.2.3 AI Providers & Agents
+A normal (`kind: 'component'`) category covering the generative-AI world:
+model providers (OpenAI, Anthropic, Google, AWS Bedrock, Azure OpenAI,
+Mistral, Cohere, Hugging Face, Ollama, ...), specific model families (GPT,
+Claude, Gemini, Llama, Whisper, DALL·E, ...), the Model Context Protocol
+(MCP Server/Client/Tool/Resource/Prompt), agents and agent frameworks
+(LangGraph, AutoGen, CrewAI, Semantic Kernel, LlamaIndex, agent
+memory/planner/orchestrator), and the skills/tools/RAG building blocks
+around them (Skill, Skill Library, System Prompt, Prompt Template, RAG
+Pipeline, Knowledge Base, Guardrails, Fine-Tuning Job, Function/Tool
+Calling — ~57 items, see `js/data/categories/ai-providers-agents.js`).
+Complements the existing **AI / ML** category, which stays focused on
+general ML *infrastructure* (training pipelines, feature stores, vector
+DBs, MLflow, ...) rather than duplicating it.
 
 ### 4.3 Canvas node interactions
 - Drag to move, resize via handles, rotate not required.
