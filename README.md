@@ -62,10 +62,15 @@ Or open `index.html` directly in a browser.
   the close button; "server with rows" components manage their internal
   rows here too.
 - **Custom components & shapes** — build and save your own styled
-  components ("My Components"), or drop in basic shapes (rectangle,
-  circle, diamond, cylinder, cloud, sticky note, server-with-rows, ...).
+  components ("My Components", organizable into folders), or drop in
+  basic shapes (rectangle, circle, diamond, cylinder, cloud, sticky note,
+  server-with-rows, ...).
 - **Persistence** — continuous autosave to `localStorage`, named
-  "Save As" projects, and JSON import/export for backup/sharing.
+  "Save As" projects (with ⭐ favorites and a favorites filter), and JSON
+  import/export for backup/sharing at every level: a single project, the
+  whole My Components library, every saved project together, or a single
+  "🗄️ Backup & Restore" file with everything at once — all with automatic
+  name/id collision handling on import.
 - **Export** — PNG and PDF snapshots of your diagram.
 - **Dismissible hints** — a short first-run guided tour, restartable any
   time.

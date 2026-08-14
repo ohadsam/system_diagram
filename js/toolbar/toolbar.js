@@ -15,6 +15,7 @@ import { openLoadProjectModal } from '../modals/loadProjectModal.js';
 import { openCustomComponentModal } from '../modals/customComponentModal.js';
 import { openCustomShapeModal } from '../modals/customShapeModal.js';
 import { openDefaultSettingsModal } from '../modals/defaultSettingsModal.js';
+import { openBackupModal } from '../modals/backupModal.js';
 import { confirmAction } from '../modals/confirmModal.js';
 import { showToast } from '../utils/toast.js';
 import { readJSON, writeJSON } from '../io/storage.js';
@@ -149,7 +150,8 @@ function buildExportGroup() {
       if (!result.ok) showToast(result.error, 'error');
     },
   });
-  return group(exportJsonBtn, importJsonBtn, pngBtn, pdfBtn);
+  const backupBtn = el('button', { type: 'button', class: 'btn btn-icon', title: 'Backup & restore everything', text: '🗄️', onClick: openBackupModal });
+  return group(exportJsonBtn, importJsonBtn, pngBtn, pdfBtn, backupBtn);
 }
 
 function buildViewGroup() {

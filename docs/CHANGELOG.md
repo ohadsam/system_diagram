@@ -85,3 +85,27 @@ Keep this in sync with `PLAN.md` as stages complete.
 - New node fields: `iconVisible`, `textPosition`, `subComponentsDisplay`
   (see `docs/SPEC.md` 4.2.4, `docs/ARCHITECTURE.md` "Node label
   placement").
+
+## Unreleased (5)
+
+- Added **saved-project favorites**: a ⭐ toggle per project in the Load
+  modal, favorites sorted first, plus a "Favorites only" filter checkbox.
+  Favorite status survives re-saving the same project.
+- Added **bulk export/import for saved projects** ("Export all… / Import
+  all…" in the Load modal) and **bulk export/import for the whole My
+  Components library** (quick 📤/📥 icons on the sidebar's "My Components"
+  header) — both alongside the existing single-project/single-library
+  flows.
+- Added a **full project backup**: a new toolbar "🗄️ Backup & Restore"
+  modal exports/restores everything at once — the live canvas, global
+  default settings, the whole My Components library, and every saved
+  project — in one `.json` file. Restoring asks for confirmation first
+  since it replaces the current canvas and defaults.
+- Added **name/id collision handling** to every merge-style import (My
+  Components, saved projects, and full backup): an `id` match overwrites
+  the existing record; a `name` collision with a different `id` gets a
+  disambiguating suffix ("(imported)", "(imported 2)", ...) instead of
+  silently overwriting or duplicating by name.
+- Added **folders for "My Components"**: an optional free-text `folder`
+  field (with autocomplete) on custom components, grouping them into
+  collapsible 📁 sub-groups in the sidebar.

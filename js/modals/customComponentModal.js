@@ -8,6 +8,7 @@ import { saveCustomComponent, exportCustomComponents, importCustomComponents } f
 import { pickJSONFile } from '../io/fileIO.js';
 import { showToast } from '../utils/toast.js';
 import { LAYER_DATALIST_ID, ensureLayerDatalist, findLayerByName } from '../utils/layerDatalist.js';
+import { FOLDER_DATALIST_ID, ensureFolderDatalist } from '../utils/folderDatalist.js';
 
 const SHAPE_LABELS = {
   rect: 'Rectangle', rounded: 'Rounded rectangle', circle: 'Circle', diamond: 'Diamond',
@@ -25,10 +26,13 @@ export function openCustomComponentModal({ editDef = null, seedFromNode = null }
         color: seedFromNode?.stroke || '#4F46E5',
         fill: seedFromNode?.fill || '#EEF2FF',
         description: '',
+        folder: '',
         tags: [],
         subComponents: (seedFromNode?.subComponents || []).map((s) => ({ name: s.name, icon: s.icon })),
         defaultSize: seedFromNode ? { w: seedFromNode.w, h: seedFromNode.h } : { w: 160, h: 84 },
       };
+
+  ensureFolderDatalist();
 
   openModal({
     title: editDef ? 'Edit component' : 'New component',
@@ -48,6 +52,7 @@ export function openCustomComponentModal({ editDef = null, seedFromNode = null }
       form.appendChild(row2);
 
       form.appendChild(field('Description', textInput(model.description, (v) => { model.description = v; }, { placeholder: 'Shown as a tooltip in the sidebar' })));
+      form.appendChild(field('Folder (optional)', textInput(model.folder, (v) => { model.folder = v; }, { placeholder: 'e.g. "AWS", "Backend"…', list: FOLDER_DATALIST_ID })));
       form.appendChild(field('Tags (comma separated, helps search)', textInput(model.tags.join(', '), (v) => { model.tags = v.split(',').map((t) => t.trim()).filter(Boolean); })));
 
       form.appendChild(el('h3', { class: 'modal-subheading', text: 'Default sub-components' }));

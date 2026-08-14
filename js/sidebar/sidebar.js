@@ -1,19 +1,26 @@
 // Left sidebar: search box + categorized, alphabetically sorted, draggable
 // component library (built-in + the user's "My Components").
 import { CATEGORIES, COMPONENTS_BY_CATEGORY } from '../data/index.js';
-import { getCustomComponents, onCustomComponentsChange, deleteCustomComponent } from '../io/customComponents.js';
+import {
+  getCustomComponents, onCustomComponentsChange, deleteCustomComponent,
+  exportCustomComponents, importCustomComponents,
+} from '../io/customComponents.js';
 import { el, clear } from '../utils/dom.js';
 import { filterComponents, normalize } from './search.js';
 import { makeDraggable } from './dragSource.js';
 import { showContextMenu } from '../canvas/contextMenu.js';
 import { confirmAction } from '../modals/confirmModal.js';
+import { pickJSONFile } from '../io/fileIO.js';
+import { showToast } from '../utils/toast.js';
 
 const CUSTOM_CATEGORY = { id: '__custom__', label: 'My Components', color: '#0F172A' };
+const NO_FOLDER = '';
 
 let rootEl = null;
 let searchInput = null;
 let listEl = null;
 const expanded = new Map();
+const folderExpanded = new Map();
 let query = '';
 let editCustomComponentHandler = null;
 
@@ -76,10 +83,13 @@ function renderList() {
 }
 
 function renderCategory(cat, matches, q) {
+  const isCustom = cat.id === CUSTOM_CATEGORY.id;
   const isOpen = q ? true : expanded.get(cat.id);
   const wrap = el('div', { class: 'sidebar-category', 'data-open': isOpen ? 'true' : 'false' });
-  const header = el('button', {
-    class: 'category-header',
+
+  const header = el('div', { class: 'category-header' });
+  const toggle = el('button', {
+    class: 'category-toggle',
     type: 'button',
     'aria-expanded': String(isOpen),
     onClick: () => {
@@ -87,21 +97,82 @@ function renderCategory(cat, matches, q) {
       renderList();
     },
   });
-  header.appendChild(el('span', { class: 'category-dot', style: `background:${cat.color}` }));
-  header.appendChild(el('span', { class: 'category-label', text: cat.label }));
-  header.appendChild(el('span', { class: 'category-count', text: String(matches.length) }));
-  header.appendChild(el('span', { class: 'category-chevron', text: '▸' }));
+  toggle.appendChild(el('span', { class: 'category-dot', style: `background:${cat.color}` }));
+  toggle.appendChild(el('span', { class: 'category-label', text: cat.label }));
+  toggle.appendChild(el('span', { class: 'category-count', text: String(matches.length) }));
+  toggle.appendChild(el('span', { class: 'category-chevron', text: '▸' }));
+  header.appendChild(toggle);
+
+  if (isCustom) {
+    header.appendChild(el('button', {
+      type: 'button', class: 'category-icon-btn', title: 'Export My Components…', 'aria-label': 'Export My Components', text: '📤',
+      onClick: (e) => { e.stopPropagation(); exportCustomComponents(); },
+    }));
+    header.appendChild(el('button', {
+      type: 'button', class: 'category-icon-btn', title: 'Import My Components…', 'aria-label': 'Import My Components', text: '📥',
+      onClick: async (e) => {
+        e.stopPropagation();
+        const text = await pickJSONFile();
+        if (!text) return;
+        try {
+          const result = importCustomComponents(JSON.parse(text));
+          if (result.ok) showToast(`Imported ${result.imported} component(s).`, 'success');
+          else showToast(result.error, 'error');
+        } catch {
+          showToast('Invalid JSON file.', 'error');
+        }
+      },
+    }));
+  }
   wrap.appendChild(header);
 
   const list = el('div', { class: 'category-list' });
-  if (cat.id === CUSTOM_CATEGORY.id && !matches.length) {
+  if (isCustom && !matches.length) {
     list.appendChild(el('p', { class: 'sidebar-empty small', text: 'Build your own from the toolbar "New Component" button.' }));
   }
-  for (const comp of matches) {
-    list.appendChild(renderItem(comp, q, cat.id === CUSTOM_CATEGORY.id));
+  if (isCustom) {
+    renderCustomComponentsGrouped(list, matches, q);
+  } else {
+    for (const comp of matches) list.appendChild(renderItem(comp, q, false));
   }
   wrap.appendChild(list);
   return wrap;
+}
+
+function renderCustomComponentsGrouped(list, matches, q) {
+  const byFolder = new Map();
+  for (const comp of matches) {
+    const folder = comp.folder || NO_FOLDER;
+    if (!byFolder.has(folder)) byFolder.set(folder, []);
+    byFolder.get(folder).push(comp);
+  }
+  const folderNames = [...byFolder.keys()].filter((f) => f !== NO_FOLDER).sort((a, b) => a.localeCompare(b));
+
+  for (const folder of folderNames) {
+    const key = `custom:${folder}`;
+    const isOpen = q ? true : (folderExpanded.get(key) ?? true);
+    const folderWrap = el('div', { class: 'sidebar-folder', 'data-open': isOpen ? 'true' : 'false' });
+    const folderHeader = el('button', {
+      class: 'folder-header',
+      type: 'button',
+      'aria-expanded': String(isOpen),
+      onClick: () => { folderExpanded.set(key, !isOpen); renderList(); },
+    });
+    folderHeader.appendChild(el('span', { class: 'folder-chevron', text: '▸' }));
+    folderHeader.appendChild(el('span', { class: 'folder-icon', text: '📁', 'aria-hidden': 'true' }));
+    folderHeader.appendChild(el('span', { class: 'folder-label', text: folder }));
+    folderHeader.appendChild(el('span', { class: 'category-count', text: String(byFolder.get(folder).length) }));
+    folderWrap.appendChild(folderHeader);
+
+    const folderList = el('div', { class: 'folder-list' });
+    for (const comp of byFolder.get(folder)) folderList.appendChild(renderItem(comp, q, true));
+    folderWrap.appendChild(folderList);
+    list.appendChild(folderWrap);
+  }
+
+  for (const comp of byFolder.get(NO_FOLDER) || []) {
+    list.appendChild(renderItem(comp, q, true));
+  }
 }
 
 function renderItem(def, q, isCustom) {

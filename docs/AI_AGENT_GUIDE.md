@@ -47,6 +47,10 @@ this repo" quick-start.
 | Add a modal                                       | `js/modals/*.js`, register it in `modals/modal.js` |
 | Change project JSON shape                         | `js/core/project.js` (bump `formatVersion`, keep a migration path) |
 | Change global new-component defaults              | `js/io/nodeDefaults.js` (storage) + `js/modals/defaultSettingsModal.js` (UI) |
+| Change saved-project favorites/bulk export-import  | `js/io/projects.js` + `js/modals/loadProjectModal.js` |
+| Change "My Components" folders/bulk export-import  | `js/io/customComponents.js` + `js/modals/customComponentModal.js` (folder field) + `js/sidebar/sidebar.js` (grouping, quick export/import) |
+| Change full-backup export/import                   | `js/io/fullBackup.js` (storage) + `js/modals/backupModal.js` (UI) |
+| Change import name/id collision handling            | `js/utils/disambiguateName.js` (the "(imported)"/"(imported 2)" suffixing), used by both `customComponents.js#importCustomComponents` and `projects.js#importSavedProjectsBundle`; `fullBackup.js` delegates to both rather than reimplementing it |
 | Change localStorage keys/behavior                 | `js/io/storage.js`, `io/autosave.js` |
 | Change PNG/PDF export                             | `js/io/exportImage.js` / `exportPdf.js` |
 | Add/change a hint                                 | `js/hints/hintData.js` |

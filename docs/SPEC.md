@@ -1,6 +1,6 @@
 # System Design Diagram Builder — Specification (איפיון)
 
-Status: v1.0 · Last updated: 2026-08-14
+Status: v1.1 · Last updated: 2026-08-14
 
 ## 1. Purpose
 
@@ -194,6 +194,42 @@ afterwards via the toolbar style editor / details panel:
 - "My Components" custom library persisted separately in `localStorage`,
   exportable/importable as its own `.json` file so it can be shared between
   browsers/machines.
+
+#### 4.7.1 Saved-project favorites
+Each saved project (in the "Load" modal) has a ⭐ toggle button. Favorited
+projects sort first in the list, and a "Favorites only" checkbox filters
+the list down to just them. Favorite status is preserved across re-saves
+(re-running "Save As" on an already-favorited project keeps its star).
+
+#### 4.7.2 "My Components" folders
+Any custom component can be filed into an optional free-text **folder**
+(set in the New/Edit Component modal, with autocomplete against existing
+folder names). The sidebar's "My Components" category groups components
+with a folder into collapsible sub-groups (📁); components with no folder
+list directly under the category, unchanged from before.
+
+#### 4.7.3 Bulk export/import & full backup
+Three export/import scopes, each downloadable/uploadable as its own
+`.json` file:
+- **My Components** (all custom components together) — quick 📤/📥 icons on
+  the sidebar's "My Components" category header, or from "Backup & Restore".
+- **Saved projects** (every named project together, favorites included) —
+  "Export all… / Import all…" in the Load modal, or from "Backup & Restore".
+- **Full backup** — everything at once: the live canvas, global default
+  settings, the whole My Components library and every saved project, via
+  the toolbar's "🗄️ Backup & Restore" modal. Restoring a full backup
+  replaces the current canvas and default settings (after a confirmation
+  dialog, since this can't be undone) and merges its components/projects
+  into the existing libraries using the same collision rule as above.
+
+**Collision handling** (applies to every import above, and to the
+single-project "Load from JSON file" and single-library "Import My
+Components" flows too): an item whose `id` matches an existing one
+**overwrites** that existing record; an item with a *different* `id` but a
+name that collides with an existing name is imported as a new, separate
+record with its name suffixed (`"Name (imported)"`, then
+`"Name (imported 2)"`, ...) so nothing is silently dropped or merged by
+name alone.
 
 ### 4.8 Export
 - PNG: rasterize the current canvas (or just the diagram bounds) to an

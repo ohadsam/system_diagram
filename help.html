@@ -310,7 +310,7 @@
     <section id="custom">
       <h2><span class="icon-badge">✨</span> Custom components &amp; shapes</h2>
       <h3>New Component</h3>
-      <p>Click "✨ New Component" in the toolbar to design your own reusable component (icon, colors, shape, default sub-components) and save it to <strong>My Components</strong> in the sidebar. Select an existing component first and it's used as a starting point. Your library can be exported/imported as its own JSON file — handy for sharing a house style across a team.</p>
+      <p>Click "✨ New Component" in the toolbar to design your own reusable component (icon, colors, shape, default sub-components) and save it to <strong>My Components</strong> in the sidebar. Select an existing component first and it's used as a starting point. Give it an optional <strong>folder</strong> (with autocomplete of folders you've already used) to group related components together — folders show up as collapsible 📁 sub-groups under "My Components" in the sidebar; components with no folder stay listed directly, same as before. Your library can be exported/imported as its own JSON file — handy for sharing a house style across a team — either from this modal, the 📤/📥 icons on the "My Components" sidebar header, or the "Backup &amp; Restore" toolbar button.</p>
       <h3>Add Shape</h3>
       <p>Click "🔷 Add Shape" for instant basic shapes: rectangle, rounded rectangle, circle, diamond, hexagon, cylinder (database), cloud, sticky note, and "server with rows". Style it afterwards like any other component.</p>
     </section>
@@ -320,10 +320,18 @@
       <ul>
         <li><strong>Autosave</strong> — your diagram is continuously saved in this browser; reopening the page restores it automatically.</li>
         <li><strong>Save As</strong> — save a named version you can reopen later from <strong>Load</strong>.</li>
-        <li><strong>Load</strong> — reopen a saved diagram, or load one from a <code>.json</code> file.</li>
+        <li><strong>Load</strong> — reopen a saved diagram, or load one from a <code>.json</code> file. Click the ☆ next to any saved project to favorite it — favorites sort first and the "⭐ Favorites only" checkbox filters down to just them.</li>
         <li><strong>Export JSON</strong> — download the full diagram as a portable file (also how you back it up or move it to another browser/computer).</li>
         <li><strong>Export PNG / PDF</strong> — a rendered image of your diagram, ready to paste into docs or slides.</li>
       </ul>
+      <h3>Bulk export/import &amp; full backup</h3>
+      <p>Beyond single-project/single-library files, you can export/import in bulk:</p>
+      <ul>
+        <li><strong>All saved projects together</strong> — "Export all… / Import all…" in the Load modal.</li>
+        <li><strong>All of My Components together</strong> — the 📤/📥 icons on the sidebar's "My Components" header.</li>
+        <li><strong>Everything at once</strong> — the toolbar's "🗄️ Backup &amp; Restore" button bundles the live canvas, default settings, My Components and every saved project into one file, and restores all of it back (after a confirmation, since it replaces your current canvas and defaults).</li>
+      </ul>
+      <div class="tip">🔁 Importing never silently loses data on a name clash: if an incoming item's <code>id</code> matches something you already have, it overwrites that item; if only the <em>name</em> matches (different id), the import is kept as a separate item renamed "… (imported)" (or "(imported 2)", etc.).</div>
       <div class="tip">🔒 Everything — autosave, saved projects, your custom component library — lives only in your browser's local storage. Nothing is sent to a server.</div>
     </section>
 
@@ -362,6 +370,10 @@
       <details>
         <summary>Can I move components between diagrams?</summary>
         <p>Save the component you want to reuse as a custom component ("New Component" in the toolbar) — it will then show up under "My Components" in every diagram in this browser, and you can export/import that library as a file to move it elsewhere.</p>
+      </details>
+      <details>
+        <summary>How do I move everything to a new browser/computer?</summary>
+        <p>Use the toolbar's "🗄️ Backup &amp; Restore" button to export a full backup, then import that same file in the new browser — it brings over the current canvas, default settings, My Components and every saved project in one step.</p>
       </details>
     </section>
   </main>

@@ -124,6 +124,34 @@ handles them instead of the default single-node placement:
   separate, explicit bulk `store.dispatch` over every existing node — the
   defaults themselves never retroactively change what's already on the
   canvas on their own.
+- `projects.js`: named saved-project CRUD (see docs/SPEC.md 4.7.1/4.7.3).
+  Records carry a `favorite: boolean` that `saveNamedProject()` explicitly
+  reads forward from the existing record on every re-save (it's not part
+  of the live project schema written by `core/project.js`, so a naive
+  `{...project, updatedAt}` spread would silently drop it — the fix is to
+  look up the prior record's `favorite` before building the new one).
+  `exportAllSavedProjects()`/`importSavedProjectsBundle()` bundle/restore
+  every saved project as one file; `getRawSavedProjects()` exposes the
+  full records (including `favorite`) for `fullBackup.js` to embed as-is.
+- `customComponents.js`: adds an optional free-text `folder` field to each
+  custom component record (trimmed on save) and `getCustomComponentFolders()`
+  (distinct, sorted, non-empty folder names) for the New/Edit Component
+  modal's `<datalist>` (`utils/folderDatalist.js`, rebuilt on every modal
+  open since folders change over time — unlike the static
+  `utils/layerDatalist.js`, built once).
+- **Import collision handling** (`customComponents.js#importCustomComponents`,
+  `projects.js#importSavedProjectsBundle`, and `fullBackup.js`): every
+  merge-style import applies the same rule — an incoming record whose `id`
+  matches an existing one overwrites it in place; a `name` collision with a
+  *different* `id` gets a disambiguating suffix (`"(imported)"`, then
+  `"(imported 2)"`, ...), computed by the shared
+  `utils/disambiguateName.js`, instead of silently colliding — so nothing
+  is ever dropped. `fullBackup.js#importFullBackupFile()` composes this
+  with a direct `store.loadProject()` for the bundled canvas and a plain
+  `saveNodeDefaults()` overwrite for defaults — those two aren't
+  "libraries" with multiple entries, so there's nothing to merge, only
+  replace, which is why the UI (`modals/backupModal.js`) gates the whole
+  restore behind one `confirmAction()` up front rather than per-field.
 
 ## Node label placement (`canvas/node.js`)
 
