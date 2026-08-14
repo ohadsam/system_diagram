@@ -1,0 +1,43 @@
+// Contextual node style controls, shown in the toolbar's second row when
+// one or more nodes are selected.
+import * as store from '../core/store.js';
+import { el, clear } from '../utils/dom.js';
+import { field, colorInput, numberInput, selectInput, textInput } from '../utils/formControls.js';
+import { SHAPES } from '../core/project.js';
+
+const SHAPE_LABELS = {
+  rect: 'Rectangle', rounded: 'Rounded', circle: 'Circle', diamond: 'Diamond',
+  cylinder: 'Cylinder (DB)', hexagon: 'Hexagon', cloud: 'Cloud', note: 'Note', rows: 'Rows',
+};
+const ALIGN_LABELS = { left: 'Left', center: 'Center', right: 'Right' };
+
+export function renderNodeStyleEditor(container, nodeIds) {
+  clear(container);
+  const state = store.getState();
+  const nodes = nodeIds.map((id) => state.nodes.find((n) => n.id === id)).filter(Boolean);
+  if (!nodes.length) return;
+  const first = nodes[0];
+
+  const updateAll = (fn) => store.dispatch((draft) => {
+    for (const id of nodeIds) {
+      const n = draft.nodes.find((x) => x.id === id);
+      if (n) fn(n);
+    }
+  });
+
+  container.appendChild(field('Fill', colorInput(first.fill, (v) => updateAll((n) => { n.fill = v; }))));
+  container.appendChild(field('Border', colorInput(first.stroke, (v) => updateAll((n) => { n.stroke = v; }))));
+  container.appendChild(field('Border width', numberInput(first.strokeWidth, 0, 12, 1, (v) => updateAll((n) => { n.strokeWidth = v; }))));
+  container.appendChild(field('Shape', selectInput(SHAPES.filter((s) => s !== 'rows'), first.shape === 'rows' ? 'rounded' : first.shape, (v) => updateAll((n) => { n.shape = v; }), SHAPE_LABELS)));
+  container.appendChild(field('Font size', numberInput(first.fontSize, 8, 48, 1, (v) => updateAll((n) => { n.fontSize = v; }))));
+  container.appendChild(field('Align', selectInput(['left', 'center', 'right'], first.textAlign, (v) => updateAll((n) => { n.textAlign = v; }), ALIGN_LABELS)));
+
+  if (nodeIds.length === 1) {
+    container.appendChild(field('Icon', textInput(first.icon, (v) => updateAll((n) => { n.icon = v; }), { maxLength: 4, class: 'icon-field' })));
+    container.appendChild(field('Text', textInput(first.text, (v) => updateAll((n) => { n.text = v; }))));
+    container.appendChild(field('Width', numberInput(Math.round(first.w), 24, 2000, 1, (v) => updateAll((n) => { n.w = v; }))));
+    container.appendChild(field('Height', numberInput(Math.round(first.h), 24, 2000, 1, (v) => updateAll((n) => { n.h = v; }))));
+  }
+
+  container.appendChild(el('span', { class: 'toolbar-selection-count', text: nodeIds.length > 1 ? `${nodeIds.length} selected` : '' }));
+}

@@ -1,0 +1,162 @@
+// Left sidebar: search box + categorized, alphabetically sorted, draggable
+// component library (built-in + the user's "My Components").
+import { CATEGORIES, COMPONENTS_BY_CATEGORY } from '../data/index.js';
+import { getCustomComponents, onCustomComponentsChange, deleteCustomComponent } from '../io/customComponents.js';
+import { el, clear } from '../utils/dom.js';
+import { filterComponents, normalize } from './search.js';
+import { makeDraggable } from './dragSource.js';
+import { showContextMenu } from '../canvas/contextMenu.js';
+import { confirmAction } from '../modals/confirmModal.js';
+
+const CUSTOM_CATEGORY = { id: '__custom__', label: 'My Components', color: '#0F172A' };
+
+let rootEl = null;
+let searchInput = null;
+let listEl = null;
+const expanded = new Map();
+let query = '';
+let editCustomComponentHandler = null;
+
+export function configureSidebar({ onEditCustomComponent } = {}) {
+  editCustomComponentHandler = onEditCustomComponent || null;
+}
+
+export function initSidebar(root) {
+  rootEl = root;
+  rootEl.classList.add('sidebar');
+
+  const searchWrap = el('div', { class: 'sidebar-search' });
+  searchInput = el('input', {
+    type: 'search',
+    placeholder: 'Search components…',
+    'aria-label': 'Search components',
+    onInput: (e) => {
+      query = e.target.value;
+      renderList();
+    },
+  });
+  searchWrap.appendChild(searchInput);
+  searchWrap.appendChild(el('span', { class: 'sidebar-search-icon', text: '🔎', 'aria-hidden': 'true' }));
+  rootEl.appendChild(searchWrap);
+
+  listEl = el('div', { class: 'sidebar-categories' });
+  rootEl.appendChild(listEl);
+
+  for (const cat of [CUSTOM_CATEGORY, ...CATEGORIES]) expanded.set(cat.id, false);
+
+  onCustomComponentsChange(() => {
+    // Auto-reveal "My Components" whenever it changes, so a just-saved
+    // component is immediately visible instead of hidden in a collapsed category.
+    expanded.set(CUSTOM_CATEGORY.id, true);
+    renderList();
+  });
+  renderList();
+}
+
+function renderList() {
+  clear(listEl);
+  const q = normalize(query);
+  const custom = getCustomComponents();
+  const categories = [{ ...CUSTOM_CATEGORY, components: custom }, ...CATEGORIES.map((cat) => ({ ...cat, components: COMPONENTS_BY_CATEGORY.get(cat.id) || [] }))];
+
+  let anyMatch = false;
+  for (const cat of categories) {
+    const matches = filterComponents(cat.components, query);
+    if (cat.id === CUSTOM_CATEGORY.id && !matches.length && !q) {
+      // Still show an empty "My Components" hint when not searching.
+    } else if (!matches.length) {
+      continue;
+    }
+    anyMatch = true;
+    listEl.appendChild(renderCategory(cat, matches, q));
+  }
+  if (!anyMatch) {
+    listEl.appendChild(el('p', { class: 'sidebar-empty', text: `No components match "${query}".` }));
+  }
+}
+
+function renderCategory(cat, matches, q) {
+  const isOpen = q ? true : expanded.get(cat.id);
+  const wrap = el('div', { class: 'sidebar-category', 'data-open': isOpen ? 'true' : 'false' });
+  const header = el('button', {
+    class: 'category-header',
+    type: 'button',
+    'aria-expanded': String(isOpen),
+    onClick: () => {
+      expanded.set(cat.id, !expanded.get(cat.id));
+      renderList();
+    },
+  });
+  header.appendChild(el('span', { class: 'category-dot', style: `background:${cat.color}` }));
+  header.appendChild(el('span', { class: 'category-label', text: cat.label }));
+  header.appendChild(el('span', { class: 'category-count', text: String(matches.length) }));
+  header.appendChild(el('span', { class: 'category-chevron', text: '▸' }));
+  wrap.appendChild(header);
+
+  const list = el('div', { class: 'category-list' });
+  if (cat.id === CUSTOM_CATEGORY.id && !matches.length) {
+    list.appendChild(el('p', { class: 'sidebar-empty small', text: 'Build your own from the toolbar "New Component" button.' }));
+  }
+  for (const comp of matches) {
+    list.appendChild(renderItem(comp, q, cat.id === CUSTOM_CATEGORY.id));
+  }
+  wrap.appendChild(list);
+  return wrap;
+}
+
+function renderItem(def, q, isCustom) {
+  const item = el('div', {
+    class: 'sidebar-item',
+    'data-name': def.name,
+    title: def.description || def.name,
+    tabIndex: 0,
+    role: 'button',
+    'aria-label': `Add ${def.name}`,
+  });
+  item.appendChild(el('span', { class: 'item-icon', text: def.icon, 'aria-hidden': 'true' }));
+  const nameEl = el('span', { class: 'item-name' });
+  renderHighlighted(nameEl, def.name, q);
+  item.appendChild(nameEl);
+
+  makeDraggable(item, def.id);
+  item.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      item.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+      item.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+    }
+  });
+
+  if (isCustom) {
+    item.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      showContextMenu(e.clientX, e.clientY, [
+        { label: 'Edit component', icon: '✏️', onClick: () => editCustomComponentHandler?.(def) },
+        { label: 'Delete', icon: '🗑️', danger: true, onClick: async () => {
+          const ok = await confirmAction({ title: 'Delete component', message: `Remove "${def.name}" from My Components? This cannot be undone.` });
+          if (ok) deleteCustomComponent(def.id);
+        } },
+      ]);
+    });
+  }
+  return item;
+}
+
+function renderHighlighted(container, text, q) {
+  clear(container);
+  if (!q) {
+    container.textContent = text;
+    return;
+  }
+  const lower = text.toLowerCase();
+  const idx = lower.indexOf(q);
+  if (idx === -1) {
+    container.textContent = text;
+    return;
+  }
+  if (idx > 0) container.appendChild(document.createTextNode(text.slice(0, idx)));
+  const mark = document.createElement('mark');
+  mark.textContent = text.slice(idx, idx + q.length);
+  container.appendChild(mark);
+  if (idx + q.length < text.length) container.appendChild(document.createTextNode(text.slice(idx + q.length)));
+}

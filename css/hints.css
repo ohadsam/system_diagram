@@ -1,0 +1,40 @@
+.hint-bubble {
+  position: fixed;
+  z-index: var(--z-hint);
+  width: 260px;
+  background: var(--color-text);
+  color: #fff;
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-3) var(--space-2);
+  box-shadow: var(--shadow-lg);
+  font-size: 13px;
+  animation: hint-in 0.15s ease-out;
+}
+
+@keyframes hint-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.hint-bubble p {
+  margin: 0 0 var(--space-2);
+  line-height: 1.4;
+}
+
+.hint-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.hint-actions .btn-link {
+  color: #CBD5E1;
+  font-size: 11px;
+}
+
+.hint-actions .btn-primary {
+  background: #fff;
+  color: var(--color-text);
+  border-color: #fff;
+}

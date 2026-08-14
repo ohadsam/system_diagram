@@ -1,0 +1,167 @@
+.app-modal {
+  border: none;
+  border-radius: var(--radius-lg);
+  padding: 0;
+  width: min(560px, 92vw);
+  max-height: 85vh;
+  box-shadow: var(--shadow-lg);
+  background: var(--color-surface);
+}
+
+.app-modal::backdrop {
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(1px);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.modal-header h2 {
+  font-size: 16px;
+  margin: 0;
+}
+
+.modal-close {
+  font-size: 16px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.modal-close:hover {
+  background: var(--color-surface-alt);
+}
+
+.modal-body {
+  padding: var(--space-5);
+  overflow-y: auto;
+  max-height: calc(85vh - 60px);
+}
+
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.modal-subheading {
+  font-size: 13px;
+  margin-top: var(--space-3);
+  color: var(--color-text-muted);
+}
+
+.modal-hint {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-top: var(--space-4);
+}
+
+.modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.modal-actions-primary,
+.modal-actions-secondary {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.subcomponent-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.subcomponent-row {
+  margin-bottom: 0;
+}
+
+.sub-icon-input {
+  width: 52px;
+  text-align: center;
+  flex: 0 0 auto;
+}
+
+.shape-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: var(--space-3);
+}
+
+.shape-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-alt);
+}
+
+.shape-card:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.shape-card-icon {
+  font-size: 26px;
+}
+
+.shape-card-name {
+  font-size: 11px;
+  text-align: center;
+}
+
+.saved-project-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.saved-project-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  gap: var(--space-3);
+}
+
+.saved-project-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.saved-project-name {
+  font-weight: 600;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.saved-project-meta {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.saved-project-actions {
+  display: flex;
+  gap: var(--space-1);
+  flex: 0 0 auto;
+}

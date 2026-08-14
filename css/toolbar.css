@@ -1,0 +1,107 @@
+.toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  flex-wrap: wrap;
+}
+
+.toolbar-row-main {
+  min-height: var(--toolbar-height);
+}
+
+.toolbar-row-context {
+  background: var(--color-primary-soft);
+  border-bottom: 1px solid #C7D2FE;
+  justify-content: space-between;
+}
+
+/* .toolbar-row sets display:flex, which (per the CSS cascade) silently
+   overrides the UA stylesheet's `[hidden] { display: none }` since author
+   styles always win over UA styles regardless of specificity — so this
+   element's `hidden` attribute needs an explicit rule to actually hide it. */
+.toolbar-row-context[hidden] {
+  display: none;
+}
+
+.toolbar-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 700;
+  font-size: 14px;
+  padding-right: var(--space-3);
+  border-right: 1px solid var(--color-border);
+  margin-right: var(--space-1);
+}
+
+.brand-icon {
+  font-size: 18px;
+}
+
+.brand-title {
+  white-space: nowrap;
+}
+
+.sidebar-toggle-btn {
+  display: none;
+}
+
+.toolbar-group {
+  display: flex;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.toolbar-spacer {
+  flex: 1 1 auto;
+}
+
+.zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+}
+
+.zoom-percent {
+  min-width: 52px;
+  text-align: center;
+  font-size: 12px;
+  padding: 6px 4px;
+  border-radius: var(--radius-sm);
+}
+
+.zoom-percent:hover {
+  background: var(--color-surface-alt);
+}
+
+.toolbar-context-controls {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-end;
+  flex-wrap: wrap;
+  flex: 1 1 auto;
+}
+
+.toolbar-context-controls .icon-field {
+  width: 52px;
+  text-align: center;
+}
+
+.toolbar-context-actions {
+  display: flex;
+  gap: var(--space-1);
+  flex: 0 0 auto;
+}
+
+.toolbar-selection-count {
+  align-self: center;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  font-weight: 600;
+}

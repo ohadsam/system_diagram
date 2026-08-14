@@ -1,0 +1,29 @@
+.edge-line {
+  transition: stroke 0.1s;
+}
+
+.edge:hover .edge-line {
+  filter: brightness(0.75);
+}
+
+.edge.selected .edge-line {
+  stroke: var(--color-primary) !important;
+  filter: none;
+}
+
+.edge-label {
+  font-size: 11px;
+  font-weight: 600;
+  fill: var(--color-text);
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke: var(--color-surface);
+  stroke-width: 4px;
+}
+
+.edge-draft {
+  stroke: var(--color-primary);
+  stroke-width: 2px;
+  stroke-dasharray: 5, 4;
+  pointer-events: none;
+}

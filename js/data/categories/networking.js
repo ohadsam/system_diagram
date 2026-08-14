@@ -1,0 +1,22 @@
+import { c } from '../schema.js';
+
+export const category = { id: 'networking', label: 'Networking', color: '#0284C7' };
+
+const NW = '#0284C7';
+
+export const components = [
+  c('net-api-gateway', 'API Gateway', '🚪', { color: NW }),
+  c('net-cdn', 'CDN', '🌍', { color: NW }),
+  c('net-dns', 'DNS', '🧭', { color: NW }),
+  c('net-firewall', 'Firewall', '🧱', { color: '#B91C1C' }),
+  c('net-load-balancer', 'Load Balancer', '⚖️', { color: NW }),
+  c('net-nat', 'NAT', '🔀', { color: NW }),
+  c('net-nginx', 'Nginx', '🟩', { color: '#009639' }),
+  c('net-proxy', 'Proxy Server', '🛰️', { color: NW }),
+  c('net-reverse-proxy', 'Reverse Proxy', '🔁', { color: NW }),
+  c('net-router', 'Router', '📡', { color: NW }),
+  c('net-service-mesh', 'Service Mesh', '🕸️', { color: NW }),
+  c('net-subnet', 'Subnet', '🔲', { shape: 'rect', color: NW, defaultSize: { w: 220, h: 140 } }),
+  c('net-vpn-gateway', 'VPN Gateway', '🔐', { color: NW }),
+  c('net-vpc', 'Virtual Network / VPC', '🕸️', { shape: 'rect', color: NW, defaultSize: { w: 260, h: 180 } }),
+];

@@ -1,0 +1,89 @@
+.details-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.details-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.details-icon {
+  font-size: 20px;
+}
+
+.details-title-input {
+  flex: 1 1 auto;
+  font-weight: 700;
+  font-size: 14px;
+  border-color: transparent;
+  background: transparent;
+}
+
+.details-title-input:hover,
+.details-title-input:focus {
+  border-color: var(--color-border);
+  background: var(--color-surface-alt);
+}
+
+.details-close {
+  font-size: 14px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.details-close:hover {
+  background: var(--color-surface-alt);
+}
+
+.details-body {
+  padding: var(--space-4);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.details-body h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-muted);
+  margin-top: var(--space-3);
+}
+
+.details-notes {
+  width: 100%;
+}
+
+.details-labels {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.label-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.label-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--color-primary-soft);
+  color: var(--color-primary-hover);
+  border-radius: var(--radius-round);
+  padding: 3px 4px 3px 10px;
+  font-size: 12px;
+}
+
+.label-chip button {
+  font-size: 12px;
+  line-height: 1;
+  padding: 2px 4px;
+}

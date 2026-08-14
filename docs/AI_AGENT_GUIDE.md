@@ -1,0 +1,79 @@
+# Guide for AI coding agents (Claude, Copilot, etc.)
+
+Read this before making changes. Also read `SPEC.md` (what the app must do)
+and `ARCHITECTURE.md` (how it's built) — this file is the "how to work in
+this repo" quick-start.
+
+## Ground rules
+
+1. **No build step.** Don't add a bundler/transpiler/framework unless the
+   human explicitly asks. Plain ES modules only.
+2. **State goes through `js/core/store.js`.** Never mutate DOM-derived data
+   directly; never let two modules read each other's DOM. If you need data
+   from another module, get it from the store.
+3. **Component data is pure data.** New predefined components/categories go
+   in `js/data/categories/*.js` using the `c(...)` helper from
+   `js/data/schema.js`. Never put logic there.
+4. **Keep files small and single-purpose.** If a file is doing two jobs,
+   split it. Match the existing `js/<area>/<thing>.js` layout.
+5. **Security**: never use `innerHTML`/`insertAdjacentHTML` with a string
+   built from user/project data — use `textContent`/DOM APIs, or a static
+   template literal with no interpolated user text. Any imported JSON must
+   go through `core/project.js#validateProject` first.
+6. **Update docs as you go**: if you change behavior described in
+   `SPEC.md`, update it. If you finish a plan item, check it off in
+   `CHANGELOG.md`. Keep `PLAN.md` "suggested additions" list honest about
+   what's actually implemented.
+7. **Tests**: add/update a unit test (`tests/unit`) for logic changes and,
+   for user-facing flows, a Playwright test (`tests/e2e`). Run
+   `npm test` before calling anything done.
+8. **Do a self code review** after non-trivial changes: correctness, then
+   a technical pass (naming, duplication, error handling), then a UI/UX
+   pass (does it look/feel right, keyboard/touch/mobile still work).
+
+## Where things live (cheat sheet)
+
+| I want to...                                   | Touch this |
+|-------------------------------------------------|------------|
+| Add a predefined component                       | `js/data/categories/<category>.js` |
+| Add a new category                                | new file in `js/data/categories/` + import in `js/data/index.js` |
+| Change node drag/resize behavior                  | `js/canvas/nodeInteractions.js` |
+| Change arrow routing/markers                      | `js/canvas/connector.js`, `connectorInteractions.js` |
+| Add a toolbar button                              | `js/toolbar/toolbar.js` (+ new module if it needs its own state) |
+| Add a style control                               | `js/toolbar/styleEditor.js` (node) or `arrowEditor.js` (edge) |
+| Change what the details panel shows/edits         | `js/panel/detailsPanel.js` |
+| Add a modal                                       | `js/modals/*.js`, register it in `modals/modal.js` |
+| Change project JSON shape                         | `js/core/project.js` (bump `formatVersion`, keep a migration path) |
+| Change localStorage keys/behavior                 | `js/io/storage.js`, `io/autosave.js` |
+| Change PNG/PDF export                             | `js/io/exportImage.js` / `exportPdf.js` |
+| Add/change a hint                                 | `js/hints/hintData.js` |
+| Change layout/visual style                        | `css/*.css` (one file per area, `variables.css` for tokens) |
+
+## Running things locally
+
+```bash
+# serve the static site
+python3 -m http.server 8080   # then open http://localhost:8080
+
+# unit tests (no browser)
+npm run test:unit
+
+# e2e tests (Playwright, needs the site served — see tests/e2e/playwright.config.js)
+npm run test:e2e
+
+# everything
+npm test
+```
+
+## Common pitfalls specific to this app
+
+- Edge endpoints reference node ids; when deleting a node, always cascade-
+  delete or re-anchor its edges (see `core/project.js#removeNode`).
+- `history.js` snapshots the whole project; don't commit a history entry
+  on every `pointermove` during drag — coalesce and commit once on
+  `pointerup` (see existing drag code for the pattern).
+- The canvas has its own pan/zoom transform; always convert
+  screen↔canvas coordinates via `canvas/canvas.js#screenToCanvas` rather
+  than using raw client coordinates.
+- Sidebar drag uses pointer events, not HTML5 DnD — don't mix the two
+  paradigms when extending it.
