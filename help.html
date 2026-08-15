@@ -210,6 +210,7 @@
       <li><a href="#details">Notes &amp; sub-components</a></li>
       <li><a href="#custom">Custom components &amp; shapes</a></li>
       <li><a href="#saving">Saving, loading &amp; export</a></li>
+      <li><a href="#ai-review">AI Design Review</a></li>
       <li><a href="#shortcuts">Keyboard shortcuts</a></li>
       <li><a href="#faq">FAQ</a></li>
     </ul>
@@ -342,6 +343,27 @@
       </ul>
       <div class="tip">🔁 Importing never silently loses data on a name clash: if an incoming item's <code>id</code> matches something you already have, it overwrites that item; if only the <em>name</em> matches (different id), the import is kept as a separate item renamed "… (imported)" (or "(imported 2)", etc.).</div>
       <div class="tip">🔒 Everything — autosave, saved projects, your custom component library — lives only in your browser's local storage. Nothing is sent to a server.</div>
+      <h3>Duplicate Project</h3>
+      <p>Two ways to duplicate a diagram, both give every component/connector a fresh id so the copy never collides with the original:</p>
+      <ul>
+        <li><strong>Duplicate Project</strong> (📄 in the toolbar, or right-click the canvas → "Duplicate as new project") — clones the whole thing into a new, independent project named "… (Copy)" and switches you to editing it. Your original stays exactly as it was.</li>
+        <li><strong>Duplicate entire canvas</strong> (right-click the canvas) — copies every component and connector in place, offset slightly, within the <em>same</em> project — the diagram, doubled.</li>
+      </ul>
+    </section>
+
+    <section id="ai-review">
+      <h2><span class="icon-badge">🤖</span> AI Design Review</h2>
+      <p>Click "🤖" in the toolbar to open a side panel that helps you get a system-design review from a mainstream AI — <strong>no API key or setup required</strong>.</p>
+      <div class="tip">🔑 How it actually works: no AI provider (Claude, ChatGPT, Gemini, Copilot) offers key-free API access, and pulling results from Google's AI-powered search isn't possible either (blocked, and against Google's terms) — so instead of pretending otherwise, this panel prepares everything and hands it to <em>you</em> to paste in, using whichever AI account you're already signed into.</div>
+      <ol>
+        <li><strong>Optional: attach a spec</strong> — a plain-text or Markdown file whose content gets folded into the prompt, so the AI can compare your diagram against your requirements.</li>
+        <li><strong>Review the prompt</strong> — auto-generated from your diagram (component names, counts), fully editable.</li>
+        <li><strong>Get the diagram image</strong> — "Download PNG" or "Copy image" (where your browser supports copying images to the clipboard).</li>
+        <li><strong>Open your AI</strong> — click Claude / ChatGPT / Gemini / Copilot: this copies the prompt to your clipboard and opens that provider's website in a new tab. Attach or paste the image, paste the prompt, and send.</li>
+        <li><strong>Bring the answer back</strong> — paste the AI's reply into the panel and click "Save to this session" to keep it alongside your project, with quick copy/remove buttons. Saved replies aren't written to disk — they last for this browser session only, so copy anything you want to keep before closing the tab.</li>
+      </ol>
+      <p><span class="mock-node">🤖 AI Design Review <small style="opacity:.7">prompt + image ready → opens Claude/ChatGPT/Gemini/Copilot</small></span></p>
+      <div class="tip">💡 Opening a different project (New / Load / Duplicate / restoring a backup) while the panel is open clears its attached spec, prompt edits and saved replies — a review prepared for one diagram shouldn't silently attach itself to another.</div>
     </section>
 
     <section id="shortcuts">
@@ -389,6 +411,10 @@
       <details>
         <summary>How do I move everything to a new browser/computer?</summary>
         <p>Use the toolbar's "🗄️ Backup &amp; Restore" button to export a full backup, then import that same file in the new browser — it brings over the current canvas, default settings, My Components and every saved project in one step.</p>
+      </details>
+      <details>
+        <summary>Does the "AI Design Review" button send my diagram to Anthropic/OpenAI/Google/Microsoft automatically?</summary>
+        <p>No. It copies a review prompt to your clipboard and opens that provider's own website in a new tab, signed in as you — nothing is sent anywhere by this app itself, and it never asks for or stores an API key. You attach the image and send the message yourself, and the AI's reply only comes back into this app if you paste it in.</p>
       </details>
     </section>
   </main>

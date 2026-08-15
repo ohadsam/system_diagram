@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  createEmptyProject, createNode, createEdge, removeNode, removeEdge, validateProject, nextZIndex,
+  createEmptyProject, createNode, createEdge, removeNode, removeEdge, validateProject, nextZIndex, duplicateProject,
 } from '../../js/core/project.js';
 
 test('createEmptyProject has the expected shape', () => {
@@ -169,4 +169,52 @@ test('validateProject never throws on malformed/malicious input', () => {
   for (const input of inputs) {
     assert.doesNotThrow(() => validateProject(input));
   }
+});
+
+test('duplicateProject clones the project under a new id/name, regenerating every node and edge id', () => {
+  const p = createEmptyProject('Original');
+  const n1 = createNode(null, 0, 0);
+  const n2 = createNode(null, 100, 0);
+  p.nodes.push(n1, n2);
+  p.edges.push(createEdge(n1.id, n2.id, { label: 'HTTPS' }));
+
+  const copy = duplicateProject(p);
+
+  assert.notEqual(copy.id, p.id);
+  assert.equal(copy.name, 'Original (Copy)');
+  assert.equal(copy.nodes.length, 2);
+  assert.equal(copy.edges.length, 1);
+  assert.notEqual(copy.nodes[0].id, n1.id);
+  assert.notEqual(copy.nodes[1].id, n2.id);
+  assert.equal(copy.edges[0].from, copy.nodes[0].id, 'the cloned edge should reference the cloned node ids, not the originals');
+  assert.equal(copy.edges[0].to, copy.nodes[1].id);
+  assert.equal(copy.edges[0].label, 'HTTPS', 'other edge fields carry over unchanged');
+});
+
+test('duplicateProject regenerates sub-component ids and remaps groupId so the copy forms its own group', () => {
+  const p = createEmptyProject();
+  const n1 = createNode(null, 0, 0, { groupId: 'group_x', subComponents: [{ id: 'sc_1', name: 'Auth', icon: '🔐' }] });
+  const n2 = createNode(null, 100, 0, { groupId: 'group_x' });
+  p.nodes.push(n1, n2);
+
+  const copy = duplicateProject(p);
+
+  assert.notEqual(copy.nodes[0].groupId, 'group_x');
+  assert.equal(copy.nodes[0].groupId, copy.nodes[1].groupId, 'both copied nodes should share the same new group id');
+  assert.notEqual(copy.nodes[0].subComponents[0].id, 'sc_1');
+  assert.equal(copy.nodes[0].subComponents[0].name, 'Auth');
+});
+
+test('duplicateProject leaves the original project completely untouched', () => {
+  const p = createEmptyProject('Original');
+  const n1 = createNode(null, 0, 0);
+  p.nodes.push(n1);
+  const originalId = p.id;
+  const originalNodeId = n1.id;
+
+  duplicateProject(p);
+
+  assert.equal(p.id, originalId);
+  assert.equal(p.nodes[0].id, originalNodeId);
+  assert.equal(p.name, 'Original');
 });

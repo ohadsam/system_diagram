@@ -82,6 +82,15 @@ Or open `index.html` directly in a browser.
   whole My Components library, every saved project together, or a single
   "🗄️ Backup & Restore" file with everything at once — all with automatic
   name/id collision handling on import.
+- **Duplicate Project** — clone the whole diagram into a new, independent
+  project in one click (the original stays untouched), or duplicate the
+  entire canvas in place within the same project.
+- **🤖 AI Design Review** — prepares a review prompt and exports your
+  diagram as an image, then opens Claude/ChatGPT/Gemini/Copilot's own
+  website so you can get a review — no API key or setup, since it uses the
+  account you're already signed into there. Optionally attach a spec file
+  to compare against; paste the AI's reply back into the side panel to
+  keep it with your project.
 - **Export** — PNG and PDF snapshots of your diagram.
 - **Dismissible hints** — a short first-run guided tour, restartable any
   time.
@@ -111,7 +120,7 @@ js/
   canvas/   rendering, pan/zoom, drag/resize, connectors
   sidebar/  search + draggable component list
   toolbar/  global actions + contextual style/arrow editors
-  panel/    the right-hand details panel
+  panel/    the right-hand details panel + AI design review panel
   modals/   custom component/shape, save-as, load, confirm dialogs
   io/       localStorage, JSON, PNG/PDF export
   hints/    the guided-tour hints

@@ -38,6 +38,16 @@
     width: var(--panel-collapsed-width);
   }
 
+  #ai-review-panel.open {
+    position: fixed;
+    top: var(--toolbar-height);
+    right: 0;
+    bottom: 0;
+    width: min(92vw, 380px);
+    z-index: var(--z-panel);
+    box-shadow: var(--shadow-lg);
+  }
+
   .toolbar-row-main {
     row-gap: var(--space-2);
   }

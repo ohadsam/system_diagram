@@ -63,6 +63,8 @@ this repo" quick-start.
 | Change Group/Ungroup or mixed component+connector selection | `js/canvas/canvas.js` (`groupSelection`/`ungroupSelection`/`selectNode`/`beginMarquee`/`duplicateSelection`) + `js/toolbar/toolbar.js#renderContextRow` |
 | Change Magic Arrow routing                         | `js/core/magicRouter.js` (pure grid router, DOM-free — unit-test it directly) + `js/canvas/connector.js#buildEdgePath` (rendering, falls back to `orthogonal` on failure) + `js/canvas/connectorInteractions.js` (`setMagicMode`/`isMagicModeActive`, the creation-time toggle) |
 | Change the "What's New" modal / version highlights  | `js/version.js` (`APP_VERSION`, `VERSION_HISTORY`) + `js/io/whatsNew.js` (last-seen-version tracking) + `js/modals/whatsNewModal.js` (UI) |
+| Change "Duplicate Project" / "Duplicate entire canvas" | `js/core/project.js#duplicateProject` (pure id-remapping clone) + `js/canvas/canvas.js` (`duplicateProjectAsNew`/`duplicateEntireCanvas`) + toolbar/canvas-context-menu wiring in `toolbar.js`/`canvas.js#openCanvasContextMenu` |
+| Change the AI Design Review prompt/providers/panel  | `js/io/aiReview.js` (`buildReviewPrompt`, `AI_PROVIDERS`) + `js/panel/aiReviewPanel.js` (UI, paste-back). See "Common pitfalls" below before touching this — it's intentionally not an API integration. |
 
 ## Running things locally
 
@@ -110,3 +112,19 @@ npm test
   (`MAX_CELLS`) so it can't hang on a huge diagram — if you change its
   constants, keep it bounded and keep returning `null` (not throwing) on
   failure so the caller's elbow-route fallback still works.
+- **Don't build a fake API integration for AI Design Review.** This was
+  evaluated deliberately (see docs/SPEC.md 4.12): no mainstream LLM offers
+  key-free API access, and scraping Google's embedded AI search results is
+  both technically infeasible from a static page (CORS) and against their
+  ToS. If a future request asks for a "real" automatic round trip, that
+  requires either the user supplying their own API key (a genuine, opt-in
+  config step — don't silently add one) or a backend proxy (a real
+  architecture change, not something to bolt on quietly) — don't simulate
+  either by hardcoding a key, routing through an undisclosed third-party
+  proxy, or scraping search results.
+- `aiReviewPanel.js`'s `savedReviews`/attached spec/prompt edits are
+  session-only (module-level variables, not `localStorage`) and reset when
+  the active project id changes — see `store.subscribe('change', ...)`
+  there for the "only react to an actual project switch, not every edit"
+  pattern, reusable anywhere else a panel needs to stay in sync with
+  *which* project is open without re-rendering on every drag frame.

@@ -1,6 +1,6 @@
 # System Design Diagram Builder — Specification (איפיון)
 
-Status: v1.2 · Last updated: 2026-08-14
+Status: v1.3 · Last updated: 2026-08-15
 
 ## 1. Purpose
 
@@ -221,8 +221,8 @@ choice.
 - Arrow style controls (see 4.4) shown when an edge is selected.
 - Undo / Redo.
 - Save (autosave to localStorage), Save As (named project), Load (from
-  localStorage list or from a JSON file), Export JSON, Export PNG, Export
-  PDF.
+  localStorage list or from a JSON file), Duplicate Project (see 4.7.4),
+  Export JSON, Export PNG, Export PDF.
 - "New component" modal — build a custom styled component from the current
   selection (or from scratch) and save it into "My Components" (persisted
   in localStorage; exportable/importable as JSON).
@@ -294,6 +294,21 @@ record with its name suffixed (`"Name (imported)"`, then
 `"Name (imported 2)"`, ...) so nothing is silently dropped or merged by
 name alone.
 
+#### 4.7.4 Duplicate Project
+Two distinct ways to duplicate a diagram's canvas content, both id-safe
+(every node/edge/sub-component/group gets a fresh id, so the copy never
+collides with the original):
+- **Duplicate Project** (📄 toolbar button, or canvas right-click →
+  "Duplicate as new project") — clones the whole project under a new id
+  and name (`"<name> (Copy)"`) and switches the active canvas to editing
+  the copy. The original is completely untouched (still autosaved/saved
+  under its own id) — this is a "make a copy and keep working on the
+  copy" action, the same shape as "Make a copy" in most document editors.
+- **Duplicate entire canvas** (canvas right-click) — copies every
+  component and connector currently on the canvas, offset in place,
+  *within the same project* — the diagram, doubled. Internally this is
+  "select all, then Duplicate" (see 4.3.1) done in one click.
+
 ### 4.8 Export
 - PNG: rasterize the current canvas (or just the diagram bounds) to an
   image download.
@@ -322,6 +337,43 @@ saw, once; a brand-new visitor (nothing in storage at all yet) doesn't —
 the hints tour already covers onboarding. Reachable any time afterward via
 the toolbar's "🆕" button too (`js/io/whatsNew.js`,
 `js/modals/whatsNewModal.js`).
+
+### 4.12 AI Design Review
+A "🤖 AI Design Review" toolbar button opens a right-hand side panel that
+prepares everything needed to get a system-design review from a
+mainstream LLM — **without any API key or configuration**. This is a
+deliberate, transparent design choice, not a shortcut:
+
+- **Why not a live API integration?** Every mainstream LLM provider
+  (Claude, OpenAI, Gemini, Copilot) requires an API key for programmatic
+  access — there's no anonymous/key-free API, for any of them. That's a
+  constraint of the providers themselves, not something a client-only app
+  can route around.
+- **Why not scrape Google's embedded AI search results?** It isn't a
+  public API, it's blocked by CORS from a third-party page, and scraping
+  it would violate Google's Terms of Service — none of which changes by
+  wrapping it in a nicer UI.
+- **What it actually does instead**: the panel builds an editable review
+  prompt (what the diagram contains, plus — optionally — the text of an
+  attached plain-text/Markdown spec file to compare against), lets you
+  download the diagram as a PNG (or copy it to the clipboard as an image,
+  where supported), and one click per provider (Claude / ChatGPT / Gemini
+  / Copilot) copies the prompt and opens that provider's own chat website
+  in a new tab — using the account you're already signed into there, so
+  no key ever touches this app. You then attach/paste the image and send
+  the prompt yourself.
+- **Getting the answer back**: there is no automatic round trip (that
+  would hit the exact same key/CORS wall) — you paste the AI's reply into
+  a text box in the panel, where it's kept (session-only, not persisted
+  across a reload) with copy/remove actions, so you have it alongside the
+  project while you work.
+- Opening a genuinely different project (New / Load / Duplicate / restore
+  a backup) while the panel is open resets its scratch state (attached
+  spec, prompt edits, saved replies) — a review prepared for one project
+  shouldn't silently look like it belongs to another.
+
+See `js/io/aiReview.js` (prompt builder, provider list) and
+`js/panel/aiReviewPanel.js` (the panel itself).
 
 ## 5. Non-functional requirements
 

@@ -6,6 +6,7 @@ import { hideContextMenu } from './canvas/contextMenu.js';
 import { initSidebar, configureSidebar } from './sidebar/sidebar.js';
 import { initToolbar } from './toolbar/toolbar.js';
 import { initDetailsPanel, close as closeDetailsPanel } from './panel/detailsPanel.js';
+import { initAiReviewPanel, close as closeAiReviewPanel } from './panel/aiReviewPanel.js';
 import { initAutosave, restoreAutosavedProject } from './io/autosave.js';
 import { openCustomComponentModal } from './modals/customComponentModal.js';
 import { initHints } from './hints/hints.js';
@@ -63,6 +64,7 @@ function initKeyboardShortcuts() {
       store.clearSelection();
       hideContextMenu();
       closeDetailsPanel();
+      closeAiReviewPanel();
     }
   });
 }
@@ -76,6 +78,7 @@ function boot() {
   initSidebar(document.getElementById('sidebar'));
   initToolbar(document.getElementById('toolbar'));
   initDetailsPanel(document.getElementById('details-panel'));
+  initAiReviewPanel(document.getElementById('ai-review-panel'));
 
   configureSidebar({ onEditCustomComponent: (def) => openCustomComponentModal({ editDef: def }) });
 

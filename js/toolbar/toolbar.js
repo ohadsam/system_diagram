@@ -3,7 +3,7 @@
 import * as store from '../core/store.js';
 import { createEmptyProject } from '../core/project.js';
 import { el, clear } from '../utils/dom.js';
-import { deleteSelection, duplicateSelection, groupSelection, ungroupSelection, selectionHasGroup } from '../canvas/canvas.js';
+import { deleteSelection, duplicateSelection, groupSelection, ungroupSelection, selectionHasGroup, duplicateProjectAsNew } from '../canvas/canvas.js';
 import { setMagicMode, isMagicModeActive } from '../canvas/connectorInteractions.js';
 import { renderNodeStyleEditor } from './styleEditor.js';
 import { renderEdgeStyleEditor } from './arrowEditor.js';
@@ -18,6 +18,7 @@ import { openCustomShapeModal } from '../modals/customShapeModal.js';
 import { openDefaultSettingsModal } from '../modals/defaultSettingsModal.js';
 import { openBackupModal } from '../modals/backupModal.js';
 import { openWhatsNewModal } from '../modals/whatsNewModal.js';
+import { toggleAiReviewPanel } from '../panel/aiReviewPanel.js';
 import { confirmAction } from '../modals/confirmModal.js';
 import { showToast } from '../utils/toast.js';
 import { readJSON, writeJSON } from '../io/storage.js';
@@ -105,7 +106,11 @@ function buildFileGroup() {
   });
   const saveAsBtn = el('button', { type: 'button', class: 'btn', title: 'Save this diagram with a name', text: '💾 Save As', onClick: openSaveAsModal });
   const loadBtn = el('button', { type: 'button', class: 'btn', title: 'Load a saved diagram', text: '📂 Load', onClick: openLoadProjectModal });
-  return group(newBtn, saveAsBtn, loadBtn);
+  const duplicateProjectBtn = el('button', {
+    type: 'button', class: 'btn btn-icon', title: 'Duplicate this project into a new one (the original stays untouched)', text: '📄',
+    onClick: duplicateProjectAsNew,
+  });
+  return group(newBtn, saveAsBtn, loadBtn, duplicateProjectBtn);
 }
 
 function buildCreateGroup() {
@@ -153,7 +158,8 @@ function buildExportGroup() {
     },
   });
   const backupBtn = el('button', { type: 'button', class: 'btn btn-icon', title: 'Backup & restore everything', text: '🗄️', onClick: openBackupModal });
-  return group(exportJsonBtn, importJsonBtn, pngBtn, pdfBtn, backupBtn);
+  const aiReviewBtn = el('button', { type: 'button', class: 'btn btn-icon', title: 'AI Design Review', text: '🤖', onClick: toggleAiReviewPanel });
+  return group(exportJsonBtn, importJsonBtn, pngBtn, pdfBtn, backupBtn, aiReviewBtn);
 }
 
 function buildViewGroup() {

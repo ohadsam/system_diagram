@@ -17,6 +17,7 @@ index.html ──► js/main.js
                  ├─ canvas/canvas.js     (reads store, renders nodes+edges, writes via store)
                  ├─ toolbar/toolbar.js   (reads store selection, writes via store)
                  ├─ panel/detailsPanel.js
+                 ├─ panel/aiReviewPanel.js
                  ├─ modals/*.js
                  ├─ io/*.js              (localStorage, file, image/pdf export)
                  └─ hints/hints.js
@@ -211,6 +212,53 @@ same way any connector's label is.
   (show every `VERSION_HISTORY` entry newer than what they last saw). The
   boot always calls `markVersionSeen()` right after, regardless of which
   case, so the modal is a one-time-per-update nudge, not a repeat nag.
+
+- `core/project.js#duplicateProject(project)`: pure clone with a fresh
+  project id/name/timestamps and every node/edge/sub-component/group id
+  regenerated (a `nodeIdMap`/`groupIdMap` pair, the same remapping shape
+  `canvas.js#duplicateSelection` already uses for a partial selection).
+  `canvas.js#duplicateProjectAsNew()` just calls it and
+  `store.loadProject()`s the result — the original project is never
+  touched, so it's still exactly as it was under its own id (autosaved or
+  saved-as separately). `canvas.js#duplicateEntireCanvas()` is the
+  same-project variant: select every node+edge, then reuse
+  `duplicateSelection()` as-is — no new duplication logic needed there.
+
+## AI Design Review (`io/aiReview.js`, `panel/aiReviewPanel.js`)
+
+Deliberately **not** an API integration — see docs/SPEC.md 4.12 for the
+full reasoning (no mainstream LLM offers key-free API access; scraping
+Google's embedded AI search results is blocked by CORS and against their
+ToS). `aiReview.js#buildReviewPrompt()` is a pure string builder (project
+name/node-edge counts/component names, plus an optional attached spec
+file's text, truncated to a sane length). The panel:
+1. Lets the prompt be edited in place (`promptOverride`, `null` until the
+   user types, at which point it wins over the auto-generated text on
+   every re-render).
+2. Exports the diagram via the existing `io/exportImage.js` (both
+   `exportPNG()` for a download and `captureDiagramCanvas()` re-used
+   directly for an optional clipboard-image copy, feature-detected via
+   `navigator.clipboard.write`/`ClipboardItem`).
+3. Opens each provider's own public chat URL (`AI_PROVIDERS` in
+   `aiReview.js`) in a new tab and copies the prompt to the clipboard in
+   the same click — the user is (presumably) already signed in there, so
+   no key ever exists in this app.
+4. Has no automatic way to get the reply back (that would hit the same
+   key/CORS wall) — a paste-back textarea saves replies into
+   `savedReviews`, a module-level array that is **not** persisted
+   (resets on reload) and **is** reset whenever the active project itself
+   changes.
+
+That last point is a subscription pattern worth calling out:
+`initAiReviewPanel()` subscribes to `store`'s `'change'` event but only
+acts when `store.getState().id` differs from the last-seen id — i.e. only
+on an actual project switch (New/Load/Duplicate/restore), never on a
+plain node/edge edit. This avoids two problems a naive "re-render on every
+change" subscriber would have: fighting the user's typing in the prompt
+textarea, and re-rendering the whole panel on every coalesced drag frame
+(store emits `'change'` for those too — see "State flow" above). The
+`detailsPanel.js` pattern (re-render whenever its one open node's data
+changes) doesn't apply here since this panel isn't node-scoped.
 
 ## Node label placement (`canvas/node.js`)
 

@@ -151,3 +151,23 @@ user-facing fix or feature, alongside this changelog.
   back to a plain elbow route if no clear path exists. New `routing`
   value `'magic'`, also chooseable for any existing connector from its
   style editor.
+
+## v1.3.0 (2026-08-15)
+
+- Added **"Duplicate Project"** (📄 toolbar button, or canvas right-click):
+  clones the whole diagram into a new, independent project (fresh ids
+  throughout) and switches to editing the copy — the original stays
+  exactly as it was. Added **"Duplicate entire canvas"** (canvas
+  right-click): copies every component and connector in place, within the
+  same project. New `core/project.js#duplicateProject()`.
+- Added a **"🤖 AI Design Review"** side panel: prepares a review prompt
+  and exports the diagram as an image (download or clipboard copy), then
+  opens Claude/ChatGPT/Gemini/Copilot's own website in a new tab — no API
+  key or configuration, since it uses the account you're already signed
+  into there. Optionally attach a plain-text/Markdown spec file to fold
+  into the prompt for a diagram-vs-spec comparison. There's no automatic
+  round trip (every mainstream LLM requires an API key for programmatic
+  access, and scraping Google's embedded AI search results is neither
+  feasible from a static page nor allowed) — paste the AI's reply into the
+  panel to keep it alongside your project for the session. New
+  `js/io/aiReview.js` + `js/panel/aiReviewPanel.js`.

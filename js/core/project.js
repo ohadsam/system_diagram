@@ -76,6 +76,47 @@ export function createEdge(fromNodeId, toNodeId, overrides = {}) {
   };
 }
 
+/**
+ * Clones a whole project as an independent copy: fresh project id and
+ * timestamps, "(Copy)" appended to the name, and every node/edge/
+ * sub-component/group id regenerated (so the copy never shares identity
+ * with the original — safe to have both around, e.g. in the saved-projects
+ * list, without id collisions). Pure — the caller decides what to do with
+ * the result (load it as the active canvas, save it, etc).
+ */
+export function duplicateProject(project) {
+  const nodeIdMap = new Map();
+  const groupIdMap = new Map();
+  const nodes = project.nodes.map((n) => {
+    const newId = nextId('node');
+    nodeIdMap.set(n.id, newId);
+    let newGroupId = null;
+    if (n.groupId) {
+      if (!groupIdMap.has(n.groupId)) groupIdMap.set(n.groupId, nextId('group'));
+      newGroupId = groupIdMap.get(n.groupId);
+    }
+    return {
+      ...n,
+      id: newId,
+      groupId: newGroupId,
+      subComponents: (n.subComponents || []).map((sc) => ({ ...sc, id: nextId('sc') })),
+    };
+  });
+  const edges = project.edges
+    .filter((e) => nodeIdMap.has(e.from) && nodeIdMap.has(e.to))
+    .map((e) => ({ ...e, id: nextId('edge'), from: nodeIdMap.get(e.from), to: nodeIdMap.get(e.to) }));
+  const now = new Date().toISOString();
+  return {
+    ...project,
+    id: nextId('proj'),
+    name: `${project.name} (Copy)`,
+    createdAt: now,
+    updatedAt: now,
+    nodes,
+    edges,
+  };
+}
+
 export function nextZIndex(project) {
   return project.nodes.reduce((max, n) => Math.max(max, n.zIndex || 0), 0) + 1;
 }

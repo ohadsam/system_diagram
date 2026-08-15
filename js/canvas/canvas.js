@@ -2,7 +2,7 @@
 // store, and owns pan/zoom/marquee-selection. See docs/ARCHITECTURE.md
 // "Canvas rendering".
 import * as store from '../core/store.js';
-import { createEdge, nextZIndex, removeNode as removeNodeFromProject, removeEdge as removeEdgeFromProject, createNode } from '../core/project.js';
+import { createEdge, nextZIndex, removeNode as removeNodeFromProject, removeEdge as removeEdgeFromProject, createNode, duplicateProject } from '../core/project.js';
 import { getComponentById } from '../data/index.js';
 import { getCustomComponents } from '../io/customComponents.js';
 import { buildCreationOverrides } from '../io/nodeDefaults.js';
@@ -410,6 +410,24 @@ export function duplicateSelection() {
   else if (newEdges[0]) focusEdge(newEdges[0].id);
 }
 
+/** Duplicates every node and connector currently on the canvas, offset in
+ * place — the whole diagram, doubled, still in the same project. */
+export function duplicateEntireCanvas() {
+  const state = store.getState();
+  if (!state.nodes.length && !state.edges.length) return;
+  store.select(state.nodes.map((n) => n.id), state.edges.map((e) => e.id));
+  duplicateSelection();
+}
+
+/** Clones the whole project (see core/project.js#duplicateProject) and
+ * switches the active canvas to the copy — the original stays exactly as
+ * it was (autosaved/saved separately under its own id), unaffected. */
+export function duplicateProjectAsNew() {
+  const copy = duplicateProject(store.getState());
+  store.loadProject(copy);
+  showToast(`Duplicated into a new project — now editing "${copy.name}".`, 'success', 2400);
+}
+
 /** Ties 2+ selected nodes together so clicking or dragging any one of them
  * acts on the whole set — see selectNode(). */
 export function groupSelection() {
@@ -495,6 +513,9 @@ function openCanvasContextMenu(evt) {
     { label: 'Select all', icon: '▭', onClick: () => store.select(store.getState().nodes.map((n) => n.id), []) },
     { label: 'Fit to screen', icon: '🔍', onClick: fitToScreen },
     { label: 'Reset zoom to 100%', icon: '💯', onClick: () => viewport.zoomTo(1) },
+    'separator',
+    { label: 'Duplicate entire canvas', icon: '⧉', onClick: duplicateEntireCanvas },
+    { label: 'Duplicate as new project', icon: '📄', onClick: duplicateProjectAsNew },
   ];
   showContextMenu(evt.clientX, evt.clientY, items);
 }
