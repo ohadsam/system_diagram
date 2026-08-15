@@ -240,6 +240,26 @@
   display: block;
 }
 
+.node-replication-badge {
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  font-size: 11px;
+  line-height: 16px;
+  text-align: center;
+  display: none;
+  box-shadow: var(--shadow-sm);
+}
+
+.node.is-replicated .node-replication-badge {
+  display: block;
+}
+
 /* connection points */
 .node-connection-points {
   position: absolute;

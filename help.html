@@ -212,6 +212,7 @@
       <li><a href="#saving">Saving, loading &amp; export</a></li>
       <li><a href="#ai-review">AI Design Review</a></li>
       <li><a href="#generate-design">Generate Design from Spec</a></li>
+      <li><a href="#replication">Live Replication</a></li>
       <li><a href="#shortcuts">Keyboard shortcuts</a></li>
       <li><a href="#faq">FAQ</a></li>
     </ul>
@@ -246,6 +247,7 @@
         <li><strong>My Components</strong> — your own saved components (see "Custom components" below) appear in their own category at the top, with right-click Edit/Delete.</li>
       </ul>
       <div class="tip">🧠 The <strong>AI Providers &amp; Agents</strong> category covers the generative-AI world: model providers (OpenAI, Anthropic, Google, AWS Bedrock, Azure OpenAI, Mistral, Cohere, Hugging Face, Ollama, ...), specific models (GPT, Claude, Gemini, Llama, Whisper, DALL·E, ...), the Model Context Protocol (MCP Server/Client/Tool/Resource/Prompt), agents &amp; agent frameworks (LangGraph, AutoGen, CrewAI, Semantic Kernel, LlamaIndex), and skills/tools/RAG building blocks (Skill, System Prompt, RAG Pipeline, Knowledge Base, Guardrails, Function Calling). These behave like any other component — drag or click to add.</div>
+      <div class="tip">☸️ The <strong>AWS</strong> category includes container-orchestration building blocks — EKS Cluster, EKS Node Group, Pod (EKS), ECS Cluster, ECS Service, ECS Task — alongside the managed services (EKS, ECS, Fargate, ...) themselves.</div>
     </section>
 
     <section id="layers-patterns">
@@ -260,8 +262,9 @@
       </ul>
       <p><span class="mock-node">🎮 API Server <small style="opacity:.7">+ Controller, + Auth</small></span></p>
       <h3>Design Patterns</h3>
-      <p>This category holds 24 ready-made architecture blueprints — MVC, MVVM, Layered Architecture, Repository, CQRS, API Gateway, Circuit Breaker, Publish-Subscribe, Event Sourcing, Saga, Hexagonal Architecture, Cache-Aside, plus classic patterns like Singleton, Observer, Strategy, Adapter and Decorator. Dragging or clicking one instantiates the <em>whole cluster</em> at once — every component and connector it needs, positioned and selected together so you can immediately move or restyle the group, or undo it as a single step.</p>
+      <p>This category holds 29 ready-made architecture blueprints — MVC, MVVM, Layered Architecture, Repository, CQRS, API Gateway, Circuit Breaker, Publish-Subscribe, Event Sourcing, Saga, Hexagonal Architecture, Cache-Aside, classic patterns like Singleton, Observer, Strategy, Adapter and Decorator, and high-availability blueprints — Active-Active Replication, Active-Passive Replication (Primary-Standby), Multi-AZ Deployment, Read Replica, Multi-Region Active-Active. Dragging or clicking one instantiates the <em>whole cluster</em> at once — every component and connector it needs, positioned and selected together so you can immediately move or restyle the group, or undo it as a single step.</p>
       <div class="tip">💡 Pattern components reuse the same styling as the regular library, so once dropped in they're just normal components — resize, restyle, rename, or delete any of them individually.</div>
+      <div class="tip">🔁 The HA patterns above drop a one-time, labeled snapshot — for a diagram that <em>keeps</em> two sides mirrored as you keep editing, see "Live Replication" below instead.</div>
       <h3>State Machines</h3>
       <p>This category holds state shapes — Initial State, State, Choice/Decision, Final State, Fork/Join, History State, Composite State — plus 6 ready-made templates (Traffic Light, Order Lifecycle, TCP Connection, Media Player, Approval Workflow, Auth Session). There's nothing special about a state or a transition: a state is just a component, and a transition's condition or event is just that connector's <strong>label</strong> — so state-machine pieces connect to (and mix freely with) anything else on your diagram using the same drag-to-connect gesture as everything else.</p>
       <p><span class="mock-node">⬭ Authenticating <small style="opacity:.7">→ credentials valid → Logged In</small></span></p>
@@ -379,6 +382,19 @@
       <div class="tip">🛡️ A reply that isn't quite right doesn't lose your work: an unusable paste shows an inline error and keeps your text so you can fix and retry, and if the AI ignores the layout instructions its components get automatically spread out on a grid instead of landing in an unreadable pile.</div>
     </section>
 
+    <section id="replication">
+      <h2><span class="icon-badge">🔁</span> Live Replication</h2>
+      <p>Click "🔁" in the toolbar to link a selection of components to a live-mirrored second side. Unlike the one-time Design Pattern blueprints (see above), this relationship keeps going as you keep editing.</p>
+      <ol>
+        <li><strong>Create a pair</strong> — select one or more components, click "🔁", pick a mode (Active-Active, Active-Passive/Primary-Standby, or Primary-Replica — just a label, they all work the same way) and confirm. Your selection becomes "side A"; an exact copy is placed to the right as "side B".</li>
+        <li><strong>Add to either side, any time</strong> — select a component (new or existing) and, from "🔁", choose "Add as side A" or "Add as side B" on the pair you want. A mirror appears on the other side automatically.</li>
+        <li><strong>Everything stays in sync</strong> — move, resize, restyle, rename, or edit a mirrored component's notes/sub-components, and its peer follows, in either direction. Delete one and its peer is deleted too, so the two sides can never quietly drift apart.</li>
+      </ol>
+      <p><span class="mock-node">🔁 Primary DB <small style="opacity:.7">↔ auto-mirrored ↔</small> Standby DB</span></p>
+      <div class="tip">🚫 Don't want a specific component mirrored? Open its details panel (ⓘ) and check "Exclude this component from replication mirroring" — it keeps its own content and stops syncing, without affecting the rest of its side. If it already had a peer, that peer is frozen in place rather than deleted.</div>
+      <div class="tip">✂️ To stop two sides from syncing altogether (without touching either one), open "🔁" with nothing conflicting selected and click the 🗑️ next to that pair under "All replication pairs in this project".</div>
+    </section>
+
     <section id="shortcuts">
       <h2><span class="icon-badge">⌨️</span> Keyboard shortcuts</h2>
       <table>
@@ -432,6 +448,10 @@
       <details>
         <summary>Does "Generate Design" call an AI automatically too?</summary>
         <p>No, same as AI Design Review — it prepares a prompt and copies it to your clipboard, then opens the AI provider's own website for you to paste it into and send yourself. The generated diagram only appears after you paste the AI's reply back into the wizard.</p>
+      </details>
+      <details>
+        <summary>If I delete a component from a replicated side, does its mirror really disappear too?</summary>
+        <p>Yes — deleting a mirrored component always deletes its peer, so the two sides never end up half-deleted and out of sync. Undo (Ctrl/Cmd+Z) brings both back in one step, since the deletion and its mirror are a single action.</p>
       </details>
     </section>
   </main>

@@ -152,6 +152,37 @@ user-facing fix or feature, alongside this changelog.
   value `'magic'`, also chooseable for any existing connector from its
   style editor.
 
+## v1.5.0 (2026-08-15)
+
+- Added AWS container/orchestration components: **EKS Cluster**, **EKS
+  Node Group**, **Pod (EKS)**, **ECS Cluster**, **ECS Service**, **ECS
+  Task**.
+- Added 5 high-availability/replication **Design Patterns**: Active-Active
+  Replication, Active-Passive Replication (Primary-Standby), Multi-AZ
+  Deployment, Read Replica, Multi-Region Active-Active — each a one-time,
+  labeled blueprint of nodes + connectors, same as the existing patterns.
+- Added **"🔁 Replicate"** — live, ongoing replication between two sides of
+  a diagram, distinct from the static patterns above. Link a selection to
+  an auto-generated mirrored second side (Active-Active / Active-Passive /
+  Primary-Replica, a descriptive label only — every mode uses the same
+  mechanism); from then on, a component added to either side automatically
+  gets a mirror on the other, and moving/resizing/restyling/renaming/
+  editing a mirrored component propagates to its peer. Deleting a mirrored
+  component deletes its peer too, so the two sides can't silently drift
+  out of sync. Any component can be marked "Exclude from replication" (its
+  details panel) to opt out without affecting the rest of its side —
+  excluding an already-mirrored component severs the link without
+  deleting its peer, which is then frozen at its last state rather than
+  orphaned into looking like a fresh unmapped member. Break a pair any
+  time from the "🔁 Replicate" modal, leaving both sides exactly as they
+  are. New `js/core/replication.js` (the pure sync engine, wired into
+  `core/store.js#dispatch`/`loadProject` so every mutation path gets
+  mirroring for free) + `js/modals/replicationModal.js`.
+- Extended the project schema with `replicationPairs` and a per-node
+  `replicationExcluded` flag; `validateProject()` and `duplicateProject()`
+  both updated to validate/remap this data the same defensive way as
+  everything else.
+
 ## v1.4.0 (2026-08-15)
 
 - Added **"🧠 Generate Design"**: a 3-step wizard that runs the AI Design

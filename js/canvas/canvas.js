@@ -3,6 +3,7 @@
 // "Canvas rendering".
 import * as store from '../core/store.js';
 import { createEdge, nextZIndex, removeNode as removeNodeFromProject, removeEdge as removeEdgeFromProject, createNode, duplicateProject } from '../core/project.js';
+import { buildReplicationPair } from '../core/replication.js';
 import { getComponentById } from '../data/index.js';
 import { getCustomComponents } from '../io/customComponents.js';
 import { buildCreationOverrides } from '../io/nodeDefaults.js';
@@ -200,6 +201,7 @@ function render(state) {
       nodeElements.delete(id);
     }
   }
+  const replicatedGroupIds = new Set(state.replicationPairs.flatMap((p) => [p.groupA, p.groupB]));
   for (const node of state.nodes) {
     let elRef = nodeElements.get(node.id);
     if (!elRef) {
@@ -208,7 +210,10 @@ function render(state) {
       nodeElements.set(node.id, elRef);
       nodeLayer.appendChild(elRef);
     }
-    updateNodeEl(elRef, node, { selected: store.getSelection().nodeIds.includes(node.id) });
+    updateNodeEl(elRef, node, {
+      selected: store.getSelection().nodeIds.includes(node.id),
+      replicated: !!node.groupId && replicatedGroupIds.has(node.groupId),
+    });
   }
 
   const edgeIds = new Set(state.edges.map((e) => e.id));
@@ -459,6 +464,104 @@ export function ungroupSelection() {
 export function selectionHasGroup() {
   const state = store.getState();
   return store.getSelection().nodeIds.some((id) => state.nodes.find((n) => n.id === id)?.groupId);
+}
+
+function isGroupInAnyPair(state, groupId) {
+  return !!groupId && state.replicationPairs.some((p) => p.groupA === groupId || p.groupB === groupId);
+}
+
+/** Turns the current selection into a brand-new live replication pair: side
+ * A is the selection (grouped if it wasn't already), side B is an
+ * auto-generated mirror placed to the right — see core/replication.js. */
+export function createReplicationPairFromSelection(mode) {
+  const selection = store.getSelection();
+  if (!selection.nodeIds.length) return;
+  const state = store.getState();
+
+  const conflict = selection.nodeIds.some((id) => {
+    const n = state.nodes.find((x) => x.id === id);
+    return n && isGroupInAnyPair(state, n.groupId);
+  });
+  if (conflict) {
+    showToast('One or more selected components already belong to a replication pair — break that pair first, or use "Add to Replication" instead.', 'error', 3200);
+    return;
+  }
+
+  const built = buildReplicationPair(state.nodes, selection.nodeIds, mode);
+  if (!built || !built.mirrorNodes.length) {
+    showToast('Every selected component is excluded from replication — nothing to mirror.', 'error');
+    return;
+  }
+  store.dispatch((draft) => {
+    for (const id of built.regroupNodeIds) {
+      const n = draft.nodes.find((x) => x.id === id);
+      if (n) n.groupId = built.groupA;
+    }
+    draft.nodes.push(...built.mirrorNodes);
+    draft.replicationPairs.push(built.pair);
+  });
+  store.select([...selection.nodeIds, ...built.mirrorNodes.map((n) => n.id)], []);
+  showToast(`Created a replication pair — ${built.mirrorNodes.length} component${built.mirrorNodes.length === 1 ? '' : 's'} mirrored.`, 'success', 2600);
+}
+
+/** Adds the current selection to an existing pair's side ('a'|'b') by
+ * assigning that side's groupId — the next sync pass mirrors each newly
+ * joined node to the other side automatically. */
+export function addSelectionToReplicationSide(pairId, side) {
+  const selection = store.getSelection();
+  if (!selection.nodeIds.length) return;
+  const state = store.getState();
+  const pair = state.replicationPairs.find((p) => p.id === pairId);
+  if (!pair) return;
+  const targetGroupId = side === 'a' ? pair.groupA : pair.groupB;
+
+  const conflict = selection.nodeIds.some((id) => {
+    const n = state.nodes.find((x) => x.id === id);
+    return n && n.groupId !== targetGroupId && isGroupInAnyPair(state, n.groupId);
+  });
+  if (conflict) {
+    showToast('One or more selected components already belong to a different replication pair.', 'error', 3200);
+    return;
+  }
+
+  const newlyJoined = selection.nodeIds.filter((id) => state.nodes.find((n) => n.id === id)?.groupId !== targetGroupId).length;
+  store.dispatch((draft) => {
+    for (const id of selection.nodeIds) {
+      const n = draft.nodes.find((x) => x.id === id);
+      if (n) n.groupId = targetGroupId;
+    }
+  });
+  if (newlyJoined > 0) {
+    showToast(`Added ${newlyJoined} component${newlyJoined === 1 ? '' : 's'} — mirroring to the other side.`, 'success', 2400);
+  } else {
+    showToast('Already part of that side.', 'info', 1800);
+  }
+}
+
+/** Deletes a replication pair's link: both sides' nodes and their groupIds
+ * are left exactly as they are, just no longer kept in sync. */
+export function breakReplicationPair(pairId) {
+  store.dispatch((draft) => {
+    draft.replicationPairs = draft.replicationPairs.filter((p) => p.id !== pairId);
+  });
+  showToast('Replication pair broken — both sides are now independent.', 'success', 2200);
+}
+
+export function getReplicationPairs() {
+  return store.getState().replicationPairs;
+}
+
+/** Returns `{ pair, side: 'a'|'b' }` if `nodeId`'s groupId currently belongs
+ * to an active replication pair's side, else null. */
+export function getReplicationInfoForNode(nodeId) {
+  const state = store.getState();
+  const node = state.nodes.find((n) => n.id === nodeId);
+  if (!node || !node.groupId) return null;
+  for (const pair of state.replicationPairs) {
+    if (pair.groupA === node.groupId) return { pair, side: 'a' };
+    if (pair.groupB === node.groupId) return { pair, side: 'b' };
+  }
+  return null;
 }
 
 function reorderZ(nodeId, toFront) {

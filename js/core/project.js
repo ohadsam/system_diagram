@@ -14,6 +14,10 @@ export const TEXT_POSITIONS = ['center', 'top', 'bottom', 'above', 'below'];
 // Whether a node's sub-components render as compact truncated chips or as
 // a full untruncated list of rows — see docs/SPEC.md 4.2.5.
 export const SUBCOMPONENTS_DISPLAY_MODES = ['chips', 'full'];
+// Purely a descriptive label on a replication pair — every mode uses the
+// exact same live-mirroring engine (core/replication.js); see docs/SPEC.md
+// "Live Replication" for why one mechanism covers all of them.
+export const REPLICATION_MODES = ['active-active', 'active-passive', 'primary-replica'];
 
 export function createEmptyProject(name = 'Untitled Diagram') {
   const now = new Date().toISOString();
@@ -26,6 +30,7 @@ export function createEmptyProject(name = 'Untitled Diagram') {
     viewport: { x: 0, y: 0, zoom: 1 },
     nodes: [],
     edges: [],
+    replicationPairs: [],
   };
 }
 
@@ -54,6 +59,10 @@ export function createNode(def, x, y, overrides = {}) {
     rows: def?.shape === 'rows' ? ['Row 1'] : [],
     zIndex: 1,
     groupId: null,
+    // Opts this node out of core/replication.js's live mirroring, even while
+    // its groupId belongs to an active replication pair's side — see
+    // docs/SPEC.md "Live Replication".
+    replicationExcluded: false,
     ...overrides,
   };
 }
@@ -105,6 +114,21 @@ export function duplicateProject(project) {
   const edges = project.edges
     .filter((e) => nodeIdMap.has(e.from) && nodeIdMap.has(e.to))
     .map((e) => ({ ...e, id: nextId('edge'), from: nodeIdMap.get(e.from), to: nodeIdMap.get(e.to) }));
+  // A pair only survives the copy if both of its groups still have at least
+  // one member among the duplicated nodes (i.e. groupIdMap actually has an
+  // entry for them) — an orphaned pair (every member since deleted) carries
+  // no useful state and would just reference groups that no longer exist.
+  const replicationPairs = (project.replicationPairs || [])
+    .filter((pair) => groupIdMap.has(pair.groupA) && groupIdMap.has(pair.groupB))
+    .map((pair) => ({
+      ...pair,
+      id: nextId('repl'),
+      groupA: groupIdMap.get(pair.groupA),
+      groupB: groupIdMap.get(pair.groupB),
+      members: pair.members
+        .filter((m) => nodeIdMap.has(m.a) && nodeIdMap.has(m.b))
+        .map((m) => ({ a: nodeIdMap.get(m.a), b: nodeIdMap.get(m.b) })),
+    }));
   const now = new Date().toISOString();
   return {
     ...project,
@@ -114,6 +138,7 @@ export function duplicateProject(project) {
     updatedAt: now,
     nodes,
     edges,
+    replicationPairs,
   };
 }
 
@@ -185,6 +210,7 @@ export function validateProject(input) {
           rows: Array.isArray(n.rows) ? n.rows.filter((r) => typeof r === 'string') : [],
           zIndex: Number.isFinite(n.zIndex) ? n.zIndex : 1,
           groupId: typeof n.groupId === 'string' ? n.groupId : null,
+          replicationExcluded: n.replicationExcluded === true,
         };
       });
     const edges = input.edges
@@ -204,6 +230,24 @@ export function validateProject(input) {
         label: typeof e.label === 'string' ? e.label : '',
       }));
 
+    const replicationPairs = Array.isArray(input.replicationPairs)
+      ? input.replicationPairs
+          .filter((p) => p && typeof p === 'object' && typeof p.groupA === 'string' && p.groupA && typeof p.groupB === 'string' && p.groupB && p.groupA !== p.groupB)
+          .map((p) => ({
+            id: typeof p.id === 'string' && p.id ? p.id : nextId('repl'),
+            mode: REPLICATION_MODES.includes(p.mode) ? p.mode : 'active-active',
+            groupA: p.groupA,
+            groupB: p.groupB,
+            offsetX: Number.isFinite(p.offsetX) ? p.offsetX : 0,
+            offsetY: Number.isFinite(p.offsetY) ? p.offsetY : 0,
+            members: Array.isArray(p.members)
+              ? p.members
+                  .filter((m) => m && typeof m.a === 'string' && nodeIds.has(m.a) && typeof m.b === 'string' && nodeIds.has(m.b))
+                  .map((m) => ({ a: m.a, b: m.b }))
+              : [],
+          }))
+      : [];
+
     const project = {
       formatVersion: FORMAT_VERSION,
       id: typeof input.id === 'string' ? input.id : nextId('proj'),
@@ -217,6 +261,7 @@ export function validateProject(input) {
       },
       nodes,
       edges,
+      replicationPairs,
     };
     return { ok: true, project };
   } catch (err) {

@@ -18,6 +18,7 @@ import { openCustomShapeModal } from '../modals/customShapeModal.js';
 import { openDefaultSettingsModal } from '../modals/defaultSettingsModal.js';
 import { openBackupModal } from '../modals/backupModal.js';
 import { openWhatsNewModal } from '../modals/whatsNewModal.js';
+import { openReplicationModal } from '../modals/replicationModal.js';
 import { toggleAiReviewPanel } from '../panel/aiReviewPanel.js';
 import { openGenerateDesignModal } from '../modals/generateDesignModal.js';
 import { confirmAction } from '../modals/confirmModal.js';
@@ -126,8 +127,9 @@ function buildCreateGroup() {
   });
   const addShapeBtn = el('button', { type: 'button', class: 'btn', title: 'Add a basic shape', text: '🔷 Add Shape', onClick: openCustomShapeModal });
   const generateDesignBtn = el('button', { type: 'button', class: 'btn', title: 'Generate a design from a spec, with AI help', text: '🧠 Generate Design', onClick: openGenerateDesignModal });
+  const replicateBtn = el('button', { type: 'button', class: 'btn btn-icon', title: 'Replicate: link components to auto-mirror across two sides', text: '🔁', onClick: openReplicationModal });
   const defaultsBtn = el('button', { type: 'button', class: 'btn btn-icon', title: 'Default settings for new components', text: '🎛️', onClick: openDefaultSettingsModal });
-  return group(newComponentBtn, addShapeBtn, generateDesignBtn, defaultsBtn);
+  return group(newComponentBtn, addShapeBtn, generateDesignBtn, replicateBtn, defaultsBtn);
 }
 
 function buildExportGroup() {

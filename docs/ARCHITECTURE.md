@@ -12,13 +12,14 @@ shipped).
 index.html ──► js/main.js
                  ├─ core/store.js        (state + pub/sub)
                  ├─ core/history.js      (undo/redo snapshots of store)
+                 ├─ core/replication.js  (live "keep two sides mirrored" engine, run from store.js)
                  ├─ data/index.js        (component library, pure data)
                  ├─ sidebar/sidebar.js   (reads data/index.js, writes via store)
                  ├─ canvas/canvas.js     (reads store, renders nodes+edges, writes via store)
                  ├─ toolbar/toolbar.js   (reads store selection, writes via store)
                  ├─ panel/detailsPanel.js
                  ├─ panel/aiReviewPanel.js
-                 ├─ modals/*.js          (incl. modals/generateDesignModal.js)
+                 ├─ modals/*.js          (incl. modals/generateDesignModal.js, modals/replicationModal.js)
                  ├─ io/*.js              (localStorage, file, image/pdf export)
                  └─ hints/hints.js
 ```
@@ -28,10 +29,11 @@ index.html ──► js/main.js
 `core/store.js` exposes:
 
 - `getState()` — returns the current immutable-by-convention project state.
-- `dispatch(mutatorFn)` — runs `mutatorFn(draftClone)`, replaces state,
-  pushes a history snapshot (unless flagged `silent`, used for
-  high-frequency drag updates which are coalesced), then calls
-  `emit('change', state)`.
+- `dispatch(mutatorFn, opts)` — runs `mutatorFn(draftClone)`, runs the
+  result through `core/replication.js#syncReplication()` (mirrors any
+  replication-pair changes the mutator just made — see "Live Replication"
+  below), pushes a history snapshot (unless `opts.coalesce` is set, used
+  for high-frequency drag updates), then calls `emit('change', state)`.
 - `subscribe(fn)` — every UI module subscribes once at init and re-renders
   only the DOM it owns. No module queries another module's DOM nodes.
 - `select(nodeIds, edgeIds)` — updates `state.selection` and emits
@@ -305,6 +307,87 @@ Fixed by checking `e.target === dialog` instead, which is the correct way
 to detect a native `<dialog>` backdrop click (its backdrop isn't a real
 element in the DOM tree — a click that lands there targets the dialog
 itself) and doesn't depend on rect timing at all.
+
+## Live Replication (`core/replication.js`, `modals/replicationModal.js`)
+
+Two "sides" (each an ordinary node group — `node.groupId`, the same
+mechanism `groupSelection()` already uses) linked by a `replicationPairs`
+entry on the project: `{ id, mode, groupA, groupB, offsetX, offsetY,
+members: [{a, b}] }`. `mode` is purely a descriptive label — every mode
+runs through the exact same engine. No new spatial-containment concept was
+introduced (the app has no parent/child node nesting); "side A" and "side
+B" are just two `groupId`s, and `offsetX/offsetY` is the constant delta
+between them, computed once at pair-creation time from side A's bounding
+box.
+
+`syncReplication(prevProject, nextProject)` is a pure function, deliberately
+free of any DOM/store coupling so it's trivial to unit-test directly and to
+call from two different integration points:
+- `store.js#dispatch()` calls it with `prev = state` (before the mutator
+  ran) and `next = draft` (after) — diffing against the real "before"
+  state is what lets it tell *which side actually changed* in this one
+  user action, without any call site (canvas drag, a details-panel edit,
+  JSON import, the AI-generate paste-back, ...) needing to know
+  replication exists at all.
+- `store.js#loadProject()` calls it with the *same* object as both
+  `prev` and `next` (a self-diff) — every node compares equal to itself,
+  so content/position propagation never fires, but the "any node newly
+  found with a side's groupId and no mapping yet" discovery pass still
+  runs. That's what makes an imported/pasted/AI-generated project's
+  `replicationPairs` "detect the existing state" on first load, per
+  docs/SPEC.md 4.14, with no special-casing beyond passing one object
+  twice.
+
+Per pair, each sync pass:
+1. **Reconciles existing `members`**: a pair whose `a`/`b` node id is
+   simply gone gets its surviving peer cascade-deleted (a genuine
+   deletion should never leave a stale orphan on the other side). A pair
+   where one side is still present but no longer *eligible* (its
+   `groupId` no longer matches that side, or it's `replicationExcluded`)
+   instead just severs the mapping — **and flags the surviving peer
+   `replicationExcluded` too**. That flag-the-peer step is required, not
+   cosmetic: without it, the peer would look to the next step like an
+   ordinary, unmapped member of its own side's group and get mirrored
+   right back, undoing the severance. It also has the nice side effect of
+   keeping the per-node "excluded" checkbox honest — it now reads
+   excluded because the node genuinely no longer participates.
+2. **Propagates a change**: for a still-linked pair, compares each side's
+   `signature()` (every mirrorable field, JSON-stringified, minus
+   `id`/`groupId`/`zIndex`/`replicationExcluded`) against its
+   `prevProject` counterpart. Whichever side's signature actually changed
+   drives the update — content fields are copied verbatim (sub-components
+   cloned with fresh ids), position is copied via the pair's fixed offset
+   in the appropriate direction. If *both* sides changed within the same
+   dispatch (only realistically possible via a bulk multi-select edit that
+   already applied the identical value to both), nothing propagates —
+   the tie means they already match.
+3. **Discovers new/unmapped members**: any node whose `groupId` matches a
+   side and isn't already in `members` (and isn't excluded) gets a mirror
+   created on the other side.
+
+`buildReplicationPair(nodes, selectedNodeIds, mode)` is the pure builder
+behind "create a pair from the current selection" — reuses one common
+existing `groupId` for side A if the whole selection already shares one
+(otherwise mints a fresh one, same "overwrite on regroup" precedent as
+`groupSelection()`), skips any `replicationExcluded` node from being
+mirrored at all, and returns everything `canvas.js#createReplicationPairFromSelection`
+needs to fold into one atomic `store.dispatch()` call.
+
+`canvas.js` also guards against a group being claimed by two different
+pairs at once (`isGroupInAnyPair`) in both the create and join actions —
+the engine itself doesn't strictly need this (each pair syncs
+independently against whatever `nodes` looks like after earlier pairs in
+the same pass already ran), but a node whose side is ambiguous between two
+pairs is a state the UI should simply never let a user create.
+
+`core/project.js#validateProject()` validates `replicationPairs` the same
+"coerce to safe defaults, never throw" way as everything else (drops a
+pair with an equal/missing `groupA`/`groupB`, clamps an unknown `mode`,
+filters `members` entries to ids that survived node validation) and
+`duplicateProject()` remaps a pair's `groupA`/`groupB`/`members` through
+the same id maps it already builds for nodes/edges/groups, dropping a pair
+outright if neither of its groups survived the clone (nothing left to
+duplicate).
 
 ## Node label placement (`canvas/node.js`)
 

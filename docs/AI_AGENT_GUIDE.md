@@ -67,6 +67,9 @@ this repo" quick-start.
 | Change the AI Design Review prompt/providers/panel  | `js/io/aiReview.js` (`buildReviewPrompt`, `AI_PROVIDERS`) + `js/panel/aiReviewPanel.js` (UI, paste-back). See "Common pitfalls" below before touching this — it's intentionally not an API integration. |
 | Change the Generate Design from Spec prompt/wizard   | `js/io/aiGenerateDesign.js` (`buildGenerateDesignPrompt`, `extractProjectJSON`, `autoArrangeIfNeeded`) + `js/modals/generateDesignModal.js` (the 3-step wizard UI). Same "not an API integration" constraint as AI Design Review applies. |
 | Change how missing node/edge ids are handled on import | `js/core/project.js#validateProject` — backfills a missing/invalid id via `core/id.js#nextId` rather than dropping the node/edge; covers file import, backup restore, and pasted AI results alike |
+| Change Live Replication's sync rules                | `js/core/replication.js` (`syncReplication`, `buildReplicationPair`) — pure, DOM-free, called from `js/core/store.js#dispatch`/`loadProject`. See "Common pitfalls" below before touching this. |
+| Change the Replicate create/join/break UI            | `js/modals/replicationModal.js` (UI) + `js/canvas/canvas.js` (`createReplicationPairFromSelection`, `addSelectionToReplicationSide`, `breakReplicationPair`, `getReplicationInfoForNode`) |
+| Add an AWS cluster/node/pod-style component or an HA design pattern | `js/data/categories/aws.js` (plain `c(...)`) or `js/data/categories/design-patterns.js` (`definePattern(...)`) |
 
 ## Running things locally
 
@@ -142,3 +145,25 @@ npm test
   (see docs/ARCHITECTURE.md's Generate Design from Spec section for the
   full story). Don't revert to comparing click coordinates against
   `getBoundingClientRect()`.
+- **`core/replication.js#syncPair`'s "sever the link" branch must flag the
+  surviving peer `replicationExcluded`, not just drop the mapping entry.**
+  Dropping only the mapping isn't enough — the peer still structurally
+  looks like an ordinary unmapped member of its side's group, and the very
+  next "discover new members" pass in the same function would immediately
+  re-mirror it, undoing the severance. If you touch this function, keep a
+  test asserting node count stays flat (no deletion) *and* the peer ends
+  up excluded after an exclude/regroup-triggered severance.
+- **`syncReplication` must never mutate `prevProject`/`nextProject` in
+  place** — it's called with `prev = state` (the *live* previous store
+  state, not a clone) from `store.js#dispatch`, so mutating it would
+  corrupt history/undo. Always build new nodes/pairs arrays.
+- When writing a Playwright test that double-clicks a node label
+  immediately after an action that changes how many nodes are selected
+  (e.g. right after `createReplicationPairFromSelection`, which selects
+  both sides), settle the selection with a plain `.click()` first before
+  the `.dblclick()`. The contextual toolbar row's height depends on
+  selection count, so a selection-count change mid-double-click can shift
+  the canvas under the pointer between the gesture's two clicks and make
+  the second one miss — a pre-existing characteristic of the layout, not
+  something to "fix" in the app; just settle the selection in the test
+  first, matching how a real user would naturally interact.

@@ -240,3 +240,86 @@ test('validateProject backfills a missing/invalid node or edge id instead of dro
   assert.equal(typeof result2.project.edges[0].id, 'string');
   assert.ok(result2.project.edges[0].id.length > 0);
 });
+
+test('createEmptyProject and createNode default to an empty/unexcluded replication state', () => {
+  const p = createEmptyProject();
+  assert.deepEqual(p.replicationPairs, []);
+  const node = createNode(null, 0, 0);
+  assert.equal(node.replicationExcluded, false);
+});
+
+test('validateProject keeps a well-formed replicationPairs entry, backfilling a missing id', () => {
+  const raw = {
+    nodes: [{ id: 'n1', x: 0, y: 0, groupId: 'gA' }, { id: 'n2', x: 300, y: 0, groupId: 'gB' }],
+    edges: [],
+    replicationPairs: [{ mode: 'active-passive', groupA: 'gA', groupB: 'gB', offsetX: 300, offsetY: 0, members: [{ a: 'n1', b: 'n2' }] }],
+  };
+  const result = validateProject(raw);
+  assert.equal(result.ok, true);
+  assert.equal(result.project.replicationPairs.length, 1);
+  const pair = result.project.replicationPairs[0];
+  assert.equal(typeof pair.id, 'string');
+  assert.ok(pair.id.length > 0);
+  assert.equal(pair.mode, 'active-passive');
+  assert.equal(pair.members.length, 1);
+});
+
+test('validateProject drops a replication pair with equal/missing groupA-groupB, and clamps an unknown mode', () => {
+  const raw = {
+    nodes: [{ id: 'n1', x: 0, y: 0 }],
+    edges: [],
+    replicationPairs: [
+      { groupA: 'same', groupB: 'same', members: [] }, // groupA === groupB -> nonsensical, dropped
+      { groupA: '', groupB: 'gB', members: [] }, // missing groupA -> dropped
+      { groupA: 'gA', groupB: 'gB', mode: 'not-a-real-mode', members: [] }, // kept, mode clamped
+    ],
+  };
+  const result = validateProject(raw);
+  assert.equal(result.project.replicationPairs.length, 1);
+  assert.equal(result.project.replicationPairs[0].mode, 'active-active');
+});
+
+test('validateProject drops a replication pair member referencing a node id that does not exist', () => {
+  const raw = {
+    nodes: [{ id: 'n1', x: 0, y: 0 }],
+    edges: [],
+    replicationPairs: [{ groupA: 'gA', groupB: 'gB', members: [{ a: 'n1', b: 'does-not-exist' }] }],
+  };
+  const result = validateProject(raw);
+  assert.equal(result.project.replicationPairs[0].members.length, 0);
+});
+
+test('validateProject never throws on a malformed replicationPairs value', () => {
+  for (const bad of [null, 'nope', 42, [null, 5, {}], [{ groupA: 1, groupB: 2 }]]) {
+    assert.doesNotThrow(() => validateProject({ nodes: [], edges: [], replicationPairs: bad }));
+  }
+});
+
+test('duplicateProject remaps a replication pair\'s groups/members to the freshly-cloned ids', () => {
+  const p = createEmptyProject();
+  const n1 = createNode(null, 0, 0, { groupId: 'gA' });
+  const n2 = createNode(null, 300, 0, { groupId: 'gB' });
+  p.nodes.push(n1, n2);
+  p.replicationPairs.push({ id: 'repl_1', mode: 'active-active', groupA: 'gA', groupB: 'gB', offsetX: 300, offsetY: 0, members: [{ a: n1.id, b: n2.id }] });
+
+  const copy = duplicateProject(p);
+
+  assert.equal(copy.replicationPairs.length, 1);
+  const pair = copy.replicationPairs[0];
+  assert.notEqual(pair.id, 'repl_1');
+  assert.equal(pair.groupA, copy.nodes[0].groupId);
+  assert.equal(pair.groupB, copy.nodes[1].groupId);
+  assert.equal(pair.members[0].a, copy.nodes[0].id);
+  assert.equal(pair.members[0].b, copy.nodes[1].id);
+});
+
+test('duplicateProject drops a replication pair whose group has no surviving members', () => {
+  const p = createEmptyProject();
+  const n1 = createNode(null, 0, 0, { groupId: 'gA' });
+  p.nodes.push(n1);
+  // groupB never appears on any node — an orphaned pair reference.
+  p.replicationPairs.push({ id: 'repl_1', mode: 'active-active', groupA: 'gA', groupB: 'gB', offsetX: 300, offsetY: 0, members: [] });
+
+  const copy = duplicateProject(p);
+  assert.equal(copy.replicationPairs.length, 0);
+});

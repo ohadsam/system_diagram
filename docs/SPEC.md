@@ -86,8 +86,11 @@ rather than an infrastructure component. Unlike other items:
 
 #### 4.2.2 Design Patterns
 A `kind: 'pattern'` item (MVC, Repository, CQRS, API Gateway, Circuit
-Breaker, Saga, Hexagonal Architecture, plus a few classic GoF patterns
-like Singleton/Observer/Strategy/Adapter/Decorator — ~24 total, see
+Breaker, Saga, Hexagonal Architecture, a few classic GoF patterns like
+Singleton/Observer/Strategy/Adapter/Decorator, and a set of high-
+availability/replication blueprints — Active-Active Replication,
+Active-Passive Replication (Primary-Standby), Multi-AZ Deployment, Read
+Replica, Multi-Region Active-Active — ~29 total, see
 `js/data/categories/design-patterns.js`) is not a single placeable
 component. Dropping or clicking one instantiates a whole small cluster of
 real nodes (each reusing an existing component/layer definition, so
@@ -412,6 +415,48 @@ See `js/io/aiGenerateDesign.js` (prompt builder, JSON extraction,
 auto-layout safety net) and `js/modals/generateDesignModal.js` (the
 wizard itself).
 
+### 4.14 Live Replication
+A "🔁 Replicate" toolbar button links a selection of components to a
+second, auto-generated "side" and keeps the two continuously mirrored —
+distinct from the static Design Patterns in 4.2.2 (which drop a one-time
+labeled blueprint): this one is a live, ongoing relationship between two
+groups of components.
+
+- **Creating a pair**: select one or more components and click
+  "🔁 Replicate". Choose a mode (Active-Active / Active-Passive
+  (Primary-Standby) / Primary-Replica — a descriptive label only, every
+  mode uses the same mirroring mechanism) and confirm. The selection
+  becomes "side A"; an exact copy is created as "side B", placed to the
+  right of side A's bounding box. Both sides share the same group-select
+  behavior as any other component group (clicking one member selects the
+  whole side).
+- **Staying in sync, automatically**: from then on, adding a component to
+  either side (join it via "🔁 Replicate" → "Add to an existing pair") — or
+  a component already sitting in that side's group, e.g. right after a
+  JSON import — gets a mirror created on the other side on the very next
+  change. Moving, resizing, restyling, renaming or editing a mirrored
+  component's sub-components/notes/labels propagates the same change to
+  its peer, in either direction (whichever side actually changed drives
+  the update). Deleting a mirrored component deletes its peer too, so the
+  two sides can never silently drift into a stale, half-deleted state.
+- **Excluding a component**: any single component can be marked "Exclude
+  from replication mirroring" from its details panel (shown whenever it's
+  currently part of an active pair) — it keeps its content as-is and stops
+  syncing, without affecting the rest of its side. If it already had a
+  peer, that peer is also frozen at its last-synced state rather than
+  deleted, and re-clearing the exclude flag later creates a fresh mirror
+  (not a restoration of the old one).
+- **Breaking a pair**: from the "🔁 Replicate" modal's "All replication
+  pairs" list — both sides are left exactly as they are, just no longer
+  kept in sync going forward.
+- A component that's part of an active pair (and not excluded) shows a
+  small 🔁 badge on the canvas.
+
+See `js/core/replication.js` (the pure sync engine — `syncReplication()`
+runs inside `core/store.js#dispatch()`/`loadProject()` so every mutation
+path gets mirroring for free) and `js/modals/replicationModal.js` (the
+create/join/break UI).
+
 ## 5. Non-functional requirements
 
 - **Security**: no `eval`/`innerHTML` with unsanitized input, no inline
@@ -454,7 +499,8 @@ wizard itself).
       "subComponents": [{ "id": "sc_1", "name": "Auth", "icon": "🔐" }],
       "rows": [],
       "zIndex": 3,
-      "groupId": null
+      "groupId": null,
+      "replicationExcluded": false
     }
   ],
   "edges": [
@@ -467,6 +513,15 @@ wizard itself).
       "startArrow": "none", "endArrow": "filled",
       "label": "HTTPS"
     }
+  ],
+  "replicationPairs": [
+    {
+      "id": "repl_...",
+      "mode": "active-active",
+      "groupA": "group_...", "groupB": "group_...",
+      "offsetX": 280, "offsetY": 0,
+      "members": [{ "a": "node_a", "b": "node_b" }]
+    }
   ]
 }
 ```
@@ -475,7 +530,11 @@ wizard itself).
 4.4.1) — a magic-routed edge's actual path is never stored (it's
 recomputed live from current node positions), so no extra field is needed
 for it. `groupId` (default `null`) ties 2+ nodes into a Group/Ungroup unit
-— see 4.3.1.
+— see 4.3.1. `replicationExcluded` (default `false`) and
+`replicationPairs` (default `[]`) drive Live Replication — see 4.14;
+`mode` is one of `active-active` / `active-passive` / `primary-replica`,
+purely descriptive, and `members` maps each side-A node id to its side-B
+mirror's id.
 
 ## 7. Out of scope for v1 (ideas for later, see PLAN.md §7)
 

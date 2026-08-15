@@ -253,4 +253,76 @@ export const components = [
     ],
     edges: [e('client', 'decA'), e('decA', 'decB'), e('decB', 'component')],
   }),
+
+  definePattern('pattern-active-active', 'Active-Active Replication', '🔁', {
+    description: 'Two peer instances both actively serve traffic, with data kept in sync in both directions.',
+    tags: ['availability', 'replication', 'ha'],
+    nodes: [
+      n('lb', 'net-load-balancer', 0, -170, 'Load Balancer'),
+      n('appA', 'srv-app-server', -190, 0, 'App A'),
+      n('appB', 'srv-app-server', 190, 0, 'App B'),
+      n('dbA', 'db-generic', -190, 170, 'DB A'),
+      n('dbB', 'db-generic', 190, 170, 'DB B'),
+    ],
+    edges: [e('lb', 'appA'), e('lb', 'appB'), e('appA', 'dbA'), e('appB', 'dbB'), e('dbA', 'dbB', 'sync replication', { ...twoWay, ...dashed })],
+  }),
+
+  definePattern('pattern-active-passive', 'Active-Passive Replication (Primary-Standby)', '🛟', {
+    description: 'One instance actively serves traffic while a standby stays in sync, ready to take over on failover.',
+    tags: ['availability', 'replication', 'ha', 'failover'],
+    nodes: [
+      n('app', 'srv-app-server', 0, -160, 'App (Active)'),
+      n('primary', 'db-generic', -180, 20, 'Primary DB (Active)'),
+      n('standby', 'db-generic', 180, 20, 'Standby DB (Passive)'),
+    ],
+    edges: [e('app', 'primary', 'reads/writes'), e('primary', 'standby', 'replicates', dashed)],
+  }),
+
+  definePattern('pattern-multi-az', 'Multi-AZ Deployment', '🏢', {
+    description: 'A standby copy lives in a second Availability Zone, ready to fail over if the primary AZ goes down.',
+    tags: ['availability', 'replication', 'ha', 'multi-az'],
+    nodes: [
+      n('lb', 'net-load-balancer', 0, -170, 'Load Balancer'),
+      n('app', 'srv-app-server', -190, 0, 'App (AZ-A)'),
+      n('primary', 'db-generic', -190, 170, 'Primary DB (AZ-A)'),
+      n('standby', 'db-generic', 190, 170, 'Standby DB (AZ-B)'),
+    ],
+    edges: [e('lb', 'app'), e('app', 'primary'), e('primary', 'standby', 'sync replication', dashed)],
+  }),
+
+  definePattern('pattern-read-replica', 'Read Replica', '📖', {
+    description: 'The app writes to a primary database, which replicates to one or more read-only replicas that absorb read traffic.',
+    tags: ['availability', 'replication', 'database', 'scaling'],
+    nodes: [
+      n('app', 'srv-app-server', 0, -170, 'App'),
+      n('primary', 'db-generic', 0, 10, 'Primary DB'),
+      n('replicaA', 'db-generic', -190, 190, 'Read Replica 1'),
+      n('replicaB', 'db-generic', 190, 190, 'Read Replica 2'),
+    ],
+    edges: [
+      e('app', 'primary', 'writes'),
+      e('app', 'replicaA', 'reads', dashed),
+      e('primary', 'replicaA', 'async replication', dashed),
+      e('primary', 'replicaB', 'async replication', dashed),
+    ],
+  }),
+
+  definePattern('pattern-multi-region-active-active', 'Multi-Region Active-Active', '🌍', {
+    description: 'Independent regional stacks each serve local traffic, routed by DNS/geo-routing, while data replicates across regions.',
+    tags: ['availability', 'replication', 'ha', 'multi-region'],
+    nodes: [
+      n('dns', 'net-dns', 0, -220, 'DNS / Geo-Routing'),
+      n('regionA', 'shape-cloud', -220, -20, 'Region A'),
+      n('regionB', 'shape-cloud', 220, -20, 'Region B'),
+      n('dbA', 'db-generic', -220, 170, 'DB (Region A)'),
+      n('dbB', 'db-generic', 220, 170, 'DB (Region B)'),
+    ],
+    edges: [
+      e('dns', 'regionA'),
+      e('dns', 'regionB'),
+      e('regionA', 'dbA'),
+      e('regionB', 'dbB'),
+      e('dbA', 'dbB', 'cross-region replication', { ...twoWay, ...dashed }),
+    ],
+  }),
 ];

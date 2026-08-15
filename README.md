@@ -40,11 +40,13 @@ Or open `index.html` directly in a browser.
   Service, DAL, Authentication, React Hook, Angular Guard, DDD terms, ...).
   Drag one onto an existing component to attach it as a sub-component, or
   add it via that component's details panel (with autocomplete).
-- **Design Patterns** — 24 one-click blueprints (MVC, MVVM, Layered
+- **Design Patterns** — 29 one-click blueprints (MVC, MVVM, Layered
   Architecture, Repository, CQRS, API Gateway, Circuit Breaker,
   Publish-Subscribe, Saga, Hexagonal Architecture, Singleton, Observer,
-  Strategy, and more) that drop a whole ready-made cluster of connected
-  components onto the canvas at once.
+  Strategy, plus high-availability blueprints like Active-Active
+  Replication, Active-Passive Replication, Multi-AZ Deployment, Read
+  Replica, and Multi-Region Active-Active) that drop a whole ready-made
+  cluster of connected components onto the canvas at once.
 - **State Machines** — states, transitions and conditions using the same
   components/connectors as the rest of the diagram (no special mode), plus
   6 ready-made templates (Traffic Light, Order Lifecycle, TCP Connection,
@@ -96,6 +98,11 @@ Or open `index.html` directly in a browser.
   links as above) that guides the AI to reply with a design in this app's
   own format, then paste that reply back in and it's imported straight
   onto the canvas as real, editable components.
+- **🔁 Replicate** — link a selection to a live-mirrored second side
+  (Active-Active / Active-Passive / Primary-Replica). Add, move, resize,
+  restyle or rename a component on either side and its peer follows
+  automatically; delete one and its peer goes too. Mark any single
+  component "Exclude from replication" to opt it out.
 - **Export** — PNG and PDF snapshots of your diagram.
 - **Dismissible hints** — a short first-run guided tour, restartable any
   time.

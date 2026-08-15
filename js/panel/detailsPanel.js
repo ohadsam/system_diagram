@@ -3,9 +3,10 @@
 import * as store from '../core/store.js';
 import { el, clear } from '../utils/dom.js';
 import { nextId } from '../core/id.js';
-import { textInput, field, selectInput } from '../utils/formControls.js';
+import { textInput, field, selectInput, checkbox } from '../utils/formControls.js';
 import { LAYER_DATALIST_ID, ensureLayerDatalist, findLayerByName } from '../utils/layerDatalist.js';
 import { SUBCOMPONENTS_DISPLAY_MODES } from '../core/project.js';
+import { getReplicationInfoForNode } from '../canvas/canvas.js';
 
 const SUBCOMPONENTS_DISPLAY_LABELS = { chips: 'Compact chips', full: 'Full list' };
 
@@ -74,6 +75,12 @@ function render(node) {
 
   const body = el('div', { class: 'details-body' });
 
+  const replicationInfo = getReplicationInfoForNode(node.id);
+  if (replicationInfo) {
+    body.appendChild(el('h3', { text: 'Replication' }));
+    body.appendChild(renderReplicationSection(node, replicationInfo));
+  }
+
   body.appendChild(el('h3', { text: 'Notes' }));
   const notes = el('textarea', {
     class: 'details-notes',
@@ -96,6 +103,17 @@ function render(node) {
   }
 
   rootEl.appendChild(body);
+}
+
+function renderReplicationSection(node, { side }) {
+  const wrap = el('div', { class: 'details-replication' });
+  wrap.appendChild(el('p', { class: 'modal-hint', text: `Part of a live replication pair, side ${side.toUpperCase()} — components added here auto-mirror to the other side.` }));
+  wrap.appendChild(checkbox(
+    node.replicationExcluded === true,
+    (v) => updateNode((n) => { n.replicationExcluded = v; }),
+    'Exclude this component from replication mirroring',
+  ));
+  return wrap;
 }
 
 function renderLabels(node) {

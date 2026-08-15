@@ -1,6 +1,7 @@
 // Single source of truth for the whole app. See ARCHITECTURE.md "State flow".
 import { History } from './history.js';
 import { createEmptyProject, touch } from './project.js';
+import { syncReplication } from './replication.js';
 
 const listeners = { change: new Set(), selection: new Set() };
 const history = new History();
@@ -34,10 +35,15 @@ export function subscribe(event, fn) {
  * the gesture ends.
  */
 export function dispatch(mutator, opts = {}) {
+  const prev = state;
   const draft = structuredClone(state);
   mutator(draft);
-  touch(draft);
-  state = draft;
+  // Diffing against `prev` (the state as it was just before this mutation)
+  // is what lets syncReplication tell which side of a pair actually
+  // changed in this one action — see core/replication.js.
+  const synced = syncReplication(prev, draft);
+  touch(synced);
+  state = synced;
   if (!opts.coalesce) history.commit(state);
   emit('change', state);
 }
@@ -56,7 +62,14 @@ export function clearSelection() {
 }
 
 export function loadProject(project) {
-  state = project;
+  // Self-diff (same object as both prev/next): only structural fixups run
+  // — a pair's unmapped-but-eligible members get mirrored, an orphaned
+  // mapping gets dropped — never content propagation, since there's no
+  // real "before" state to diff a freshly-loaded project against. This is
+  // what makes an imported/pasted/AI-generated project's replicationPairs
+  // "detect the existing state" correctly on first load — see
+  // core/replication.js#syncReplication.
+  state = syncReplication(project, project);
   selection = { nodeIds: [], edgeIds: [] };
   history.init(state);
   emit('change', state);
