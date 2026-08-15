@@ -152,6 +152,43 @@ user-facing fix or feature, alongside this changelog.
   value `'magic'`, also chooseable for any existing connector from its
   style editor.
 
+## v1.6.0 (2026-08-15)
+
+- Added **❄️ Freeze / ▶️ Resume** to each replication pair (in the
+  "🔁 Replicate" modal): freezing pauses live syncing completely for that
+  pair — either side can then be edited, or a new component added, without
+  it reaching the other side. Resuming picks syncing back up from that
+  point on (it does not retroactively reconcile whatever changed while
+  frozen). Joining a frozen pair is disabled in the UI, since a new member
+  wouldn't visibly mirror until resumed. A frozen pair's members show a ❄️
+  canvas badge instead of 🔁.
+- Added 12 AWS **Region** components (US East N. Virginia/Ohio, US West
+  Oregon/N. California, Canada Central, Europe Ireland/London/Frankfurt,
+  Asia Pacific Singapore/Sydney/Tokyo, South America São Paulo) — big
+  container-style boxes for depicting multi-region architectures, plus a
+  **CloudFront Edge Location** component.
+- Added a **🔔/🔕 hints toggle** to the toolbar: turns hint bubbles on/off
+  at any time, independent of "💡 Show hints again" (which restarts the
+  whole tour by clearing every dismissed hint). Turning hints back off
+  hides the current bubble without dismissing it; turning back on resumes
+  exactly where it left off. Restarting the tour also turns this switch
+  back on, so it can never look silently broken.
+- Fixed two real mobile-layout bugs (found by direct DOM measurement, not
+  visual inspection — see docs/ARCHITECTURE.md "Mobile/responsive layout"
+  for the full story and why `fullPage` screenshots misled the first pass):
+  a toolbar button group with several full-text buttons (adding "🔁
+  Replicate" was what tipped it over) forced the whole page into
+  horizontal scroll instead of wrapping onto a new line; and the
+  sidebar/details-panel/AI-review-panel mobile drawers used a hardcoded
+  pixel offset for "below the toolbar" that broke once the toolbar wrapped
+  onto more than one row, rendering the drawer starting partway through
+  the toolbar instead of below it.
+- Added `.claude/skills/release-checklist` and `.claude/skills/add-library-item`
+  — repeatable project skills encoding this repo's recurring "wrap up a
+  batch of changes" checklist and "add a component/pattern to the library"
+  workflow, respectively, to keep future work consistent and cut down on
+  re-deriving conventions from scratch each time.
+
 ## v1.5.0 (2026-08-15)
 
 - Added AWS container/orchestration components: **EKS Cluster**, **EKS

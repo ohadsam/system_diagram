@@ -6,7 +6,7 @@ import { el, clear } from '../utils/dom.js';
 import * as store from '../core/store.js';
 import { REPLICATION_MODES } from '../core/project.js';
 import {
-  createReplicationPairFromSelection, addSelectionToReplicationSide, breakReplicationPair, getReplicationInfoForNode,
+  createReplicationPairFromSelection, addSelectionToReplicationSide, breakReplicationPair, getReplicationInfoForNode, setReplicationPairFrozen,
 } from '../canvas/canvas.js';
 import { selectInput } from '../utils/formControls.js';
 import { confirmAction } from './confirmModal.js';
@@ -19,7 +19,8 @@ const MODE_LABELS = {
 
 function pairSummary(pair) {
   const count = pair.members.length;
-  return `${MODE_LABELS[pair.mode] || pair.mode} — ${count} mirrored component${count === 1 ? '' : 's'}`;
+  const base = `${MODE_LABELS[pair.mode] || pair.mode} — ${count} mirrored component${count === 1 ? '' : 's'}`;
+  return pair.frozen ? `❄️ ${base} (frozen)` : base;
 }
 
 export function openReplicationModal() {
@@ -62,6 +63,12 @@ function renderBody(body, api, selectedMode, setMode) {
     for (const pair of pairs) {
       const row = el('div', { class: 'replication-pair-row' });
       row.appendChild(el('span', { text: pairSummary(pair) }));
+      row.appendChild(el('button', {
+        type: 'button', class: 'btn btn-icon', text: pair.frozen ? '▶️' : '❄️',
+        title: pair.frozen ? 'Resume: changes will mirror between the two sides again' : 'Freeze: pause mirroring so either side can be edited without affecting the other',
+        'aria-label': pair.frozen ? 'Resume this replication pair' : 'Freeze this replication pair',
+        onClick: () => setReplicationPairFrozen(pair.id, !pair.frozen),
+      }));
       row.appendChild(el('button', {
         type: 'button', class: 'btn btn-icon', text: '🗑️', title: 'Break this replication pair', 'aria-label': 'Break this replication pair',
         onClick: async () => {
@@ -121,12 +128,13 @@ function renderSelectionSection(body, api, state, selection, pairs, selectedMode
     for (const pair of pairs) {
       const row = el('div', { class: 'replication-pair-row' });
       row.appendChild(el('span', { text: pairSummary(pair) }));
+      const joinTitle = pair.frozen ? 'Resume this pair first — while frozen, a new member would not get mirrored' : undefined;
       row.appendChild(el('button', {
-        type: 'button', class: 'btn btn-secondary', text: 'Add as side A',
+        type: 'button', class: 'btn btn-secondary', text: 'Add as side A', disabled: pair.frozen, title: joinTitle,
         onClick: () => { addSelectionToReplicationSide(pair.id, 'a'); api.close(); },
       }));
       row.appendChild(el('button', {
-        type: 'button', class: 'btn btn-secondary', text: 'Add as side B',
+        type: 'button', class: 'btn btn-secondary', text: 'Add as side B', disabled: pair.frozen, title: joinTitle,
         onClick: () => { addSelectionToReplicationSide(pair.id, 'b'); api.close(); },
       }));
       joinList.appendChild(row);

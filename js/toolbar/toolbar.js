@@ -24,7 +24,7 @@ import { openGenerateDesignModal } from '../modals/generateDesignModal.js';
 import { confirmAction } from '../modals/confirmModal.js';
 import { showToast } from '../utils/toast.js';
 import { readJSON, writeJSON } from '../io/storage.js';
-import { resetHints } from '../hints/hints.js';
+import { resetHints, areHintsEnabled, setHintsEnabled } from '../hints/hints.js';
 
 let contextRow = null;
 let undoBtn = null;
@@ -203,13 +203,23 @@ function buildHelpGroup() {
   });
   const hintsBtn = el('button', {
     type: 'button', class: 'btn btn-icon', title: 'Show hints again', text: '💡',
-    onClick: () => { resetHints(); showToast('Hints restarted.', 'info', 1800); },
+    onClick: () => { resetHints(); updateHintsToggle(); showToast('Hints restarted.', 'info', 1800); },
   });
+  const hintsToggleBtn = el('button', {
+    type: 'button', class: 'btn btn-icon', onClick: () => { setHintsEnabled(!areHintsEnabled()); updateHintsToggle(); },
+  });
+  function updateHintsToggle() {
+    const on = areHintsEnabled();
+    hintsToggleBtn.textContent = on ? '🔔' : '🔕';
+    hintsToggleBtn.title = on ? 'Hide hints' : 'Show hints';
+    hintsToggleBtn.classList.toggle('active', on);
+  }
+  updateHintsToggle();
   const whatsNewBtn = el('button', {
     type: 'button', class: 'btn btn-icon', title: "What's new", text: '🆕',
     onClick: () => openWhatsNewModal(),
   });
-  return group(helpBtn, hintsBtn, whatsNewBtn);
+  return group(helpBtn, hintsBtn, hintsToggleBtn, whatsNewBtn);
 }
 
 function renderContextRow(selection) {

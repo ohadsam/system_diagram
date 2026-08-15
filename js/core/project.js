@@ -245,6 +245,7 @@ export function validateProject(input) {
                   .filter((m) => m && typeof m.a === 'string' && nodeIds.has(m.a) && typeof m.b === 'string' && nodeIds.has(m.b))
                   .map((m) => ({ a: m.a, b: m.b }))
               : [],
+            frozen: p.frozen === true,
           }))
       : [];
 

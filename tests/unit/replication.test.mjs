@@ -48,6 +48,54 @@ test('buildReplicationPair reuses an existing common groupId instead of minting 
   assert.deepEqual(built.regroupNodeIds, []);
 });
 
+test('buildReplicationPair creates a pair that starts unfrozen', () => {
+  const project = createEmptyProject();
+  project.nodes = [mkNode('n1', null, 0, 0)];
+  const built = buildReplicationPair(project.nodes, ['n1'], 'active-active');
+  assert.equal(built.pair.frozen, false);
+});
+
+test('syncReplication skips a frozen pair entirely: no propagation, no new-member mirroring, no cascade-delete', () => {
+  const { project, built } = setupPair([{ id: 'n1' }]);
+  const frozenProject = { ...project, replicationPairs: [{ ...built.pair, frozen: true }] };
+
+  // content/position edit on side A must NOT propagate while frozen
+  const edited = { ...frozenProject, nodes: frozenProject.nodes.map((n) => (n.id === 'n1' ? { ...n, text: 'Local only', x: 999 } : n)) };
+  let synced = syncReplication(frozenProject, edited);
+  const mirror = synced.nodes.find((n) => n.id !== 'n1');
+  assert.notEqual(mirror.text, 'Local only');
+  assert.notEqual(mirror.x, 999 + built.pair.offsetX);
+
+  // a new node dropped into side A's group must NOT get mirrored while frozen
+  const withNew = { ...synced, nodes: [...synced.nodes, mkNode('n3', built.groupA, 0, 300)] };
+  synced = syncReplication(synced, withNew);
+  assert.equal(synced.nodes.length, 3, 'no mirror should be created for the new node while frozen');
+
+  // deleting n1 while frozen must NOT cascade-delete its (already-diverged) mirror
+  const afterDelete = { ...synced, nodes: synced.nodes.filter((n) => n.id !== 'n1') };
+  synced = syncReplication(synced, afterDelete);
+  assert.equal(synced.nodes.length, 2, 'the mirror and n3 must both survive — frozen pairs never cascade-delete');
+});
+
+test('syncReplication resumes normal syncing once a pair is unfrozen again', () => {
+  const { project, built } = setupPair([{ id: 'n1' }]);
+  const frozen = { ...project, replicationPairs: [{ ...built.pair, frozen: true }] };
+  const editedWhileFrozen = { ...frozen, nodes: frozen.nodes.map((n) => (n.id === 'n1' ? { ...n, text: 'Changed while frozen' } : n)) };
+  const stillFrozenState = syncReplication(frozen, editedWhileFrozen);
+
+  const resumed = { ...stillFrozenState, replicationPairs: [{ ...stillFrozenState.replicationPairs[0], frozen: false }] };
+  // Resuming alone (self-diff) does not retroactively reconcile past drift.
+  let synced = syncReplication(resumed, resumed);
+  let mirror = synced.nodes.find((n) => n.id !== 'n1');
+  assert.notEqual(mirror.text, 'Changed while frozen', 'resuming must not retroactively reconcile drift from while it was frozen');
+
+  // but a *new* change after resuming propagates normally again
+  const editedAfterResume = { ...synced, nodes: synced.nodes.map((n) => (n.id === 'n1' ? { ...n, text: 'Changed after resume' } : n)) };
+  synced = syncReplication(synced, editedAfterResume);
+  mirror = synced.nodes.find((n) => n.id !== 'n1');
+  assert.equal(mirror.text, 'Changed after resume');
+});
+
 test('buildReplicationPair returns null for an empty selection', () => {
   assert.equal(buildReplicationPair([], [], 'active-active'), null);
 });

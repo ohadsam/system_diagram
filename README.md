@@ -102,10 +102,11 @@ Or open `index.html` directly in a browser.
   (Active-Active / Active-Passive / Primary-Replica). Add, move, resize,
   restyle or rename a component on either side and its peer follows
   automatically; delete one and its peer goes too. Mark any single
-  component "Exclude from replication" to opt it out.
+  component "Exclude from replication" to opt it out, or ❄️ freeze a whole
+  pair to edit one side without touching the other.
 - **Export** — PNG and PDF snapshots of your diagram.
 - **Dismissible hints** — a short first-run guided tour, restartable any
-  time.
+  time, with a separate 🔔/🔕 toggle to turn hint bubbles on/off.
 - **"What's New"** — a one-time modal after each update summarizing what
   changed, reachable any time afterward from the toolbar.
 - **Responsive** — full desktop layout; sidebar/details panel become

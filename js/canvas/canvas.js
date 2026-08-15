@@ -201,7 +201,13 @@ function render(state) {
       nodeElements.delete(id);
     }
   }
-  const replicatedGroupIds = new Set(state.replicationPairs.flatMap((p) => [p.groupA, p.groupB]));
+  const replicatedGroupIds = new Set();
+  const frozenGroupIds = new Set();
+  for (const p of state.replicationPairs) {
+    replicatedGroupIds.add(p.groupA);
+    replicatedGroupIds.add(p.groupB);
+    if (p.frozen) { frozenGroupIds.add(p.groupA); frozenGroupIds.add(p.groupB); }
+  }
   for (const node of state.nodes) {
     let elRef = nodeElements.get(node.id);
     if (!elRef) {
@@ -213,6 +219,7 @@ function render(state) {
     updateNodeEl(elRef, node, {
       selected: store.getSelection().nodeIds.includes(node.id),
       replicated: !!node.groupId && replicatedGroupIds.has(node.groupId),
+      replicationFrozen: !!node.groupId && frozenGroupIds.has(node.groupId),
     });
   }
 
@@ -545,6 +552,18 @@ export function breakReplicationPair(pairId) {
     draft.replicationPairs = draft.replicationPairs.filter((p) => p.id !== pairId);
   });
   showToast('Replication pair broken — both sides are now independent.', 'success', 2200);
+}
+
+/** Freezes or resumes a pair's live sync — while frozen, either side can be
+ * edited without the change reaching the other (see core/replication.js).
+ * Resuming does not retroactively reconcile any drift that happened while
+ * frozen; it only resumes syncing changes made from now on. */
+export function setReplicationPairFrozen(pairId, frozen) {
+  store.dispatch((draft) => {
+    const pair = draft.replicationPairs.find((p) => p.id === pairId);
+    if (pair) pair.frozen = frozen;
+  });
+  showToast(frozen ? 'Replication frozen — changes on either side stay local until resumed.' : 'Replication resumed — changes will mirror again.', 'success', 2400);
 }
 
 export function getReplicationPairs() {

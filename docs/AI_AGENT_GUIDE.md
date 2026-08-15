@@ -167,3 +167,38 @@ npm test
   the second one miss — a pre-existing characteristic of the layout, not
   something to "fix" in the app; just settle the selection in the test
   first, matching how a real user would naturally interact.
+- **Adding a toolbar button? Check it doesn't push a `.toolbar-group` past
+  the mobile viewport width.** `.toolbar-row` wraps *groups* onto new lines
+  on narrow screens, but without `.toolbar-group { flex-wrap: wrap }` (set
+  in `responsive.css`'s `@media (max-width: 900px)` block) a single group
+  with several full-text buttons doesn't wrap *internally* — it just forces
+  the whole page into horizontal scroll once it's wider than the viewport.
+  This actually happened: adding the "🔁 Replicate" button was the one that
+  tipped the "create" group over 390px. Verify with
+  `document.documentElement.scrollWidth <= window.innerWidth` at a mobile
+  viewport (`tests/e2e/mobile-responsive.spec.js` asserts this) rather than
+  eyeballing a screenshot.
+- **The sidebar/details-panel/AI-review-panel mobile drawers are
+  `position: absolute` inside `.app-body` (`position: relative`), not
+  `position: fixed` with a hardcoded top offset.** They used to be `fixed`
+  with `top: var(--toolbar-height)` (a constant 56px), which quietly
+  assumed the toolbar is always one row tall. Once the toolbar wraps onto
+  several rows (routine well before the 900px breakpoint — see above), its
+  real height is much more than 56px, and a `fixed` drawer with that
+  hardcoded offset renders starting partway *through* the toolbar instead
+  of below it. `.app-body` already starts exactly where the toolbar ends
+  regardless of its height (it's the second child of a column flex `#app`),
+  so anchoring these drawers to `.app-body`'s own box with `position:
+  absolute; top: 0` tracks the real toolbar height automatically at any
+  width — don't revert to `fixed` + a fixed pixel `top`.
+- **Use a plain (non-`fullPage`) Playwright screenshot when checking a
+  `position: fixed`/`absolute` mobile overlay.** A `fullPage: true`
+  capture can force Playwright to lay the page out against a taller
+  synthetic viewport for the capture, which throws off `vw`-relative or
+  absolute-positioned elements sized/positioned relative to the *real*
+  viewport — this produced a completely misleading screenshot (looked like
+  the sidebar was ~130px wide with toolbar buttons bleeding through it)
+  during the mobile-layout investigation above, when the live page at the
+  real viewport size was already correct. When something in a screenshot
+  looks broken, cross-check with `getBoundingClientRect()` /
+  `getComputedStyle()` via `page.evaluate()` before "fixing" it.

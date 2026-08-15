@@ -321,13 +321,28 @@ collides with the original):
 ### 4.9 Hints
 - Short contextual hint bubbles near key UI (sidebar, canvas, toolbar).
   Each has a unique id; "Got it" dismisses it permanently
-  (`localStorage`). A "Reset hints" action in Help brings them all back.
+  (`localStorage`). A "💡 Show hints again" action in the toolbar restarts
+  the whole tour (clears every dismissed id).
+- A separate "🔔/🔕" toolbar toggle turns hint bubbles on/off without
+  affecting which ones have been dismissed — off just hides whatever would
+  otherwise show (including mid-tour); turning back on resumes exactly
+  where the tour left off. Restarting the tour also turns this switch back
+  on, so it can't silently look broken if it was off. See `js/hints/hints.js`
+  (`areHintsEnabled`/`setHintsEnabled`).
 
 ### 4.10 Responsiveness
 - Desktop: full 3-pane layout.
-- Mobile/tablet: sidebar and details panel become slide-over drawers
-  toggled by buttons; toolbar collapses into a compact menu; touch drag
-  works via pointer events.
+- Mobile/tablet (≤900px): sidebar, details panel and AI review panel
+  become slide-over drawers toggled by buttons, positioned with
+  `position: absolute` inside `.app-body` (which already starts right
+  below the toolbar in normal flow) rather than a fixed pixel offset —
+  the toolbar's own height varies once it wraps onto multiple rows
+  (routine well before 900px as more toolbar buttons accumulate), so a
+  fixed offset would land a drawer partway through the toolbar instead of
+  below it. A `.toolbar-group` with several full-text buttons also wraps
+  its own buttons onto additional lines at this width rather than forcing
+  the page into horizontal scroll. Touch drag works via pointer events.
+  See `css/responsive.css` and `tests/e2e/mobile-responsive.spec.js`.
 
 ### 4.11 Versioning & "What's New"
 `js/version.js` holds `APP_VERSION` and a `VERSION_HISTORY` list of
@@ -449,8 +464,19 @@ groups of components.
 - **Breaking a pair**: from the "🔁 Replicate" modal's "All replication
   pairs" list — both sides are left exactly as they are, just no longer
   kept in sync going forward.
-- A component that's part of an active pair (and not excluded) shows a
-  small 🔁 badge on the canvas.
+- **Freezing / resuming**: each pair also has a ❄️ Freeze / ▶️ Resume
+  toggle (same "All replication pairs" list). While frozen, the pair is
+  completely inert — neither side propagates to the other, and adding a
+  component to either side does not get mirrored. This is the way to make
+  changes deliberately local to one side (e.g. testing something on just
+  the standby) without breaking the pair outright. Resuming does not
+  retroactively reconcile whatever changed while frozen; it only resumes
+  live syncing for changes made from then on. Joining a frozen pair (via
+  "Add to an existing pair") is disabled in the UI, since a component
+  added while frozen wouldn't visibly get a mirror until resumed anyway.
+- A component that's part of an active, unfrozen pair (and not excluded)
+  shows a small 🔁 badge on the canvas; a frozen pair's members show ❄️
+  instead.
 
 See `js/core/replication.js` (the pure sync engine — `syncReplication()`
 runs inside `core/store.js#dispatch()`/`loadProject()` so every mutation

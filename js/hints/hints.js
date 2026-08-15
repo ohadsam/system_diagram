@@ -6,6 +6,7 @@ import { readJSON, writeJSON } from '../io/storage.js';
 import { HINTS } from './hintData.js';
 
 const KEY = 'dismissedHints';
+const ENABLED_KEY = 'hintsEnabled';
 let queue = [];
 let bubbleEl = null;
 let currentTarget = null;
@@ -20,9 +21,26 @@ function dismiss(id) {
   writeJSON(KEY, [...set]);
 }
 
+/** Whether hint bubbles are allowed to show at all — a separate, persistent
+ * on/off switch from the per-hint dismissed set: turning hints off doesn't
+ * mark any of them as seen, so turning back on resumes exactly where the
+ * tour left off. Defaults to on. */
+export function areHintsEnabled() {
+  return readJSON(ENABLED_KEY, true);
+}
+
+/** Toggles the on/off switch above. Turning on immediately shows the next
+ * undismissed hint (if any); turning off immediately hides whichever
+ * bubble is currently showing, without dismissing it. */
+export function setHintsEnabled(enabled) {
+  writeJSON(ENABLED_KEY, enabled);
+  if (enabled) showNext();
+  else removeBubble();
+}
+
 export function initHints() {
   queue = HINTS.filter((h) => !getDismissed().has(h.id));
-  showNext();
+  if (areHintsEnabled()) showNext();
   window.addEventListener('resize', () => {
     if (bubbleEl && currentTarget) positionBubble(bubbleEl, currentTarget, bubbleEl.dataset.placement);
   });
@@ -30,6 +48,11 @@ export function initHints() {
 
 export function resetHints() {
   writeJSON(KEY, []);
+  // An explicit "show hints again" request implies the user wants hints
+  // on, even if they'd previously turned the switch off — otherwise
+  // clicking "restart tour" while hints are off would silently do nothing,
+  // which would look like the button was broken.
+  writeJSON(ENABLED_KEY, true);
   removeBubble();
   initHints();
 }

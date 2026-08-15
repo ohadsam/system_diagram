@@ -120,6 +120,43 @@ test('breaking a replication pair from the modal stops future mirroring but keep
   await expect(page.locator('.node.is-replicated')).toHaveCount(0);
 });
 
+test('freezing a pair lets one side change without affecting the other, and resuming brings syncing back', async ({ page }) => {
+  await addComponentByName(page, 'Redis');
+  await page.locator('.node').first().click();
+  await page.locator('#toolbar button[title^="Replicate"]').click();
+  await page.locator('.replication-modal button', { hasText: 'Create replication pair' }).click();
+  await expect.poll(() => nodeCount(page)).toBe(2);
+
+  await page.locator('#canvas-viewport').click({ position: { x: 40, y: 40 } });
+  await page.locator('#toolbar button[title^="Replicate"]').click();
+  await page.locator('.replication-pair-row button[title^="Freeze"]').click();
+  await expect(page.locator('.replication-pair-row', { hasText: 'frozen' })).toBeVisible();
+  await page.locator('.replication-modal button', { hasText: 'Close' }).click();
+
+  // Rename side A while frozen — the peer must NOT follow.
+  const label = page.locator('.node-label').first();
+  await label.click();
+  await label.dblclick();
+  await page.locator('.inline-edit-input').fill('Frozen Local Change');
+  await page.locator('.inline-edit-input').press('Enter');
+  await expect(page.locator('.node-label').first()).toHaveText('Frozen Local Change');
+  await expect(page.locator('.node-label').nth(1)).not.toHaveText('Frozen Local Change');
+
+  // Resume, then rename again — this time it must propagate.
+  await page.locator('#canvas-viewport').click({ position: { x: 40, y: 40 } });
+  await page.locator('#toolbar button[title^="Replicate"]').click();
+  await page.locator('.replication-pair-row button[title^="Resume"]').click();
+  await expect(page.locator('.replication-pair-row', { hasText: 'frozen' })).toHaveCount(0);
+  await page.locator('.replication-modal button', { hasText: 'Close' }).click();
+
+  const labelAfterResume = page.locator('.node-label').first();
+  await labelAfterResume.click();
+  await labelAfterResume.dblclick();
+  await page.locator('.inline-edit-input').fill('Synced After Resume');
+  await page.locator('.inline-edit-input').press('Enter');
+  await expect(page.locator('.node-label')).toHaveText(['Synced After Resume', 'Synced After Resume']);
+});
+
 test('the new AWS cluster/node/pod components and the replication design patterns are in the library', async ({ page }) => {
   await addComponentByName(page, 'EKS Cluster');
   await expect.poll(() => nodeCount(page)).toBe(1);

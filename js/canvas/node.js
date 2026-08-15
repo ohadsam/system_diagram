@@ -100,7 +100,7 @@ export function createNodeEl(node) {
   return root;
 }
 
-export function updateNodeEl(rootEl, node, { selected = false, replicated = false } = {}) {
+export function updateNodeEl(rootEl, node, { selected = false, replicated = false, replicationFrozen = false } = {}) {
   rootEl.dataset.shape = node.shape;
   rootEl.style.left = `${node.x}px`;
   rootEl.style.top = `${node.y}px`;
@@ -109,6 +109,13 @@ export function updateNodeEl(rootEl, node, { selected = false, replicated = fals
   rootEl.style.zIndex = String(node.zIndex || 1);
   rootEl.classList.toggle('selected', !!selected);
   rootEl.classList.toggle('is-replicated', !!replicated && !node.replicationExcluded);
+
+  const replicationBadgeEl = rootEl.querySelector('.node-replication-badge');
+  if (replicationBadgeEl) {
+    const frozen = !!replicationFrozen;
+    replicationBadgeEl.textContent = frozen ? '❄️' : '🔁';
+    replicationBadgeEl.title = frozen ? 'Part of a replication pair — frozen, changes here stay local' : 'Part of a live replication pair';
+  }
 
   const hasInfo = !!(node.notes?.trim() || node.labels?.length || (node.subComponents?.length && node.shape !== 'rows'));
   rootEl.classList.toggle('has-info', hasInfo);

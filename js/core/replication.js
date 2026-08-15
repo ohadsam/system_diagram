@@ -56,7 +56,10 @@ function applyMirroredContent(target, source, x, y) {
  *   (whether just added, or already there — e.g. right after a JSON
  *   import that carries matching groupIds — "detects the existing state"
  *   for free) gets a mirror created on the other side, unless it's
- *   replicationExcluded.
+ *   replicationExcluded;
+ * - a pair with `frozen: true` is skipped entirely (see `syncPair`) — lets
+ *   a user temporarily edit one side without touching the other, then
+ *   resume live syncing later.
  */
 export function syncReplication(prevProject, nextProject) {
   const pairs = nextProject.replicationPairs;
@@ -88,6 +91,12 @@ export function syncReplication(prevProject, nextProject) {
 }
 
 function syncPair(pair, nodes, prevById) {
+  // A frozen pair is completely inert: no propagation, no new-member
+  // discovery, no cascade-delete. This is what lets a user make changes to
+  // one side that deliberately do NOT reach the other, for as long as the
+  // pair stays frozen — see docs/SPEC.md "Live Replication".
+  if (pair.frozen) return { nodes, pair, changed: false, deletedNodeIds: [] };
+
   const byId = new Map(nodes.map((n) => [n.id, n]));
   let changed = false;
   const toDelete = new Set();
@@ -206,6 +215,6 @@ export function buildReplicationPair(nodes, selectedNodeIds, mode) {
     members.push({ a: node.id, b: mirror.id });
   }
 
-  const pair = { id: nextId('repl'), mode, groupA, groupB, offsetX, offsetY, members };
+  const pair = { id: nextId('repl'), mode, groupA, groupB, offsetX, offsetY, members, frozen: false };
   return { pair, groupA, regroupNodeIds: commonGroupId ? [] : selectedNodeIds, mirrorNodes };
 }

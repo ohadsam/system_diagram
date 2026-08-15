@@ -262,6 +262,17 @@ test('validateProject keeps a well-formed replicationPairs entry, backfilling a 
   assert.ok(pair.id.length > 0);
   assert.equal(pair.mode, 'active-passive');
   assert.equal(pair.members.length, 1);
+  assert.equal(pair.frozen, false, 'missing frozen should default to false');
+});
+
+test('validateProject preserves an explicit frozen:true on a replication pair', () => {
+  const raw = {
+    nodes: [{ id: 'n1', x: 0, y: 0, groupId: 'gA' }, { id: 'n2', x: 300, y: 0, groupId: 'gB' }],
+    edges: [],
+    replicationPairs: [{ groupA: 'gA', groupB: 'gB', members: [], frozen: true }],
+  };
+  const result = validateProject(raw);
+  assert.equal(result.project.replicationPairs[0].frozen, true);
 });
 
 test('validateProject drops a replication pair with equal/missing groupA-groupB, and clamps an unknown mode', () => {
@@ -300,7 +311,7 @@ test('duplicateProject remaps a replication pair\'s groups/members to the freshl
   const n1 = createNode(null, 0, 0, { groupId: 'gA' });
   const n2 = createNode(null, 300, 0, { groupId: 'gB' });
   p.nodes.push(n1, n2);
-  p.replicationPairs.push({ id: 'repl_1', mode: 'active-active', groupA: 'gA', groupB: 'gB', offsetX: 300, offsetY: 0, members: [{ a: n1.id, b: n2.id }] });
+  p.replicationPairs.push({ id: 'repl_1', mode: 'active-active', groupA: 'gA', groupB: 'gB', offsetX: 300, offsetY: 0, members: [{ a: n1.id, b: n2.id }], frozen: true });
 
   const copy = duplicateProject(p);
 
@@ -311,6 +322,7 @@ test('duplicateProject remaps a replication pair\'s groups/members to the freshl
   assert.equal(pair.groupB, copy.nodes[1].groupId);
   assert.equal(pair.members[0].a, copy.nodes[0].id);
   assert.equal(pair.members[0].b, copy.nodes[1].id);
+  assert.equal(pair.frozen, true, 'frozen state should carry over into the copy');
 });
 
 test('duplicateProject drops a replication pair whose group has no surviving members', () => {

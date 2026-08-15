@@ -234,7 +234,7 @@
         <div class="card"><h3>🛠️ Toolbar</h3>Global actions (save, export, undo/redo) plus style controls that appear when something is selected.</div>
         <div class="card"><h3>ℹ️ Details panel</h3>Slides in from the right with notes, labels and sub-components for the selected item.</div>
       </div>
-      <div class="tip">💡 First time here? A short guided tour of hints will point at each area automatically. You can restart it any time from the 💡 button in the toolbar.</div>
+      <div class="tip">💡 First time here? A short guided tour of hints will point at each area automatically. You can restart it any time from the 💡 button in the toolbar, or turn hint bubbles off/on with the 🔔/🔕 button right next to it (without losing your place in the tour).</div>
     </section>
 
     <section id="library">
@@ -248,6 +248,7 @@
       </ul>
       <div class="tip">🧠 The <strong>AI Providers &amp; Agents</strong> category covers the generative-AI world: model providers (OpenAI, Anthropic, Google, AWS Bedrock, Azure OpenAI, Mistral, Cohere, Hugging Face, Ollama, ...), specific models (GPT, Claude, Gemini, Llama, Whisper, DALL·E, ...), the Model Context Protocol (MCP Server/Client/Tool/Resource/Prompt), agents &amp; agent frameworks (LangGraph, AutoGen, CrewAI, Semantic Kernel, LlamaIndex), and skills/tools/RAG building blocks (Skill, System Prompt, RAG Pipeline, Knowledge Base, Guardrails, Function Calling). These behave like any other component — drag or click to add.</div>
       <div class="tip">☸️ The <strong>AWS</strong> category includes container-orchestration building blocks — EKS Cluster, EKS Node Group, Pod (EKS), ECS Cluster, ECS Service, ECS Task — alongside the managed services (EKS, ECS, Fargate, ...) themselves.</div>
+      <div class="tip">🌎 It also has 12 <strong>Region</strong> components (US East/West, Canada, Europe, Asia Pacific, South America) — big boxes for depicting multi-region architectures, plus a <strong>CloudFront Edge Location</strong> component for CDN detail. Search "Region:" to find them all at once.</div>
     </section>
 
     <section id="layers-patterns">
@@ -392,6 +393,7 @@
       </ol>
       <p><span class="mock-node">🔁 Primary DB <small style="opacity:.7">↔ auto-mirrored ↔</small> Standby DB</span></p>
       <div class="tip">🚫 Don't want a specific component mirrored? Open its details panel (ⓘ) and check "Exclude this component from replication mirroring" — it keeps its own content and stops syncing, without affecting the rest of its side. If it already had a peer, that peer is frozen in place rather than deleted.</div>
+      <div class="tip">❄️ Need to change just one side temporarily — testing something on the standby, say — without it reaching the other? Open "🔁" and click ❄️ next to that pair to freeze it; both sides can then be edited independently. Click ▶️ to resume syncing whenever you're ready (this doesn't retroactively merge whatever changed while frozen, only changes from that point on).</div>
       <div class="tip">✂️ To stop two sides from syncing altogether (without touching either one), open "🔁" with nothing conflicting selected and click the 🗑️ next to that pair under "All replication pairs in this project".</div>
     </section>
 
@@ -452,6 +454,10 @@
       <details>
         <summary>If I delete a component from a replicated side, does its mirror really disappear too?</summary>
         <p>Yes — deleting a mirrored component always deletes its peer, so the two sides never end up half-deleted and out of sync. Undo (Ctrl/Cmd+Z) brings both back in one step, since the deletion and its mirror are a single action.</p>
+      </details>
+      <details>
+        <summary>If I freeze a replication pair, edit both sides differently, then resume — which side wins?</summary>
+        <p>Neither, automatically — resuming doesn't merge or pick a winner for whatever changed while frozen. It just starts syncing new changes again from that point forward. If the two sides have drifted apart, the next edit you make to either one is what starts propagating.</p>
       </details>
     </section>
   </main>

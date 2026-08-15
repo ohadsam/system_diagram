@@ -389,6 +389,65 @@ the same id maps it already builds for nodes/edges/groups, dropping a pair
 outright if neither of its groups survived the clone (nothing left to
 duplicate).
 
+**Freeze/resume** is a single `pair.frozen` boolean, checked first thing in
+`syncPair()` — a frozen pair short-circuits to a no-op before any of the
+reconcile/discover logic above runs, so "frozen" really does mean
+completely inert, not just "content propagation paused" (a new member
+added to a frozen pair's group is *not* discovered and mirrored either,
+by design — see docs/SPEC.md 4.14 for why joining a frozen pair is
+disabled in the UI). There's deliberately no "resume and reconcile
+retroactive drift" step: resuming just lets the normal `prevProject`-vs-
+`nextProject` diff resume noticing changes from that point forward, since
+whatever changed while frozen was never diffed against a "before" state at
+all (each frozen dispatch returned immediately, so there's no meaningful
+merge to compute — reconciling would require picking a winner between two
+independently-diverged sides, which the freeze feature exists specifically
+to allow without the engine second-guessing it).
+
+## Mobile/responsive layout (`css/responsive.css`)
+
+Two real bugs found by direct DOM measurement (screenshots alone were
+misleading — see the note on `fullPage` screenshots below) drove the
+current approach, both stemming from the same root cause: the toolbar's
+height is **not constant**. `.toolbar-row` wraps its `.toolbar-group`
+children onto new lines once they don't fit, and once there are enough
+groups/buttons (routine well before the 900px breakpoint), the toolbar
+becomes several rows tall — a moving target that grows every time a new
+toolbar button is added.
+
+1. **A `.toolbar-group` didn't wrap internally.** `.toolbar-row` wrapping
+   *groups* onto new lines doesn't help if a single group (e.g. "New
+   Component" + "Add Shape" + "Generate Design" + "Replicate" + "Defaults")
+   is on its own wider than the viewport — adding the "🔁 Replicate" button
+   was what tipped that group over 390px width and forced the whole page
+   into horizontal scroll. Fixed with `.toolbar-group { flex-wrap: wrap }`
+   inside the mobile media query, so a too-wide group wraps its own buttons
+   instead of overflowing.
+2. **The sidebar/details-panel/AI-review-panel mobile drawers used
+   `position: fixed; top: var(--toolbar-height)`** — a constant 56px,
+   correct only for a single-row toolbar. Once the toolbar wraps onto
+   several rows its real height is well past 56px, so the drawer rendered
+   starting partway *through* the toolbar rather than below it. Fixed by
+   switching to `position: absolute; top: 0` anchored to `.app-body`
+   (already `position: relative`, and already the second child of a column
+   `flex` `#app` — meaning it starts exactly where the toolbar's real
+   rendered box ends, at any height, with no need to know that height at
+   all). Don't revert to `fixed` + a hardcoded pixel `top`.
+
+**Gotcha these fixes exposed**: a `fullPage: true` Playwright screenshot
+can lay the page out against a different synthetic viewport for the
+capture, which throws off anything sized/positioned relative to the *real*
+viewport (`vw` units, this file's `position: absolute` drawers). During
+the investigation this produced a screenshot that looked like the sidebar
+was ~130px wide with toolbar buttons bleeding through it, while the live
+page at the actual viewport size was already rendering correctly. Prefer a
+plain (non-`fullPage`) screenshot, or cross-check with
+`getBoundingClientRect()`/`getComputedStyle()` via `page.evaluate()`,
+before treating a screenshot as ground truth for a fixed/absolute mobile
+overlay. `tests/e2e/mobile-responsive.spec.js` asserts the underlying
+geometry (`scrollWidth`, drawer `top` vs toolbar `bottom`) rather than
+comparing screenshots, for exactly this reason.
+
 ## Node label placement (`canvas/node.js`)
 
 A node's label normally renders inside `.node-body` (which has

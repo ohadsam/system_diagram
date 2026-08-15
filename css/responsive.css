@@ -7,9 +7,17 @@
     display: none;
   }
 
+  /* position: absolute (anchored to .app-body, which is `position:
+     relative` and already starts right below the toolbar in normal flow —
+     see layout.css) rather than `fixed` with a hardcoded top offset: the
+     toolbar's real height varies (it wraps onto several rows once its
+     buttons no longer fit one line, which happens well before 900px), so a
+     fixed pixel offset used to land these drawers partway *through* the
+     toolbar instead of below it. Anchoring to .app-body's own top edge
+     tracks the toolbar's actual height automatically, at any width. */
   #sidebar {
-    position: fixed;
-    top: var(--toolbar-height);
+    position: absolute;
+    top: 0;
     left: 0;
     bottom: 0;
     z-index: var(--z-panel);
@@ -25,8 +33,8 @@
   }
 
   #details-panel.open {
-    position: fixed;
-    top: var(--toolbar-height);
+    position: absolute;
+    top: 0;
     right: 0;
     bottom: 0;
     width: min(90vw, 340px);
@@ -39,8 +47,8 @@
   }
 
   #ai-review-panel.open {
-    position: fixed;
-    top: var(--toolbar-height);
+    position: absolute;
+    top: 0;
     right: 0;
     bottom: 0;
     width: min(92vw, 380px);
@@ -55,6 +63,17 @@
   .toolbar-group .btn span,
   .toolbar-group .btn {
     font-size: 12px;
+  }
+
+  /* A group with several full-text buttons (e.g. "New Component", "Add
+     Shape", "Generate Design", "Replicate", "Defaults") can be wider than
+     the whole viewport on a narrow phone — .toolbar-row already wraps
+     *groups* onto new lines, but without this a single group's own row of
+     buttons never wraps, forcing the page into unwanted horizontal scroll.
+     Letting a group wrap internally keeps every button on-screen. */
+  .toolbar-group {
+    flex-wrap: wrap;
+    max-width: 100%;
   }
 }
 
