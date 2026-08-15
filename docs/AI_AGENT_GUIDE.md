@@ -65,6 +65,8 @@ this repo" quick-start.
 | Change the "What's New" modal / version highlights  | `js/version.js` (`APP_VERSION`, `VERSION_HISTORY`) + `js/io/whatsNew.js` (last-seen-version tracking) + `js/modals/whatsNewModal.js` (UI) |
 | Change "Duplicate Project" / "Duplicate entire canvas" | `js/core/project.js#duplicateProject` (pure id-remapping clone) + `js/canvas/canvas.js` (`duplicateProjectAsNew`/`duplicateEntireCanvas`) + toolbar/canvas-context-menu wiring in `toolbar.js`/`canvas.js#openCanvasContextMenu` |
 | Change the AI Design Review prompt/providers/panel  | `js/io/aiReview.js` (`buildReviewPrompt`, `AI_PROVIDERS`) + `js/panel/aiReviewPanel.js` (UI, paste-back). See "Common pitfalls" below before touching this — it's intentionally not an API integration. |
+| Change the Generate Design from Spec prompt/wizard   | `js/io/aiGenerateDesign.js` (`buildGenerateDesignPrompt`, `extractProjectJSON`, `autoArrangeIfNeeded`) + `js/modals/generateDesignModal.js` (the 3-step wizard UI). Same "not an API integration" constraint as AI Design Review applies. |
+| Change how missing node/edge ids are handled on import | `js/core/project.js#validateProject` — backfills a missing/invalid id via `core/id.js#nextId` rather than dropping the node/edge; covers file import, backup restore, and pasted AI results alike |
 
 ## Running things locally
 
@@ -128,3 +130,15 @@ npm test
   there for the "only react to an actual project switch, not every edit"
   pattern, reusable anywhere else a panel needs to stay in sync with
   *which* project is open without re-rendering on every drag frame.
+- Same "not a real API integration" constraint applies to Generate Design
+  from Spec (`aiGenerateDesign.js`) — it's the reverse direction of AI
+  Design Review, built the same way for the same reason (see docs/SPEC.md
+  4.13). Don't add a live API call here either.
+- If a modal's content can change size between renders (a multi-step
+  wizard, an expand/collapse section), be aware `modal.js`'s backdrop-click
+  detection uses `e.target === dialog` specifically because it's
+  resize-safe — a coordinate/rect-based check used to live there and broke
+  when a click handler shrank the dialog before the backdrop listener ran
+  (see docs/ARCHITECTURE.md's Generate Design from Spec section for the
+  full story). Don't revert to comparing click coordinates against
+  `getBoundingClientRect()`.

@@ -218,3 +218,25 @@ test('duplicateProject leaves the original project completely untouched', () => 
   assert.equal(p.nodes[0].id, originalNodeId);
   assert.equal(p.name, 'Original');
 });
+
+test('validateProject backfills a missing/invalid node or edge id instead of dropping it', () => {
+  const raw = {
+    nodes: [{ x: 0, y: 0, text: 'No id' }, { id: 42, x: 100, y: 0, text: 'Numeric id' }],
+    edges: [],
+  };
+  const result = validateProject(raw);
+  assert.equal(result.ok, true);
+  assert.equal(result.project.nodes.length, 2, 'both nodes should be kept, not dropped');
+  assert.equal(typeof result.project.nodes[0].id, 'string');
+  assert.ok(result.project.nodes[0].id.length > 0);
+  assert.notEqual(result.project.nodes[1].id, 42, 'a non-string id should be replaced, not left as-is');
+
+  const raw2 = {
+    nodes: [{ id: 'n1', x: 0, y: 0 }, { id: 'n2', x: 100, y: 0 }],
+    edges: [{ from: 'n1', to: 'n2', label: 'calls' }], // no id
+  };
+  const result2 = validateProject(raw2);
+  assert.equal(result2.project.edges.length, 1, 'an edge missing only its id should be kept');
+  assert.equal(typeof result2.project.edges[0].id, 'string');
+  assert.ok(result2.project.edges[0].id.length > 0);
+});

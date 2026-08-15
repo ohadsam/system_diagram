@@ -91,6 +91,11 @@ Or open `index.html` directly in a browser.
   account you're already signed into there. Optionally attach a spec file
   to compare against; paste the AI's reply back into the side panel to
   keep it with your project.
+- **🧠 Generate Design** — the reverse direction: paste or load a
+  requirements spec, get a tailored prompt (with the same one-click AI
+  links as above) that guides the AI to reply with a design in this app's
+  own format, then paste that reply back in and it's imported straight
+  onto the canvas as real, editable components.
 - **Export** — PNG and PDF snapshots of your diagram.
 - **Dismissible hints** — a short first-run guided tour, restartable any
   time.

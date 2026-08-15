@@ -156,6 +156,11 @@
   font-size: 15px;
 }
 
+.generate-design-spec,
+.generate-design-response {
+  margin-top: var(--space-2);
+}
+
 .ai-review-pasteback {
   display: flex;
   flex-direction: column;

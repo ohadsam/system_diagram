@@ -18,7 +18,7 @@ index.html ──► js/main.js
                  ├─ toolbar/toolbar.js   (reads store selection, writes via store)
                  ├─ panel/detailsPanel.js
                  ├─ panel/aiReviewPanel.js
-                 ├─ modals/*.js
+                 ├─ modals/*.js          (incl. modals/generateDesignModal.js)
                  ├─ io/*.js              (localStorage, file, image/pdf export)
                  └─ hints/hints.js
 ```
@@ -259,6 +259,52 @@ textarea, and re-rendering the whole panel on every coalesced drag frame
 (store emits `'change'` for those too — see "State flow" above). The
 `detailsPanel.js` pattern (re-render whenever its one open node's data
 changes) doesn't apply here since this panel isn't node-scoped.
+
+## Generate Design from Spec (`io/aiGenerateDesign.js`, `modals/generateDesignModal.js`)
+
+The reverse direction of AI Design Review — see docs/SPEC.md 4.13. Same
+"prepare and hand off, no API key" mechanism, so the same reasoning above
+applies unchanged. `aiGenerateDesign.js` has no UI code, only three pure
+functions:
+1. `buildGenerateDesignPrompt({specText})` — a string builder that embeds
+   the (length-capped) spec text plus a hardcoded, complete, valid
+   few-shot JSON example anchored to this app's own project shape (real
+   shape/routing enum values pulled from `core/project.js#SHAPES`/
+   `ROUTINGS`, not hand-duplicated, so the prompt can't drift out of sync
+   with what `validateProject()` actually accepts).
+2. `extractProjectJSON(text)` — never throws; tries a direct `JSON.parse`,
+   then a fenced ` ```json ` block, then the first-`{`-to-last-`}`
+   substring, returning the first candidate that parses to a plain
+   object. Handles an AI reply that ignored "respond with only JSON" and
+   added prose around it.
+3. `autoArrangeIfNeeded(project)` — a safety net: if fewer than half the
+   nodes have distinct `(x, y)`, they're re-laid-out on a simple grid
+   (order/content preserved, only position changes). A project with
+   genuinely distinct positions passes through untouched.
+
+`modals/generateDesignModal.js` is a single `openModal()` call with a
+closure-scoped `step` variable and a `renderStep()` function that
+`clear()`s and rebuilds the modal body per step — there's no per-step
+modal-title support in `modal.js`'s API, so a `.modal-step-indicator`
+paragraph fills that role instead. Extracted JSON is run through the same
+`validateProject()` used by every other import path before it ever
+touches the store, so a malformed/partial AI reply degrades to a clear
+inline error (text preserved for a retry) rather than a crash or a
+partially-broken canvas. Replacing a non-empty canvas goes through the
+same `confirmModal.js#confirmAction()` used elsewhere, skipped entirely on
+an empty canvas.
+
+**Gotcha this feature exposed and fixed**: `modal.js`'s backdrop-click
+handler used to close the dialog based on comparing click coordinates to
+`dialog.getBoundingClientRect()`. That's wrong for any modal whose content
+resizes during its own click handler (like this wizard's steps, which
+differ substantially in height) — the click coordinates were captured
+against the *pre-resize* rect, so a click near the edge of a dialog that
+just shrank could land "outside" the new rect and self-close the modal.
+Fixed by checking `e.target === dialog` instead, which is the correct way
+to detect a native `<dialog>` backdrop click (its backdrop isn't a real
+element in the DOM tree — a click that lands there targets the dialog
+itself) and doesn't depend on rect timing at all.
 
 ## Node label placement (`canvas/node.js`)
 

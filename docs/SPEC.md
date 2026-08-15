@@ -375,6 +375,43 @@ deliberate, transparent design choice, not a shortcut:
 See `js/io/aiReview.js` (prompt builder, provider list) and
 `js/panel/aiReviewPanel.js` (the panel itself).
 
+### 4.13 Generate Design from Spec
+A "🧠 Generate Design" toolbar button opens a 3-step modal wizard that
+runs 4.12's mechanism in reverse: instead of reviewing an existing
+diagram, it proposes a brand-new one from a requirements spec. Same
+"prepare and hand off, no API key" reasoning applies — nothing here
+changes that.
+
+- **Step 1 — Your spec**: paste spec text directly, or load it from a
+  `.txt`/`.md` file (loading a file overwrites the textarea rather than
+  appending, to avoid an ambiguous mixed state).
+- **Step 2 — Copy this prompt to your AI**: an editable prompt that
+  embeds the spec text plus a complete, valid few-shot JSON example
+  anchored to this app's own project schema (node shapes, edge routing
+  values, the exact field names `validateProject` expects) — so a
+  compliant AI reply can be pasted straight back in. "📋 Copy prompt"
+  copies it manually; the same provider grid as 4.12 (Claude / ChatGPT /
+  Gemini / Copilot) copies the prompt and opens that provider's site in
+  one click.
+- **Step 3 — Paste the AI's result**: paste the AI's whole reply (prose
+  and all — the JSON is extracted automatically: a direct parse first,
+  then a fenced ```json block, then a first-`{`-to-last-`}` fallback).
+  The extracted object goes through the same `validateProject()` used by
+  every other import path, so malformed or partial output degrades
+  gracefully instead of crashing; if the AI ignored the layout
+  instructions and stacked components on top of each other, a safety net
+  re-arranges them on a simple grid rather than leaving an unusable pile.
+  A failed paste shows an inline error and keeps your text in place for a
+  retry, without losing it.
+- If the canvas already has content, generating asks for confirmation
+  before replacing it (skipped on an empty canvas, matching the rest of
+  the app's "don't gate trivial actions" convention); undo (Ctrl/Cmd+Z)
+  brings back what was replaced.
+
+See `js/io/aiGenerateDesign.js` (prompt builder, JSON extraction,
+auto-layout safety net) and `js/modals/generateDesignModal.js` (the
+wizard itself).
+
 ## 5. Non-functional requirements
 
 - **Security**: no `eval`/`innerHTML` with unsanitized input, no inline

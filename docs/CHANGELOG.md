@@ -152,6 +152,33 @@ user-facing fix or feature, alongside this changelog.
   value `'magic'`, also chooseable for any existing connector from its
   style editor.
 
+## v1.4.0 (2026-08-15)
+
+- Added **"🧠 Generate Design"**: a 3-step wizard that runs the AI Design
+  Review mechanism in reverse. Step 1: paste or load a requirements spec.
+  Step 2: an editable, schema-anchored prompt (embedding a valid few-shot
+  JSON example of this app's own project format) with the same
+  Claude/ChatGPT/Gemini/Copilot one-click links as AI Design Review — no
+  API key here either, same reasoning as before. Step 3: paste the AI's
+  reply back in; the JSON is extracted automatically (direct parse, then a
+  fenced code block, then a loose `{...}` fallback) and validated through
+  the existing `validateProject()` before loading onto the canvas as real,
+  editable components, with a grid-layout safety net if the AI ignored the
+  layout instructions. Replacing a non-empty canvas asks for confirmation
+  first. New `js/io/aiGenerateDesign.js` + `js/modals/generateDesignModal.js`.
+- Hardened `validateProject()`: a node or edge missing (or with an
+  invalid) `id` now gets a fresh one generated for it instead of being
+  silently dropped — makes every import path (file import, backup
+  restore, and the new Generate Design paste-back) more forgiving of
+  hand-edited or AI-generated JSON.
+- Fixed: a multi-step modal whose content changes size between steps
+  (like the new wizard) could close itself when a button click was
+  followed by the dialog shrinking — the backdrop-click detection in
+  `modal.js` compared click coordinates against the dialog's bounding
+  rect, which could be stale in the very frame the content resized.
+  Switched to checking `event.target === dialog`, the correct way to
+  detect a native `<dialog>` backdrop click.
+
 ## v1.3.0 (2026-08-15)
 
 - Added **"Duplicate Project"** (📄 toolbar button, or canvas right-click):

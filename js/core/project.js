@@ -148,11 +148,17 @@ export function validateProject(input) {
     }
     const nodeIds = new Set();
     const nodes = input.nodes
-      .filter((n) => n && typeof n === 'object' && typeof n.id === 'string')
+      .filter((n) => n && typeof n === 'object')
       .map((n) => {
-        nodeIds.add(n.id);
+        // A missing/invalid id gets a fresh one rather than dropping the
+        // node — imports we don't fully control the shape of (a pasted AI
+        // response, hand-edited JSON) are far more likely to omit an id
+        // than to be otherwise malformed, and silently losing a component
+        // is worse than assigning it an id.
+        const id = typeof n.id === 'string' && n.id ? n.id : nextId('node');
+        nodeIds.add(id);
         return {
-          id: n.id,
+          id,
           defId: typeof n.defId === 'string' ? n.defId : null,
           x: Number.isFinite(n.x) ? n.x : 0,
           y: Number.isFinite(n.y) ? n.y : 0,
@@ -182,9 +188,9 @@ export function validateProject(input) {
         };
       });
     const edges = input.edges
-      .filter((e) => e && typeof e === 'object' && typeof e.id === 'string' && nodeIds.has(e.from) && nodeIds.has(e.to))
+      .filter((e) => e && typeof e === 'object' && nodeIds.has(e.from) && nodeIds.has(e.to))
       .map((e) => ({
-        id: e.id,
+        id: typeof e.id === 'string' && e.id ? e.id : nextId('edge'),
         from: e.from,
         to: e.to,
         fromSide: ['top', 'right', 'bottom', 'left'].includes(e.fromSide) ? e.fromSide : 'right',

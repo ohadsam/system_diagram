@@ -19,6 +19,7 @@ import { openDefaultSettingsModal } from '../modals/defaultSettingsModal.js';
 import { openBackupModal } from '../modals/backupModal.js';
 import { openWhatsNewModal } from '../modals/whatsNewModal.js';
 import { toggleAiReviewPanel } from '../panel/aiReviewPanel.js';
+import { openGenerateDesignModal } from '../modals/generateDesignModal.js';
 import { confirmAction } from '../modals/confirmModal.js';
 import { showToast } from '../utils/toast.js';
 import { readJSON, writeJSON } from '../io/storage.js';
@@ -97,7 +98,7 @@ function buildFileGroup() {
     onClick: async () => {
       const ok = await confirmAction({
         title: 'Start a new diagram?',
-        message: 'This clears the canvas. Your current diagram stays autosaved and can be reopened from Load.',
+        message: 'This clears the canvas. If you want to keep the current diagram, use "Save As" first — undo (Ctrl/Cmd+Z) can also bring it right back.',
         confirmLabel: 'Start new',
         danger: false,
       });
@@ -124,8 +125,9 @@ function buildCreateGroup() {
     },
   });
   const addShapeBtn = el('button', { type: 'button', class: 'btn', title: 'Add a basic shape', text: '🔷 Add Shape', onClick: openCustomShapeModal });
+  const generateDesignBtn = el('button', { type: 'button', class: 'btn', title: 'Generate a design from a spec, with AI help', text: '🧠 Generate Design', onClick: openGenerateDesignModal });
   const defaultsBtn = el('button', { type: 'button', class: 'btn btn-icon', title: 'Default settings for new components', text: '🎛️', onClick: openDefaultSettingsModal });
-  return group(newComponentBtn, addShapeBtn, defaultsBtn);
+  return group(newComponentBtn, addShapeBtn, generateDesignBtn, defaultsBtn);
 }
 
 function buildExportGroup() {

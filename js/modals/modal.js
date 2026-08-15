@@ -24,10 +24,14 @@ export function openModal({ title, className = '', render, onClose, closeOnBackd
   const api = { dialog, body, close: () => dialog.close() };
 
   if (closeOnBackdrop) {
+    // A native <dialog>'s backdrop isn't a real element in the DOM tree, so
+    // a click that lands there (rather than on any of the dialog's content)
+    // targets the dialog itself — checking e.target here (instead of
+    // comparing click coordinates to the dialog's rect) stays correct even
+    // when content re-renders and the dialog resizes between mousedown and
+    // click, which coordinate math got wrong.
     dialog.addEventListener('click', (e) => {
-      const rect = dialog.getBoundingClientRect();
-      const inside = e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
-      if (!inside) dialog.close();
+      if (e.target === dialog) dialog.close();
     });
   }
   dialog.addEventListener('close', () => {
