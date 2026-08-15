@@ -12,6 +12,7 @@ import { showContextMenu } from '../canvas/contextMenu.js';
 import { confirmAction } from '../modals/confirmModal.js';
 import { pickJSONFile } from '../io/fileIO.js';
 import { showToast } from '../utils/toast.js';
+import { getLibrarySettings, onLibrarySettingsChange } from '../io/librarySettings.js';
 
 const CUSTOM_CATEGORY = { id: '__custom__', label: 'My Components', color: '#0F172A' };
 const NO_FOLDER = '';
@@ -57,14 +58,24 @@ export function initSidebar(root) {
     expanded.set(CUSTOM_CATEGORY.id, true);
     renderList();
   });
+  onLibrarySettingsChange(renderList);
   renderList();
 }
+
+const HIDEABLE_CATEGORIES = { hideStateMachines: 'state-machines' };
 
 function renderList() {
   clear(listEl);
   const q = normalize(query);
   const custom = getCustomComponents();
-  const categories = [{ ...CUSTOM_CATEGORY, components: custom }, ...CATEGORIES.map((cat) => ({ ...cat, components: COMPONENTS_BY_CATEGORY.get(cat.id) || [] }))];
+  const librarySettings = getLibrarySettings();
+  const hiddenCategoryIds = new Set(
+    Object.entries(HIDEABLE_CATEGORIES).filter(([settingKey]) => librarySettings[settingKey]).map(([, categoryId]) => categoryId),
+  );
+  const categories = [
+    { ...CUSTOM_CATEGORY, components: custom },
+    ...CATEGORIES.filter((cat) => !hiddenCategoryIds.has(cat.id)).map((cat) => ({ ...cat, components: COMPONENTS_BY_CATEGORY.get(cat.id) || [] })),
+  ];
 
   let anyMatch = false;
   for (const cat of categories) {

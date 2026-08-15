@@ -23,7 +23,10 @@ this repo" quick-start.
 6. **Update docs as you go**: if you change behavior described in
    `SPEC.md`, update it. If you finish a plan item, check it off in
    `CHANGELOG.md`. Keep `PLAN.md` "suggested additions" list honest about
-   what's actually implemented.
+   what's actually implemented. **Bump the version**: every user-facing fix
+   or feature updates `APP_VERSION` in `js/version.js` and adds a
+   `VERSION_HISTORY` entry (short, user-facing highlights) alongside the
+   fuller `CHANGELOG.md` entry — see `docs/SPEC.md` 4.11.
 7. **Tests**: add/update a unit test (`tests/unit`) for logic changes and,
    for user-facing flows, a Playwright test (`tests/e2e`). Run
    `npm test` before calling anything done.
@@ -55,6 +58,11 @@ this repo" quick-start.
 | Change PNG/PDF export                             | `js/io/exportImage.js` / `exportPdf.js` |
 | Add/change a hint                                 | `js/hints/hintData.js` |
 | Change layout/visual style                        | `css/*.css` (one file per area, `variables.css` for tokens) |
+| Add a state-machine shape/pattern                  | `js/data/categories/state-machines.js` — plain `c(...)` for a state shape, `definePattern(...)` for a whole template; a transition's condition is just that edge's `label`, nothing special |
+| Change the "hide State Machines" (or any future hideable category) setting | `js/io/librarySettings.js` (storage) + `js/modals/defaultSettingsModal.js` "Component library" section (UI) + `js/sidebar/sidebar.js#HIDEABLE_CATEGORIES` (the filter) |
+| Change Group/Ungroup or mixed component+connector selection | `js/canvas/canvas.js` (`groupSelection`/`ungroupSelection`/`selectNode`/`beginMarquee`/`duplicateSelection`) + `js/toolbar/toolbar.js#renderContextRow` |
+| Change Magic Arrow routing                         | `js/core/magicRouter.js` (pure grid router, DOM-free — unit-test it directly) + `js/canvas/connector.js#buildEdgePath` (rendering, falls back to `orthogonal` on failure) + `js/canvas/connectorInteractions.js` (`setMagicMode`/`isMagicModeActive`, the creation-time toggle) |
+| Change the "What's New" modal / version highlights  | `js/version.js` (`APP_VERSION`, `VERSION_HISTORY`) + `js/io/whatsNew.js` (last-seen-version tracking) + `js/modals/whatsNewModal.js` (UI) |
 
 ## Running things locally
 
@@ -92,3 +100,13 @@ npm test
   (built-ins *or* custom "My Components") and its edges must only
   reference `key`s that exist in its own `nodes` list —
   `componentData.test.mjs` checks both.
+- `connector.js#updateEdgeEl` needs the *full* node list (to compute magic
+  routing's obstacles) — always pass `allNodes` when calling it, or magic
+  edges silently render with zero obstacles. Magic routing itself is
+  computed fresh every render (nothing persisted on the edge), same as
+  every other routing already re-routes live when nodes move — don't try
+  to cache/store its waypoints.
+- `magicRouter.js` is intentionally DOM-free and grid-size-capped
+  (`MAX_CELLS`) so it can't hang on a huge diagram — if you change its
+  constants, keep it bounded and keep returning `null` (not throwing) on
+  failure so the caller's elbow-route fallback still works.

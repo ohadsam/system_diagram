@@ -97,3 +97,16 @@ test('the "AI Providers & Agents" category is rich and covers providers, models,
     assert.ok(names.includes(expected), `expected "${expected}" to be present in AI Providers & Agents`);
   }
 });
+
+test('the "State Machines" category mixes state shapes and ready-made pattern templates', () => {
+  const stateMachines = getComponentsForCategory('state-machines');
+  assert.ok(stateMachines.length >= 10, `expected at least 10 State Machines items, got ${stateMachines.length}`);
+  const shapes = stateMachines.filter((c) => c.kind === 'component');
+  const patterns = stateMachines.filter((c) => c.kind === 'pattern');
+  assert.ok(shapes.length >= 5, `expected at least 5 state shapes, got ${shapes.length}`);
+  assert.ok(patterns.length >= 5, `expected at least 5 state-machine pattern templates, got ${patterns.length}`);
+  const names = stateMachines.map((c) => c.name).join(' | ');
+  for (const expected of ['Initial State', 'Final State', 'Choice', 'Traffic Light']) {
+    assert.ok(names.includes(expected), `expected "${expected}" to be present in State Machines`);
+  }
+});

@@ -203,7 +203,7 @@
     <ul>
       <li><a href="#getting-started">Getting started</a></li>
       <li><a href="#library">Component library</a></li>
-      <li><a href="#layers-patterns">Layers &amp; design patterns</a></li>
+      <li><a href="#layers-patterns">Layers, patterns &amp; state machines</a></li>
       <li><a href="#canvas">Working on the canvas</a></li>
       <li><a href="#styling">Styling components</a></li>
       <li><a href="#connectors">Connectors &amp; arrows</a></li>
@@ -247,7 +247,7 @@
     </section>
 
     <section id="layers-patterns">
-      <h2><span class="icon-badge">🧱</span> Layers &amp; design patterns</h2>
+      <h2><span class="icon-badge">🧱</span> Layers, patterns &amp; state machines</h2>
       <h3>Layers &amp; Roles</h3>
       <p>This category holds ~100 code-level building blocks — Controller, Service, DAL, Authentication, React Hook, Angular Guard, DDD terms, and more. They behave differently from other components:</p>
       <ul>
@@ -260,6 +260,10 @@
       <h3>Design Patterns</h3>
       <p>This category holds 24 ready-made architecture blueprints — MVC, MVVM, Layered Architecture, Repository, CQRS, API Gateway, Circuit Breaker, Publish-Subscribe, Event Sourcing, Saga, Hexagonal Architecture, Cache-Aside, plus classic patterns like Singleton, Observer, Strategy, Adapter and Decorator. Dragging or clicking one instantiates the <em>whole cluster</em> at once — every component and connector it needs, positioned and selected together so you can immediately move or restyle the group, or undo it as a single step.</p>
       <div class="tip">💡 Pattern components reuse the same styling as the regular library, so once dropped in they're just normal components — resize, restyle, rename, or delete any of them individually.</div>
+      <h3>State Machines</h3>
+      <p>This category holds state shapes — Initial State, State, Choice/Decision, Final State, Fork/Join, History State, Composite State — plus 6 ready-made templates (Traffic Light, Order Lifecycle, TCP Connection, Media Player, Approval Workflow, Auth Session). There's nothing special about a state or a transition: a state is just a component, and a transition's condition or event is just that connector's <strong>label</strong> — so state-machine pieces connect to (and mix freely with) anything else on your diagram using the same drag-to-connect gesture as everything else.</p>
+      <p><span class="mock-node">⬭ Authenticating <small style="opacity:.7">→ credentials valid → Logged In</small></span></p>
+      <div class="tip">🙈 Don't need this category? Click "🎛️" in the toolbar and check "Hide 'State Machines' components &amp; templates from the sidebar" — it only affects the picker, so anything already on your diagram is unaffected either way.</div>
     </section>
 
     <section id="canvas">
@@ -268,14 +272,16 @@
         <tr><th>Action</th><th>How</th></tr>
         <tr><td>Move a component</td><td>Drag it. Selecting several first (Shift-click or drag a selection box) moves them together.</td></tr>
         <tr><td>Resize</td><td>Select it, then drag one of the four corner handles.</td></tr>
-        <tr><td>Multi-select</td><td>Drag on empty canvas to draw a selection box, or Shift/Ctrl-click items one by one.</td></tr>
+        <tr><td>Multi-select</td><td>Drag on empty canvas to draw a selection box (picks up connectors fully inside it too, not just components), or Shift/Ctrl-click items — components and connectors — one by one.</td></tr>
         <tr><td>Pan</td><td>Scroll, or drag with the middle mouse button / a single touch finger.</td></tr>
-        <tr><td>Zoom</td><td>Ctrl/Cmd + scroll, or the −/+/fit buttons in the toolbar.</td></tr>
-        <tr><td>Delete</td><td>Select and press <kbd>Delete</kbd>, or right-click → Delete.</td></tr>
-        <tr><td>Duplicate</td><td><kbd>Ctrl/Cmd</kbd> + <kbd>D</kbd>, or right-click → Duplicate.</td></tr>
+        <tr><td>Zoom</td><td>Ctrl/Cmd + scroll, the −/+/fit buttons in the toolbar, or <kbd>Ctrl/Cmd</kbd>+<kbd>+</kbd> / <kbd>Ctrl/Cmd</kbd>+<kbd>-</kbd> / <kbd>Ctrl/Cmd</kbd>+<kbd>0</kbd> to zoom in / out / reset to 100%.</td></tr>
+        <tr><td>Delete</td><td>Select and press <kbd>Delete</kbd>, or right-click → Delete. Deleting a component always removes every connector attached to it too — no dangling arrows.</td></tr>
+        <tr><td>Duplicate</td><td><kbd>Ctrl/Cmd</kbd> + <kbd>D</kbd>, or right-click → Duplicate. Works on a mixed selection of components and connectors together.</td></tr>
         <tr><td>Rename</td><td>Double-click a component's label to rename it inline.</td></tr>
         <tr><td>More options</td><td>Right-click a component, or use its small ⋮ button, for edit / duplicate / layering / delete.</td></tr>
       </table>
+      <h3>Grouping components</h3>
+      <p>Select 2 or more components and click the 🔗 "Group" button in the toolbar's contextual row — from then on, clicking or dragging any one of them selects/moves the whole group together. The ✂️ "Ungroup" button (shown whenever your selection includes a grouped component) releases them back to independent components. Duplicating a group gives the copy its own new group.</p>
     </section>
 
     <section id="styling">
@@ -291,7 +297,10 @@
     <section id="connectors">
       <h2><span class="icon-badge">➡️</span> Connectors &amp; arrows</h2>
       <p>Hover or select a component to reveal four small connection points on its edges. Drag from one to another component to draw a connector — it stays attached and re-routes live as you move things.</p>
-      <p>Select a connector to style it: color, thickness, dash pattern, routing (straight / elbow / curved), an independent arrow-head style for each end (none, open, filled, diamond, circle — so you can build one-way, two-way, or plain lines), and an optional label.</p>
+      <p>Select a connector to style it: color, thickness, dash pattern, routing (straight / elbow / curved / 🪄 magic — see below), an independent arrow-head style for each end (none, open, filled, diamond, circle — so you can build one-way, two-way, or plain lines), and an optional label.</p>
+      <h3>🪄 Magic Arrow</h3>
+      <p>Click "🪄" in the toolbar to arm Magic Arrow mode, then draw your next connector as usual — it automatically routes itself around every other component in the way, using as few bends as possible, instead of potentially cutting straight through something. Great for busy diagrams. If no clear path exists it falls back to a normal elbow connector rather than failing. You can also switch any existing connector to (or off) magic routing later from its Routing dropdown — it's not a one-time choice.</p>
+      <div class="tip">💡 A magic connector keeps re-routing itself live as you move components around, exactly like every other routing style.</div>
     </section>
 
     <section id="details">
@@ -345,6 +354,8 @@
         <tr><td><kbd>Ctrl/Cmd</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></td><td>Redo</td></tr>
         <tr><td><kbd>Ctrl/Cmd</kbd>+<kbd>Y</kbd></td><td>Redo (alternate)</td></tr>
         <tr><td><kbd>Ctrl/Cmd</kbd>+<kbd>D</kbd></td><td>Duplicate selection</td></tr>
+        <tr><td><kbd>Ctrl/Cmd</kbd>+<kbd>+</kbd> / <kbd>Ctrl/Cmd</kbd>+<kbd>-</kbd></td><td>Zoom in / out</td></tr>
+        <tr><td><kbd>Ctrl/Cmd</kbd>+<kbd>0</kbd></td><td>Reset zoom to 100%</td></tr>
         <tr><td><kbd>Esc</kbd></td><td>Clear selection / close panels</td></tr>
       </table>
     </section>
@@ -366,6 +377,10 @@
       <details>
         <summary>The hints disappeared — how do I see them again?</summary>
         <p>Click the 💡 button in the toolbar to restart the guided tour.</p>
+      </details>
+      <details>
+        <summary>I missed the "What's New" popup — where did it go?</summary>
+        <p>Click the 🆕 button in the toolbar any time to see it again.</p>
       </details>
       <details>
         <summary>Can I move components between diagrams?</summary>

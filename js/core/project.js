@@ -5,14 +5,14 @@ import { nextId } from './id.js';
 export const FORMAT_VERSION = 1;
 
 export const SHAPES = ['rect', 'rounded', 'circle', 'diamond', 'cylinder', 'hexagon', 'cloud', 'note', 'rows'];
-export const ROUTINGS = ['straight', 'orthogonal', 'curved'];
+export const ROUTINGS = ['straight', 'orthogonal', 'curved', 'magic'];
 export const ARROW_HEADS = ['none', 'open', 'filled', 'diamond', 'circle'];
 export const DASH_STYLES = ['solid', 'dashed', 'dotted'];
 // Where a node's label renders: inside the shape (center/top/bottom) or
-// outside it, floating above/below — see docs/SPEC.md 4.2.4.
+// outside it, floating above/below — see docs/SPEC.md 4.2.5.
 export const TEXT_POSITIONS = ['center', 'top', 'bottom', 'above', 'below'];
 // Whether a node's sub-components render as compact truncated chips or as
-// a full untruncated list of rows — see docs/SPEC.md 4.2.4.
+// a full untruncated list of rows — see docs/SPEC.md 4.2.5.
 export const SUBCOMPONENTS_DISPLAY_MODES = ['chips', 'full'];
 
 export function createEmptyProject(name = 'Untitled Diagram') {
@@ -53,6 +53,7 @@ export function createNode(def, x, y, overrides = {}) {
     subComponentsDisplay: 'chips',
     rows: def?.shape === 'rows' ? ['Row 1'] : [],
     zIndex: 1,
+    groupId: null,
     ...overrides,
   };
 }
@@ -136,6 +137,7 @@ export function validateProject(input) {
           subComponentsDisplay: SUBCOMPONENTS_DISPLAY_MODES.includes(n.subComponentsDisplay) ? n.subComponentsDisplay : 'chips',
           rows: Array.isArray(n.rows) ? n.rows.filter((r) => typeof r === 'string') : [],
           zIndex: Number.isFinite(n.zIndex) ? n.zIndex : 1,
+          groupId: typeof n.groupId === 'string' ? n.groupId : null,
         };
       });
     const edges = input.edges

@@ -11,6 +11,9 @@ import { openCustomComponentModal } from './modals/customComponentModal.js';
 import { initHints } from './hints/hints.js';
 import { saveNamedProject } from './io/projects.js';
 import { showToast } from './utils/toast.js';
+import { checkWhatsNew, markVersionSeen } from './io/whatsNew.js';
+import { openWhatsNewModal } from './modals/whatsNewModal.js';
+import * as viewport from './canvas/viewport.js';
 
 function isTypingTarget(elRef) {
   if (!elRef) return false;
@@ -35,6 +38,15 @@ function initKeyboardShortcuts() {
     if ((e.key === 'Delete' || e.key === 'Backspace') && !mod) {
       e.preventDefault();
       deleteSelection();
+    } else if (mod && (e.key === '=' || e.key === '+')) {
+      e.preventDefault();
+      viewport.zoomTo(viewport.getViewport().zoom + 0.1);
+    } else if (mod && e.key === '-') {
+      e.preventDefault();
+      viewport.zoomTo(viewport.getViewport().zoom - 0.1);
+    } else if (mod && e.key === '0') {
+      e.preventDefault();
+      viewport.zoomTo(1);
     } else if (mod && e.key.toLowerCase() === 'z' && e.shiftKey) {
       e.preventDefault();
       store.redo();
@@ -69,6 +81,10 @@ function boot() {
 
   initKeyboardShortcuts();
   requestAnimationFrame(() => initHints());
+
+  const whatsNew = checkWhatsNew();
+  markVersionSeen();
+  if (whatsNew.show) requestAnimationFrame(() => openWhatsNewModal(whatsNew.highlights));
 }
 
 if (document.readyState === 'loading') {

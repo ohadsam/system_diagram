@@ -22,12 +22,13 @@ import * as networking from './categories/networking.js';
 import * as security from './categories/security.js';
 import * as servers from './categories/servers.js';
 import * as shapes from './categories/shapes.js';
+import * as stateMachines from './categories/state-machines.js';
 import * as storage from './categories/storage.js';
 
 const MODULES = [
   aiMl, aiProvidersAgents, aws, backendFrameworks, cache, client, cloudProviders,
   containers, databases, designPatterns, devops, frontendFrameworks, layers, logging,
-  messaging, misc, monitoring, networking, security, servers, shapes, storage,
+  messaging, misc, monitoring, networking, security, servers, shapes, stateMachines, storage,
 ];
 
 function build() {

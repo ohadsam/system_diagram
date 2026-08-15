@@ -146,8 +146,13 @@ function beginMarquee(e) {
     marqueeEl.hidden = true;
     if (moved && marqueeEl._rect) {
       const rect = marqueeEl._rect;
-      const ids = store.getState().nodes.filter((n) => rectsIntersect(rect, n)).map((n) => n.id);
-      store.select(ids, []);
+      const state = store.getState();
+      const ids = state.nodes.filter((n) => rectsIntersect(rect, n)).map((n) => n.id);
+      const idSet = new Set(ids);
+      // Also pick up connectors whose both ends are inside the marquee, so a
+      // drag-select naturally grabs a cluster's internal wiring too.
+      const edgeIds = state.edges.filter((e) => idSet.has(e.from) && idSet.has(e.to)).map((e) => e.id);
+      store.select(ids, edgeIds);
     } else {
       store.select([], []);
     }
@@ -163,9 +168,15 @@ function selectNode(nodeId, additive) {
     const has = current.nodeIds.includes(nodeId);
     const nodeIds = has ? current.nodeIds.filter((id) => id !== nodeId) : [...current.nodeIds, nodeId];
     store.select(nodeIds, current.edgeIds);
-  } else {
-    store.select([nodeId], []);
+    return;
   }
+  // Clicking any member of a group selects the whole group, so moving or
+  // editing one grouped node naturally acts on all of them together.
+  const node = store.getState().nodes.find((n) => n.id === nodeId);
+  const nodeIds = node?.groupId
+    ? store.getState().nodes.filter((n) => n.groupId === node.groupId).map((n) => n.id)
+    : [nodeId];
+  store.select(nodeIds, []);
 }
 
 function selectEdge(edgeId, additive) {
@@ -218,7 +229,7 @@ function render(state) {
       edgeElements.set(edge.id, elRef);
       edgeLayer.appendChild(elRef);
     }
-    updateEdgeEl(elRef, edge, fromNode, toNode, { selected: store.getSelection().edgeIds.includes(edge.id) });
+    updateEdgeEl(elRef, edge, fromNode, toNode, { selected: store.getSelection().edgeIds.includes(edge.id), allNodes: state.nodes });
   }
 }
 
@@ -360,31 +371,76 @@ export function deleteSelection() {
 
 export function duplicateSelection() {
   const selection = store.getSelection();
-  if (!selection.nodeIds.length) return;
+  if (!selection.nodeIds.length && !selection.edgeIds.length) return;
   const state = store.getState();
   const idMap = new Map();
+  const groupIdMap = new Map();
   const newNodes = selection.nodeIds
     .map((id) => state.nodes.find((n) => n.id === id))
     .filter(Boolean)
     .map((n) => {
-      const { id: _oldId, x: _x, y: _y, ...rest } = n;
-      const clone = createNode(null, n.x + 24, n.y + 24, rest);
+      const { id: _oldId, x: _x, y: _y, groupId: oldGroupId, ...rest } = n;
+      let newGroupId = null;
+      if (oldGroupId) {
+        if (!groupIdMap.has(oldGroupId)) groupIdMap.set(oldGroupId, nextId('group'));
+        newGroupId = groupIdMap.get(oldGroupId);
+      }
+      const clone = createNode(null, n.x + 24, n.y + 24, { ...rest, groupId: newGroupId });
       idMap.set(n.id, clone.id);
       return clone;
     });
-  const newEdges = state.edges
-    .filter((edge) => selection.nodeIds.includes(edge.from) && selection.nodeIds.includes(edge.to))
-    .map((edge) => {
-      const { id: _oldId, from: _from, to: _to, ...rest } = edge;
-      return createEdge(idMap.get(edge.from), idMap.get(edge.to), rest);
-    });
+
+  // Duplicate both edges internal to the duplicated nodes AND any edge the
+  // user explicitly selected directly (even if only one/neither endpoint
+  // was itself duplicated — that just reconnects to the original node).
+  const internalEdges = state.edges.filter((edge) => selection.nodeIds.includes(edge.from) && selection.nodeIds.includes(edge.to));
+  const selectedEdges = state.edges.filter((edge) => selection.edgeIds.includes(edge.id));
+  const edgesToClone = [...new Map([...internalEdges, ...selectedEdges].map((e) => [e.id, e])).values()];
+  const newEdges = edgesToClone.map((edge) => {
+    const { id: _oldId, from, to, ...rest } = edge;
+    return createEdge(idMap.get(from) || from, idMap.get(to) || to, rest);
+  });
 
   store.dispatch((draft) => {
     draft.nodes.push(...newNodes);
     draft.edges.push(...newEdges);
   });
-  store.select(newNodes.map((n) => n.id), []);
+  store.select(newNodes.map((n) => n.id), newEdges.map((e) => e.id));
   if (newNodes[0]) focusNode(newNodes[0].id);
+  else if (newEdges[0]) focusEdge(newEdges[0].id);
+}
+
+/** Ties 2+ selected nodes together so clicking or dragging any one of them
+ * acts on the whole set — see selectNode(). */
+export function groupSelection() {
+  const selection = store.getSelection();
+  if (selection.nodeIds.length < 2) return;
+  const groupId = nextId('group');
+  store.dispatch((draft) => {
+    for (const id of selection.nodeIds) {
+      const n = draft.nodes.find((x) => x.id === id);
+      if (n) n.groupId = groupId;
+    }
+  });
+  showToast(`Grouped ${selection.nodeIds.length} components.`, 'success', 1800);
+}
+
+export function ungroupSelection() {
+  const selection = store.getSelection();
+  if (!selection.nodeIds.length) return;
+  store.dispatch((draft) => {
+    for (const id of selection.nodeIds) {
+      const n = draft.nodes.find((x) => x.id === id);
+      if (n) n.groupId = null;
+    }
+  });
+  showToast('Ungrouped.', 'success', 1800);
+}
+
+/** Whether the current selection includes at least one grouped node (so an "Ungroup" action makes sense). */
+export function selectionHasGroup() {
+  const state = store.getState();
+  return store.getSelection().nodeIds.some((id) => state.nodes.find((n) => n.id === id)?.groupId);
 }
 
 function reorderZ(nodeId, toFront) {

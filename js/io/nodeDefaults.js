@@ -1,4 +1,4 @@
-// Global "new component" defaults (see docs/SPEC.md 4.2.4): applied when a
+// Global "new component" defaults (see docs/SPEC.md 4.2.5): applied when a
 // node is created, always overridable per-node afterwards via the toolbar
 // style editor / details panel. Persisted separately from any one project
 // so they carry across diagrams.

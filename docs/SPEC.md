@@ -1,6 +1,6 @@
 # System Design Diagram Builder — Specification (איפיון)
 
-Status: v1.1 · Last updated: 2026-08-14
+Status: v1.2 · Last updated: 2026-08-14
 
 ## 1. Purpose
 
@@ -56,7 +56,7 @@ owner; code/UI/comments are English only.
   Monitoring, DevOps, Containers, Networking, Security, Storage, Servers,
   Client/Frontend, Frontend Frameworks, Backend Frameworks, Logging,
   AI/ML, AI Providers & Agents, Cloud Providers, Basic Shapes,
-  Layers & Roles, Design Patterns, Misc).
+  Layers & Roles, Design Patterns, State Machines, Misc).
 - Categories sorted A→Z; components inside each category sorted A→Z.
 - Search box filters across all categories by name/tag/description, with
   live highlighting and auto-expanding matched categories.
@@ -110,7 +110,20 @@ Complements the existing **AI / ML** category, which stays focused on
 general ML *infrastructure* (training pipelines, feature stores, vector
 DBs, MLflow, ...) rather than duplicating it.
 
-#### 4.2.4 Global default component settings
+#### 4.2.4 State Machines
+A category mixing normal (`kind: 'component'`) state shapes — Initial State,
+State, Choice/Decision, Final State, Fork/Join, History State, Composite
+State (see `js/data/categories/state-machines.js`) — with `kind: 'pattern'`
+ready-made templates (Traffic Light, Order Lifecycle, TCP Connection,
+Media Player, Approval Workflow, Auth Session). No new engine concepts were
+needed: a state is just a node, and a transition's condition/event is just
+a normal edge's existing `label` field — so state-machine content mixes
+freely with the rest of a diagram (a state can connect to/from any other
+component with a regular connector) and, symmetrically, a diagram that
+never touches this category is completely unaffected by it. Can be hidden
+from the sidebar entirely — see 4.2.6.
+
+#### 4.2.5 Global default component settings
 A "🎛️ Default settings" toolbar button opens a modal for defaults applied
 when a component is **created**, always overridable per component
 afterwards via the toolbar style editor / details panel:
@@ -131,9 +144,20 @@ afterwards via the toolbar style editor / details panel:
   always predictable, and per-component customization after that remains
   a normal single-node edit.
 
+#### 4.2.6 Hiding a component category from the sidebar
+The same "🎛️" settings modal has a "Component library" section with a
+"Hide 'State Machines' components & templates" checkbox, for anyone who
+doesn't want that category cluttering search/browse. It only filters the
+sidebar/search — a diagram that already has state-machine components on
+its canvas is completely unaffected, and toggling it back on doesn't lose
+anything.
+
 ### 4.3 Canvas node interactions
 - Drag to move, resize via handles, rotate not required.
-- Delete via `Delete`/`Backspace`, right-click menu, or toolbar button.
+- Delete via `Delete`/`Backspace`, right-click menu, or toolbar button —
+  **always cascades to every connector attached to the deleted
+  component(s)**, so a diagram never ends up with an arrow dangling from
+  nothing (`core/project.js#removeNode`; see also 4.4).
 - Right-click context menu: Edit style, Duplicate, Bring to front / send to
   back, Add note, Delete, Open details.
 - Small on-node button opens full edit (style) and an "ⓘ" button opens the
@@ -142,17 +166,53 @@ afterwards via the toolbar style editor / details panel:
   sub-components ("has extra info" indicator).
 - Multi-select (marquee / shift-click) + group move + group delete.
 
+#### 4.3.1 Selecting, editing, duplicating and deleting components + connectors together
+- **Combined selection**: marquee-selecting a cluster picks up every
+  connector whose both ends land inside the box, alongside the components —
+  not just components. Shift-click extends a selection across both types
+  too (e.g. shift-click a connector after selecting some components keeps
+  both).
+- **Edit together**: with a mixed selection, the toolbar's contextual row
+  shows the component style editor *and* the connector style editor at the
+  same time, instead of picking one — so restyling a component cluster and
+  its connectors is one pass, not several.
+- **Duplicate together** (⧉ / Ctrl+D) and **delete together** (🗑️ / Delete)
+  both act on the whole current selection — components, connectors, or a
+  mix — in one step/undo entry.
+- **Group / Ungroup**: with 2+ components selected, the 🔗 "Group" button
+  ties them together — clicking (or dragging) any one member afterwards
+  selects/moves the whole group as a unit. The ✂️ "Ungroup" button (shown
+  whenever the selection includes a grouped component) releases them back
+  to independent components. Duplicating a grouped selection gives the
+  copies their own new group, independent of the original.
+
 ### 4.4 Arrows / connectors
 - Draw by dragging from a node's connection point to another node. Both
   ends must land on a component (no free-floating endpoints in v1 — see
   `PLAN.md` for that as a possible v2 idea).
 - Style: color, thickness, dash pattern, routing (straight, orthogonal
-  /elbow, curved/bezier), label text.
+  /elbow, curved/bezier, or **magic** — see 4.4.1), label text.
 - Arrow-head per end independently: none, open, filled triangle, diamond,
   circle — and direction: source→target, target→source, bidirectional,
   none.
 - Endpoints stay attached to nodes and re-route live when nodes move
-  ("dynamic reshaping").
+  ("dynamic reshaping") — magic-routed connectors too, since their route is
+  recomputed fresh from current node positions on every render rather than
+  stored, so it never goes stale.
+- Deleting either endpoint component deletes the connector too (see 4.3).
+
+#### 4.4.1 Magic Arrow
+The toolbar's "🪄" button arms Magic Arrow mode for the *next* connector
+you draw: drag from a component's connection point to another component as
+usual, and the resulting connector automatically routes itself around
+every other component in the way — an orthogonal path computed to avoid
+overlapping any other node, using as few bends as possible
+(`js/core/magicRouter.js`, a grid-based least-turns search). If no clear
+route can be found (e.g. the target is fully boxed in), it falls back to a
+plain elbow connector rather than failing silently. Any existing
+connector can also be switched to (or off) magic routing afterward from
+its style editor's Routing dropdown — it isn't a one-time creation-only
+choice.
 
 ### 4.5 Toolbar
 - Style controls for current selection: fill color, "no background"
@@ -171,15 +231,18 @@ afterwards via the toolbar style editor / details panel:
   cloud, "server with rows" (a container node where the user defines and
   reorders internal rows/components), sticky note / text label, group
   container.
-- Zoom controls + fit-to-screen + grid toggle.
-- Help button opens `help.html` (interactive guide) in a new tab, and a
-  "hints" toggle.
+- Zoom controls + fit-to-screen + grid toggle + "🪄 Magic Arrow" mode toggle
+  (see 4.4.1). Zoom also works via Ctrl/Cmd + "+"/"-"/"0" (in) / (out) /
+  (reset to 100%), alongside the buttons and Ctrl/Cmd+scroll.
+- Group / Ungroup buttons for multi-component selections (see 4.3.1).
+- Help button opens `help.html` (interactive guide) in a new tab, a
+  "hints" toggle, and a "🆕 What's new" button (see 4.11).
 
 ### 4.6 Node details panel
 - Opens on demand (ⓘ button / double-click). Shows: name, icon/color
   summary, free-text notes, labels (tag chips), and an editable list of
   sub-components (name + icon, add/remove/reorder, plus a "compact chips
-  vs full list" display-mode control — see 4.2.4). For "server with rows"
+  vs full list" display-mode control — see 4.2.5). For "server with rows"
   nodes, this is also where rows are managed.
 - **Collapse / expand**: a chevron button in the panel header shrinks it to
   a slim clickable strip (content hidden, selection/edits untouched) —
@@ -248,6 +311,18 @@ name alone.
   toggled by buttons; toolbar collapses into a compact menu; touch drag
   works via pointer events.
 
+### 4.11 Versioning & "What's New"
+`js/version.js` holds `APP_VERSION` and a `VERSION_HISTORY` list of
+per-version highlights — bumped with every user-facing fix or feature (see
+`docs/CHANGELOG.md`, which stays the detailed record; `version.js` is the
+short, in-app-facing summary). On boot, a returning visitor whose
+last-seen version (tracked in `localStorage`) differs from the current one
+sees a "What's New" modal listing everything newer than what they last
+saw, once; a brand-new visitor (nothing in storage at all yet) doesn't —
+the hints tour already covers onboarding. Reachable any time afterward via
+the toolbar's "🆕" button too (`js/io/whatsNew.js`,
+`js/modals/whatsNewModal.js`).
+
 ## 5. Non-functional requirements
 
 - **Security**: no `eval`/`innerHTML` with unsanitized input, no inline
@@ -259,8 +334,9 @@ name alone.
   virtual-friendly sidebar list (filter, not re-render everything from
   scratch when unnecessary).
 - **Accessibility/UX**: keyboard shortcuts (Ctrl/Cmd+Z / Shift+Z, Delete,
-  Ctrl/Cmd+S, Ctrl/Cmd+D duplicate), focus outlines, color-contrast aware
-  default palette, tooltips on icon-only buttons.
+  Ctrl/Cmd+S, Ctrl/Cmd+D duplicate, Ctrl/Cmd + "+"/"-"/"0" zoom in/out/reset),
+  focus outlines, color-contrast aware default palette, tooltips on
+  icon-only buttons.
 - **Maintainability**: small single-purpose ES modules, no framework, no
   global mutable state outside `core/store.js`, one central pub/sub store,
   component data is pure data (no logic) so the library is trivial to
@@ -288,7 +364,8 @@ name alone.
       "notes": "", "labels": ["prod"],
       "subComponents": [{ "id": "sc_1", "name": "Auth", "icon": "🔐" }],
       "rows": [],
-      "zIndex": 3
+      "zIndex": 3,
+      "groupId": null
     }
   ],
   "edges": [
@@ -304,6 +381,12 @@ name alone.
   ]
 }
 ```
+
+`routing` is one of `straight` / `orthogonal` / `curved` / `magic` (see
+4.4.1) — a magic-routed edge's actual path is never stored (it's
+recomputed live from current node positions), so no extra field is needed
+for it. `groupId` (default `null`) ties 2+ nodes into a Group/Ungroup unit
+— see 4.3.1.
 
 ## 7. Out of scope for v1 (ideas for later, see PLAN.md §7)
 

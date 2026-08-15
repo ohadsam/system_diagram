@@ -3,7 +3,8 @@
 import * as store from '../core/store.js';
 import { createEmptyProject } from '../core/project.js';
 import { el, clear } from '../utils/dom.js';
-import { deleteSelection, duplicateSelection } from '../canvas/canvas.js';
+import { deleteSelection, duplicateSelection, groupSelection, ungroupSelection, selectionHasGroup } from '../canvas/canvas.js';
+import { setMagicMode, isMagicModeActive } from '../canvas/connectorInteractions.js';
 import { renderNodeStyleEditor } from './styleEditor.js';
 import { renderEdgeStyleEditor } from './arrowEditor.js';
 import { renderZoomControls } from './zoomControls.js';
@@ -16,6 +17,7 @@ import { openCustomComponentModal } from '../modals/customComponentModal.js';
 import { openCustomShapeModal } from '../modals/customShapeModal.js';
 import { openDefaultSettingsModal } from '../modals/defaultSettingsModal.js';
 import { openBackupModal } from '../modals/backupModal.js';
+import { openWhatsNewModal } from '../modals/whatsNewModal.js';
 import { confirmAction } from '../modals/confirmModal.js';
 import { showToast } from '../utils/toast.js';
 import { readJSON, writeJSON } from '../io/storage.js';
@@ -171,7 +173,17 @@ function buildViewGroup() {
       gridBtn.classList.add('active');
     });
   }
-  return group(gridBtn);
+
+  const magicBtn = el('button', {
+    type: 'button', class: 'btn btn-icon magic-arrow-btn', title: 'Magic Arrow: arm to auto-route the next connector around every other component', text: '🪄',
+    onClick: () => {
+      const next = !isMagicModeActive();
+      setMagicMode(next);
+      magicBtn.classList.toggle('active', next);
+      if (next) showToast('Magic Arrow armed — drag from a connection point to draw an auto-routed connector.', 'info', 2600);
+    },
+  });
+  return group(gridBtn, magicBtn);
 }
 
 function buildHelpGroup() {
@@ -183,7 +195,11 @@ function buildHelpGroup() {
     type: 'button', class: 'btn btn-icon', title: 'Show hints again', text: '💡',
     onClick: () => { resetHints(); showToast('Hints restarted.', 'info', 1800); },
   });
-  return group(helpBtn, hintsBtn);
+  const whatsNewBtn = el('button', {
+    type: 'button', class: 'btn btn-icon', title: "What's new", text: '🆕',
+    onClick: () => openWhatsNewModal(),
+  });
+  return group(helpBtn, hintsBtn, whatsNewBtn);
 }
 
 function renderContextRow(selection) {
@@ -194,15 +210,33 @@ function renderContextRow(selection) {
   if (!hasNodes && !hasEdges) return;
 
   const controls = el('div', { class: 'toolbar-context-controls' });
-  if (hasNodes) renderNodeStyleEditor(controls, selection.nodeIds);
-  else if (hasEdges) renderEdgeStyleEditor(controls, selection.edgeIds);
+  // Both editors render together for a mixed node+edge selection, so
+  // selecting a cluster of components and connectors lets you restyle
+  // everything in one pass instead of picking one type at a time. Each
+  // gets its own sub-container — both renderNodeStyleEditor and
+  // renderEdgeStyleEditor clear() their container on entry, so sharing one
+  // directly would let the second call wipe out the first's fields.
+  if (hasNodes) {
+    const nodeControls = el('div', { class: 'toolbar-context-controls-group' });
+    renderNodeStyleEditor(nodeControls, selection.nodeIds);
+    controls.appendChild(nodeControls);
+  }
+  if (hasEdges) {
+    const edgeControls = el('div', { class: 'toolbar-context-controls-group' });
+    renderEdgeStyleEditor(edgeControls, selection.edgeIds);
+    controls.appendChild(edgeControls);
+  }
   contextRow.appendChild(controls);
 
   const actions = el('div', { class: 'toolbar-context-actions' });
-  if (hasNodes) {
-    duplicateBtn = el('button', { type: 'button', class: 'btn btn-icon', title: 'Duplicate (Ctrl+D)', text: '⧉', onClick: duplicateSelection });
-    actions.appendChild(duplicateBtn);
+  if (selection.nodeIds.length >= 2) {
+    actions.appendChild(el('button', { type: 'button', class: 'btn btn-icon', title: 'Group selection', text: '🔗', onClick: groupSelection }));
   }
+  if (selectionHasGroup()) {
+    actions.appendChild(el('button', { type: 'button', class: 'btn btn-icon', title: 'Ungroup', text: '✂️', onClick: ungroupSelection }));
+  }
+  duplicateBtn = el('button', { type: 'button', class: 'btn btn-icon', title: 'Duplicate (Ctrl+D)', text: '⧉', onClick: duplicateSelection });
+  actions.appendChild(duplicateBtn);
   deleteBtn = el('button', { type: 'button', class: 'btn btn-icon btn-danger', title: 'Delete (Del)', text: '🗑️', onClick: deleteSelection });
   actions.appendChild(deleteBtn);
   contextRow.appendChild(actions);

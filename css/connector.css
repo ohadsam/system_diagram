@@ -27,3 +27,15 @@
   stroke-dasharray: 5, 4;
   pointer-events: none;
 }
+
+/* A subtle "auto-routed" tell so a magic-routed connector's bends read as
+   intentional, not just an odd elbow — a faint halo behind the line. */
+.edge-magic .edge-line {
+  filter: drop-shadow(0 0 2px #A855F766);
+}
+
+.magic-arrow-btn.active {
+  background: #A855F71A;
+  border-color: #A855F7;
+  color: #7C3AED;
+}

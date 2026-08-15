@@ -5,7 +5,7 @@ import { el, clear } from '../utils/dom.js';
 import { field, colorInput, numberInput, selectInput, textInput } from '../utils/formControls.js';
 import { ROUTINGS, ARROW_HEADS, DASH_STYLES } from '../core/project.js';
 
-const ROUTING_LABELS = { straight: 'Straight', orthogonal: 'Elbow', curved: 'Curved' };
+const ROUTING_LABELS = { straight: 'Straight', orthogonal: 'Elbow', curved: 'Curved', magic: '🪄 Magic (auto-avoid)' };
 const ARROW_LABELS = { none: 'None', open: 'Open', filled: 'Filled', diamond: 'Diamond', circle: 'Circle' };
 const DASH_LABELS = { solid: 'Solid', dashed: 'Dashed', dotted: 'Dotted' };
 

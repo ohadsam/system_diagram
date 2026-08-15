@@ -9,9 +9,21 @@ import { sideAnchor, closestSide, straightPath } from '../core/geometry.js';
 import { focusEdge } from './canvas.js';
 
 let draftLayer = null;
+let magicModeActive = false;
 
 export function initConnectorInteractions(svg) {
   draftLayer = svg;
+}
+
+/** Arms/disarms "Magic Arrow" mode — see toolbar.js's 🪄 toggle. While
+ * active, the next connector drawn gets `routing: 'magic'` instead of the
+ * usual default. */
+export function setMagicMode(active) {
+  magicModeActive = active;
+}
+
+export function isMagicModeActive() {
+  return magicModeActive;
 }
 
 export function beginConnectFromNode(nodeId, side, e) {
@@ -53,7 +65,7 @@ export function beginConnectFromNode(nodeId, side, e) {
       const toNode = store.getState().nodes.find((n) => n.id === targetNodeId);
       const dropPoint = screenToCanvas(ev.clientX, ev.clientY);
       const toSide = toNode ? closestSide(toNode, dropPoint) : 'left';
-      const edge = createEdge(nodeId, targetNodeId, { fromSide: side, toSide });
+      const edge = createEdge(nodeId, targetNodeId, { fromSide: side, toSide, ...(magicModeActive ? { routing: 'magic' } : {}) });
       store.dispatch((d) => {
         d.edges.push(edge);
       });

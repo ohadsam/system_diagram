@@ -61,6 +61,41 @@ entry on pointer-up, so undo of a drag is a single step.
 - `nodeInteractions.js` and `connectorInteractions.js` own all
   `pointerdown/move/up` handling; they read/write `store` and never touch
   other modules directly.
+- **Grouping & mixed selection**: `canvas.js#selectNode` expands a
+  non-additive click on a grouped node (`node.groupId` set) to select
+  every node sharing that `groupId`, so a group behaves as one selectable/
+  movable unit without `nodeInteractions.js#beginMove` needing to know
+  about groups at all — it just moves `store.getSelection().nodeIds`,
+  which is already the whole group by the time it runs.
+  `groupSelection()`/`ungroupSelection()` set/clear `groupId` on the
+  current selection; `duplicateSelection()` remaps each distinct source
+  `groupId` to one fresh id per duplication, so copies form their own
+  group rather than joining the original. `beginMarquee()` additionally
+  selects any edge whose *both* endpoints landed in the drag rect, and
+  `duplicateSelection()`/`deleteSelection()` both operate over the full
+  `{nodeIds, edgeIds}` selection together, not nodes only.
+
+### Connector routing (`canvas/connector.js`, `core/magicRouter.js`)
+
+`connector.js#buildEdgePath` picks the path builder by `edge.routing`:
+`straight`/`orthogonal`/`curved` go through the pure, stateless
+`core/geometry.js#buildPath`, same as always. `'magic'` instead calls
+`core/magicRouter.js#computeMagicWaypoints(fromNode, toNode, obstacles,
+fromSide, toSide)` — a DOM-free, unit-testable, grid-based least-turns
+router (obstacles = every other node's rect, from `canvas.js#render`'s
+`allNodes` passed through `updateEdgeEl`'s options). It quantizes the
+bounding area between the two nodes into a grid sized so the cell count
+stays under a fixed cap regardless of canvas scale, then runs a 0-1
+bucket-queue Dijkstra over `(cell, last-direction)` states — 0 cost to
+continue straight, 1 to turn — to find the path with the fewest bends,
+then collapses it to just its turning points and appends the two nodes'
+exact anchor points. If it can't find a route in budget (or the grid
+would be too large) it returns `null`, and `buildEdgePath` falls back to
+a plain `orthogonal` route rather than leaving the connector broken.
+Nothing about the computed path is persisted on the edge — it's derived
+fresh every render straight from current node positions, exactly like
+every other routing already is, so a magic edge re-routes live as nodes
+move and can never go stale.
 
 ## Data library (`data/`)
 
@@ -96,6 +131,14 @@ handles them instead of the default single-node placement:
   real defIds means pattern nodes get correct styling for free and the
   blueprint data stays tiny — no node-shape/color duplication.
 
+`kind` is per-*item*, not per-category, so a category file can freely mix
+kinds — `categories/state-machines.js` does exactly that: plain
+`kind: 'component'` state shapes (State, Choice, Final State, ...)
+alongside `kind: 'pattern'` whole-state-machine templates, all in one
+`components` array. A transition's condition/event needs no schema
+support at all — it's just that edge's ordinary `label` field, set the
+same way any connector's label is.
+
 ## Persistence (`io/`)
 
 - `storage.js`: thin wrapper around `localStorage` with a versioned key
@@ -114,7 +157,7 @@ handles them instead of the default single-node placement:
   page load), rasterize the canvas content layer, crop to diagram bounds.
 - `nodeDefaults.js`: global "new component" defaults (transparent fill,
   icon visibility, text position, sub-components display — see
-  docs/SPEC.md 4.2.4), stored under their own key, independent of any one
+  docs/SPEC.md 4.2.5), stored under their own key, independent of any one
   project. `buildCreationOverrides()` returns the `overrides` object every
   `canvas.js` node-creation call site (`createNodeFromDrop`,
   `addCustomShapeNode`, `instantiatePattern`) spreads into `createNode()`.
@@ -153,6 +196,22 @@ handles them instead of the default single-node placement:
   replace, which is why the UI (`modals/backupModal.js`) gates the whole
   restore behind one `confirmAction()` up front rather than per-field.
 
+- `librarySettings.js`: app-level sidebar visibility settings (currently
+  just `hideStateMachines`), a small `readJSON`/`writeJSON`/change-listener
+  module in the same shape as `nodeDefaults.js`. `sidebar.js#renderList`
+  filters `CATEGORIES` against it (via `HIDEABLE_CATEGORIES`, a
+  setting-key → category-id map) before rendering, so hiding a category is
+  purely a browse/search-time filter — content already on the canvas is
+  untouched either way.
+- `whatsNew.js`: tracks the last app version (`js/version.js#APP_VERSION`)
+  a visitor saw, in its own key. `checkWhatsNew()` (called once at boot in
+  `main.js`) distinguishes three cases: already on the current version
+  (nothing to show), a brand-new visitor with *no* prior app data at all
+  (nothing to show — the hints tour handles onboarding), or anyone else
+  (show every `VERSION_HISTORY` entry newer than what they last saw). The
+  boot always calls `markVersionSeen()` right after, regardless of which
+  case, so the modal is a one-time-per-update nudge, not a repeat nag.
+
 ## Node label placement (`canvas/node.js`)
 
 A node's label normally renders inside `.node-body` (which has
@@ -179,8 +238,9 @@ by definition it needs to render outside the shape's box.
 ## Testing
 
 - `tests/unit/*.test.mjs` — pure logic (history stack, geometry/routing
-  math, search/filter, project validation, component-data integrity), run
-  with Node's built-in `node:test`, no browser needed.
+  math incl. `magicRouter.js`'s obstacle-avoidance, search/filter, project
+  validation, component-data integrity), run with Node's built-in
+  `node:test`, no browser needed.
 - `tests/e2e/*.spec.js` — Playwright, drives a real Chromium against the
   static site (`npx http-server` or `python3 -m http.server`), covers
   drag-from-sidebar → node appears, undo/redo, localStorage persistence

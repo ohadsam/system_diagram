@@ -1,12 +1,13 @@
 // "Default Settings" modal: global new-component defaults (background,
 // icon, text position, sub-components display). Always overridable per
 // component afterwards via the toolbar / details panel — see
-// docs/SPEC.md 4.2.4.
+// docs/SPEC.md 4.2.5.
 import { openModal } from './modal.js';
 import { el } from '../utils/dom.js';
 import { field, checkbox, selectInput } from '../utils/formControls.js';
 import { TEXT_POSITIONS, SUBCOMPONENTS_DISPLAY_MODES } from '../core/project.js';
 import { getNodeDefaults, saveNodeDefaults } from '../io/nodeDefaults.js';
+import { getLibrarySettings, saveLibrarySettings } from '../io/librarySettings.js';
 import * as store from '../core/store.js';
 import { showToast } from '../utils/toast.js';
 
@@ -24,6 +25,7 @@ const SUBCOMPONENTS_DISPLAY_LABELS = {
 
 export function openDefaultSettingsModal() {
   const model = { ...getNodeDefaults() };
+  const libraryModel = { ...getLibrarySettings() };
 
   openModal({
     title: 'Default component settings',
@@ -36,6 +38,9 @@ export function openDefaultSettingsModal() {
       form.appendChild(checkbox(model.showIcon, (v) => { model.showIcon = v; }, 'Show icon'));
       form.appendChild(field('Text position', selectInput(TEXT_POSITIONS, model.textPosition, (v) => { model.textPosition = v; }, TEXT_POSITION_LABELS)));
       form.appendChild(field('Sub-components display', selectInput(SUBCOMPONENTS_DISPLAY_MODES, model.subComponentsDisplay, (v) => { model.subComponentsDisplay = v; }, SUBCOMPONENTS_DISPLAY_LABELS)));
+
+      form.appendChild(el('h3', { class: 'modal-subheading', text: 'Component library' }));
+      form.appendChild(checkbox(libraryModel.hideStateMachines, (v) => { libraryModel.hideStateMachines = v; saveLibrarySettings(libraryModel); }, 'Hide "State Machines" components & templates from the sidebar'));
 
       const actions = el('div', { class: 'modal-actions' });
       const secondary = el('div', { class: 'modal-actions-secondary' });

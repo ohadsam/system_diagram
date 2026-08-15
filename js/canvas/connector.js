@@ -2,7 +2,8 @@
 // Click/select wiring lives here (simple); drag-to-create lives in
 // connectorInteractions.js.
 import { svgEl } from '../utils/dom.js';
-import { sideAnchor, buildPath } from '../core/geometry.js';
+import { sideAnchor, buildPath, waypointsPath } from '../core/geometry.js';
+import { computeMagicWaypoints } from '../core/magicRouter.js';
 
 let handlers = { onSelect: () => {}, onContextMenu: () => {} };
 export function configureEdgeHandlers(next) {
@@ -72,11 +73,12 @@ export function createEdgeEl(edge) {
   return g;
 }
 
-export function updateEdgeEl(g, edge, fromNode, toNode, { selected = false } = {}) {
+export function updateEdgeEl(g, edge, fromNode, toNode, { selected = false, allNodes = [] } = {}) {
   g.classList.toggle('selected', !!selected);
+  g.classList.toggle('edge-magic', edge.routing === 'magic');
   const a = sideAnchor(fromNode, edge.fromSide);
   const b = sideAnchor(toNode, edge.toSide);
-  const d = buildPath(edge.routing, a, b, edge.fromSide, edge.toSide);
+  const d = buildEdgePath(edge, fromNode, toNode, a, b, allNodes);
 
   const hit = g.querySelector('.edge-hit');
   const line = g.querySelector('.edge-line');
@@ -103,6 +105,21 @@ export function updateEdgeEl(g, edge, fromNode, toNode, { selected = false } = {
   } else {
     label.style.display = 'none';
   }
+}
+
+/** "Magic" routing computes an obstacle-avoiding path fresh from current
+ * node positions each render (nothing persisted) — same "dynamic reshaping"
+ * behavior every other routing already gets when nodes move, and it never
+ * goes stale. Falls back to a plain elbow route if no path is found (e.g.
+ * the target is fully boxed in) so a magic edge never simply disappears. */
+function buildEdgePath(edge, fromNode, toNode, a, b, allNodes) {
+  if (edge.routing === 'magic') {
+    const obstacles = allNodes.filter((n) => n.id !== fromNode.id && n.id !== toNode.id);
+    const waypoints = computeMagicWaypoints(fromNode, toNode, obstacles, edge.fromSide, edge.toSide);
+    if (waypoints) return waypointsPath(waypoints);
+    return buildPath('orthogonal', a, b, edge.fromSide, edge.toSide);
+  }
+  return buildPath(edge.routing, a, b, edge.fromSide, edge.toSide);
 }
 
 function dashArray(dash, width) {

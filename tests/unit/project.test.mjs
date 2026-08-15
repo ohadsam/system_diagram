@@ -45,6 +45,18 @@ test('createEdge applies sane defaults', () => {
   assert.equal(edge.routing, 'orthogonal');
 });
 
+test('createNode defaults groupId to null and it is overridable', () => {
+  const node = createNode(null, 0, 0);
+  assert.equal(node.groupId, null);
+  const grouped = createNode(null, 0, 0, { groupId: 'group_1' });
+  assert.equal(grouped.groupId, 'group_1');
+});
+
+test('createEdge accepts "magic" as a routing override', () => {
+  const edge = createEdge('n1', 'n2', { routing: 'magic' });
+  assert.equal(edge.routing, 'magic');
+});
+
 test('removeNode cascades to connected edges', () => {
   const p = createEmptyProject();
   const n1 = createNode(null, 0, 0);
@@ -126,6 +138,30 @@ test('validateProject preserves valid textPosition/iconVisible/subComponentsDisp
   assert.equal(result.project.nodes[0].textPosition, 'below');
   assert.equal(result.project.nodes[0].iconVisible, false);
   assert.equal(result.project.nodes[0].subComponentsDisplay, 'full');
+});
+
+test('validateProject preserves a valid groupId and defaults a missing/invalid one to null', () => {
+  const raw = {
+    nodes: [
+      { id: 'n1', x: 0, y: 0, groupId: 'group_abc' },
+      { id: 'n2', x: 0, y: 0, groupId: 42 },
+      { id: 'n3', x: 0, y: 0 },
+    ],
+    edges: [],
+  };
+  const result = validateProject(raw);
+  assert.equal(result.project.nodes[0].groupId, 'group_abc');
+  assert.equal(result.project.nodes[1].groupId, null);
+  assert.equal(result.project.nodes[2].groupId, null);
+});
+
+test('validateProject accepts "magic" as a valid edge routing', () => {
+  const raw = {
+    nodes: [{ id: 'n1', x: 0, y: 0 }, { id: 'n2', x: 100, y: 0 }],
+    edges: [{ id: 'e1', from: 'n1', to: 'n2', routing: 'magic' }],
+  };
+  const result = validateProject(raw);
+  assert.equal(result.project.edges[0].routing, 'magic');
 });
 
 test('validateProject never throws on malformed/malicious input', () => {

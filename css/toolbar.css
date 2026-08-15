@@ -88,6 +88,18 @@
   flex: 1 1 auto;
 }
 
+.toolbar-context-controls-group {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.toolbar-context-controls-group + .toolbar-context-controls-group {
+  padding-left: var(--space-3);
+  border-left: 1px solid #C7D2FE;
+}
+
 .toolbar-context-controls .icon-field {
   width: 52px;
   text-align: center;

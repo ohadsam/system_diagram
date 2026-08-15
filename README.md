@@ -1,13 +1,14 @@
 # System Design Diagram Builder
 
 A 100% client-side web app for designing system architecture diagrams —
-drag components from a library of 480+ predefined items (AWS services,
+drag components from a library of 500+ predefined items (AWS services,
 databases, caches, message queues, frameworks, code-level layers like
-Controller/Service/DAL, ready-made design pattern blueprints like
-MVC/CQRS/API Gateway, and generative-AI building blocks like model
-providers/MCP/agents) onto a canvas, connect them with configurable
-arrows, style everything, and export the result. No backend, no build
-step, no account — everything lives in your browser.
+Controller/Service/DAL, ready-made design pattern and state-machine
+blueprints like MVC/CQRS/API Gateway/Traffic-Light, and generative-AI
+building blocks like model providers/MCP/agents) onto a canvas, connect
+them with configurable arrows (including an auto-routing "Magic Arrow"),
+style everything, and export the result. No backend, no build step, no
+account — everything lives in your browser.
 
 ## Quick start
 
@@ -23,7 +24,7 @@ Or open `index.html` directly in a browser.
 
 ## Features
 
-- **Huge component library** — 480+ predefined components across 22
+- **Huge component library** — 500+ predefined components across 23
   categories (AWS, Databases, Cache, Messaging, Monitoring, DevOps,
   Containers, Networking, Security, Servers, Client/Frontend, Frontend &
   Backend frameworks, Storage, Logging, AI/ML, Cloud providers, Basic
@@ -44,11 +45,21 @@ Or open `index.html` directly in a browser.
   Publish-Subscribe, Saga, Hexagonal Architecture, Singleton, Observer,
   Strategy, and more) that drop a whole ready-made cluster of connected
   components onto the canvas at once.
-- **Full canvas editing** — drag, resize, multi-select, duplicate, delete,
-  rename inline, pan/zoom, right-click context menu.
+- **State Machines** — states, transitions and conditions using the same
+  components/connectors as the rest of the diagram (no special mode), plus
+  6 ready-made templates (Traffic Light, Order Lifecycle, TCP Connection,
+  Media Player, Approval Workflow, Auth Session). Hideable from the
+  sidebar entirely for anyone who doesn't need it.
+- **Full canvas editing** — drag, resize, multi-select (including
+  connectors, via marquee or shift-click), duplicate, delete, rename
+  inline, pan/zoom (buttons, Ctrl/Cmd+scroll, or keyboard Ctrl/Cmd +
+  "+"/"-"/"0"), right-click context menu, and Group/Ungroup for tying
+  components together as one selectable/movable unit.
 - **Connectors** — drag between components to draw arrows with
-  configurable routing (straight/elbow/curved), independent start/end
-  arrow-head styles, color, thickness, dash pattern and labels.
+  configurable routing (straight/elbow/curved, or "🪄 Magic" — auto-routes
+  around every other component with the fewest bends), independent
+  start/end arrow-head styles, color, thickness, dash pattern and labels.
+  Deleting a component always cleans up every connector attached to it.
 - **Style toolbar** — colors, shape, border, font, text alignment/position
   (including outside-the-shape captions), icon visibility, size — applies
   to your whole selection at once.
@@ -74,6 +85,8 @@ Or open `index.html` directly in a browser.
 - **Export** — PNG and PDF snapshots of your diagram.
 - **Dismissible hints** — a short first-run guided tour, restartable any
   time.
+- **"What's New"** — a one-time modal after each update summarizing what
+  changed, reachable any time afterward from the toolbar.
 - **Responsive** — full desktop layout; sidebar/details panel become
   slide-over drawers on mobile, with touch-friendly interactions.
 

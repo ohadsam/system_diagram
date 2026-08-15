@@ -83,7 +83,7 @@ Keep this in sync with `PLAN.md` as stages complete.
   of rows, settable per node from its details panel or via the new global
   default.
 - New node fields: `iconVisible`, `textPosition`, `subComponentsDisplay`
-  (see `docs/SPEC.md` 4.2.4, `docs/ARCHITECTURE.md` "Node label
+  (see `docs/SPEC.md` 4.2.5, `docs/ARCHITECTURE.md` "Node label
   placement").
 
 ## Unreleased (5)
@@ -109,3 +109,45 @@ Keep this in sync with `PLAN.md` as stages complete.
 - Added **folders for "My Components"**: an optional free-text `folder`
   field (with autocomplete) on custom components, grouping them into
   collapsible 📁 sub-groups in the sidebar.
+
+## v1.2.0 (2026-08-14)
+
+Starting formal version tracking here — see `js/version.js`
+(`APP_VERSION`/`VERSION_HISTORY`) and `docs/SPEC.md` 4.11. Bump
+`APP_VERSION` and add a `VERSION_HISTORY` entry with every future
+user-facing fix or feature, alongside this changelog.
+
+- Added a **"What's New" modal**: shown once after an update to anyone
+  who's used the app before (a brand-new visitor doesn't get it — the
+  hints tour covers onboarding), listing what changed since they last
+  looked; reachable any time afterward from the toolbar's "🆕" button.
+- Added a **"State Machines"** component category: state shapes (Initial
+  State, State, Choice/Decision, Final State, Fork/Join, History State,
+  Composite State) plus six ready-made pattern templates (Traffic Light,
+  Order Lifecycle, TCP Connection, Media Player, Approval Workflow, Auth
+  Session). No new engine concepts — a state is just a node and a
+  transition's condition is just an edge's existing `label`, so it mixes
+  freely with the rest of a diagram and a diagram that never touches it is
+  unaffected. Can be hidden from the sidebar via the "🎛️" settings modal's
+  new "Component library" section (`hideStateMachines`, `js/io/librarySettings.js`).
+- Added **keyboard zoom**: Ctrl/Cmd + "+"/"-"/"0" to zoom in/out/reset to
+  100%, alongside the existing toolbar buttons and Ctrl/Cmd+scroll.
+- Confirmed and locked in with explicit test coverage: deleting a
+  component always cascades to delete every connector attached to it
+  (`core/project.js#removeNode`) — no dangling arrows are possible.
+- Added **combined component+connector selection**: marquee-select now
+  also picks up connectors fully inside the box; duplicate/delete act on a
+  mixed selection together in one step; the toolbar shows both the
+  component and connector style editors at once for a mixed selection.
+  Added **Group/Ungroup** (🔗/✂️): 2+ selected components can be tied
+  together so selecting/dragging any one of them acts on the whole group;
+  duplicating a group gives the copies their own new group. New node field
+  `groupId`.
+- Added **"🪄 Magic Arrow"**: an obstacle-avoiding auto-routed connector.
+  Arm it from the toolbar, then draw a connector as usual — it
+  automatically finds an orthogonal path to the target that avoids every
+  other component, using as few bends as possible
+  (`js/core/magicRouter.js`, a grid-based least-turns search), falling
+  back to a plain elbow route if no clear path exists. New `routing`
+  value `'magic'`, also chooseable for any existing connector from its
+  style editor.

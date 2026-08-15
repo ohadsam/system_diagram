@@ -88,6 +88,12 @@ export function buildPath(routing, a, b, fromSide, toSide) {
   return straightPath(a, b);
 }
 
+/** SVG path 'd' through an ordered list of {x,y} points (straight segments). Used for magic-routed edges — see core/magicRouter.js. */
+export function waypointsPath(points) {
+  if (!points.length) return '';
+  return points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+}
+
 export function rectsIntersect(r1, r2) {
   return (
     r1.x < r2.x + r2.w &&
