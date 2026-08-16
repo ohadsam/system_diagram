@@ -13,10 +13,13 @@ finished; the version bump needs the review's fixes already applied; the merge n
 If a step turns up nothing to do (no hint-worthy feature, no doc actually affected), say so
 explicitly and move on — don't pad an entry just to have written something.
 
-## 1. Three-pass code review — technical, functional, UI/UX + mobile
+## 1. Code review — run it 3 times (technical, functional, UI/UX + mobile)
 
-Do this as three genuinely separate passes, not one merged skim — each pass has caught real bugs
-the others missed in this repo's history:
+**Literally three separate review passes, every time — not one merged skim, not "the important
+one twice."** This is a hard requirement of this checklist, not a suggestion: each of the three
+passes below has independently caught real bugs the other two missed in this repo's history (see
+the mobile off-screen-dropdown bug and the "Save as Component" edge-harvesting logic as two
+concrete examples). Do all three, in order, every single time this skill runs:
 
 1. **Technical correctness.** Re-read every changed/added file fresh. For anything touching
    `core/store.js#dispatch`/`loadProject` or `core/replication.js`, check the "Common pitfalls"
@@ -134,7 +137,8 @@ means main moved since the branch was cut and needs a real merge decision.
 
 ## Done means
 
-- All three review passes ran and their findings were fixed, not just noted.
+- Code review ran 3 times — technical, functional, and UI/UX+mobile, as genuinely separate
+  passes — and every finding was fixed, not just noted.
 - `npm run test:unit` and the Playwright e2e suite both pass with 0 failures.
 - Version bumped, What's New updated, hints reviewed, all six doc surfaces reviewed (even if some
   needed no change — say so).

@@ -15,7 +15,51 @@
 .toolbar-row-context {
   background: var(--color-primary-soft);
   border-bottom: 1px solid #C7D2FE;
+  flex-direction: column;
+  flex-wrap: nowrap; /* .toolbar-row sets flex-wrap: wrap for the row-direction main row — combined
+                         with flex-direction:column here that turns into a multi-column layout
+                         (wrapping along the now-vertical cross axis) instead of a simple stack,
+                         which silently defeats align-items:stretch's width constraint below */
+  align-items: stretch;
+  gap: var(--space-2);
+}
+
+.toolbar-row-context.collapsed {
+  gap: 0;
+}
+
+.toolbar-context-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0; /* stretched cross-axis by the column-direction .toolbar-row-context, but as a
+                   flex container itself its default min-width:auto would otherwise still refuse
+                   to shrink below its nowrap child's intrinsic content width */
+}
+
+.toolbar-context-summary {
+  flex: 1 1 auto;
+  min-width: 0; /* a flex item's default min-width:auto refuses to shrink below its content's
+                   intrinsic width, which silently defeats text-overflow:ellipsis below without this */
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toolbar-context-collapse-toggle,
+.toolbar-context-done {
+  flex: 0 0 auto;
+}
+
+.toolbar-context-body {
+  display: flex;
   justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
 }
 
 /* .toolbar-row sets display:flex, which (per the CSS cascade) silently

@@ -238,3 +238,19 @@ npm test
   real viewport size was already correct. When something in a screenshot
   looks broken, cross-check with `getBoundingClientRect()` /
   `getComputedStyle()` via `page.evaluate()` before "fixing" it.
+- **A flex item with `text-overflow: ellipsis` needs an explicit `min-width:
+  0`, and so does every flex-item ancestor between it and the constraining
+  container** — a flex item's default `min-width: auto` refuses to shrink
+  below its content's intrinsic width no matter what `overflow`/`text-
+  overflow` say, and that default applies at *every* level, not just the
+  truncating element itself. This bit `.toolbar-context-summary` (the
+  contextual row header's selection-name text) — fixing the span alone
+  wasn't enough; `.toolbar-context-header`, the flex-item parent being
+  stretched by its column-direction container, also needed `min-width: 0`.
+  See "Contextual style-editor row" in `ARCHITECTURE.md` for the full story
+  (a third, unrelated gotcha — combining a shared `flex-wrap: wrap` base
+  class with a `flex-direction: column` override without also resetting to
+  `flex-wrap: nowrap` — was tangled up in the same bug). Test any new
+  truncating-text UI with a deliberately long value, not just the short
+  example strings used elsewhere in this repo's tests — that's what
+  surfaced this one.

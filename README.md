@@ -71,7 +71,9 @@ Or open `index.html` directly in a browser.
   Deleting a component always cleans up every connector attached to it.
 - **Style toolbar** — colors, shape, border, font, text alignment/position
   (including outside-the-shape captions), icon visibility, size — applies
-  to your whole selection at once.
+  to your whole selection at once. Its header lets you collapse it to a
+  slim strip without losing your selection (handy on mobile), or close it
+  outright.
 - **Global default settings** — set defaults (transparent background, show
   icon, text position, sub-components display) applied to every newly
   created component, with a one-click "apply to all existing components"

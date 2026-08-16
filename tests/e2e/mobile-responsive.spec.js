@@ -45,6 +45,45 @@ test.describe('mobile viewport (390x844)', () => {
     expect(info.scroll).toBeLessThanOrEqual(info.inner);
   });
 
+  // The contextual style-editor row's field grid can otherwise take up
+  // most of a 390px-tall viewport (see docs/ARCHITECTURE.md "Contextual
+  // style-editor row") — collapsing it via the header's › toggle should
+  // free up most of that space for the canvas underneath.
+  test('collapsing the contextual row on mobile frees up most of the canvas height', async ({ page }) => {
+    await addComponentOnMobile(page, 'Redis');
+    await page.locator('.node').first().click();
+    const expandedHeight = await page.locator('.toolbar-row-context').evaluate((elRef) => elRef.getBoundingClientRect().height);
+
+    await page.locator('.toolbar-context-collapse-toggle').click();
+    const collapsedHeight = await page.locator('.toolbar-row-context').evaluate((elRef) => elRef.getBoundingClientRect().height);
+
+    expect(collapsedHeight).toBeLessThan(expandedHeight * 0.3);
+    const info = await scrollWidthInfo(page);
+    expect(info.scroll).toBeLessThanOrEqual(info.inner);
+  });
+
+  // Regression: the contextual row header's selection-summary text is
+  // `white-space: nowrap` + `text-overflow: ellipsis`, but a flex item's
+  // default `min-width: auto` refuses to shrink below its content's
+  // intrinsic width, silently defeating that ellipsis — both the summary
+  // span itself AND its `.toolbar-context-header` parent (also a flex
+  // item, stretched cross-axis by the column-direction `.toolbar-row-
+  // context`) need an explicit `min-width: 0`. A long component name
+  // pushed the whole row wider than the viewport before this was fixed.
+  test('a long component name truncates in the contextual row header instead of overflowing', async ({ page }) => {
+    await addComponentOnMobile(page, 'Redis');
+    const label = page.locator('.node-label').first();
+    await label.click();
+    await label.dblclick();
+    await page.locator('.inline-edit-input').fill('A Very Long Component Name That Should Truncate Nicely In The Header');
+    await page.locator('.inline-edit-input').press('Enter');
+
+    const info = await scrollWidthInfo(page);
+    expect(info.scroll).toBeLessThanOrEqual(info.inner);
+    const summaryWidth = await page.locator('.toolbar-context-summary').evaluate((elRef) => elRef.getBoundingClientRect().width);
+    expect(summaryWidth).toBeLessThan(390);
+  });
+
   test('the sidebar drawer renders fully below the toolbar, not overlapping it', async ({ page }) => {
     await page.locator('.sidebar-toggle-btn').click();
     await expect(page.locator('#sidebar')).toHaveClass(/open/);

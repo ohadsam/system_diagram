@@ -152,6 +152,32 @@ user-facing fix or feature, alongside this changelog.
   value `'magic'`, also chooseable for any existing connector from its
   style editor.
 
+## v1.8.0 (2026-08-16)
+
+- Added a collapse/close header to the toolbar's contextual style-editor row
+  (`toolbar.js#renderContextRow`): a selection summary, a ›/‹ toggle that
+  shrinks the row to a slim strip without deselecting (most useful on
+  mobile, where the full field grid could otherwise fill most of the
+  screen), and a ✕ that deselects outright. Previously there was no
+  explicit way to dismiss the row at all — only an implicit background
+  click or Escape. See `docs/ARCHITECTURE.md` "Contextual style-editor
+  row".
+- Fixed (found during this batch's UI/UX review pass, testing with a
+  deliberately long component name rather than the short examples used
+  elsewhere): the new header's selection-name text didn't actually
+  truncate on a narrow viewport and instead pushed the whole row wider
+  than the screen. Root cause was a flexbox default (`min-width: auto`)
+  silently defeating `text-overflow: ellipsis` at *two* levels of the
+  element chain, tangled up with a third, unrelated issue where combining
+  the shared `.toolbar-row` class's `flex-wrap: wrap` with this row's own
+  `flex-direction: column` produced a multi-column layout instead of a
+  simple stack. See the "Gotcha found in review" note in
+  `docs/ARCHITECTURE.md`'s "Contextual style-editor row" section — worth
+  remembering for any future flex-column-with-truncated-text layout.
+- Strengthened `.claude/skills/release-checklist/SKILL.md` to state
+  unambiguously that the review pass means running code review 3 literal
+  times (technical, functional, UI/UX+mobile), not a merged single pass.
+
 ## v1.7.1 (2026-08-16)
 
 - Moved "🔷 Add Shape" and "🪄 Magic Arrow" back out of the Create/Tools

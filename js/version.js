@@ -2,9 +2,17 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.7.1';
+export const APP_VERSION = '1.8.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.8.0',
+    date: '2026-08-16',
+    highlights: [
+      'The toolbar\'s style-editor row (shown when a component/connector is selected) now has a header: a ›/‹ button collapses it down to a slim strip without losing your selection — frees up most of the screen, especially useful on mobile — and a ✕ button deselects outright. Previously the only way to dismiss it was clicking empty canvas or pressing Escape.',
+      'Fixed: a long component name could overflow the toolbar on a narrow screen instead of truncating with "…".',
+    ],
+  },
   {
     version: '1.7.1',
     date: '2026-08-16',

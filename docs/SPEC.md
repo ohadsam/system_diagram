@@ -196,6 +196,15 @@ Component" form (4.5) so its fields stay tweakable before saving.
   shows the component style editor *and* the connector style editor at the
   same time, instead of picking one — so restyling a component cluster and
   its connectors is one pass, not several.
+- **Collapse / close the contextual row**: its header (what's selected, a
+  ›/‹ toggle, and a ✕ button) is always shown while something is selected.
+  › collapses the row to just that slim header strip — freeing up canvas
+  space (most useful on mobile, where the full field grid can otherwise
+  fill most of the screen) while keeping the selection intact, so editing
+  can resume right where it left off; ‹ expands it back. ✕ deselects
+  outright, an explicit "done editing" action alongside clicking empty
+  canvas or pressing Escape. Opening a new selection always starts
+  expanded, regardless of how the previous one was left.
 - **Duplicate together** (⧉ / Ctrl+D) and **delete together** (🗑️ / Delete)
   both act on the whole current selection — components, connectors, or a
   mix — in one step/undo entry.

@@ -124,6 +124,53 @@ canvas even when it starts on top of a component, without
 Hand tool is off, this listener's added top branch is a no-op and
 everything falls through to the exact same code path as before.
 
+## Contextual style-editor row (`toolbar.js#renderContextRow`)
+
+The row shown while something is selected (`.toolbar-row-context`) is
+`flex-direction: column`: a `.toolbar-context-header` (selection summary +
+collapse toggle + close button) is always rendered first, then — unless
+collapsed — a `.toolbar-context-body` holding the actual style-editor
+fields (`.toolbar-context-controls`) and action icons
+(`.toolbar-context-actions`). Collapsing doesn't hide those with CSS; when
+`contextCollapsed` is true the function returns right after appending the
+header, so the fields/actions are simply never built or added to the DOM
+for that render — cheaper than the details panel's CSS-based
+`.collapsed` hiding and avoids keeping stale field elements around.
+`contextCollapsed` resets to `false` whenever the row goes from hidden to
+shown (a fresh selection starts expanded, same convention as
+`detailsPanel.js`), not when switching between two different non-empty
+selections.
+
+**Gotcha found in review (fixed, and worth remembering for any future
+flex-column-with-truncated-text layout)**: `.toolbar-context-summary`
+(the header's selection-name text) is `white-space: nowrap; overflow:
+hidden; text-overflow: ellipsis` so a long component name truncates
+instead of wrapping/overflowing — but a flex item's default `min-width:
+auto` refuses to *shrink below its content's intrinsic width* regardless
+of `text-overflow`, which silently no-ops the ellipsis. This bit twice in
+the same element chain: once on the summary span itself, and again one
+level up on `.toolbar-context-header` — which is *also* a flex item (it's
+stretched cross-axis by the column-direction `.toolbar-row-context` via
+`align-items: stretch`) with the same default. Both needed an explicit
+`min-width: 0`. Separately, `.toolbar-row` (the shared base class) sets
+`flex-wrap: wrap` for the main row's row-direction layout; without
+`.toolbar-row-context` also setting `flex-wrap: nowrap`, combining
+`flex-wrap: wrap` with its own `flex-direction: column` silently produces
+a *multi-column* wrapping layout instead of a simple vertical stack —
+which defeated `align-items: stretch`'s width constraint entirely (each
+"column" sized to its own content instead of the container's width). All
+three were caught by testing with a deliberately long node name during
+the UI/UX review pass, not by testing with the short example names used
+elsewhere — a reminder to include a long/edge-case value in any new
+truncating-text UI, not just the happy-path short one. See
+`tests/e2e/mobile-responsive.spec.js`'s "a long component name truncates
+in the contextual row header instead of overflowing" test.
+
+The header's ✕ calls `store.select([], [])` — the same
+"nothing selected" state a canvas-background click or Escape already
+produces, added as an explicit, discoverable affordance since until this
+was added the row had no visible way to dismiss it at all.
+
 ## Toolbar dropdown groups (`toolbar/toolbarDropdown.js`)
 
 `toolbar.js`'s always-visible row only holds controls needed continuously

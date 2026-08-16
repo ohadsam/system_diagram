@@ -47,6 +47,11 @@ let undoBtn = null;
 let redoBtn = null;
 let deleteBtn = null;
 let duplicateBtn = null;
+// Whether the contextual style-editor row is shrunk to a slim header strip
+// (see renderContextRow) — reset to expanded each time the row goes from
+// hidden to shown, same convention as the details panel always opening
+// expanded for a newly opened component.
+let contextCollapsed = false;
 
 export function initToolbar(root) {
   root.classList.add('toolbar');
@@ -267,13 +272,55 @@ function buildHelpGroupButtons() {
   return [helpBtn, hintsBtn, hintsToggleBtn, whatsNewBtn];
 }
 
+/** Short human summary of the current selection, shown in the contextual
+ * row's header — e.g. "ElastiCache" for a single node, "3 components, 1
+ * connector" for a mixed multi-selection. */
+function contextSummary(selection, state) {
+  if (selection.nodeIds.length === 1 && !selection.edgeIds.length) {
+    return state.nodes.find((n) => n.id === selection.nodeIds[0])?.text || 'Component';
+  }
+  const parts = [];
+  if (selection.nodeIds.length) parts.push(`${selection.nodeIds.length} component${selection.nodeIds.length === 1 ? '' : 's'}`);
+  if (selection.edgeIds.length) parts.push(`${selection.edgeIds.length} connector${selection.edgeIds.length === 1 ? '' : 's'}`);
+  return parts.join(', ');
+}
+
 function renderContextRow(selection) {
   clear(contextRow);
   const hasNodes = selection.nodeIds.length > 0;
   const hasEdges = selection.edgeIds.length > 0;
   contextRow.hidden = !hasNodes && !hasEdges;
-  if (!hasNodes && !hasEdges) return;
+  if (!hasNodes && !hasEdges) {
+    contextCollapsed = false;
+    contextRow.classList.remove('collapsed');
+    return;
+  }
+  contextRow.classList.toggle('collapsed', contextCollapsed);
 
+  // Header: what's selected, a collapse toggle to shrink this row down to
+  // just this slim strip (freeing up canvas space — most useful on
+  // mobile, where the full field grid can otherwise fill most of the
+  // screen), and a "done editing" close button, since until now the only
+  // way to dismiss this row was deselecting by clicking elsewhere or
+  // pressing Escape — not an obvious affordance, especially on touch.
+  const header = el('div', { class: 'toolbar-context-header' });
+  header.appendChild(el('span', { class: 'toolbar-context-summary', text: contextSummary(selection, store.getState()) }));
+  header.appendChild(el('button', {
+    type: 'button', class: 'btn btn-icon toolbar-context-collapse-toggle',
+    text: contextCollapsed ? '‹' : '›',
+    title: contextCollapsed ? 'Expand style editor' : 'Collapse style editor',
+    'aria-label': contextCollapsed ? 'Expand style editor' : 'Collapse style editor',
+    onClick: () => { contextCollapsed = !contextCollapsed; renderContextRow(store.getSelection()); },
+  }));
+  header.appendChild(el('button', {
+    type: 'button', class: 'btn btn-icon toolbar-context-done',
+    text: '✕', title: 'Done editing (deselect)', 'aria-label': 'Done editing, deselect',
+    onClick: () => store.select([], []),
+  }));
+  contextRow.appendChild(header);
+  if (contextCollapsed) return;
+
+  const body = el('div', { class: 'toolbar-context-body' });
   const controls = el('div', { class: 'toolbar-context-controls' });
   // Both editors render together for a mixed node+edge selection, so
   // selecting a cluster of components and connectors lets you restyle
@@ -291,7 +338,7 @@ function renderContextRow(selection) {
     renderEdgeStyleEditor(edgeControls, selection.edgeIds);
     controls.appendChild(edgeControls);
   }
-  contextRow.appendChild(controls);
+  body.appendChild(controls);
 
   const actions = el('div', { class: 'toolbar-context-actions' });
   if (selection.nodeIds.length >= 2) {
@@ -322,5 +369,6 @@ function renderContextRow(selection) {
   actions.appendChild(duplicateBtn);
   deleteBtn = el('button', { type: 'button', class: 'btn btn-icon btn-danger', title: 'Delete (Del)', text: '🗑️', onClick: deleteSelection });
   actions.appendChild(deleteBtn);
-  contextRow.appendChild(actions);
+  body.appendChild(actions);
+  contextRow.appendChild(body);
 }

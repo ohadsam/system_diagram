@@ -90,6 +90,24 @@ test('Group ties components together so selecting one selects the whole group; U
   await expect(page.locator('.node.selected')).toHaveCount(1);
 });
 
+test('the contextual style-editor row can be collapsed/expanded without losing the selection, and closed to deselect', async ({ page }) => {
+  await addComponentByName(page, 'Redis');
+  await page.locator('.node').first().click({ force: true });
+  await expect(page.locator('.toolbar-context-controls')).toBeVisible();
+
+  await page.locator('.toolbar-context-collapse-toggle').click();
+  await expect(page.locator('.toolbar-context-controls')).toHaveCount(0);
+  await expect(page.locator('.toolbar-row-context')).toBeVisible();
+  await expect(page.locator('.node.selected')).toHaveCount(1); // still selected, just visually collapsed
+
+  await page.locator('.toolbar-context-collapse-toggle').click();
+  await expect(page.locator('.toolbar-context-controls')).toBeVisible();
+
+  await page.locator('.toolbar-context-done').click();
+  await expect(page.locator('.toolbar-row-context')).toBeHidden();
+  await expect(page.locator('.node.selected')).toHaveCount(0);
+});
+
 test('a mixed component+connector selection duplicates and deletes together', async ({ page }) => {
   await addComponentByName(page, 'Kafka');
   await addComponentByName(page, 'Elasticsearch');
