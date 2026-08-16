@@ -126,6 +126,12 @@ function wireBackgroundInteractions() {
 function beginPan(e) {
   e.preventDefault();
   viewportEl.classList.add('is-panning');
+  // Redirects this pointer's subsequent events to viewportEl regardless of
+  // where the finger/cursor actually moves — without it, a fast touch-drag
+  // that leaves #canvas-viewport's bounds can have its gesture cancelled by
+  // the browser mid-pan (a `pointercancel`, silently dropping the rest of
+  // the drag) instead of continuing to deliver pointermove here.
+  viewportEl.setPointerCapture?.(e.pointerId);
   let last = { x: e.clientX, y: e.clientY };
   const onMove = (ev) => {
     viewport.pan(ev.clientX - last.x, ev.clientY - last.y);

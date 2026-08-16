@@ -145,6 +145,26 @@ test.describe('mobile viewport (390x844)', () => {
     const info = await scrollWidthInfo(page);
     expect(info.scroll).toBeLessThanOrEqual(info.inner);
   });
+
+  // Regression: #canvas-viewport had no `touch-action` set, so a
+  // single-finger touch-drag pan (canvas.js#beginPan, driven entirely by
+  // pointer events) could be arbitrated by the browser as a native
+  // scroll/pan gesture running in parallel with the JS `transform`-based
+  // pan — the two fighting over the same GPU-composited layer is a known
+  // cause of content flickering/vanishing mid-gesture on mobile Chrome/
+  // Safari. `touch-action: none` is the fix; this locks in that it stays
+  // set (see css/canvas.css for the full explanation).
+  test('the canvas viewport opts out of native touch gestures so the custom pan/drag owns them', async ({ page }) => {
+    const touchAction = await page.locator('#canvas-viewport').evaluate((el) => getComputedStyle(el).touchAction);
+    expect(touchAction).toBe('none');
+  });
+
+  test('the canvas search box does not force horizontal overflow at mobile width', async ({ page }) => {
+    await addComponentOnMobile(page, 'Redis');
+    await page.locator('.toolbar-canvas-search input').fill('Redis');
+    const info = await scrollWidthInfo(page);
+    expect(info.scroll).toBeLessThanOrEqual(info.inner);
+  });
 });
 
 test.describe('tablet viewport (768x1024)', () => {

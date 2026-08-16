@@ -508,6 +508,37 @@ Only one dropdown panel is ever open at a time (module-level `openPanel`);
 it closes on an outside click, `Escape`, or immediately after one of its
 own buttons is used.
 
+## Canvas element search (`toolbar.js#buildCanvasSearchGroup`)
+
+Searches components/connectors already **placed on the canvas**, by
+`node.text`/`edge.label` — architecturally distinct from `.sidebar-search`,
+which searches the component *library* to find something to add. As you
+type, `runCanvasSearch` case-insensitive-substring-matches both `state.nodes`
+and `state.edges` into a flat `searchMatches` array (nodes first, then
+edges) and jumps to the first hit; Enter/Shift+Enter step `searchIndex`
+through the rest via `jumpToMatch`, wrapping at both ends like a browser's
+own page-search "N of M". A match is applied by calling the same
+`store.select([nodeId], [])` / `store.select([], [edgeId])` a manual click
+would, so it opens the contextual style row exactly as clicking normally
+does, and `viewport.js#centerOn` (new — pans to center a canvas-space point
+without touching zoom, unlike `fitToContent` which also fits zoom to a whole
+bounding box) recenters the view on it without disorienting the user with an
+unexpected zoom change. A connector match centers on the midpoint between
+its two endpoint nodes' centers (roughly where its label sits and where both
+endpoints are visible at once), not the edge's own bounding box — an
+elbow-routed path's bounding-box center can land on empty space inside a
+bend.
+
+The input is a plain `type="search"` with the match-count/"No matches"
+badge as a normal flex sibling *after* it, not a `position: absolute`
+overlay — an earlier version stacked the badge on top of the input the way
+`.sidebar-search-icon` does, which collided with both the typed text and the
+browser's native search-cancel-✕ control (a UA-injected element outside
+CSS's box-model, invisible to `padding-right`). See the "toolbar row DOM
+order" gotcha in "Mobile/responsive layout" below for why this group is
+appended *last* in `initToolbar`'s row-1 sequence rather than where it's
+visually described in `docs/SPEC.md` §4.5.
+
 ## Custom multi-component groups (`modals/saveComponentGroupModal.js`, `canvas.js#buildGroupSnapshotFromSelection`)
 
 Saving a selection of 2+ components as a custom component reuses the
@@ -943,6 +974,45 @@ toolbar button is added.
    `flex` `#app` — meaning it starts exactly where the toolbar's real
    rendered box ends, at any height, with no need to know that height at
    all). Don't revert to `fixed` + a hardcoded pixel `top`.
+
+3. **`#canvas-viewport` had no `touch-action` set**, so a single-finger
+   touch-drag pan (`canvas.js#beginPan`, driven entirely by pointer events)
+   could be arbitrated by the browser as a *native* scroll/pan gesture
+   running in parallel with the JS `transform`-based pan — the two fighting
+   over the same GPU-composited layer is a known cause of content
+   flickering/vanishing mid-gesture on mobile Chrome/Safari.
+   `preventDefault()` on `pointerdown` alone does **not** reliably suppress
+   this (only `touch-action`, or `preventDefault()` on the raw `touchstart`,
+   does). Fixed with `touch-action: none` on `#canvas-viewport` in
+   `css/canvas.css` — the "used" touch-action for a region is the
+   *intersection* of the value on the element and all its ancestors, so
+   setting it once here covers every descendant gesture surface (`.node`,
+   `.resize-handle`, `.conn-point`) too, without repeating the declaration.
+   Also added `setPointerCapture()` to `beginPan`, `beginResize` and
+   `beginConnectFromNode` for robustness against a fast/off-bounds
+   touch-drag producing a `pointercancel` — deliberately *not* added to
+   `nodeInteractions.js#beginMove` (a node's move-drag), since that handler
+   fires on every pointerdown on a node including both clicks of a
+   double-click, and capturing the pointer there broke the browser's native
+   `dblclick` synthesis outright.
+4. **The main toolbar row has ~zero horizontal slack at common desktop
+   widths (e.g. 1280px)** — `File`/`Create`/`Tools`/`Help` were already
+   sitting right at the row's edge before the canvas search box existed,
+   with `Help` alone routinely wrapping onto its own row 2. Adding the
+   search box *before* the flex spacer (i.e. earlier in row-1's DOM order)
+   shifted the flex-wrap line-break point enough to drag `Tools` onto row 2
+   with it, landing `Help`'s dropdown trigger — and therefore its panel —
+   in a different spot than before: directly under the first-run tour's
+   hint bubble, silently swallowing clicks on it
+   (`tests/e2e/hints.spec.js`'s toggle test caught this). Fixed by
+   appending the search box **last** in `toolbar.js#initToolbar`'s row-1
+   `appendChild` sequence, after `Help` — since flex-wrap's line-breaking
+   uses each item's hypothetical (pre-shrink) size in DOM/visual order,
+   whatever's appended last is the thing that wraps first if anything does,
+   leaving the earlier triggers' wrap behavior (and therefore their
+   dropdown panels' position) undisturbed. **Any future always-visible row-1
+   item should be appended after the existing dropdown triggers for the
+   same reason**, not inserted in the middle of the row.
 
 **Gotcha these fixes exposed**: a `fullPage: true` Playwright screenshot
 can lay the page out against a different synthetic viewport for the

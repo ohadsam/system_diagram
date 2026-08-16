@@ -20,7 +20,7 @@ import {
 } from '../canvas/canvas.js';
 import { setMagicMode, isMagicModeActive } from '../canvas/connectorInteractions.js';
 import { getBaseToolMode, setToolMode, onToolModeChange } from '../canvas/toolMode.js';
-import { onViewportChange } from '../canvas/viewport.js';
+import { onViewportChange, centerOn } from '../canvas/viewport.js';
 import { renderNodeStyleEditor } from './styleEditor.js';
 import { renderEdgeStyleEditor } from './arrowEditor.js';
 import { renderZoomControls } from './zoomControls.js';
@@ -65,6 +65,16 @@ let lastSelection = { nodeIds: [], edgeIds: [] };
 // updateFloatingDropdownGate) rather than risk visually covering, or being
 // covered by, that other floating panel.
 let anyDropdownOpen = false;
+// Canvas element search — see buildCanvasSearchGroup(). Kept separate from
+// the sidebar's own search (which searches the *component library*, not
+// what's already placed): `searchMatches` is the current query's node/edge
+// hits, `searchIndex` which one Enter last jumped to (for cycling), and the
+// input/count elements are kept so runCanvasSearch can update the "N of M"
+// label without a full toolbar re-render.
+let searchMatches = [];
+let searchIndex = -1;
+let canvasSearchInput = null;
+let canvasSearchCount = null;
 
 const EDGE_MARGIN = 8;
 
@@ -84,6 +94,17 @@ export function initToolbar(root) {
   row1.appendChild(renderZoomControls());
   row1.appendChild(buildToolbarDropdown('Tools', '🛠️', 'Tools: grid, AI Design Review', buildToolsGroupButtons()));
   row1.appendChild(buildToolbarDropdown('Help', '❓', 'Help: user guide, hints, what\'s new', buildHelpGroupButtons()));
+  // Appended last (not before the spacer): at common desktop widths this
+  // row already has zero slack (the row-main children's combined width
+  // sits right at the container edge — see git history around the canvas
+  // search feature's introduction), so *any* new item inserted earlier in
+  // the flow shifts the flex-wrap line-break point and can drag an extra
+  // dropdown trigger onto row 2 with it, in an unpredictable spot. Adding
+  // this last instead means it's always the thing that wraps (if
+  // anything does), leaving File/Create/Tools/Help's own wrap behavior
+  // undisturbed — this is what fixed a real bug where a wrapped Help panel
+  // landed on top of the first-run tour's hint bubble.
+  row1.appendChild(buildCanvasSearchGroup());
   root.appendChild(row1);
 
   // Not appended anywhere yet — mountContextRow() (inside renderContextRowInner)
@@ -210,6 +231,89 @@ function buildQuickCreateGroup() {
     },
   });
   return group(addShapeBtn, magicBtn);
+}
+
+/** Searches components/connectors already placed *on the canvas* by their
+ * text/label — distinct from the sidebar's search, which searches the
+ * component *library* to add something new. Selects and centers the
+ * viewport (without changing zoom, so the jump doesn't disorient) on the
+ * first match as you type; Enter/Shift+Enter cycle forward/backward
+ * through the rest without re-searching, same convention as a browser's
+ * own page-search "N of M" behavior. */
+function buildCanvasSearchGroup() {
+  const wrap = el('div', { class: 'toolbar-canvas-search' });
+  wrap.appendChild(el('span', { class: 'toolbar-canvas-search-icon', text: '🔎', 'aria-hidden': 'true' }));
+  canvasSearchInput = el('input', {
+    type: 'search',
+    placeholder: 'Find on canvas…',
+    title: 'Find a component or connector already on the canvas, by name/label',
+    'aria-label': 'Find a component or connector on the canvas',
+    onInput: (e) => runCanvasSearch(e.target.value),
+    onKeydown: (e) => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      jumpToMatch(e.shiftKey ? -1 : 1);
+    },
+  });
+  canvasSearchCount = el('span', { class: 'toolbar-canvas-search-count', hidden: true });
+  wrap.appendChild(canvasSearchInput);
+  wrap.appendChild(canvasSearchCount);
+  return wrap;
+}
+
+/** Canvas-space center point to pan to for a search match — a node's own
+ * center, or the midpoint between the two nodes a matching connector
+ * spans (its label sits roughly there, and it puts both endpoints on
+ * screen at once). */
+function matchCenter(match, state) {
+  if (match.type === 'node') {
+    const n = state.nodes.find((x) => x.id === match.id);
+    return n && { x: n.x + n.w / 2, y: n.y + n.h / 2 };
+  }
+  const e = state.edges.find((x) => x.id === match.id);
+  if (!e) return null;
+  const from = state.nodes.find((n) => n.id === e.from);
+  const to = state.nodes.find((n) => n.id === e.to);
+  if (!from || !to) return null;
+  return {
+    x: (from.x + from.w / 2 + to.x + to.w / 2) / 2,
+    y: (from.y + from.h / 2 + to.y + to.h / 2) / 2,
+  };
+}
+
+function runCanvasSearch(query) {
+  const q = query.trim().toLowerCase();
+  searchIndex = -1;
+  if (!q) {
+    searchMatches = [];
+    canvasSearchCount.hidden = true;
+    return;
+  }
+  const state = store.getState();
+  searchMatches = [
+    ...state.nodes.filter((n) => n.text?.toLowerCase().includes(q)).map((n) => ({ type: 'node', id: n.id })),
+    ...state.edges.filter((e) => e.label?.toLowerCase().includes(q)).map((e) => ({ type: 'edge', id: e.id })),
+  ];
+  canvasSearchCount.hidden = false;
+  canvasSearchCount.textContent = searchMatches.length ? `1/${searchMatches.length}` : 'No matches';
+  canvasSearchCount.classList.toggle('no-matches', !searchMatches.length);
+  if (searchMatches.length) jumpToMatch(1, { fromZero: true });
+}
+
+/** Moves `searchIndex` by `delta` (wrapping around both ends) and jumps
+ * there — selects the match and centers the viewport on it. `fromZero`
+ * (used right after a fresh search) starts from the first match instead
+ * of stepping relative to whatever `searchIndex` was left at. */
+function jumpToMatch(delta, { fromZero = false } = {}) {
+  if (!searchMatches.length) return;
+  searchIndex = fromZero ? 0 : (searchIndex + delta + searchMatches.length) % searchMatches.length;
+  canvasSearchCount.textContent = `${searchIndex + 1}/${searchMatches.length}`;
+  const match = searchMatches[searchIndex];
+  const state = store.getState();
+  const center = matchCenter(match, state);
+  if (center) centerOn(center.x, center.y);
+  if (match.type === 'node') store.select([match.id], []);
+  else store.select([], [match.id]);
 }
 
 function buildFileGroupButtons() {

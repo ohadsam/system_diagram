@@ -152,6 +152,39 @@ user-facing fix or feature, alongside this changelog.
   value `'magic'`, also chooseable for any existing connector from its
   style editor.
 
+## v1.13.0 (2026-08-16)
+
+A mobile bug report plus a requested feature, both from the same message:
+
+- **Fixed: panning/scrolling inside the canvas on mobile could make components flicker or vanish
+  mid-drag.** `#canvas-viewport` had no `touch-action` set, so a single-finger touch-drag
+  (`canvas.js#beginPan`, driven entirely by pointer events) could be arbitrated by the browser as
+  a native scroll/pan gesture running in parallel with the JS `transform`-based pan — the two
+  fighting over the same GPU-composited layer is a known cause of content flickering/vanishing
+  mid-gesture on mobile Chrome/Safari; `preventDefault()` on `pointerdown` alone doesn't reliably
+  suppress this. Fixed with `touch-action: none` on `#canvas-viewport` (css/canvas.css) — the
+  "used" touch-action for a region is the intersection of the value on the element and all its
+  ancestors, so setting it once here covers every descendant gesture surface (`.node`,
+  `.resize-handle`, `.conn-point`) too. Also added `setPointerCapture()` to `beginPan`
+  (`canvas.js`), `beginResize` and `beginConnectFromNode` (`nodeInteractions.js`,
+  `connectorInteractions.js`) for drag robustness against a fast/off-bounds touch-drag producing a
+  `pointercancel` — deliberately *not* added to `beginMove` (a node's move-drag), since that
+  handler fires on every pointerdown on a node including both clicks of a double-click, and
+  capturing the pointer there broke the browser's native `dblclick` synthesis outright (caught by
+  an existing inline-rename e2e test).
+- **New: "🔎 Find on canvas" search box in the toolbar.** Searches components/connectors already
+  placed on the canvas by their text/label — distinct from the sidebar's own search, which
+  searches the component *library* to add something new. Selects and centers the viewport
+  (`viewport.js#centerOn`, new — pans without changing zoom, unlike `fitToContent`) on the first
+  match as you type; Enter/Shift+Enter cycle forward/backward through the rest, wrapping, with a
+  "N/M" or "No matches" indicator (`toolbar.js#buildCanvasSearchGroup`). Appended last in the
+  toolbar's row-1 DOM order (after File/Create/Tools/Help), not before the flex spacer — at common
+  desktop widths that row already has ~zero slack, so inserting a new item earlier in the flow
+  shifted the flex-wrap line-break point and dragged the Help dropdown trigger onto row 2 in an
+  unpredictable spot, where a first-run tour hint bubble could land on top of it and swallow
+  clicks; appending last means it's always the thing that wraps, if anything does, leaving the
+  other triggers' wrap behavior undisturbed.
+
 ## v1.12.0 (2026-08-16)
 
 Two more reported bugs: the contextual style row's canvas-jump complaint got a real alternative

@@ -60,6 +60,10 @@ Or open `index.html` directly in a browser.
 - **Navigation tools** — a 🖱️ Select / ✋ Hand toolbar toggle (`H`/`V`
   shortcuts, or hold **Space**): Hand pans the canvas by dragging anywhere,
   even over a component, without moving or altering it.
+- **🔎 Find on canvas** — a toolbar search box that finds components and
+  connectors already placed in your diagram by name/label (not the sidebar
+  library), selecting and centering the view on each match as you type;
+  Enter/Shift+Enter cycle through the rest.
 - **Save any selection as a component** — turn 2+ selected components
   (plus the connectors between them) into a reusable "My Components" item
   in one click, with or without grouping them first — drop it again to

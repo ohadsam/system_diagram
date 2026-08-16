@@ -290,6 +290,8 @@
       <p>Select 2 or more components and click the 🔗 "Group" button in the toolbar's contextual row — from then on, clicking or dragging any one of them selects/moves the whole group together. The ✂️ "Ungroup" button (shown whenever your selection includes a grouped component) releases them back to independent components. Duplicating a group gives the copy its own new group.</p>
       <h3>🖱️ Select &amp; ✋ Hand tools</h3>
       <p>Two toggle buttons at the start of the toolbar switch how dragging behaves. <strong>Select</strong> (the default) is the normal behavior above — drag a component to move it, drag empty canvas to marquee-select. <strong>Hand</strong> makes any drag pan the canvas instead, even one starting on top of a component, without moving or changing anything — the safest way to navigate a dense or unfamiliar diagram. Switch with the buttons, the <kbd>H</kbd>/<kbd>V</kbd> keys, or just hold <kbd>Space</kbd> to pan temporarily no matter which tool is active.</p>
+      <h3>🔎 Find on canvas</h3>
+      <p>The search box in the toolbar finds components and connectors <strong>already placed in your diagram</strong> by name/label — different from the sidebar's search, which searches the component library to add something new. Type a few letters and the first match is selected and centered in the view (without changing your zoom level); press <kbd>Enter</kbd> (or <kbd>Shift</kbd>+<kbd>Enter</kbd> to go backward) to cycle through the rest, wrapping back around once you reach the end.</p>
       <h3>✨ Smart Suggestions</h3>
       <p>Placing a component that has a well-known real-world companion — a Load Balancer with a web server, Kafka with Elasticsearch, an API Gateway with Lambda, and more — shows a small banner with one-click "+ Add X" buttons for each one, positioned right next to the component you just placed.</p>
       <p>Some components also suggest ready-made <strong>sub-components</strong> for that exact box — e.g. placing Express (Node.js) offers a Controller and a Middleware, React offers a Hook and a Component. These show in a second row with a dashed "↳" button; clicking one attaches it directly onto the node you just placed (same as dragging it in from "Layers &amp; Roles"), instead of adding a new box next to it.</p>
@@ -474,6 +476,10 @@
       <details>
         <summary>If I freeze a replication pair, edit both sides differently, then resume — which side wins?</summary>
         <p>Neither, automatically — resuming doesn't merge or pick a winner for whatever changed while frozen. It just starts syncing new changes again from that point forward. If the two sides have drifted apart, the next edit you make to either one is what starts propagating.</p>
+      </details>
+      <details>
+        <summary>There are two search boxes — what's the difference?</summary>
+        <p>The sidebar's search (left panel) searches the component <em>library</em> — everything you could add. The toolbar's "🔎 Find on canvas" search (top bar) searches only what's <em>already on your canvas</em> — your placed components and connectors, by name/label.</p>
       </details>
     </section>
   </main>

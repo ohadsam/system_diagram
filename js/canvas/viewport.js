@@ -72,6 +72,17 @@ export function screenToCanvas(clientX, clientY) {
   };
 }
 
+/** Pans so canvas-space point `(x, y)` lands at the center of the
+ * viewport, keeping the current zoom level unchanged — unlike
+ * `fitToContent`, which also changes zoom to fit a whole bounding box.
+ * Used by the toolbar's canvas search to jump to a match without
+ * disorienting the user with an unexpected zoom change. */
+export function centerOn(x, y) {
+  if (!viewportEl) return;
+  const rect = viewportEl.getBoundingClientRect();
+  setViewport({ x: rect.width / 2 - x * state.zoom, y: rect.height / 2 - y * state.zoom });
+}
+
 export function fitToContent(bounds, padding = 60) {
   if (!viewportEl || !bounds) return;
   const rect = viewportEl.getBoundingClientRect();

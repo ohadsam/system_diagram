@@ -78,6 +78,8 @@ this repo" quick-start.
 | Add an AWS cluster/node/pod-style component or an HA design pattern | `js/data/categories/aws.js` (plain `c(...)`) or `js/data/categories/design-patterns.js` (`definePattern(...)`) |
 | Change the contextual style row's floating/pinned-top/pinned-bottom display mode | `js/io/uiPrefs.js` (storage, `CONTEXT_ROW_MODES`) + `js/toolbar/toolbar.js` (`mountContextRow`, `positionFloatingRow`, the 📌 pin button) + `js/modals/defaultSettingsModal.js` ("Style editor" section, the only way to reach `pinned-bottom`). See "Common pitfalls" below before touching `positionFloatingRow`. |
 | Add a border to a new clip-path shape (like diamond/hexagon)      | `css/node.css` — a plain `border` won't follow `clip-path`; see the double-layer `::before` technique documented right above `.node[data-shape="diamond"] .node-body` and in `docs/ARCHITECTURE.md`'s "Borders on clip-path shapes" |
+| Change the "Find on canvas" search (searches placed components/connectors, not the library) | `js/toolbar/toolbar.js` (`buildCanvasSearchGroup`/`runCanvasSearch`/`jumpToMatch`) + `js/canvas/viewport.js#centerOn` (pan-only recenter). Keep it appended *last* in `initToolbar`'s row-1 sequence — see "Add a toolbar button" pitfall below. |
+| Change canvas touch/pointer gesture behavior (pan, drag, resize, connect) | `css/canvas.css`'s `#canvas-viewport { touch-action: none }` (do not remove) + the `setPointerCapture()` calls in `canvas.js#beginPan`/`nodeInteractions.js#beginResize`/`connectorInteractions.js#beginConnectFromNode` — see "Common pitfalls" below before touching any of this |
 
 ## Running things locally
 
@@ -281,6 +283,33 @@ npm test
   'File'|'Create'|'Tools'|'Help')` in `tests/e2e/helpers.js`); the panel
   also auto-closes after any of its own buttons is used, so re-open it
   before every subsequent interaction in the same test.
+- **The main toolbar row has ~zero horizontal slack at common desktop
+  widths (1280px) even before touching it** — `File`/`Create`/`Tools`/`Help`
+  already sit right at the row's edge, with `Help` alone routinely wrapping
+  onto its own row 2 there. Inserting a new always-visible item *before* the
+  `.toolbar-spacer` (rather than after `Help`, at the very end) shifts the
+  flex-wrap line-break point and can drag an *additional* dropdown trigger
+  onto row 2 with it, landing that trigger's dropdown panel somewhere it's
+  never been positioned before — this once landed the `Help` panel directly
+  under the first-run tour's hint bubble, silently eating clicks on it
+  (only caught by the full e2e suite, not a targeted subset — see
+  "Common pitfalls" test-running advice elsewhere in this doc). **Append any
+  new flat row-1 item last** (after `Help`), and re-run the *full* Playwright
+  suite (not just new/targeted specs) once after any row-1 DOM-order change
+  — a wrap-position regression like this doesn't show up in a feature's own
+  tests, only in unrelated ones whose fixed pixel expectations quietly moved.
+- **`nodeInteractions.js#beginMove` must never call
+  `e.currentTarget.setPointerCapture()`** — unlike the other `begin*()` drag
+  gestures in this codebase (`beginPan`, `beginResize`,
+  `beginConnectFromNode`, which all capture the pointer for touch-drag
+  robustness), `beginMove` fires on *every* pointerdown on a node, including
+  both clicks of a double-click. Capturing the pointer there breaks the
+  browser's native `dblclick` event synthesis outright — caught by the
+  inline-rename mobile e2e test failing consistently (not flaky) after this
+  was tried. `touch-action: none` on the ancestor `#canvas-viewport` already
+  covers this element for the touch-scroll-conflict problem `setPointerCapture`
+  is otherwise meant to help with (see `css/canvas.css`), so it isn't needed
+  here anyway.
 - **A dropdown panel positions itself with `position: fixed` + JS-computed,
   viewport-clamped coordinates (`toolbarDropdown.js#positionPanel`), not
   CSS `position: absolute` relative to the trigger.** The relative approach

@@ -41,6 +41,17 @@ function beginMove(nodeId, e) {
   // search box and silently swallow keyboard shortcuts (Delete/undo/duplicate)
   // via main.js's isTypingTarget guard — so focus the node explicitly.
   e.currentTarget.focus({ preventScroll: true });
+  // Deliberately does *not* call setPointerCapture here the way the other
+  // begin*() gestures in this codebase do (see css/canvas.css's
+  // .canvas-viewport comment for the general reasoning) — this handler
+  // fires on every pointerdown on a node, including both of a
+  // double-click's, and capturing the pointer there broke the browser's
+  // native dblclick synthesis outright (caught by
+  // tests/e2e/mobile-responsive.spec.js's inline-rename test). Not needed
+  // for the touch-scroll-conflict problem anyway: touch-action:none on the
+  // ancestor #canvas-viewport (which the CSS Touch Action spec applies to
+  // this element too, being a descendant) already stops native scroll from
+  // fighting this drag without it.
   const startCanvas = screenToCanvas(e.clientX, e.clientY);
   const state = store.getState();
   const selection = store.getSelection();
@@ -92,6 +103,7 @@ function beginMove(nodeId, e) {
 }
 
 function beginResize(nodeId, handle, e) {
+  e.currentTarget.setPointerCapture?.(e.pointerId);
   const startCanvas = screenToCanvas(e.clientX, e.clientY);
   const state = store.getState();
   const node = state.nodes.find((n) => n.id === nodeId);

@@ -340,6 +340,12 @@ choice.
   hints again", and "🆕 What's new" (see 4.11).
 - Zoom controls (in/out/reset/fit-to-screen) stay flat; also reachable via
   Ctrl/Cmd + "+"/"-"/"0" and Ctrl/Cmd+scroll.
+- **"🔎 Find on canvas"** (flat, always visible): searches components and
+  connectors already placed on the canvas by name/label — distinct from the
+  sidebar's search (4.2), which searches the component *library* to add
+  something new. Selects and centers the view (without changing zoom) on the
+  first match as you type; Enter/Shift+Enter cycle forward/backward through
+  the rest, wrapping, with an "N/M" or "No matches" indicator.
 - Contextual row (shown only while something is selected): Group / Ungroup
   for multi-component selections (see 4.3.1), "⭐ Save as Component" for
   any selection (see 4.2.7), Duplicate, Delete.
@@ -452,6 +458,11 @@ collides with the original):
   below it. A `.toolbar-group` with several full-text buttons also wraps
   its own buttons onto additional lines at this width rather than forcing
   the page into horizontal scroll. Touch drag works via pointer events.
+  `#canvas-viewport` sets `touch-action: none` so every canvas gesture
+  (pan, node drag/resize, connector draw) is owned entirely by that
+  pointer-event handling — without it, a single-finger touch-drag can be
+  arbitrated by the browser as a native scroll running in parallel with
+  the JS `transform`-based pan, which flickers/vanishes content on mobile.
   See `css/responsive.css` and `tests/e2e/mobile-responsive.spec.js`.
 
 ### 4.11 Versioning & "What's New"

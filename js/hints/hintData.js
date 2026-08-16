@@ -10,5 +10,6 @@ export const HINTS = [
   { id: 'hint-node-connect', target: '.toolbar-row-main', placement: 'bottom', text: 'Select a component to reveal small dots on its edges — drag from a dot to another component to draw a connector.' },
   { id: 'hint-toolbar-style', target: '.toolbar-row-main', placement: 'bottom', text: 'Selecting a component or connector reveals its style controls (colors, shape, text, arrows and more) in a small card next to it — click 📌 on it to pin it to the top of the screen instead.' },
   { id: 'hint-node-info', target: '.toolbar-row-main', placement: 'bottom', text: 'Click the ⓘ button on any component to add notes, labels and sub-components. Components with extra info show a small dot badge.' },
+  { id: 'hint-canvas-search', target: '.toolbar-canvas-search input', placement: 'bottom', text: '🔎 Find on canvas searches components and connectors already placed in your diagram (not the library) — type a name/label, then press Enter to jump between matches.' },
   { id: 'hint-autosave', target: '.toolbar-row-main', placement: 'bottom', text: 'Your diagram autosaves in this browser as you work. Use "Save As" for named versions, or export to JSON/PNG/PDF any time.' },
 ];

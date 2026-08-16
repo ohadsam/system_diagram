@@ -29,6 +29,7 @@ export function isMagicModeActive() {
 export function beginConnectFromNode(nodeId, side, e) {
   const fromNode = store.getState().nodes.find((n) => n.id === nodeId);
   if (!fromNode || !draftLayer) return;
+  e.currentTarget.setPointerCapture?.(e.pointerId);
   const a = sideAnchor(fromNode, side);
 
   const draft = svgEl('path', { class: 'edge-draft', fill: 'none' });

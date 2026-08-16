@@ -2,9 +2,17 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.12.0';
+export const APP_VERSION = '1.13.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.13.0',
+    date: '2026-08-16',
+    highlights: [
+      'New "🔎 Find on canvas" search box in the toolbar — searches components and connectors already placed in your diagram by name/label (separate from the sidebar\'s library search), selecting and centering the view on each match; press Enter to cycle through the rest.',
+      'Fixed: on mobile, panning/scrolling inside the canvas could make components flicker or vanish mid-drag — the canvas now fully owns single-finger touch gestures instead of the browser\'s native scrolling fighting over them.',
+    ],
+  },
   {
     version: '1.12.0',
     date: '2026-08-16',

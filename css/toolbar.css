@@ -155,6 +155,54 @@
   flex: 1 1 auto;
 }
 
+/* Searches components/connectors already on the canvas by name/label — see
+   toolbar.js#buildCanvasSearchGroup. Distinct from .sidebar-search, which
+   searches the component *library* instead. Shrinkable (not `flex: 0 0
+   auto`) so it's the first thing to give up width as the toolbar row
+   approaches wrapping, rather than forcing an early wrap of the whole row
+   the way a fixed-width block would. */
+.toolbar-canvas-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: 0 1 180px;
+  min-width: 90px;
+}
+
+.toolbar-canvas-search input {
+  padding-left: 26px;
+  /* Deliberately not `position:absolute` over the input the way the
+     sidebar's own search icon is (see .sidebar-search-icon) — this field
+     also shows a match-count badge, and stacking both an icon *and* a
+     badge as overlays collided with the input's own typed text and its
+     native type="search" cancel-X control (which claims its own space at
+     the right edge outside CSS's box-model, invisibly to `padding-right`).
+     A normal flex sibling after the input sidesteps both problems. */
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.toolbar-canvas-search-icon {
+  position: absolute;
+  left: 8px;
+  font-size: 12px;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.toolbar-canvas-search-count {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.toolbar-canvas-search-count.no-matches {
+  color: var(--color-danger);
+}
+
 .zoom-controls {
   display: flex;
   align-items: center;

@@ -4,6 +4,25 @@
   height: 100%;
   overflow: hidden;
   cursor: default;
+  /* Every gesture here (background pan/marquee, node drag/resize, connector
+     draw) is fully custom pointer-event-driven (canvas.js/nodeInteractions.js/
+     connectorInteractions.js) — none of it is meant to hand off to the
+     browser's own native touch scrolling/panning/pinch-zoom. Without this,
+     touch-action defaults to `auto`, and per the CSS Touch Action spec a
+     single-finger drag can still be arbitrated as a native scroll/pan
+     gesture running in parallel with the JS-driven `transform` pan on
+     #canvas-content — the two fight over the same GPU-composited layer, and
+     mobile Chrome/Safari can drop or misplace it for a frame or more,
+     which looks like components/connectors momentarily vanishing mid-pan
+     or mid-drag. `preventDefault()` on `pointerdown` (already called by
+     every begin*() gesture below) is not sufficient on its own to suppress
+     this — only `touch-action` (or `preventDefault()` on the raw
+     `touchstart`, which this app doesn't use) reliably does. Per spec the
+     "used" touch-action for a region is the intersection of the value on
+     the element and all its ancestors, so setting it once here also covers
+     every descendant gesture surface (.node, .resize-handle, .conn-point)
+     without needing the same declaration repeated on each of them. */
+  touch-action: none;
   background-image: radial-gradient(circle, #D5D9E0 1px, transparent 1px);
   background-size: 22px 22px;
   background-position: 0 0;
