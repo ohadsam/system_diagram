@@ -152,6 +152,54 @@ user-facing fix or feature, alongside this changelog.
   value `'magic'`, also chooseable for any existing connector from its
   style editor.
 
+## v1.11.0 (2026-08-16)
+
+Batch of reported bugs, all traced to root cause and fixed, plus a new details-panel resize handle:
+
+- **Fixed: per-keystroke focus loss.** `formControls.js`'s `textInput`/`numberInput`/`colorInput`
+  dispatch on every `input` event, and both the details panel and the toolbar's contextual style
+  row fully `clear()` + rebuild their DOM on every store `'change'` event with no reconciliation —
+  so typing a single character into any of those fields destroyed and recreated the very `<input>`
+  being typed into, losing focus every time. Added `utils/dom.js#rerenderPreservingUiState`, which
+  captures the focused element (via a new `data-focus-key` attribute, added to every affected field)
+  and its selection range before the rebuild and restores both after — used by
+  `detailsPanel.js#render` and `toolbar.js#renderContextRow`. Also fixed a related but separate
+  issue in `canvas/node.js#updateNodeEl`: it rebuilds a node's body on *every* store change
+  anywhere in the app (not just changes to that node), which could destroy an in-progress inline
+  rename (`startInlineEdit`'s raw `<input>`) started on a completely different action; it now skips
+  the rebuild while that node's own inline edit is live.
+- **Fixed: double-click dead zone.** `.node-standard`/`.node-icon`/`.node-subchips` all set
+  `pointer-events: none` (so they don't steal single-click/drag-select from the node), which as a
+  side effect meant only the exact label text had a real double-click target — clicking a node's
+  icon or padding did nothing. `node.js#createNodeEl` now also listens for `dblclick` on
+  `.node-body` itself as a fallback, catching whatever pointer-events lets fall through to it.
+- **New: details panel resize handle** (`panel/detailsPanel.js#initResizeHandle`,
+  `css/panel.css`) — drag the panel's left edge to widen/narrow it (260-640px), persisted across
+  reloads. First attempt straddled the panel's border with a negative offset, which
+  `#details-panel.open`'s `overflow-y: auto` silently clipped out of both view and hit-testing
+  (per the CSS spec, a `visible` `overflow-x` paired with a non-`visible` `overflow-y` computes to
+  `auto`, never truly `visible`) — the handle now sits fully inside the panel's own box.
+- **Fixed: details panel didn't track canvas selection.** It only ever opened/updated via the
+  explicit "Open details" action (ⓘ button / context menu) — it had no `store.subscribe('selection', ...)`
+  at all, so clicking empty canvas or a different node left it open on stale content. Now closes on
+  deselect and switches straight to a newly-selected single node.
+- **Fixed: contextual style row's abrupt canvas resize.** A floating/absolute-overlay version was
+  tried first but reverted — it covered sidebar items and canvas nodes still meant to be clickable
+  while something is selected (confirmed by real e2e regressions: connecting to a second node,
+  duplicating, grouping). Kept in normal document flow, with a fade+slide-in animation to soften
+  what would otherwise be an instant size jump.
+- **Fixed: "Toggle Grid" did nothing.** `#canvas-viewport`'s `background: var(--color-bg)` (the
+  shorthand) was resetting `background-image` to `none`, and as an ID selector it always won over
+  `.canvas-viewport`'s own dot-grid/line-grid rules regardless of source order — so the canvas
+  background was always a flat color no matter what the toggle set. Changed to `background-color`.
+- **Fixed: sidebar scroll reset.** Expanding/collapsing a category (or a custom-component folder)
+  re-renders `.sidebar-categories` from scratch; while briefly empty mid-rebuild its `scrollHeight`
+  collapses, clamping `scrollTop` down with nothing to restore it after. `sidebar.js#renderList` now
+  saves/restores `scrollTop` around every rebuild.
+- **Fixed: edge context menu missing Duplicate.** `canvas.js#openEdgeContextMenu` only offered
+  "Delete connector" — `duplicateSelection()` already fully supports a pure-edge selection, it just
+  wasn't exposed there (the toolbar's contextual row already had it).
+
 ## v1.10.0 (2026-08-16)
 
 - Smart Suggestions batch 2: ~13 more curated `related` companion pairings

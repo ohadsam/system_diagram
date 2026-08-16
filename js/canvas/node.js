@@ -44,6 +44,22 @@ export function createNodeEl(node) {
   const body = el('div', { class: 'node-body' });
   root.appendChild(body);
 
+  // Double-click anywhere on the node's face renames it, not just the exact
+  // label text — .node-standard/.node-icon/.node-subchips all set
+  // `pointer-events: none` (see node.css) so single-click/drag-select isn't
+  // eaten by them, which as a side effect makes dblclick on that empty
+  // space fall through to .node-body instead of the label — this handler
+  // catches that fallthrough case. A dblclick landing directly on the label
+  // (or an external label, or a "rows" row) is already handled by that
+  // element's own listener with stopPropagation, so this never double-fires.
+  body.addEventListener('dblclick', (e) => {
+    if (e.target.closest('.node-label, .node-external-label, .row-text')) return;
+    const label = body.querySelector('.node-label') || root.querySelector('.node-external-label');
+    if (!label) return;
+    e.stopPropagation();
+    startInlineEdit(label, label.textContent, (value) => renameNode({ id: root.dataset.nodeId }, value));
+  });
+
   const badge = el('span', { class: 'node-badge', title: 'Has notes, labels or sub-components' }, '●');
   root.appendChild(badge);
 
@@ -129,14 +145,30 @@ export function updateNodeEl(rootEl, node, { selected = false, replicated = fals
   body.style.fontSize = `${node.fontSize}px`;
   body.style.textAlign = node.textAlign;
 
-  clear(body);
-  if (node.shape === 'rows') {
-    body.appendChild(buildRowsBody(node));
-  } else {
-    body.appendChild(buildStandardBody(node));
+  // Skip rebuilding whichever part currently has a live inline rename
+  // (startInlineEdit) in it — this whole function runs on every store
+  // change anywhere in the app (any other node moving, an autosave tick,
+  // ...), not just changes to this node, so without this guard a
+  // concurrent unrelated dispatch would silently destroy the in-progress
+  // <input> (and its unsaved text) out from under the user. The
+  // colors/size/position updates above still apply either way; only the
+  // content rebuild that would tear out the live <input> is skipped.
+  const activeInlineEdit = rootEl.querySelector('.inline-edit-input');
+  const editingInternalLabel = !!activeInlineEdit && body.contains(activeInlineEdit);
+  const editingExternalLabel = !!activeInlineEdit && !editingInternalLabel;
+
+  if (!editingInternalLabel) {
+    clear(body);
+    if (node.shape === 'rows') {
+      body.appendChild(buildRowsBody(node));
+    } else {
+      body.appendChild(buildStandardBody(node));
+    }
   }
 
-  updateExternalLabel(rootEl, node);
+  if (!editingExternalLabel) {
+    updateExternalLabel(rootEl, node);
+  }
 }
 
 const OUTSIDE_POSITIONS = ['above', 'below'];
@@ -290,8 +322,14 @@ function startInlineEdit(labelEl, currentValue, onCommit) {
   const finish = (commit) => {
     if (done) return;
     done = true;
-    if (commit && input.value.trim() && input.value !== currentValue) onCommit(input.value.trim());
+    // Restore the DOM *before* committing, not after: onCommit() dispatches
+    // synchronously, which synchronously re-renders every node (see
+    // updateNodeEl's "skip while an inline edit is live" guard) — if the
+    // <input> were still in the DOM at that point, that guard would (wrongly)
+    // still think this label is mid-edit and skip rebuilding it with the
+    // freshly-committed text, leaving the stale pre-edit label visible.
     input.replaceWith(labelEl);
+    if (commit && input.value.trim() && input.value !== currentValue) onCommit(input.value.trim());
   };
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') finish(true);

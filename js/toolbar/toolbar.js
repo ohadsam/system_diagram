@@ -13,7 +13,7 @@
 // button" for the convention this file follows.
 import * as store from '../core/store.js';
 import { createEmptyProject } from '../core/project.js';
-import { el, clear } from '../utils/dom.js';
+import { el, clear, rerenderPreservingUiState } from '../utils/dom.js';
 import {
   deleteSelection, duplicateSelection, groupSelection, ungroupSelection, selectionHasGroup, duplicateProjectAsNew,
 } from '../canvas/canvas.js';
@@ -285,7 +285,18 @@ function contextSummary(selection, state) {
   return parts.join(', ');
 }
 
+// The context row rebuilds its entire DOM on every store 'change' event
+// (including the one dispatched by each keystroke in one of its own text/
+// number/color fields, via renderNodeStyleEditor/renderEdgeStyleEditor) —
+// wrapping the rebuild lets a field that had focus keep it (and its cursor
+// position) across the rebuild instead of losing focus every keystroke.
+// See utils/dom.js#rerenderPreservingUiState and each field's
+// `data-focus-key` in styleEditor.js/arrowEditor.js.
 function renderContextRow(selection) {
+  rerenderPreservingUiState(contextRow, () => renderContextRowInner(selection));
+}
+
+function renderContextRowInner(selection) {
   clear(contextRow);
   const hasNodes = selection.nodeIds.length > 0;
   const hasEdges = selection.edgeIds.length > 0;

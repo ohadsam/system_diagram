@@ -88,9 +88,11 @@ Or open `index.html` directly in a browser.
   action — any component can still be styled differently at any time.
 - **Details panel** — notes, labels and sub-components per component
   (shown as compact chips or a full list), with a badge indicator for
-  components that have extra info, and a collapse/expand toggle alongside
-  the close button; "server with rows" components manage their internal
-  rows here too.
+  components that have extra info, a collapse/expand toggle alongside the
+  close button, and a drag-to-resize left edge; "server with rows"
+  components manage their internal rows here too. Tracks canvas
+  selection — switches to a newly-selected component automatically, and
+  closes on deselect.
 - **Custom components & shapes** — build and save your own styled
   components ("My Components", organizable into folders), or drop in
   basic shapes (rectangle, circle, diamond, cylinder, cloud, sticky note,

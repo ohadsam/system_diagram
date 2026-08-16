@@ -51,6 +51,8 @@ this repo" quick-start.
 | Add a canvas navigation/interaction mode (like Hand/Select) | `js/canvas/toolMode.js` (mode state + pub-sub) + dispatch logic in `canvas.js#wireBackgroundInteractions` |
 | Add a style control                               | `js/toolbar/styleEditor.js` (node) or `arrowEditor.js` (edge) |
 | Change what the details panel shows/edits         | `js/panel/detailsPanel.js` |
+| Change the details panel's resize/selection-sync behavior | `js/panel/detailsPanel.js#initResizeHandle` (drag-to-resize) / its `store.subscribe('selection', ...)` (auto close/switch) |
+| Fix a "loses focus every keystroke" bug in a rebuild-on-every-change panel | `js/utils/dom.js#rerenderPreservingUiState` + add `data-focus-key` to the field — see "Common pitfalls" below |
 | Add a modal                                       | `js/modals/*.js`, register it in `modals/modal.js` |
 | Change project JSON shape                         | `js/core/project.js` (bump `formatVersion`, keep a migration path) |
 | Change global new-component defaults              | `js/io/nodeDefaults.js` (storage) + `js/modals/defaultSettingsModal.js` (UI) |
@@ -141,6 +143,47 @@ npm test
   from Spec (`aiGenerateDesign.js`) — it's the reverse direction of AI
   Design Review, built the same way for the same reason (see docs/SPEC.md
   4.13). Don't add a live API call here either.
+- **Any panel/row that `clear()`s + rebuilds its whole DOM on every store
+  `'change'` event (details panel, toolbar contextual row) will steal focus
+  from one of its own text/number/color fields on every keystroke**, since
+  `formControls.js`'s inputs dispatch on the native `input` event (i.e. per
+  character) and the rebuild creates a brand-new element each time. Wrap the
+  rebuild with `utils/dom.js#rerenderPreservingUiState` and add a
+  `data-focus-key` (a stable, per-field string — e.g. keyed by a stable id
+  when iterating a list, not by array index if items can be added/removed)
+  to any field the fix should cover; add a `scrollSelector` too if the
+  container has its own scrollable region (same rebuild resets `scrollTop`
+  otherwise). See "Details panel" and "Contextual style-editor row" in
+  `docs/ARCHITECTURE.md` for the full story and a second, related gotcha in
+  `canvas/node.js#updateNodeEl` (don't rebuild a node's body while its own
+  inline rename is live, since a *different* node's unrelated dispatch
+  re-renders every node, not just the one that changed).
+- **A CSS ID selector's `background` shorthand can silently clobber a class
+  rule's `background-image`, regardless of stylesheet order** — an ID's
+  specificity (1,0,0) beats any class selector, and the shorthand resets
+  every sub-property it doesn't mention. Always use `background-color` (not
+  `background`) when styling an element by ID if a *class* rule on the same
+  element sets `background-image` — this exact bug made "Toggle Grid" look
+  completely broken (`css/layout.css`'s `#canvas-viewport` vs.
+  `css/canvas.css`'s `.canvas-viewport`/`.show-grid`).
+- **A `position: absolute`/negative-offset element inside a container with
+  `overflow-y: auto` (or any single-axis overflow) gets silently clipped
+  out of hit-testing, not just view** — per the CSS spec, a `visible`
+  `overflow-x` paired with a non-`visible` `overflow-y` computes to `auto`
+  too, so nothing about that axis is ever truly "visible" once its sibling
+  axis scrolls. Bit the details panel's first resize-handle attempt (see
+  ARCHITECTURE.md "Details panel"); keep any such handle's hit area fully
+  inside its scrollable ancestor's box.
+- **A floating (`position: absolute`/`fixed`) overlay that spans the
+  sidebar and/or canvas will block clicks on whatever it visually covers**
+  — this isn't just a look-and-feel tradeoff, it broke real e2e tests
+  (connecting to a second component, duplicating/grouping/deleting a
+  selection) when tried for the toolbar's contextual row. If a future
+  request asks for "make X float instead of pushing the layout," check
+  whether X can actually overlap content the user still needs to interact
+  with before reaching for `position: absolute` — an animation on the
+  in-flow layout change is a safer default for anything that shares screen
+  space with the canvas or sidebar.
 - If a modal's content can change size between renders (a multi-step
   wizard, an expand/collapse section), be aware `modal.js`'s backdrop-click
   detection uses `e.target === dialog` specifically because it's

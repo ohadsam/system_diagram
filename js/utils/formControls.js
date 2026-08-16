@@ -11,12 +11,12 @@ export function field(labelText, controlEl, extraClass = '') {
   return el('label', { class: `field ${extraClass}`.trim() }, [el('span', { class: 'field-label', text: labelText }), controlEl]);
 }
 
-export function colorInput(value, onChange) {
-  return el('input', { type: 'color', value: normalizeHex(value), onInput: (e) => onChange(e.target.value) });
+export function colorInput(value, onChange, attrs = {}) {
+  return el('input', { type: 'color', value: normalizeHex(value), onInput: (e) => onChange(e.target.value), ...attrs });
 }
 
-export function numberInput(value, min, max, step, onChange) {
-  return el('input', { type: 'number', value, min, max, step, onInput: (e) => onChange(Number(e.target.value)) });
+export function numberInput(value, min, max, step, onChange, attrs = {}) {
+  return el('input', { type: 'number', value, min, max, step, onInput: (e) => onChange(Number(e.target.value)), ...attrs });
 }
 
 export function textInput(value, onChange, attrs = {}) {

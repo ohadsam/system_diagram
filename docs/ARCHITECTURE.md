@@ -171,6 +171,99 @@ The header's ✕ calls `store.select([], [])` — the same
 produces, added as an explicit, discoverable affordance since until this
 was added the row had no visible way to dismiss it at all.
 
+**Gotcha found in review #2: destructive re-render stole focus on every
+keystroke.** `renderContextRow` (like `detailsPanel.js#render`) fully
+`clear()`s and rebuilds its DOM on every store `'change'` event —
+including the change dispatched by each keystroke in one of its own
+fields (`styleEditor.js`/`arrowEditor.js` use `formControls.js`'s
+`textInput`/`numberInput`/`colorInput`, which dispatch on the native
+`input` event, i.e. per character). Since the rebuild creates a *new*
+`<input>` element each time, the field the user was actively typing into
+lost focus after every single character. Fixed generically with
+`utils/dom.js#rerenderPreservingUiState`: it captures whichever element
+inside the container currently has focus — identified by a `data-focus-key`
+attribute added to every affected field — plus its text-selection range,
+before the rebuild, and restores focus (and the range) to the
+same-keyed element afterward. `renderContextRow` now wraps the actual
+rebuild (`renderContextRowInner`) with this helper; `detailsPanel.js`
+does the same for its own render, additionally passing a `scrollSelector`
+(`.details-body`) so the panel's scroll position survives the rebuild
+too — the same destructive-rebuild pattern was also resetting scroll to
+the top on every keystroke there, which could put the "+ Add
+sub-component" button somewhere else entirely mid-click.
+
+**Gotcha found in review #3: a floating overlay covered content the user
+still needed to click.** To address a separate complaint ("the row
+pushes the whole canvas down, looks jarring"), `.toolbar-row-context` was
+first changed to `position: absolute` so it wouldn't grow `#toolbar`'s
+box. This broke real interactions — confirmed by e2e regressions, not
+just visual inspection: connecting two components (the second sidebar
+item was now covered by the row), duplicating/grouping/deleting a
+selection (nodes near the top of the canvas were now covered too — a
+solid-background overlay blocks pointer events same as it blocks the
+view). Reverted to normal document flow; the "jarring jump" complaint is
+instead addressed with a lightweight `@keyframes` fade+slide-in on the
+row itself (`animation: toolbar-context-in 0.15s ease` — see
+`css/toolbar.css`), which costs nothing functionally since it doesn't
+change layout, only how the already-correct layout change is revealed.
+
+## Details panel (`panel/detailsPanel.js`)
+
+Opened via a node's ⓘ button or right-click "Open details" (both fire a
+`sdb:open-details` custom event the panel listens for) — but it also
+subscribes to `store.subscribe('selection', ...)` directly: if the panel
+is already open and the selection changes to a different single node it
+switches straight to it (`open(newNodeId)`); any other selection change
+(deselect, multi-select, an edge) closes it. Before this the panel had no
+`'selection'` subscription at all — only `'change'` (data mutations),
+which has no way to represent "the user clicked something else" — so it
+silently kept showing stale content for whatever was open before.
+
+**Resize handle** (`initResizeHandle`, `css/panel.css`): a persistent
+`<div class="details-resize-handle">` is created once and re-appended to
+`rootEl` at the end of every `render()` call, since `render()` itself
+`clear()`s all of `rootEl`'s children on every open/re-render — appending
+the *same* element back (not recreating it) keeps its drag listeners
+intact without needing to rewire them each time. Drag updates a
+`--panel-width` CSS custom property set as an inline style directly on
+`#details-panel` (which `css/layout.css`'s `#details-panel.open` rule
+already reads via `var(--panel-width)`, so no other CSS needed to
+change), persisted to `storage.js` on pointerup and restored on init.
+
+**Gotcha found in review: negative-offset elements get clipped by a
+sibling's `overflow: auto`.** The handle was first positioned straddling
+the panel's left border (`left: -4px; width: 8px`) so it'd be easy to
+grab without pixel-perfect precision on the 1px border. This silently
+made half the handle unclickable: `#details-panel.open` sets
+`overflow-y: auto`, and per the CSS spec a `visible` `overflow-x` paired
+with a *non*-`visible` `overflow-y` computes to `auto` too — the "visible"
+value never actually applies once its sibling axis needs scrolling. So
+anything positioned outside the panel's own box, negative offset or not,
+was clipped out of both view and hit-testing; a real drag starting in
+that clipped zone landed on whatever was underneath (the canvas), which
+looked like the panel closing itself (canvas click → deselect →
+selection-sync above closes it) rather than the resize working at all.
+Fixed by keeping the handle's hit area entirely inside the panel's own
+box (`left: 0; width: 6px`) instead of straddling the border.
+
+**Related fix in `canvas/node.js`**: a node's double-click-to-rename only
+worked when the click landed exactly on the `.node-label` text, because
+`.node-standard`/`.node-icon`/`.node-subchips` all set `pointer-events:
+none` (deliberately, so they don't intercept the single-click/drag-select
+handled on the node root) — a double-click on the icon or on empty
+padding fell through to `.node-body` underneath, which had no listener of
+its own. `createNodeEl` now also listens for `dblclick` on `.node-body`
+directly as a fallback (skipped if the click actually landed on
+`.node-label`/`.node-external-label`/`.row-text`, which already handle it
+and call `stopPropagation()`, so this never double-fires). Relatedly,
+`startInlineEdit`'s commit path was reordered to restore the label
+element *before* calling `onCommit` rather than after — `onCommit`
+dispatches synchronously, and `updateNodeEl`'s "don't rebuild while an
+edit is live" guard (added for the same focus-loss reason as above) was
+checking for the still-present `<input>` and skipping the rebuild that
+would've shown the freshly-committed text, leaving the stale pre-edit
+label visible until the next unrelated render.
+
 ## Toolbar dropdown groups (`toolbar/toolbarDropdown.js`)
 
 `toolbar.js`'s always-visible row only holds controls needed continuously

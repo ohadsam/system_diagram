@@ -2,9 +2,24 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.10.0';
+export const APP_VERSION = '1.11.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.11.0',
+    date: '2026-08-16',
+    highlights: [
+      'Fixed: text/number/color fields in the style editor and details panel (rename, notes, sub-components, ...) lost focus after every keystroke, making it impossible to type fluently.',
+      'Fixed: double-clicking a component only started renaming it if you clicked precisely on the label text — clicking its icon or empty padding now works too.',
+      'New: the details panel can now be resized by dragging its left edge.',
+      'Fixed: adding a sub-component in the details panel could become unclickable or require scrolling, and a newly-picked name could end up missing (only its icon showing) — both were caused by the same focus/scroll-reset bug above.',
+      'Fixed: the details panel now closes when you click elsewhere or deselect, and switches to a newly-selected component instead of continuing to show a stale one.',
+      'Fixed: the toolbar\'s contextual style row jumping the whole canvas down when a component/connector is selected now fades in smoothly instead of an abrupt size jump.',
+      'Fixed: "Toggle Grid" (Tools menu) previously did nothing — a CSS rule was silently overriding the canvas background regardless of the toggle.',
+      'Fixed: expanding/collapsing a sidebar category reset your scroll position back to the top.',
+      'Fixed: right-clicking a connector was missing "Duplicate" (already available for components).',
+    ],
+  },
   {
     version: '1.10.0',
     date: '2026-08-16',

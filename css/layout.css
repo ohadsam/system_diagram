@@ -31,7 +31,14 @@
   flex: 1 1 auto;
   position: relative;
   overflow: hidden;
-  background: var(--color-bg);
+  /* background-color, not the `background` shorthand — the shorthand resets
+     every sub-property it doesn't mention (including background-image) to
+     its initial value, which was silently clobbering .canvas-viewport's own
+     dot-grid/line-grid background-image rules in css/canvas.css (an ID
+     selector always wins that fight regardless of load order, since (1,0,0)
+     beats any class-only selector) and made the "Toggle Grid" button appear
+     to do nothing. */
+  background-color: var(--color-bg);
 }
 
 #details-panel {

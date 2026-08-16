@@ -65,6 +65,15 @@ export function initSidebar(root) {
 const HIDEABLE_CATEGORIES = { hideStateMachines: 'state-machines' };
 
 function renderList() {
+  // renderList() fully tears down and rebuilds .sidebar-categories on every
+  // call (expanding/collapsing a category, toggling a folder, editing the
+  // search, custom components changing, ...) — while the list is briefly
+  // empty mid-rebuild its scrollHeight collapses, which clamps scrollTop
+  // down, and nothing restored it afterwards. Save/restore around every
+  // call rather than just the expand/collapse ones: restoring an
+  // out-of-range scrollTop (e.g. after a search narrows the list) is a
+  // harmless no-op clamp, so this is safe for every call site.
+  const savedScrollTop = listEl.scrollTop;
   clear(listEl);
   const q = normalize(query);
   const custom = getCustomComponents();
@@ -91,6 +100,7 @@ function renderList() {
   if (!anyMatch) {
     listEl.appendChild(el('p', { class: 'sidebar-empty', text: `No components match "${query}".` }));
   }
+  listEl.scrollTop = savedScrollTop;
 }
 
 function renderCategory(cat, matches, q) {

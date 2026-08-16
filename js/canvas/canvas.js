@@ -730,6 +730,8 @@ function openNodeContextMenu(nodeId, evt) {
 
 function openEdgeContextMenu(edgeId, evt) {
   const items = [
+    { label: 'Duplicate', icon: '⧉', onClick: () => { store.select([], [edgeId]); duplicateSelection(); } },
+    'separator',
     { label: 'Delete connector', icon: '🗑️', danger: true, onClick: () => { store.select([], [edgeId]); deleteSelection(); } },
   ];
   showContextMenu(evt.clientX, evt.clientY, items);

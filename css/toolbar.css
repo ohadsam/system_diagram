@@ -12,6 +12,12 @@
   min-height: var(--toolbar-height);
 }
 
+/* Stays in normal document flow (a floating/absolute overlay was tried and
+   reverted — it visually covered sidebar items and canvas nodes underneath
+   it, which are still meant to be clickable while something is selected,
+   e.g. adding a second component to connect to the first one). A fade+slide
+   animation on appearing softens what would otherwise be an instant, jarring
+   size jump when the canvas shrinks to make room for this row. */
 .toolbar-row-context {
   background: var(--color-primary-soft);
   border-bottom: 1px solid #C7D2FE;
@@ -22,6 +28,12 @@
                          which silently defeats align-items:stretch's width constraint below */
   align-items: stretch;
   gap: var(--space-2);
+  animation: toolbar-context-in 0.15s ease;
+}
+
+@keyframes toolbar-context-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .toolbar-row-context.collapsed {

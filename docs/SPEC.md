@@ -200,12 +200,16 @@ already-attached sub-component is never re-suggested.
 
 ### 4.3 Canvas node interactions
 - Drag to move, resize via handles, rotate not required.
+- **Double-click renames a component inline** — its label is replaced with
+  a text input (Enter commits, Escape/blur cancels). Works anywhere on the
+  component's face, not just precisely on the label text (icon, padding,
+  and empty background all trigger it too).
 - Delete via `Delete`/`Backspace`, right-click menu, or toolbar button —
   **always cascades to every connector attached to the deleted
   component(s)**, so a diagram never ends up with an arrow dangling from
   nothing (`core/project.js#removeNode`; see also 4.4).
-- Right-click context menu: Edit style, Duplicate, Bring to front / send to
-  back, Add note, Delete, Open details.
+- Right-click context menu: Open details, Duplicate, Bring to front / send to
+  back, Delete.
 - Small on-node button opens full edit (style) and an "ⓘ" button opens the
   details side panel.
 - A visible badge appears on any node that has notes, labels, or
@@ -268,6 +272,10 @@ already-attached sub-component is never re-suggested.
   recomputed fresh from current node positions on every render rather than
   stored, so it never goes stale.
 - Deleting either endpoint component deletes the connector too (see 4.3).
+- Right-click a connector for its own context menu: Duplicate, Delete.
+  Selecting it (click, or right-click) shows the same style editor as a
+  component in the toolbar's contextual row (4.5), just for arrow
+  properties instead.
 
 #### 4.4.1 Magic Arrow
 The toolbar's "🪄" button arms Magic Arrow mode for the *next* connector
@@ -322,16 +330,23 @@ choice.
   any selection (see 4.2.7), Duplicate, Delete.
 
 ### 4.6 Node details panel
-- Opens on demand (ⓘ button / double-click). Shows: name, icon/color
-  summary, free-text notes, labels (tag chips), and an editable list of
-  sub-components (name + icon, add/remove/reorder, plus a "compact chips
-  vs full list" display-mode control — see 4.2.5). For "server with rows"
-  nodes, this is also where rows are managed.
+- Opens on demand (ⓘ button, or pressing Enter with a node focused — not
+  double-click, which instead renames the node inline; see 4.3). Shows:
+  name, icon/color summary, free-text notes, labels (tag chips), and an
+  editable list of sub-components (name + icon, add/remove/reorder, plus a
+  "compact chips vs full list" display-mode control — see 4.2.5). For
+  "server with rows" nodes, this is also where rows are managed.
 - **Collapse / expand**: a chevron button in the panel header shrinks it to
   a slim clickable strip (content hidden, selection/edits untouched) —
   distinct from the **✕ close** button, which fully closes it and clears
   the details context. Opening a different component's details always
   starts expanded.
+- **Resizable**: drag the panel's left edge to widen or narrow it (260–640px);
+  the chosen width is remembered across reloads.
+- **Tracks canvas selection**: while open, selecting a different single
+  component switches the panel straight to it; deselecting (clicking empty
+  canvas, Escape) or selecting a multi/edge selection closes the panel
+  rather than leaving it open on stale content.
 
 ### 4.7 Persistence
 - Autosave current project to `localStorage` on every change (debounced).

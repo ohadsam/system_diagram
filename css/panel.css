@@ -1,6 +1,44 @@
 .details-panel {
   display: flex;
   flex-direction: column;
+  position: relative;
+}
+
+/* Drag-to-resize handle on the panel's left edge — see
+   panel/detailsPanel.js#initResizeHandle. Kept fully *inside* the panel's
+   own box (not straddling the border with a negative offset, which was
+   tried first): #details-panel.open sets overflow-y:auto, and per the CSS
+   overflow spec a `visible` overflow-x paired with a non-visible overflow-y
+   computes to `auto` too (never left truly visible) — so anything
+   positioned outside the panel's bounds, including a negatively-offset
+   handle, gets silently clipped out of both view *and* hit-testing. The
+   panel's own left padding (.details-header/.details-body) gives this
+   plenty of room without overlapping any field. */
+.details-resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 6px;
+  cursor: ew-resize;
+  z-index: 1;
+  touch-action: none;
+}
+
+.details-resize-handle:hover,
+.details-resize-handle:focus-visible {
+  background: var(--color-primary-soft);
+}
+
+.details-panel.collapsed .details-resize-handle {
+  display: none;
+}
+
+/* Suppress text-selection/cursor flicker on the rest of the page while
+   actively dragging the handle. */
+body.resizing-details-panel {
+  cursor: ew-resize;
+  user-select: none;
 }
 
 .details-header {

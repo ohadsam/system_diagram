@@ -23,15 +23,15 @@ export function renderEdgeStyleEditor(container, edgeIds) {
     }
   });
 
-  container.appendChild(field('Color', colorInput(first.color, (v) => updateAll((e) => { e.color = v; }))));
-  container.appendChild(field('Width', numberInput(first.width, 1, 10, 1, (v) => updateAll((e) => { e.width = v; }))));
+  container.appendChild(field('Color', colorInput(first.color, (v) => updateAll((e) => { e.color = v; }), { 'data-focus-key': 'edge-color' })));
+  container.appendChild(field('Width', numberInput(first.width, 1, 10, 1, (v) => updateAll((e) => { e.width = v; }), { 'data-focus-key': 'edge-width' })));
   container.appendChild(field('Dash', selectInput(DASH_STYLES, first.dash, (v) => updateAll((e) => { e.dash = v; }), DASH_LABELS)));
   container.appendChild(field('Routing', selectInput(ROUTINGS, first.routing, (v) => updateAll((e) => { e.routing = v; }), ROUTING_LABELS)));
   container.appendChild(field('Start arrow', selectInput(ARROW_HEADS, first.startArrow, (v) => updateAll((e) => { e.startArrow = v; }), ARROW_LABELS)));
   container.appendChild(field('End arrow', selectInput(ARROW_HEADS, first.endArrow, (v) => updateAll((e) => { e.endArrow = v; }), ARROW_LABELS)));
 
   if (edgeIds.length === 1) {
-    container.appendChild(field('Label', textInput(first.label, (v) => updateAll((e) => { e.label = v; }), { placeholder: 'e.g. HTTPS' })));
+    container.appendChild(field('Label', textInput(first.label, (v) => updateAll((e) => { e.label = v; }), { placeholder: 'e.g. HTTPS', 'data-focus-key': 'edge-label' })));
   }
 
   container.appendChild(el('span', { class: 'toolbar-selection-count', text: edgeIds.length > 1 ? `${edgeIds.length} selected` : '' }));

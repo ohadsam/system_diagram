@@ -28,21 +28,21 @@ export function renderNodeStyleEditor(container, nodeIds) {
     }
   });
 
-  container.appendChild(field('Fill', colorInput(first.fill, (v) => updateAll((n) => { n.fill = v; }))));
+  container.appendChild(field('Fill', colorInput(first.fill, (v) => updateAll((n) => { n.fill = v; }), { 'data-focus-key': 'fill' })));
   container.appendChild(checkbox(first.fill === 'transparent', (v) => updateAll((n) => { n.fill = v ? 'transparent' : '#FFFFFF'; }), 'No background'));
-  container.appendChild(field('Border', colorInput(first.stroke, (v) => updateAll((n) => { n.stroke = v; }))));
-  container.appendChild(field('Border width', numberInput(first.strokeWidth, 0, 12, 1, (v) => updateAll((n) => { n.strokeWidth = v; }))));
+  container.appendChild(field('Border', colorInput(first.stroke, (v) => updateAll((n) => { n.stroke = v; }), { 'data-focus-key': 'stroke' })));
+  container.appendChild(field('Border width', numberInput(first.strokeWidth, 0, 12, 1, (v) => updateAll((n) => { n.strokeWidth = v; }), { 'data-focus-key': 'strokeWidth' })));
   container.appendChild(field('Shape', selectInput(SHAPES.filter((s) => s !== 'rows'), first.shape === 'rows' ? 'rounded' : first.shape, (v) => updateAll((n) => { n.shape = v; }), SHAPE_LABELS)));
-  container.appendChild(field('Font size', numberInput(first.fontSize, 8, 48, 1, (v) => updateAll((n) => { n.fontSize = v; }))));
+  container.appendChild(field('Font size', numberInput(first.fontSize, 8, 48, 1, (v) => updateAll((n) => { n.fontSize = v; }), { 'data-focus-key': 'fontSize' })));
   container.appendChild(field('Align', selectInput(['left', 'center', 'right'], first.textAlign, (v) => updateAll((n) => { n.textAlign = v; }), ALIGN_LABELS)));
   container.appendChild(field('Text position', selectInput(TEXT_POSITIONS, first.textPosition, (v) => updateAll((n) => { n.textPosition = v; }), TEXT_POSITION_LABELS)));
   container.appendChild(checkbox(first.iconVisible !== false, (v) => updateAll((n) => { n.iconVisible = v; }), 'Show icon'));
 
   if (nodeIds.length === 1) {
-    container.appendChild(field('Icon', textInput(first.icon, (v) => updateAll((n) => { n.icon = v; }), { maxLength: 4, class: 'icon-field' })));
-    container.appendChild(field('Text', textInput(first.text, (v) => updateAll((n) => { n.text = v; }))));
-    container.appendChild(field('Width', numberInput(Math.round(first.w), 24, 2000, 1, (v) => updateAll((n) => { n.w = v; }))));
-    container.appendChild(field('Height', numberInput(Math.round(first.h), 24, 2000, 1, (v) => updateAll((n) => { n.h = v; }))));
+    container.appendChild(field('Icon', textInput(first.icon, (v) => updateAll((n) => { n.icon = v; }), { maxLength: 4, class: 'icon-field', 'data-focus-key': 'icon' })));
+    container.appendChild(field('Text', textInput(first.text, (v) => updateAll((n) => { n.text = v; }), { 'data-focus-key': 'text' })));
+    container.appendChild(field('Width', numberInput(Math.round(first.w), 24, 2000, 1, (v) => updateAll((n) => { n.w = v; }), { 'data-focus-key': 'w' })));
+    container.appendChild(field('Height', numberInput(Math.round(first.h), 24, 2000, 1, (v) => updateAll((n) => { n.h = v; }), { 'data-focus-key': 'h' })));
   }
 
   container.appendChild(el('span', { class: 'toolbar-selection-count', text: nodeIds.length > 1 ? `${nodeIds.length} selected` : '' }));
