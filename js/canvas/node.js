@@ -144,6 +144,16 @@ export function updateNodeEl(rootEl, node, { selected = false, replicated = fals
   body.style.color = '#1F2937';
   body.style.fontSize = `${node.fontSize}px`;
   body.style.textAlign = node.textAlign;
+  // Also exposed as custom properties, read only by the diamond/hexagon
+  // border fix below (css/node.css) — a plain CSS `border` doesn't follow
+  // clip-path's polygon outline (it's still a rectangular border box
+  // underneath, just cropped unevenly by the clip), so those two shapes
+  // fake a border with two nested clipped layers instead and need the
+  // fill/stroke colors and width available to a CSS rule, not just inline
+  // JS-set border-* properties.
+  body.style.setProperty('--node-fill', node.fill);
+  body.style.setProperty('--node-stroke', node.stroke);
+  body.style.setProperty('--node-border-width', `${node.strokeWidth}px`);
 
   // Skip rebuilding whichever part currently has a live inline rename
   // (startInlineEdit) in it — this whole function runs on every store

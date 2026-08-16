@@ -207,6 +207,210 @@ row itself (`animation: toolbar-context-in 0.15s ease` — see
 `css/toolbar.css`), which costs nothing functionally since it doesn't
 change layout, only how the already-correct layout change is revealed.
 
+### Display modes: floating / pinned-top / pinned-bottom
+
+A later request revisited the same "jumps the canvas" complaint and asked
+for an actual floating popup as an alternative, not just a smoother
+transition into the same in-flow push. `contextRow` is now one persistent
+element `toolbar.js` moves between three containers depending on
+`getUiPrefs().contextRowMode` (`js/io/uiPrefs.js`, sharing the pre-existing
+`'prefs'` localStorage key the "Toggle Grid" setting already used, so an
+existing visitor's grid setting doesn't silently reset):
+`mountContextRow()` appends it to `#toolbar` for `'pinned-top'` (the
+original in-flow behavior from gotcha #3 above), as the last child of
+`#app` for `'pinned-bottom'` (a flex column, so it shrinks `.app-body`
+from the bottom exactly the way `#toolbar` shrinks it from the top), or to
+`document.body` for `'floating'` (`position: fixed`, viewport coordinates —
+the same host `contextMenu.js`/`toolbarDropdown.js` already use for their
+own floating UI). A 📌 button on the row's header toggles floating ↔
+pinned-top; "Default Settings" (`modals/defaultSettingsModal.js`) is the
+only way to reach `'pinned-bottom'` specifically.
+
+**Gotcha found in review #4: a *smaller* floating card can still cover
+content it doesn't own.** Gotcha #3 above reverted a full-width overlay
+after it covered sidebar items and canvas nodes; `'floating'` mode's much
+smaller, selection-anchored card was specifically designed to avoid that
+same mistake, but a first pass at `positionFloatingRow()` still shipped
+three overlap bugs, all caught by a full e2e run rather than manual
+inspection — each fix was verified by re-running the *entire* suite, not
+just the specific test that first caught it, since each of these bugs
+individually looked fixed in isolation right up until a different test
+scenario (different node position, different card height) exposed the
+next one:
+1. **Clamped only to the window, not the canvas area.** The card's
+   position was clamped to `window.innerWidth`/`innerHeight`, so for a
+   selection near the top or an edge of the canvas, the clamped position
+   could land on top of the toolbar's own open dropdown panel, the details
+   panel's controls, or the sidebar — exactly the class of bug gotcha #3
+   already fixed once, just reappearing in a smaller footprint. Fixed by
+   clamping to `#canvas-viewport`'s own `getBoundingClientRect()` instead
+   of the window — that element's box already excludes the toolbar,
+   sidebar, and details/AI review panel by construction (they're flex
+   siblings), so nothing that lives there can ever land under the card.
+   A toolbar dropdown panel is a separate case — it's `position: fixed`
+   too, so it isn't excluded by that same containment — handled instead by
+   hiding the card outright (`.dropdown-suppressed`, driven by
+   `toolbarDropdown.js#onDropdownOpenChange`) while any dropdown is open,
+   reappearing the moment it closes. (That listener had its own
+   easy-to-miss ordering bug: it originally fired *before* the module's
+   `openPanel` variable was reassigned on open, so every "opened" event
+   still read as "closed" — always notify listeners *after* the state
+   they're being told about actually changes.)
+2. **The "fits, else fall back to the first candidate" clamp could still
+   slide the card back over its own anchor.** An earlier version tried
+   below/above/right/left candidates and picked whichever fit entirely
+   within the canvas bounds, falling back to a plain clamp of the first
+   ("below") candidate if none fit perfectly. That fallback clamp only
+   respected the canvas bounds, not the anchor — so a selection tall
+   enough (or close enough to a bound) that neither "below" nor "above"
+   fit by a few pixels could still end up clamped back on top of the
+   selection itself (reproduced with the "rows" shape: its "+ Add row"
+   button, positioned near the node's own bottom edge, ended up
+   underneath the clamped-back card, silently swallowing clicks meant for
+   it). Simplified to: pick whichever side (below or above) has *more*
+   room via `spaceBelow`/`spaceAbove`, then compute `top` on that side
+   *away* from the anchor and never clamp it back — if the card doesn't
+   fully fit it just scrolls internally instead (`.toolbar-row-context
+   .floating`'s `max-height`/`overflow-y: auto` already provides that).
+   Only the horizontal axis is clamped, since sliding left/right can never
+   reintroduce the overlap. The lesson generalizes beyond this feature:
+   a "fits perfectly, else fall back to a naive clamp" strategy for
+   positioning floating UI near an anchor is a trap — the fallback branch
+   needs the same anchor-avoidance guarantee as the primary candidates, not
+   just the bounds check.
+3. **"Whichever side has more room" can still reach *other* content, even
+   though it can never re-cover its own anchor.** The fix in (2) picked
+   "above" whenever `spaceAbove > spaceBelow`. That's anchor-safe by
+   construction, but "above" grows the card's *top* edge upward from the
+   anchor the taller the card is — for an anchor low on the canvas with a
+   lot of room above it, that can reach all the way up past an unrelated
+   node positioned well above the anchor (reproduced by dragging a second
+   node down-and-right of the first, then connecting them — the connection
+   point drag never started because the floating card, sized for the
+   just-dragged node and flipped to "above" since that side had more raw
+   space, ended up covering the *first* node's connection point instead).
+   "Below" doesn't have this problem — it only ever grows *downward* from a
+   fixed point right under the anchor, so it can't reach content elsewhere
+   on the canvas the way "above" can. Rebiased accordingly: prefer "below"
+   whenever it has at least a minimal `MIN_BELOW` (currently 60px, enough
+   for the row's own header) *or* more room than "above", only falling back
+   to "above" when below is both small and worse than above. This isn't an
+   airtight guarantee against ever covering some other node — genuinely
+   dense diagrams could still see the card land near unrelated content — but
+   it's a much smaller, more predictable footprint than "flip to whichever
+   side is bigger," and matches this app's typical usage where a diagram
+   grows down/right from its earlier content rather than up/left.
+4. **Reposition triggers were incomplete — nothing fired when a *panel*
+   opened.** Selection/data changes, viewport pan/zoom, and window resize
+   all had explicit triggers, but the details panel and AI review panel
+   have no pub-sub of their own (plain `classList.toggle('open')`) and
+   animate `#canvas-viewport`'s width over 180ms when they open/close (see
+   css/layout.css) — nothing told the floating card to reposition, so it
+   stayed exactly where it was computed *before* the panel opened, which
+   could now be squarely on top of a button inside that panel (reproduced
+   with "paste an AI response back into the panel" — the floating card,
+   positioned for a component selected before the AI panel opened, ended up
+   over the panel's own "Save to this session" button once the panel's
+   open animation finished and shrank the canvas). Rather than hunting down
+   every individual trigger (and inevitably missing the next one), a
+   `ResizeObserver` on `#canvas-viewport` itself is the general fix — it
+   fires for *any* reason that specific element's box changes, panels
+   included, and even fires repeatedly through the open/close transition so
+   the card visibly tracks instead of jumping once at the end.
+5. **A card taller than the available room could still render past the
+   bottom of the actual browser window, not just the canvas.** `top` is
+   deliberately never clamped back toward the anchor (see item 2), and the
+   reasoning had been "if it doesn't fully fit, `overflow-y: auto` handles
+   it" — but that only helps once the element's own height is already
+   bounded; a *static* CSS `max-height` doesn't bound `top` itself, so a
+   naturally tall card (a mixed node+edge selection renders both style
+   editors at once) could still start low enough that most of it rendered
+   below the window, with Playwright correctly reporting its buttons
+   "outside of the viewport." Fixed by capping the card's height in JS to
+   whatever room actually exists in the *chosen* direction
+   (`spaceBelow`/`spaceAbove` from item 3) via an inline `maxHeight`, set
+   *before* reading the card's height for the `top` calculation — this
+   guarantees `top + actualHeight` stays within bounds without ever moving
+   `top`, with genuine overflow scrolling internally instead. The inline
+   `maxHeight` is cleared when switching to a pinned mode, since it would
+   otherwise linger and clip a pinned row that never needed it.
+6. **A *different* floating element entirely — not the card's own
+   positioning logic — could still land on top of it.** The "Smart
+   Suggestions" banner (`canvas/suggestions.js`) is its own `position:
+   fixed` element pinned to the bottom-center of the screen, shown right
+   after placing a component with a curated companion — outside
+   `#canvas-viewport`'s box (so item 1's containment doesn't know about it)
+   and with no store/selection/canvas-resize event of its own (so nothing
+   already wired re-triggered a reposition when it appeared). Caught during
+   the UI/UX review pass at a mobile width, not by any test: a card
+   anchored near the bottom of a short viewport rendered squarely under the
+   banner, which sits at a higher z-index and so silently blocked clicks
+   into whatever of the card it covered. Fixed the same way as the toolbar
+   dropdown case (item 1's second half): `suggestions.js` now exposes an
+   `onSuggestionsVisibilityChange` pub-sub the banner's `show()`/`hide()`
+   notify, and `positionFloatingRow` shrinks its own usable `bounds.bottom`
+   to stop above the banner's top edge whenever it's visible, rather than
+   hiding the card outright — unlike a dropdown panel, the banner is small
+   and off to one side, so there's usually still room for both without
+   resorting to a full hide. Two follow-up bugs, both self-caught before
+   they ever reached a test run:
+   - Folding the banner into `bounds.bottom` *before* the below-vs-above
+     side decision (not just the height cap) undermined item 3's "prefer
+     below" bias — the banner's presence alone could shrink `spaceBelow`
+     enough to flip the decision to "above" even for a selection nowhere
+     near the bottom of the screen, reopening exactly the "reaches other
+     content" risk item 3 exists to prevent (reproduced: adding two plain
+     components with no special positioning, where the first one just
+     happened to have a curated suggestion, made connecting them fail).
+     Fixed by keeping the side decision based on the *true* canvas bounds
+     always, and only ever trimming the *height cap* — and only on the
+     "below" side — to account for the banner afterward.
+   - The banner query (`.suggestion-banner.visible`) missed a banner that
+     had just appeared: `notifyVisibilityChange(true)` fires synchronously
+     right after `hidden` is cleared, but the `.visible` class (its own
+     fade/slide-in trigger) isn't added until the next animation frame, so
+     `positionFloatingRow` ran a beat too early and found nothing to avoid.
+     Fixed by querying `:not([hidden])` instead — `hidden` is what's
+     actually cleared synchronously at notify time, and the element is
+     already at (or a negligible few pixels from) its final layout position
+     the moment `hidden` clears, since only opacity/transform animate in,
+     not layout.
+
+**Gotcha found in review #5: 'floating' mode indirectly broke click-to-add
+for a second component at the same spot — an existing bug the *old*
+pinned-top behavior had been silently masking.** `canvas.js#addComponentAtCenter`
+(the sidebar's click-to-add path) always places a new node at
+`#canvas-viewport`'s exact current center — every repeat click lands at the
+literal same canvas point unless something moved the viewport or resized
+it in between. Under the old always-pinned-top behavior, selecting a
+newly-added node opened the context row *inside* `#toolbar`, growing the
+toolbar's height and shrinking `#canvas-viewport` from the flex layout —
+which happened to shift the computed center before the *next* click-add,
+so two components added back-to-back never landed exactly on top of each
+other. `'floating'` mode doesn't resize anything (by design — that's the
+whole point of it), so `#canvas-viewport`'s center stopped moving between
+clicks, and clicking the same sidebar item twice landed the second node in
+*exactly* the same spot as the first — with the newer one's higher
+`zIndex` permanently covering the older one's own center, the exact point
+a plain click targets, making it unclickable via a normal click forever
+(nothing else in the UI ever moves a freshly-created node out of the way).
+This was a real latent bug in `addComponentAtCenter`, not something wrong
+with the floating card itself — the pinned-top row's layout-shifting side
+effect had just been accidentally covering for it the whole time. Fixed at
+the actual source, not by special-casing the toolbar: `createNodeFromDrop`
+(the single entry point both click-add and drag-drop funnel through) now
+nudges the target point diagonally in the same 24px steps
+`duplicateSelection` already uses for its own copies, but only while the
+candidate box would still cover an *existing* node's own center point —
+not merely "somewhat close by," so intentionally tight, deliberate
+placements are untouched. General lesson: when two independent behaviors
+combine to produce correct-looking output, changing either one on its own
+can silently unmask a bug the *other* one was covering for — worth
+specifically re-testing "do the same thing twice in a row without moving
+anything in between" whenever a layout-affecting side effect (a panel
+resizing shared layout, a scroll position, anything with a stateful
+side-effect beyond its own obvious job) is removed or changed.
+
 ## Details panel (`panel/detailsPanel.js`)
 
 Opened via a node's ⓘ button or right-click "Open details" (both fire a
@@ -759,6 +963,31 @@ label is appended as a sibling of `.node-body`, directly under the `.node`
 root (`updateExternalLabel()`), positioned with `position: absolute`
 relative to it — appending it *inside* `.node-body` would clip it, since
 by definition it needs to render outside the shape's box.
+
+### Borders on clip-path shapes (diamond, hexagon)
+
+A plain CSS `border` doesn't follow a `clip-path` polygon's actual outline
+— the border box underneath is still a rectangle, so the clip just crops
+that rectangle's border unevenly along the diagonal edges (thin or missing
+at points, uneven thickness on angled edges) instead of a border that hugs
+the visible shape. `css/node.css` fakes it with two nested clipped layers
+instead, the same trick an SVG stroked polygon achieves natively: the outer
+`.node-body` itself becomes the "stroke" layer — filled with the border
+color and clipped to the full polygon — and a `::before` pseudo-element
+inset by the border width sits on top as the "fill" layer, `clip-path:
+inherit`-ing the *same* polygon coordinates. Since a polygon's percentages
+are relative to whichever box is being clipped, the identical coordinates
+on the smaller, inset pseudo-element naturally produce a proportionally
+smaller, centered inner shape — no separate math needed for the inner
+outline. Real content (icon/label/chips) are normal-flow children of
+`.node-body`, so they still paint on top of the `::before` "fill" layer
+without any `z-index` (a pseudo-element without its own stacking context
+always paints behind subsequent normal-flow content). The colors/width feed
+in via `--node-fill`/`--node-stroke`/`--node-border-width` custom
+properties (`node.js#updateNodeEl` sets them on `.node-body` alongside the
+inline `border-*` properties every other shape relies on directly) — a
+pseudo-element can't be targeted from JS directly, but it can read a
+`var(--...)` custom property set as an inline style on its real parent.
 
 ## Security notes
 

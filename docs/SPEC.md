@@ -147,6 +147,10 @@ afterwards via the toolbar style editor / details panel:
   always predictable, and per-component customization after that remains
   a normal single-node edit.
 
+The same modal also has a "Style editor" section with a **display mode**
+selector (`floating` / `pinned-top` / `pinned-bottom`) that picks the
+default for the toolbar's contextual style-editor row — see 4.3.1.
+
 #### 4.2.6 Hiding a component category from the sidebar
 The same "🎛️" settings modal has a "Component library" section with a
 "Hide 'State Machines' components & templates" checkbox, for anyone who
@@ -235,6 +239,17 @@ already-attached sub-component is never re-suggested.
   outright, an explicit "done editing" action alongside clicking empty
   canvas or pressing Escape. Opening a new selection always starts
   expanded, regardless of how the previous one was left.
+- **Display mode**: the contextual row can show as a small **floating**
+  card next to whatever's selected (the default — see `js/toolbar/toolbar.js`
+  and 4.5), **pinned to the top** of the screen (in the toolbar's own flow,
+  the original always-on-top behavior), or **pinned to the bottom**. A
+  📌 button on the row's header toggles floating ↔ pinned-top; "Default
+  Settings" (4.5) picks which of the three the row starts in, including the
+  pinned-bottom option that button doesn't reach. Floating mode positions
+  itself just below (or, if there isn't room, above) the selection, clamped
+  to stay fully inside the canvas area so it never covers the toolbar,
+  sidebar, or details/AI review panel, and never slides back over the
+  selection itself.
 - **Duplicate together** (⧉ / Ctrl+D) and **delete together** (🗑️ / Delete)
   both act on the whole current selection — components, connectors, or a
   mix — in one step/undo entry.

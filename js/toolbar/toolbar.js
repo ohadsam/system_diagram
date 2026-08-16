@@ -16,13 +16,15 @@ import { createEmptyProject } from '../core/project.js';
 import { el, clear, rerenderPreservingUiState } from '../utils/dom.js';
 import {
   deleteSelection, duplicateSelection, groupSelection, ungroupSelection, selectionHasGroup, duplicateProjectAsNew,
+  getSelectionScreenRect,
 } from '../canvas/canvas.js';
 import { setMagicMode, isMagicModeActive } from '../canvas/connectorInteractions.js';
 import { getBaseToolMode, setToolMode, onToolModeChange } from '../canvas/toolMode.js';
+import { onViewportChange } from '../canvas/viewport.js';
 import { renderNodeStyleEditor } from './styleEditor.js';
 import { renderEdgeStyleEditor } from './arrowEditor.js';
 import { renderZoomControls } from './zoomControls.js';
-import { buildToolbarDropdown } from './toolbarDropdown.js';
+import { buildToolbarDropdown, onDropdownOpenChange } from './toolbarDropdown.js';
 import { exportProjectToFile, pickJSONFile, parseProjectFile } from '../io/fileIO.js';
 import { exportPNG } from '../io/exportImage.js';
 import { exportPDF } from '../io/exportPdf.js';
@@ -39,10 +41,12 @@ import { toggleAiReviewPanel } from '../panel/aiReviewPanel.js';
 import { openGenerateDesignModal } from '../modals/generateDesignModal.js';
 import { confirmAction } from '../modals/confirmModal.js';
 import { showToast } from '../utils/toast.js';
-import { readJSON, writeJSON } from '../io/storage.js';
 import { resetHints, areHintsEnabled, setHintsEnabled } from '../hints/hints.js';
+import { getUiPrefs, saveUiPrefs, onUiPrefsChange } from '../io/uiPrefs.js';
+import { onSuggestionsVisibilityChange } from '../canvas/suggestions.js';
 
 let contextRow = null;
+let toolbarRootEl = null;
 let undoBtn = null;
 let redoBtn = null;
 let deleteBtn = null;
@@ -52,9 +56,21 @@ let duplicateBtn = null;
 // hidden to shown, same convention as the details panel always opening
 // expanded for a newly opened component.
 let contextCollapsed = false;
+// The selection last passed to renderContextRow — kept so viewport pan/zoom
+// and window-resize triggers (which don't carry a selection of their own)
+// can still reposition the floating row against whatever's still selected.
+let lastSelection = { nodeIds: [], edgeIds: [] };
+// Whether any toolbar dropdown panel (File/Create/Tools/Help) is currently
+// open — floating mode hides itself while true (see
+// updateFloatingDropdownGate) rather than risk visually covering, or being
+// covered by, that other floating panel.
+let anyDropdownOpen = false;
+
+const EDGE_MARGIN = 8;
 
 export function initToolbar(root) {
   root.classList.add('toolbar');
+  toolbarRootEl = root;
 
   const row1 = el('div', { class: 'toolbar-row toolbar-row-main' });
   row1.appendChild(buildBrand());
@@ -70,14 +86,52 @@ export function initToolbar(root) {
   row1.appendChild(buildToolbarDropdown('Help', '❓', 'Help: user guide, hints, what\'s new', buildHelpGroupButtons()));
   root.appendChild(row1);
 
+  // Not appended anywhere yet — mountContextRow() (inside renderContextRowInner)
+  // moves this single persistent element into whichever container matches
+  // the current display mode (pinned to #toolbar, pinned as the last child
+  // of #app, or floating directly under document.body) — see "Contextual
+  // style-editor row" in docs/ARCHITECTURE.md for why one element is reused
+  // across modes instead of building a separate one per mode.
   contextRow = el('div', { class: 'toolbar-row toolbar-row-context', hidden: true });
-  root.appendChild(contextRow);
 
   store.subscribe('selection', renderContextRow);
   store.subscribe('change', () => {
     renderContextRow(store.getSelection());
     syncHistoryButtons();
   });
+  // Floating mode needs repositioning on its own triggers beyond selection/
+  // data changes: panning/zooming moves the selected node on screen without
+  // any store change, and the window can simply be resized.
+  onViewportChange(() => positionFloatingRow());
+  window.addEventListener('resize', () => positionFloatingRow());
+  // #canvas-viewport itself can also resize without the window doing so —
+  // opening/closing the details or AI review panel animates its width over
+  // 180ms (see css/layout.css), and neither panel has any pub-sub of its
+  // own to hook (they're plain classList.toggle('open') with no event).
+  // A ResizeObserver on the one element positionFloatingRow's bounds
+  // actually depend on is the general fix: it fires for *any* reason that
+  // element's box changes — repeatedly during the panel's own open/close
+  // transition too, which keeps the card tracking smoothly instead of
+  // jumping once at the end — rather than chasing down every individual
+  // trigger (a stale-position bug caught by "paste an AI response" timing
+  // out because the floating card, positioned before the AI panel opened
+  // and shrank the canvas, silently drifted over that panel's own button).
+  if (window.ResizeObserver) {
+    const canvasViewportEl = document.getElementById('canvas-viewport');
+    if (canvasViewportEl) new ResizeObserver(() => positionFloatingRow()).observe(canvasViewportEl);
+  }
+  // The Default Settings modal can also change the mode directly.
+  onUiPrefsChange(() => renderContextRow(store.getSelection()));
+  onDropdownOpenChange((open) => { anyDropdownOpen = open; updateFloatingDropdownGate(); });
+  // The "Smart Suggestions" banner (canvas/suggestions.js) is its own
+  // `position: fixed` element pinned to the bottom-center of the screen,
+  // shown right after placing a component with a curated companion — it
+  // can appear (and disappear again after ~9s, or a self-dismiss) without
+  // any selection/data/canvas-size change of its own, so it needs its own
+  // reposition trigger too; see positionFloatingRow's own bounds-shrinking
+  // for how this is actually used.
+  onSuggestionsVisibilityChange(() => positionFloatingRow());
+
   renderContextRow(store.getSelection());
   syncHistoryButtons();
 }
@@ -226,13 +280,13 @@ function buildCreateGroupButtons() {
 }
 
 function buildToolsGroupButtons() {
-  const prefs = readJSON('prefs', {});
+  const prefs = getUiPrefs();
   const gridBtn = el('button', {
     type: 'button', class: 'btn', title: 'Toggle grid background', text: '▦ Toggle Grid',
     onClick: () => {
       const next = !document.querySelector('.canvas-viewport')?.classList.contains('show-grid');
       document.querySelector('.canvas-viewport')?.classList.toggle('show-grid', next);
-      writeJSON('prefs', { ...readJSON('prefs', {}), showGrid: next });
+      saveUiPrefs({ showGrid: next });
       gridBtn.classList.toggle('active', next);
     },
   });
@@ -285,6 +339,114 @@ function contextSummary(selection, state) {
   return parts.join(', ');
 }
 
+/** Moves the single persistent `contextRow` element into whichever
+ * container matches `mode` — a no-op if it's already there. 'pinned-top'
+ * lives inside #toolbar (original, in-flow behavior); 'pinned-bottom' is
+ * appended as the last child of #app, which (being a flex column) puts it
+ * below .app-body exactly the way #toolbar sits above it, shrinking
+ * .app-body from the bottom instead of the top; 'floating' is appended
+ * straight to document.body for `position: fixed` viewport coordinates,
+ * the same host contextMenu.js/toolbarDropdown.js already use for their
+ * own floating UI. */
+function mountContextRow(mode) {
+  const targetParent = mode === 'pinned-top' ? toolbarRootEl
+    : mode === 'pinned-bottom' ? document.getElementById('app')
+      : document.body;
+  if (targetParent && contextRow.parentElement !== targetParent) targetParent.appendChild(contextRow);
+}
+
+/** Floating mode only: positions `contextRow` (already mounted + built)
+ * directly below or above the current selection's on-screen bounding box —
+ * whichever side has more room in #canvas-viewport (not the full window,
+ * so it can never cover the toolbar, sidebar, details panel or AI review
+ * panel, which all sit outside that element). `top` is always computed
+ * *away* from the anchor on the chosen side and is deliberately never
+ * clamped back toward it afterwards — an earlier version clamped both
+ * candidates into the canvas bounds independently and fell back to
+ * whichever came first if neither fit perfectly, which could still slide
+ * the card back over the very selection it's next to (e.g. a "rows"-shape
+ * node tall enough that neither the below nor above candidate fully fit —
+ * see docs/AI_AGENT_GUIDE.md). If the card doesn't fully fit vertically
+ * it's still placed at the correct offset from the anchor and simply
+ * scrolls internally instead (see .toolbar-row-context.floating's
+ * max-height/overflow-y in css/toolbar.css) rather than being pulled back
+ * on-screen at the cost of covering the anchor. Only the horizontal axis is
+ * clamped, since sliding left/right can never cause that overlap. No-op
+ * outside floating mode, while hidden, or if nothing in the selection still
+ * has a live DOM element. */
+function positionFloatingRow() {
+  if (getUiPrefs().contextRowMode !== 'floating' || contextRow.hidden) return;
+  const anchor = getSelectionScreenRect(lastSelection.nodeIds, lastSelection.edgeIds);
+  if (!anchor) return;
+  const boundsEl = document.getElementById('canvas-viewport');
+  const bounds = boundsEl ? boundsEl.getBoundingClientRect() : { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight };
+
+  const spaceBelow = bounds.bottom - anchor.bottom;
+  const spaceAbove = anchor.top - bounds.top;
+  // Biased toward "below" — not just "whichever side has more room" — since
+  // "above" pushes the card's *top* edge further up the canvas the taller
+  // the card is, which risks reaching content well away from the anchor
+  // itself (e.g. another node positioned above it). "Below" only grows
+  // downward from a fixed point right under the anchor, so it can never do
+  // that. MIN_BELOW is just enough to show the row's own header even when
+  // "above" would technically have more total room.
+  const MIN_BELOW = 60;
+  const below = spaceBelow >= MIN_BELOW || spaceBelow >= spaceAbove;
+
+  // Cap the card's own rendered height to whatever room actually exists in
+  // the chosen direction *before* reading its height for the position math
+  // below — a static CSS max-height doesn't help here, since `top` is never
+  // clamped back toward the anchor (seeing why is gotcha #4 item 2 in
+  // docs/ARCHITECTURE.md): a naturally-tall card (e.g. a mixed node+edge
+  // selection) could still render well past the bottom of the window with
+  // `top` alone unclamped. Overflow content scrolls internally instead
+  // (`overflow-y: auto`, already set in css/toolbar.css) rather than the
+  // card extending off-screen. EDGE_MARGIN*2 leaves room at both ends of
+  // the available space; a sane floor keeps this from collapsing to
+  // nothing on a very cramped viewport.
+  let available = below ? spaceBelow : spaceAbove;
+  // The "Smart Suggestions" banner (canvas/suggestions.js) is a separate
+  // `position: fixed` element pinned to the bottom-center of the screen,
+  // outside #canvas-viewport's own box. Only trims the *height cap* here,
+  // not `spaceBelow` itself above — folding it into `spaceBelow` would also
+  // change the below-vs-above decision, undermining the "below" bias this
+  // function relies on to avoid reaching other content (the banner only
+  // matters once "below" is already chosen and the card is heading toward
+  // the bottom of the screen; it's irrelevant to an "above" placement).
+  if (below) {
+    // Query by the `hidden` attribute, not the `.visible` class — the
+    // class is only added on the next animation frame (see suggestions.js,
+    // for its own fade/slide-in transition), but `onSuggestionsVisibilityChange`
+    // notifies synchronously right after `hidden` is cleared. Querying
+    // `.visible` here would miss a banner that just appeared, since this
+    // runs *before* that class exists. The element is already at (or a
+    // negligible ~12px from) its final layout position the moment `hidden`
+    // clears, since only opacity/transform animate in, not layout.
+    const banner = document.querySelector('.suggestion-banner:not([hidden])');
+    if (banner) available = Math.min(available, banner.getBoundingClientRect().top - EDGE_MARGIN - anchor.bottom);
+  }
+  contextRow.style.maxHeight = `${Math.max(120, available - EDGE_MARGIN * 2)}px`;
+  const rowRect = contextRow.getBoundingClientRect();
+
+  const top = below ? anchor.bottom + EDGE_MARGIN : anchor.top - rowRect.height - EDGE_MARGIN;
+  const maxLeft = bounds.right - rowRect.width - EDGE_MARGIN;
+  const left = Math.max(bounds.left + EDGE_MARGIN, Math.min(anchor.left, maxLeft));
+  contextRow.style.left = `${left}px`;
+  contextRow.style.top = `${top}px`;
+}
+
+/** Floating mode visually hides itself (but stays mounted/laid out) while
+ * any toolbar dropdown panel is open — both are independently-positioned
+ * floating UI, and a dropdown's contents (e.g. a tall File-group panel) can
+ * legitimately extend down over the same screen region as the style card.
+ * Reappears the moment the dropdown closes. No-op in the pinned modes,
+ * which never overlap a dropdown panel since they stay inside the normal
+ * page flow. */
+function updateFloatingDropdownGate() {
+  const mode = getUiPrefs().contextRowMode;
+  contextRow.classList.toggle('dropdown-suppressed', mode === 'floating' && anyDropdownOpen);
+}
+
 // The context row rebuilds its entire DOM on every store 'change' event
 // (including the one dispatched by each keystroke in one of its own text/
 // number/color fields, via renderNodeStyleEditor/renderEdgeStyleEditor) —
@@ -297,6 +459,17 @@ function renderContextRow(selection) {
 }
 
 function renderContextRowInner(selection) {
+  lastSelection = selection;
+  const mode = getUiPrefs().contextRowMode;
+  mountContextRow(mode);
+  contextRow.classList.remove('floating', 'pinned-top', 'pinned-bottom');
+  contextRow.classList.add(mode);
+  updateFloatingDropdownGate();
+  // positionFloatingRow sets an inline max-height (see its own comment for
+  // why) that would otherwise linger and clip a pinned row's content after
+  // switching away from floating.
+  if (mode !== 'floating') contextRow.style.maxHeight = '';
+
   clear(contextRow);
   const hasNodes = selection.nodeIds.length > 0;
   const hasEdges = selection.edgeIds.length > 0;
@@ -308,14 +481,29 @@ function renderContextRowInner(selection) {
   }
   contextRow.classList.toggle('collapsed', contextCollapsed);
 
-  // Header: what's selected, a collapse toggle to shrink this row down to
-  // just this slim strip (freeing up canvas space — most useful on
-  // mobile, where the full field grid can otherwise fill most of the
-  // screen), and a "done editing" close button, since until now the only
-  // way to dismiss this row was deselecting by clicking elsewhere or
-  // pressing Escape — not an obvious affordance, especially on touch.
+  // Header: what's selected, a pin/float toggle (mode === 'floating' shows
+  // "pin to top"; either pinned mode shows "unpin" back to floating — the
+  // Default Settings modal is the only way to reach 'pinned-bottom'
+  // specifically, this button only ever toggles floating <-> pinned-top),
+  // a collapse toggle to shrink this row down to just this slim strip
+  // (freeing up canvas space — most useful on mobile, where the full field
+  // grid can otherwise fill most of the screen), and a "done editing"
+  // close button, since until now the only way to dismiss this row was
+  // deselecting by clicking elsewhere or pressing Escape — not an obvious
+  // affordance, especially on touch.
   const header = el('div', { class: 'toolbar-context-header' });
   header.appendChild(el('span', { class: 'toolbar-context-summary', text: contextSummary(selection, store.getState()) }));
+  header.appendChild(mode === 'floating'
+    ? el('button', {
+      type: 'button', class: 'btn btn-icon toolbar-context-pin',
+      text: '📌', title: 'Pin to top of screen', 'aria-label': 'Pin style editor to top of screen',
+      onClick: () => saveUiPrefs({ contextRowMode: 'pinned-top' }),
+    })
+    : el('button', {
+      type: 'button', class: 'btn btn-icon toolbar-context-pin active',
+      text: '📌', title: 'Unpin (float near selection instead)', 'aria-label': 'Unpin style editor, float near the selection instead',
+      onClick: () => saveUiPrefs({ contextRowMode: 'floating' }),
+    }));
   header.appendChild(el('button', {
     type: 'button', class: 'btn btn-icon toolbar-context-collapse-toggle',
     text: contextCollapsed ? '‹' : '›',
@@ -329,7 +517,10 @@ function renderContextRowInner(selection) {
     onClick: () => store.select([], []),
   }));
   contextRow.appendChild(header);
-  if (contextCollapsed) return;
+  if (contextCollapsed) {
+    if (mode === 'floating') positionFloatingRow();
+    return;
+  }
 
   const body = el('div', { class: 'toolbar-context-body' });
   const controls = el('div', { class: 'toolbar-context-controls' });
@@ -382,4 +573,5 @@ function renderContextRowInner(selection) {
   actions.appendChild(deleteBtn);
   body.appendChild(actions);
   contextRow.appendChild(body);
+  if (mode === 'floating') positionFloatingRow();
 }

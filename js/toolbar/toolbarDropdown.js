@@ -20,11 +20,27 @@ import { el } from '../utils/dom.js';
 const EDGE_MARGIN = 8;
 
 let openPanel = null; // { root, close } of the currently open dropdown, if any
+const openChangeListeners = new Set();
+
+/** Lets other floating UI (toolbar.js's contextual style row) know when any
+ * dropdown panel is open, so it can get out of the way instead of risking
+ * covering it (or being covered by it) on screen — see toolbar.js's
+ * "dropdown-suppressed" handling. */
+export function onDropdownOpenChange(fn) {
+  openChangeListeners.add(fn);
+  return () => openChangeListeners.delete(fn);
+}
+
+function notifyOpenChange() {
+  const isOpen = !!openPanel;
+  for (const fn of openChangeListeners) fn(isOpen);
+}
 
 function closeOpenPanel() {
   if (openPanel) {
     openPanel.close();
     openPanel = null;
+    notifyOpenChange();
   }
 }
 
@@ -90,6 +106,7 @@ export function buildToolbarDropdown(label, icon, title, buttons) {
             trigger.classList.remove('active');
           },
         };
+        notifyOpenChange();
       },
     },
     [

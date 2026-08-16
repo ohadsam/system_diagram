@@ -25,6 +25,41 @@
 .node[data-shape="circle"] .node-body { border-radius: 50%; }
 .node[data-shape="diamond"] .node-body { clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); border-radius: 0; }
 .node[data-shape="hexagon"] .node-body { clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%); border-radius: 0; }
+
+/* A plain CSS `border` doesn't follow clip-path's polygon outline — the
+   border box underneath is still a rectangle, so clip-path just crops that
+   rectangle's border unevenly along the diagonal edges (thin/missing at
+   points, uneven thickness on angled edges) instead of a border that hugs
+   the actual visible shape. Faked instead with two nested clipped layers:
+   .node-body itself becomes the "stroke" layer (filled with the border
+   color, clipped to the full polygon — same trick an SVG stroked polygon
+   achieves natively), and a ::before pseudo-element inset by the border
+   width sits on top as the "fill" layer, `clip-path: inherit`-ing the same
+   polygon — percentages in a polygon are relative to whichever box is
+   being clipped, so the identical coordinates on the smaller, inset
+   pseudo-element naturally produce a proportionally smaller, centered
+   inner shape. Real content (icon/label/chips) are normal-flow children of
+   .node-body, so they still paint on top of the ::before "fill" layer
+   (pseudo-elements without an explicit stacking context always paint
+   behind subsequent normal-flow content) without needing z-index. Colors/
+   width come from the --node-fill/--node-stroke/--node-border-width custom
+   properties node.js sets alongside the (here-unused) inline border-*
+   properties every other shape relies on directly. */
+.node[data-shape="diamond"] .node-body,
+.node[data-shape="hexagon"] .node-body {
+  background: var(--node-stroke) !important;
+  border: none !important;
+  position: relative;
+}
+
+.node[data-shape="diamond"] .node-body::before,
+.node[data-shape="hexagon"] .node-body::before {
+  content: '';
+  position: absolute;
+  inset: var(--node-border-width, 2px);
+  background: var(--node-fill);
+  clip-path: inherit;
+}
 .node[data-shape="cylinder"] .node-body { border-radius: 50% 50% 6px 6px / 20% 20% 8% 8%; padding-top: 16px; }
 .node[data-shape="cloud"] .node-body { border-radius: 46% 54% 54% 46% / 60% 55% 45% 40%; }
 .node[data-shape="note"] .node-body { border-radius: 2px; transform: rotate(-1deg); box-shadow: var(--shadow-md); }

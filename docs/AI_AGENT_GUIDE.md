@@ -76,6 +76,8 @@ this repo" quick-start.
 | Change Live Replication's sync rules                | `js/core/replication.js` (`syncReplication`, `buildReplicationPair`) — pure, DOM-free, called from `js/core/store.js#dispatch`/`loadProject`. See "Common pitfalls" below before touching this. |
 | Change the Replicate create/join/break UI            | `js/modals/replicationModal.js` (UI) + `js/canvas/canvas.js` (`createReplicationPairFromSelection`, `addSelectionToReplicationSide`, `breakReplicationPair`, `getReplicationInfoForNode`) |
 | Add an AWS cluster/node/pod-style component or an HA design pattern | `js/data/categories/aws.js` (plain `c(...)`) or `js/data/categories/design-patterns.js` (`definePattern(...)`) |
+| Change the contextual style row's floating/pinned-top/pinned-bottom display mode | `js/io/uiPrefs.js` (storage, `CONTEXT_ROW_MODES`) + `js/toolbar/toolbar.js` (`mountContextRow`, `positionFloatingRow`, the 📌 pin button) + `js/modals/defaultSettingsModal.js` ("Style editor" section, the only way to reach `pinned-bottom`). See "Common pitfalls" below before touching `positionFloatingRow`. |
+| Add a border to a new clip-path shape (like diamond/hexagon)      | `css/node.css` — a plain `border` won't follow `clip-path`; see the double-layer `::before` technique documented right above `.node[data-shape="diamond"] .node-body` and in `docs/ARCHITECTURE.md`'s "Borders on clip-path shapes" |
 
 ## Running things locally
 
@@ -178,12 +180,52 @@ npm test
   sidebar and/or canvas will block clicks on whatever it visually covers**
   — this isn't just a look-and-feel tradeoff, it broke real e2e tests
   (connecting to a second component, duplicating/grouping/deleting a
-  selection) when tried for the toolbar's contextual row. If a future
-  request asks for "make X float instead of pushing the layout," check
-  whether X can actually overlap content the user still needs to interact
-  with before reaching for `position: absolute` — an animation on the
-  in-flow layout change is a safer default for anything that shares screen
-  space with the canvas or sidebar.
+  selection) when a *full-width* floating overlay was tried for the
+  toolbar's contextual row, and it broke a whole different set of tests
+  again later when a *smaller*, selection-anchored floating card (its
+  `'floating'` display mode — see docs/ARCHITECTURE.md's "Contextual
+  style-editor row" gotcha #4) still clamped only to the window instead of
+  the canvas area. If a future request asks for "make X float instead of
+  pushing the layout": clamp its position to the specific container it's
+  allowed to cover (e.g. `#canvas-viewport`'s own rect), not the whole
+  window — that excludes chrome like the toolbar/sidebar/panels for free,
+  since they're siblings outside that box — and run the full e2e suite
+  (not just a visual check) before considering it done; overlap bugs like
+  this one show up as click-interception timeouts, not visual glitches.
+- **A "pick whichever candidate fits, else fall back to a naive clamp"
+  strategy for positioning floating UI near an anchor needs the *same*
+  anchor-avoidance guarantee in its fallback branch, not just in the
+  primary candidates.** `positionFloatingRow()`'s first version tried
+  below/above/left/right placements and fell back to a plain
+  bounds-clamped "below" if none fit perfectly — that fallback could still
+  slide the card back on top of its own anchor when the card was taller
+  than the available room on every side (reproduced with the "rows" shape:
+  its own "+ Add row" button ended up hidden underneath the clamped-back
+  card). Fixed by always computing position *away* from the anchor on
+  whichever side has more room, and never clamping back toward it — if it
+  doesn't fully fit, it scrolls internally instead (`overflow-y: auto` +
+  `max-height` already set for this on `.toolbar-row-context.floating`).
+- **Two independent behaviors can combine to hide a latent bug — changing
+  either one alone can silently unmask it.** `canvas.js#addComponentAtCenter`
+  always places a new node at `#canvas-viewport`'s exact current center, so
+  clicking the same sidebar item twice always landed both nodes in the
+  identical spot — except this had never actually been reachable, because
+  selecting the first newly-added node grew the (then always-pinned-top)
+  contextual row inside `#toolbar`, which shrank `#canvas-viewport` and
+  shifted its center before the second click landed. Making the row
+  `'floating'` by default (no longer resizing anything) removed that
+  accidental side effect and immediately exposed the real bug underneath:
+  two components landing in the exact same spot, the newer one's higher
+  `zIndex` permanently hiding the first one's own center — the exact point
+  a plain click targets — behind it. Fixed at the actual source
+  (`createNodeFromDrop` now nudges a new node's spot when it would cover an
+  existing node's center, see docs/ARCHITECTURE.md gotcha #5), not by
+  reintroducing the toolbar resize. The generalizable habit: when removing
+  or changing a layout-affecting side effect (something resizes shared
+  space, moves a scroll position, etc.), specifically re-test "do the exact
+  same thing twice in a row without moving anything in between" — that's
+  the scenario an accidental workaround is most likely to have been
+  covering for.
 - If a modal's content can change size between renders (a multi-step
   wizard, an expand/collapse section), be aware `modal.js`'s backdrop-click
   detection uses `e.target === dialog` specifically because it's

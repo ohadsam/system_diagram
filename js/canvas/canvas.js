@@ -284,16 +284,76 @@ export function focusEdge(edgeId) {
   edgeElements.get(edgeId)?.focus({ preventScroll: true });
 }
 
+/** Screen-space (getBoundingClientRect) union bounding box of every
+ * currently-selected node/edge's DOM element — used by the toolbar's
+ * "floating" contextual style row (toolbar.js) to anchor itself next to
+ * whatever's selected instead of pinning to the top/bottom of the screen.
+ * Returns null if nothing in the selection has a live element (nothing
+ * selected, or ids referencing since-deleted items). */
+export function getSelectionScreenRect(nodeIds, edgeIds) {
+  const rects = [];
+  for (const id of nodeIds) {
+    const elRef = nodeElements.get(id);
+    if (elRef) rects.push(elRef.getBoundingClientRect());
+  }
+  for (const id of edgeIds) {
+    const elRef = edgeElements.get(id);
+    if (elRef) rects.push(elRef.getBoundingClientRect());
+  }
+  if (!rects.length) return null;
+  const left = Math.min(...rects.map((r) => r.left));
+  const top = Math.min(...rects.map((r) => r.top));
+  const right = Math.max(...rects.map((r) => r.right));
+  const bottom = Math.max(...rects.map((r) => r.bottom));
+  return { left, top, right, bottom, width: right - left, height: bottom - top };
+}
+
 /** Looks up a component definition by id across both the built-in library and the user's custom "My Components". */
 export function resolveComponentDef(defId) {
   return getComponentById(defId) || getCustomComponents().find((c) => c.id === defId) || null;
 }
 
+/** Nudges `(x, y)` diagonally in fixed 24px steps (same cascade offset
+ * `duplicateSelection` already uses) while a same-sized box centered there
+ * would cover an existing node's own center point. Every repeat click of
+ * the same sidebar item (or a same-point drag-drop) would otherwise land
+ * the new node in *exactly* the same spot as the last one — and since the
+ * new node always gets the higher zIndex, its box then sits directly over
+ * the older node's own center, the exact point a plain click targets,
+ * making that older node permanently unreachable by a normal click (higher
+ * zIndex always wins, and nothing else in the UI moves a freshly-created
+ * node out of the way) — see docs/ARCHITECTURE.md's "Contextual
+ * style-editor row" for why this became reachable: 'floating' mode no
+ * longer resizes #canvas-viewport the way pinned-top incidentally did, so
+ * the click-to-add center point stopped shifting between clicks. A small
+ * partial overlap elsewhere is fine (real diagrams often place components
+ * close together) — this only cares about covering the *center* of an
+ * older node, which is what actually blocks a plain click on it. */
+function findClearCenter(x, y, w, h, existingNodes) {
+  const STEP = 24;
+  let cx = x;
+  let cy = y;
+  for (let i = 0; i < 50; i += 1) {
+    const left = cx - w / 2;
+    const top = cy - h / 2;
+    const covers = existingNodes.some((n) => {
+      const ncx = n.x + n.w / 2;
+      const ncy = n.y + n.h / 2;
+      return ncx > left && ncx < left + w && ncy > top && ncy < top + h;
+    });
+    if (!covers) break;
+    cx += STEP;
+    cy += STEP;
+  }
+  return { x: cx, y: cy };
+}
+
 export function createNodeFromDrop(defId, clientX, clientY) {
   const def = resolveComponentDef(defId);
   if (!def) return;
-  const canvasPoint = viewport.screenToCanvas(clientX, clientY);
   const state = store.getState();
+  const rawPoint = viewport.screenToCanvas(clientX, clientY);
+  const canvasPoint = findClearCenter(rawPoint.x, rawPoint.y, def.defaultSize.w, def.defaultSize.h, state.nodes);
   const node = createNode(def, canvasPoint.x - def.defaultSize.w / 2, canvasPoint.y - def.defaultSize.h / 2, {
     zIndex: nextZIndex(state),
     ...buildCreationOverrides(),

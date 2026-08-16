@@ -38,6 +38,24 @@ test('dragging a component from the sidebar onto the canvas creates a node', asy
   await expect.poll(() => nodeCount(page)).toBe(1);
 });
 
+test('adding several components by clicking the sidebar (without moving any of them) still leaves every one individually clickable', async ({ page }) => {
+  await addComponentByName(page, 'MySQL');
+  await addComponentByName(page, 'PostgreSQL');
+  await addComponentByName(page, 'Redis');
+  await expect.poll(() => nodeCount(page)).toBe(3);
+
+  const nodes = page.locator('.node');
+  // Each click-added node lands at the same canvas-center point by default;
+  // canvas.js#createNodeFromDrop nudges a new node's spot diagonally when
+  // it would otherwise land exactly on top of an existing one (higher
+  // zIndex always wins), so every node's own center stays reachable by a
+  // plain click even though nobody dragged any of them apart.
+  for (let i = 0; i < 3; i += 1) {
+    await nodes.nth(i).click({ timeout: 5000 });
+    await expect(nodes.nth(i)).toHaveClass(/selected/);
+  }
+});
+
 test('clicking a sidebar item adds it centered on the canvas (touch-friendly path)', async ({ page }) => {
   await addComponentByName(page, 'S3');
   await expect.poll(() => nodeCount(page)).toBe(1);

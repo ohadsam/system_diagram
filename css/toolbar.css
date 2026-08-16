@@ -12,15 +12,21 @@
   min-height: var(--toolbar-height);
 }
 
-/* Stays in normal document flow (a floating/absolute overlay was tried and
-   reverted — it visually covered sidebar items and canvas nodes underneath
-   it, which are still meant to be clickable while something is selected,
-   e.g. adding a second component to connect to the first one). A fade+slide
-   animation on appearing softens what would otherwise be an instant, jarring
-   size jump when the canvas shrinks to make room for this row. */
+/* Base styles shared by all three display modes — see
+   toolbar.js#mountContextRow/positionFloatingRow and docs/ARCHITECTURE.md
+   "Contextual style-editor row" for how/why the same element moves between
+   containers instead of building one per mode. A full-width, always-on-top
+   floating overlay was tried first for what's now 'floating' mode and
+   reverted — it covered sidebar items and canvas nodes underneath it that
+   were still meant to be clickable. 'floating' mode instead anchors a much
+   smaller card directly next to the current selection (see
+   positionFloatingRow), not a full-width bar, which avoids that problem;
+   'pinned-top'/'pinned-bottom' are the original in-flow, full-width
+   behavior, just anchored to the opposite edge of the screen for the
+   latter. A fade+slide animation on appearing softens what would
+   otherwise be an instant, jarring size change in the pinned modes. */
 .toolbar-row-context {
   background: var(--color-primary-soft);
-  border-bottom: 1px solid #C7D2FE;
   flex-direction: column;
   flex-wrap: nowrap; /* .toolbar-row sets flex-wrap: wrap for the row-direction main row — combined
                          with flex-direction:column here that turns into a multi-column layout
@@ -36,8 +42,35 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+.toolbar-row-context.pinned-top {
+  border-bottom: 1px solid #C7D2FE;
+}
+
+.toolbar-row-context.pinned-bottom {
+  border-top: 1px solid #C7D2FE;
+}
+
+.toolbar-row-context.floating {
+  position: fixed;
+  z-index: var(--z-panel);
+  max-width: min(92vw, 560px);
+  max-height: calc(100vh - var(--space-4) * 2);
+  overflow-y: auto;
+  border: 1px solid #C7D2FE;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+}
+
 .toolbar-row-context.collapsed {
   gap: 0;
+}
+
+/* See toolbar.js#updateFloatingDropdownGate — kept mounted/laid out (so
+   position math stays valid once it reappears) but not visible or
+   clickable while a toolbar dropdown panel is open. */
+.toolbar-row-context.floating.dropdown-suppressed {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .toolbar-context-header {
@@ -61,9 +94,16 @@
   white-space: nowrap;
 }
 
+.toolbar-context-pin,
 .toolbar-context-collapse-toggle,
 .toolbar-context-done {
   flex: 0 0 auto;
+}
+
+.toolbar-context-pin.active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
 }
 
 .toolbar-context-body {

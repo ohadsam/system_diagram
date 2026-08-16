@@ -8,8 +8,15 @@ import { field, checkbox, selectInput } from '../utils/formControls.js';
 import { TEXT_POSITIONS, SUBCOMPONENTS_DISPLAY_MODES } from '../core/project.js';
 import { getNodeDefaults, saveNodeDefaults } from '../io/nodeDefaults.js';
 import { getLibrarySettings, saveLibrarySettings } from '../io/librarySettings.js';
+import { getUiPrefs, saveUiPrefs, CONTEXT_ROW_MODES } from '../io/uiPrefs.js';
 import * as store from '../core/store.js';
 import { showToast } from '../utils/toast.js';
+
+const CONTEXT_ROW_MODE_LABELS = {
+  floating: 'Floating — pops up next to whatever\'s selected',
+  'pinned-top': 'Pinned to top of the screen',
+  'pinned-bottom': 'Pinned to bottom of the screen',
+};
 
 const TEXT_POSITION_LABELS = {
   center: 'Center (inside)',
@@ -26,6 +33,7 @@ const SUBCOMPONENTS_DISPLAY_LABELS = {
 export function openDefaultSettingsModal() {
   const model = { ...getNodeDefaults() };
   const libraryModel = { ...getLibrarySettings() };
+  const uiPrefsModel = { ...getUiPrefs() };
 
   openModal({
     title: 'Default component settings',
@@ -38,6 +46,14 @@ export function openDefaultSettingsModal() {
       form.appendChild(checkbox(model.showIcon, (v) => { model.showIcon = v; }, 'Show icon'));
       form.appendChild(field('Text position', selectInput(TEXT_POSITIONS, model.textPosition, (v) => { model.textPosition = v; }, TEXT_POSITION_LABELS)));
       form.appendChild(field('Sub-components display', selectInput(SUBCOMPONENTS_DISPLAY_MODES, model.subComponentsDisplay, (v) => { model.subComponentsDisplay = v; }, SUBCOMPONENTS_DISPLAY_LABELS)));
+
+      form.appendChild(el('h3', { class: 'modal-subheading', text: 'Style editor' }));
+      form.appendChild(field('When a component/connector is selected, show its style editor', selectInput(
+        CONTEXT_ROW_MODES,
+        uiPrefsModel.contextRowMode,
+        (v) => { uiPrefsModel.contextRowMode = v; saveUiPrefs(uiPrefsModel); },
+        CONTEXT_ROW_MODE_LABELS,
+      )));
 
       form.appendChild(el('h3', { class: 'modal-subheading', text: 'Component library' }));
       form.appendChild(checkbox(libraryModel.hideStateMachines, (v) => { libraryModel.hideStateMachines = v; saveLibrarySettings(libraryModel); }, 'Hide "State Machines" components & templates from the sidebar'));

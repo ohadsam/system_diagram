@@ -152,6 +152,52 @@ user-facing fix or feature, alongside this changelog.
   value `'magic'`, also chooseable for any existing connector from its
   style editor.
 
+## v1.12.0 (2026-08-16)
+
+Two more reported bugs: the contextual style row's canvas-jump complaint got a real alternative
+(not just a smoother transition), and diamond/hexagon shapes had a longstanding border bug:
+
+- **New: floating/pinned-top/pinned-bottom display modes for the contextual style row.**
+  `js/io/uiPrefs.js` (new) stores the mode under the pre-existing `'prefs'` localStorage key.
+  `toolbar.js#mountContextRow` moves the single persistent `.toolbar-row-context` element between
+  `#toolbar` (pinned-top, the original in-flow behavior), the last child of `#app` (pinned-bottom,
+  shrinking `.app-body` from the bottom the way `#toolbar` shrinks it from the top), or
+  `document.body` (floating, `position: fixed`). A 📌 button on the row's header toggles floating
+  ↔ pinned-top; "Default Settings" → "Style editor" picks the default, including pinned-bottom.
+  `positionFloatingRow()` anchors the floating card next to the current selection, clamped to
+  `#canvas-viewport`'s own rect (not the window) so it can never cover the toolbar, sidebar, or
+  details/AI review panel, and computed away from the selection's own rect so it can never slide
+  back over it either — the card scrolls internally if it doesn't fully fit rather than being
+  clamped back into an overlap. Hides itself while a toolbar dropdown panel is open
+  (`toolbarDropdown.js#onDropdownOpenChange`) since that's independently-positioned floating UI
+  too, and re-tracks the selection via a `ResizeObserver` on `#canvas-viewport` itself (catches
+  the details/AI review panels resizing it on open/close, which have no pub-sub of their own),
+  with its own height dynamically capped to whatever room actually exists so it can never render
+  past the bottom of the window either, and shrinks its own usable bottom edge while the "Smart
+  Suggestions" banner is visible (`canvas/suggestions.js#onSuggestionsVisibilityChange`) since
+  that's yet another independently-positioned `position: fixed` element outside
+  `#canvas-viewport`'s box. See `docs/ARCHITECTURE.md`'s "Contextual style-editor row" gotcha #4
+  for the six overlap/positioning bugs a first pass shipped (window-only clamping; a fallback
+  clamp that could still slide back over the anchor; a "more room wins" side choice that could
+  still reach unrelated content; missing panel-resize triggers; an uncapped height reaching past
+  the window; the Smart Suggestions banner) and how each was fixed.
+- **Fixed: adding two components by clicking the sidebar (without moving either one) could make
+  the first one permanently unclickable.** Not actually a new bug — a latent issue in
+  `canvas.js#addComponentAtCenter` that the old always-pinned-top row had been accidentally
+  masking (selecting a newly-added node grew the toolbar, which shifted `#canvas-viewport`'s
+  center before the next click-add landed). `'floating'` mode doesn't resize anything, so that
+  accidental workaround went away and every click-added component started landing in the exact
+  same spot as the last. `createNodeFromDrop` now nudges a new node's position diagonally
+  (24px steps, same cascade `duplicateSelection` uses) only while it would otherwise cover an
+  existing node's own center point — see `docs/ARCHITECTURE.md` gotcha #5.
+- **Fixed: diamond and hexagon shapes' border didn't follow their actual outline.** A plain CSS
+  `border` doesn't follow `clip-path`'s polygon — the border box underneath is still a rectangle,
+  so the clip crops that rectangle's border unevenly instead of hugging the visible shape. Fixed
+  with a double-layer technique in `css/node.css` (the outer `.node-body` becomes the "stroke"
+  layer, a `::before` pseudo-element inset by the border width becomes the "fill" layer, both
+  sharing the same `clip-path` polygon) — see `docs/ARCHITECTURE.md`'s "Borders on clip-path
+  shapes" section for the full mechanism.
+
 ## v1.11.0 (2026-08-16)
 
 Batch of reported bugs, all traced to root cause and fixed, plus a new details-panel resize handle:

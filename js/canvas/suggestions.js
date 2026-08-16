@@ -22,6 +22,21 @@ const AUTO_HIDE_MS = 9000;
 
 let bannerEl = null;
 let hideTimer = null;
+const visibilityListeners = new Set();
+
+/** Lets other floating UI (toolbar.js's contextual style row, in
+ * 'floating' mode) know when this banner becomes visible/hidden, since
+ * both are independently `position: fixed` and can otherwise end up
+ * overlapping — the banner always sits bottom-center regardless of
+ * anything else on screen. */
+export function onSuggestionsVisibilityChange(fn) {
+  visibilityListeners.add(fn);
+  return () => visibilityListeners.delete(fn);
+}
+
+function notifyVisibilityChange(visible) {
+  for (const fn of visibilityListeners) fn(visible);
+}
 
 function ensureBanner() {
   if (bannerEl) return bannerEl;
@@ -34,6 +49,7 @@ function hide() {
   if (!bannerEl) return;
   clearTimeout(hideTimer);
   bannerEl.classList.remove('visible');
+  notifyVisibilityChange(false);
   setTimeout(() => {
     if (bannerEl) bannerEl.hidden = true;
   }, 200);
@@ -118,5 +134,6 @@ export function showSuggestionsFor(def, node, { onAddComponent, onAddLayer }) {
 
   banner.hidden = false;
   requestAnimationFrame(() => banner.classList.add('visible'));
+  notifyVisibilityChange(true);
   hideTimer = setTimeout(hide, AUTO_HIDE_MS);
 }

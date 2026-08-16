@@ -46,6 +46,35 @@ test('a "server with rows" node lets you add and remove rows', async ({ page }) 
   await expect(node.locator('.row-item')).toHaveCount(1);
 });
 
+test('diamond and hexagon shapes render a border that hugs their clip-path outline, not the rectangular box underneath', async ({ page }) => {
+  await addComponentByName(page, 'Load Balancer');
+  const node = page.locator('.node').first();
+  await node.click();
+
+  const shapeSelect = page.locator('.toolbar-row-context select').first();
+  for (const shape of ['diamond', 'hexagon']) {
+    await shapeSelect.selectOption(shape);
+    await expect(page.locator(`.node[data-shape="${shape}"]`)).toHaveCount(1);
+    const body = node.locator('.node-body');
+    const styles = await body.evaluate((el) => {
+      const before = getComputedStyle(el, '::before');
+      return {
+        bodyBackground: getComputedStyle(el).backgroundColor,
+        beforeBackground: before.backgroundColor,
+        beforeClipPath: before.clipPath,
+        bodyClipPath: getComputedStyle(el).clipPath,
+      };
+    });
+    // The outer .node-body is the "stroke" layer (filled with the border
+    // color across the whole clipped polygon); the inset ::before is the
+    // "fill" layer sitting on top of it — see css/node.css's header comment
+    // on this shape group for why a plain `border` can't follow clip-path.
+    expect(styles.bodyBackground).not.toBe(styles.beforeBackground);
+    expect(styles.beforeClipPath).toBe(styles.bodyClipPath);
+    expect(styles.bodyClipPath).not.toBe('none');
+  }
+});
+
 test('selecting a connector reveals the arrow style editor and routing can be changed', async ({ page }) => {
   await addComponentByName(page, 'Load Balancer');
   await addComponentByName(page, 'Nginx Web Server');

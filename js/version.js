@@ -2,9 +2,17 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.11.0';
+export const APP_VERSION = '1.12.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.12.0',
+    date: '2026-08-16',
+    highlights: [
+      'New: the style editor row (shown when a component/connector is selected) can now float as a small card next to the selection instead of always pushing the toolbar/canvas — click 📌 on it to pin it to the top of the screen instead, or set your preferred default (floating, pinned to top, or pinned to bottom) in "🎛️ Default Settings".',
+      'Fixed: the diamond and hexagon shapes\' border didn\'t follow their actual outline — it now hugs the shape correctly, matching every other shape.',
+    ],
+  },
   {
     version: '1.11.0',
     date: '2026-08-16',

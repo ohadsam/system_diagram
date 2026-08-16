@@ -81,7 +81,10 @@ Or open `index.html` directly in a browser.
   (including outside-the-shape captions), icon visibility, size — applies
   to your whole selection at once. Its header lets you collapse it to a
   slim strip without losing your selection (handy on mobile), or close it
-  outright.
+  outright. Shows as a small floating card next to your selection by
+  default, or pin it (📌) to the top of the screen instead — set your
+  preferred default (floating, pinned to top, or pinned to bottom) in
+  Default Settings.
 - **Global default settings** — set defaults (transparent background, show
   icon, text position, sub-components display) applied to every newly
   created component, with a one-click "apply to all existing components"
