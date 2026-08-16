@@ -85,3 +85,14 @@ export function getRelatedComponents(id) {
   if (!def?.related?.length) return [];
   return def.related.map((relId) => getComponentById(relId)).filter(Boolean);
 }
+
+/** Resolves a component's curated `relatedLayers` ids (see schema.js#c) to
+ * their actual `kind: 'layer'` definitions, for the "Smart Suggestions"
+ * banner's "attach as sub-component" row (see canvas/suggestions.js) —
+ * silently drops any id that doesn't resolve or isn't actually a layer,
+ * same defensive spirit as getRelatedComponents. */
+export function getRelatedLayers(id) {
+  const def = getComponentById(id);
+  if (!def?.relatedLayers?.length) return [];
+  return def.relatedLayers.map((relId) => getComponentById(relId)).filter((d) => d?.kind === 'layer');
+}

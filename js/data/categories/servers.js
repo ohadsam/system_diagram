@@ -6,7 +6,7 @@ const SV = '#4338CA';
 
 export const components = [
   c('srv-apache', 'Apache HTTP Server', '🪶', { color: '#D22128' }),
-  c('srv-app-server', 'Application Server', '🖥️', { color: SV, shape: 'rows', tags: ['rows', 'internal components'] }),
+  c('srv-app-server', 'Application Server', '🖥️', { color: SV, shape: 'rows', tags: ['rows', 'internal components'], relatedLayers: ['layer-controller', 'layer-service'] }),
   c('srv-bare-metal', 'Bare Metal Server', '🗄️', { color: SV }),
   c('srv-iis', 'IIS', '🪟', { color: '#5391FE' }),
   c('srv-microservice', 'Microservice', '🧩', { color: SV }),

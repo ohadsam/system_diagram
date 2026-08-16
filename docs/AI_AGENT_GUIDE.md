@@ -43,6 +43,7 @@ this repo" quick-start.
 | Add a "layer/role" (attachable to any node)       | `js/data/categories/layers.js` — just `c(id, name, icon, { kind: 'layer', ... })` |
 | Add a "design pattern" (multi-node blueprint)     | `js/data/categories/design-patterns.js` — `definePattern(id, name, icon, { nodes, edges })`, node `defId`s must reference real components/layers |
 | Add/change a "Smart Suggestions" companion pairing | `related: ['other-id']` in the `c(...)` call — see `add-library-item` skill's "Smart Suggestions" section for the curation bar |
+| Add/change a "Smart Suggestions" sub-component pairing | `relatedLayers: ['layer-id']` in the `c(...)` call (ids must be `kind: 'layer'`) — same curation bar, same skill section |
 | Change the Smart Suggestions banner/trigger        | `js/canvas/suggestions.js` (banner + filtering), `canvas.js#createNodeFromDrop` (trigger point) |
 | Change node drag/resize behavior                  | `js/canvas/nodeInteractions.js` |
 | Change arrow routing/markers                      | `js/canvas/connector.js`, `connectorInteractions.js` |

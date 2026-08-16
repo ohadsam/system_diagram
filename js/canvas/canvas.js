@@ -303,7 +303,10 @@ export function createNodeFromDrop(defId, clientX, clientY) {
   });
   store.select([node.id], []);
   focusNode(node.id);
-  showSuggestionsFor(def, (relDefId, offsetIndex) => addRelatedComponent(relDefId, node.id, offsetIndex));
+  showSuggestionsFor(def, node, {
+    onAddComponent: (relDefId, offsetIndex) => addRelatedComponent(relDefId, node.id, offsetIndex),
+    onAddLayer: (layerDefId) => addLayerToNode(layerDefId, node.id),
+  });
 }
 
 export function addComponentAtCenter(defId) {

@@ -289,42 +289,67 @@ alongside `kind: 'pattern'` whole-state-machine templates, all in one
 support at all — it's just that edge's ordinary `label` field, set the
 same way any connector's label is.
 
-## Smart Suggestions (`canvas/suggestions.js`, `data/schema.js`'s `related` field)
+## Smart Suggestions (`canvas/suggestions.js`, `data/schema.js`'s `related`/`relatedLayers` fields)
 
-Each component definition can carry an optional, hand-curated `related:
-string[]` — other built-in component ids commonly used alongside it in
-real designs (`db-redis` ↔ `db-postgres`, `net-load-balancer` →
-`srv-nginx`, ...; see the `add-library-item` skill for the curation bar).
-`data/index.js#getRelatedComponents(id)` resolves those ids to real defs,
-dropping any that don't resolve rather than surfacing a broken suggestion.
+Each component definition can carry two optional, hand-curated arrays (see
+the `add-library-item` skill for the curation bar both need to clear):
+
+- `related: string[]` — other built-in **component** ids commonly used
+  *alongside* this one in real designs (`db-redis` ↔ `db-postgres`,
+  `net-load-balancer` → `srv-nginx`, ...). Resolved by
+  `data/index.js#getRelatedComponents(id)`.
+- `relatedLayers: string[]` — built-in `kind: 'layer'` ids (see
+  `categories/layers.js`) commonly used *as a sub-component of* this one
+  specifically (`be-express` → Controller/Middleware, `fe-react` → React
+  Hook/Component, ...). Resolved by `data/index.js#getRelatedLayers(id)`,
+  which additionally drops anything that doesn't resolve to an actual
+  `kind: 'layer'` def.
+
+Both resolvers drop any id that doesn't resolve rather than surfacing a
+broken suggestion.
 
 `canvas.js#createNodeFromDrop` — the single choke point both drag-drop and
 click-to-place funnel through (`addComponentAtCenter` just calls it with a
 computed screen point) — calls `suggestions.js#showSuggestionsFor(def,
-onAdd)` right after creating the node. That function does the actual
-filtering (Smart Suggestions setting off → nothing; no curated `related`
-→ nothing; every related component already present on the canvas →
-nothing) and, if anything survives, shows a small fixed-position banner
-with one "+ Add X" button per suggestion.
+node, { onAddComponent, onAddLayer })` right after creating the node
+(passing the node itself, not just its def, so the sub-component filtering
+below has something to check). That function does the actual filtering per
+list — Smart Suggestions setting off → nothing at all; no curated list →
+nothing for that list; every related *component* already present anywhere
+on the canvas → dropped from the `related` row; a *layer* already attached
+to **this specific node** (checked against `node.subComponents` by name,
+since attached sub-components aren't tracked by defId) → dropped from the
+`relatedLayers` row — and, if anything survives in either list, shows a
+small fixed-position banner: a "✨ Goes well with X:" row of "+ Add Y"
+buttons for companions, and/or a "🧩 Common building blocks for X:" row of
+"↳ Y" buttons (dashed green border, matching the drag-a-layer-onto-a-node
+preview outline) for sub-components — both rows can show at once (e.g.
+`net-api-gateway` has both lists), with one close button pinned to the
+banner's corner regardless of row count.
 
 **Deliberately no import from `suggestions.js` back to `canvas.js`** even
-though clicking a suggestion needs to *create* a node (`canvas.js`'s job):
-`canvas.js` passes its own `addRelatedComponent` as a plain callback
-(`onAdd`) into `showSuggestionsFor` instead of `suggestions.js` importing
-`canvas.js` to call it directly — dependency injection at the call site
-avoids what would otherwise be a circular `canvas.js` ⇄ `suggestions.js`
-import (canvas.js already imports suggestions.js to trigger the banner in
-the first place). `addRelatedComponent` places the new node in *canvas*
-coordinates directly, offset from the node that prompted the suggestion
-(to the right, stacked vertically if more than one suggestion from the
-same banner is accepted) — unlike `createNodeFromDrop`, there's no real
-pointer position to convert from a banner-button click.
+though clicking a suggestion needs to *create a node* or *attach a
+sub-component* (both `canvas.js`'s job): `canvas.js` passes its own
+`addRelatedComponent` and the already-existing `addLayerToNode` (the same
+function the drag-a-layer-onto-a-node flow uses) as plain callbacks
+(`onAddComponent`/`onAddLayer`) into `showSuggestionsFor` instead of
+`suggestions.js` importing `canvas.js` to call them directly — dependency
+injection at the call site avoids what would otherwise be a circular
+`canvas.js` ⇄ `suggestions.js` import (canvas.js already imports
+suggestions.js to trigger the banner in the first place). `addRelatedComponent`
+places the new node in *canvas* coordinates directly, offset from the node
+that prompted the suggestion (to the right, stacked vertically if more
+than one companion is accepted from the same banner) — unlike
+`createNodeFromDrop`, there's no real pointer position to convert from a
+banner-button click. `addLayerToNode` needs no such placement logic since
+it doesn't create a node at all, just pushes onto the existing node's
+`subComponents`.
 
-Turning suggestions off entirely lives in `io/librarySettings.js`
-(`suggestionsEnabled`, alongside `hideStateMachines` — same
-read/write/subscribe module, just one more key) and is exposed from
-"🎛️ Default settings" → "Component library", the same modal section as
-the State Machines toggle.
+Turning suggestions off entirely (both rows together — there's no separate
+toggle per list) lives in `io/librarySettings.js` (`suggestionsEnabled`,
+alongside `hideStateMachines` — same read/write/subscribe module, just one
+more key) and is exposed from "🎛️ Default settings" → "Component
+library", the same modal section as the State Machines toggle.
 
 ## Persistence (`io/`)
 

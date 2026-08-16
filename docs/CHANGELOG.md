@@ -152,6 +152,28 @@ user-facing fix or feature, alongside this changelog.
   value `'magic'`, also chooseable for any existing connector from its
   style editor.
 
+## v1.10.0 (2026-08-16)
+
+- Smart Suggestions batch 2: ~13 more curated `related` companion pairings
+  across categories not covered in v1.9.0 — the Beats→Logstash→
+  Elasticsearch→Kibana log pipeline, Fluentd→Elasticsearch (EFK), ArgoCD→
+  Kubernetes, Jenkins→Docker, OAuth/OIDC→JWT, Identity Provider→SSO, WAF→
+  CDN, Datadog→PagerDuty, and Istio↔Envoy Proxy.
+- New: Smart Suggestions can now also suggest **sub-components** to attach
+  directly onto the node you just placed, via a new curated `relatedLayers`
+  field (`js/data/schema.js#c`) resolved by `getRelatedLayers()`
+  (`js/data/index.js`) — e.g. placing Express (Node.js) suggests attaching
+  a Controller/Middleware layer, React suggests a Hook/Component, Django
+  suggests a Model/View, API Gateway suggests Authentication/Rate Limiter.
+  Shown as a second, visually distinct ("↳", dashed green border) row in
+  the same banner; clicking one attaches it exactly like dragging that
+  item from "Layers & Roles" onto the node (`canvas.js#addLayerToNode`,
+  reused as-is) instead of creating a new standalone node. An
+  already-attached sub-component is never re-suggested.
+- `js/canvas/suggestions.js#showSuggestionsFor` now takes the just-created
+  node (not just its definition) so it can check the node's own
+  `subComponents` for that filtering.
+
 ## v1.9.0 (2026-08-16)
 
 - Added "✨ Smart Suggestions": placing a component with a curated list of

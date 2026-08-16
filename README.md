@@ -67,8 +67,11 @@ Or open `index.html` directly in a browser.
 - **✨ Smart Suggestions** — placing a component with a well-known
   real-world companion (Load Balancer → a web server; Kafka →
   Elasticsearch; API Gateway → Lambda; and more) shows a small dismissible
-  banner with one-click "+ Add" buttons for each one. Off switch in
-  Default Settings for anyone who doesn't want it.
+  banner with one-click "+ Add" buttons for each one, and, where relevant,
+  a second row of one-click sub-components to attach directly onto that
+  node (Express → Controller/Middleware; React → Hook/Component; API
+  Gateway → Authentication/Rate Limiter). Off switch in Default Settings
+  for anyone who doesn't want it.
 - **Connectors** — drag between components to draw arrows with
   configurable routing (straight/elbow/curved, or "🪄 Magic" — auto-routes
   around every other component with the fewest bends), independent

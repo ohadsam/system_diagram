@@ -24,6 +24,14 @@
  *   component that could plausibly connect to this one — see
  *   docs/AI_AGENT_GUIDE.md "Add a predefined component" and
  *   .claude/skills/add-library-item/SKILL.md for the bar to clear.
+ * @param {string[]} [opts.relatedLayers] ids of `kind: 'layer'` components
+ *   (see categories/layers.js) commonly used as a *sub-component* of this
+ *   one specifically (e.g. Express → Controller, Middleware) — offered
+ *   alongside `related` in the same "Smart Suggestions" banner, but
+ *   clicking one attaches it to the just-placed node (same effect as
+ *   dragging that layer onto it) instead of creating a new standalone
+ *   node. Same curation bar as `related`; ids here must resolve to a
+ *   `kind: 'layer'` component, not a plain one.
  */
 export function c(id, name, icon, opts = {}) {
   return {
@@ -39,6 +47,7 @@ export function c(id, name, icon, opts = {}) {
     subComponents: opts.subComponents || [],
     defaultSize: opts.defaultSize || { w: 160, h: 84 },
     related: opts.related || [],
+    relatedLayers: opts.relatedLayers || [],
   };
 }
 

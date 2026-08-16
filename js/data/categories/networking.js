@@ -5,7 +5,7 @@ export const category = { id: 'networking', label: 'Networking', color: '#0284C7
 const NW = '#0284C7';
 
 export const components = [
-  c('net-api-gateway', 'API Gateway', '🚪', { color: NW, related: ['srv-app-server', 'misc-graphql'] }),
+  c('net-api-gateway', 'API Gateway', '🚪', { color: NW, related: ['srv-app-server', 'misc-graphql', 'sec-oauth'], relatedLayers: ['layer-authentication', 'layer-rate-limiter'] }),
   c('net-cdn', 'CDN', '🌍', { color: NW, related: ['aws-s3', 'storage-object'] }),
   c('net-dns', 'DNS', '🧭', { color: NW }),
   c('net-firewall', 'Firewall', '🧱', { color: '#B91C1C' }),

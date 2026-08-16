@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  CATEGORIES, ALL_COMPONENTS, COMPONENTS_BY_CATEGORY, getComponentById, getComponentsForCategory, getLayerComponents, getRelatedComponents,
+  CATEGORIES, ALL_COMPONENTS, COMPONENTS_BY_CATEGORY, getComponentById, getComponentsForCategory, getLayerComponents, getRelatedComponents, getRelatedLayers,
 } from '../../js/data/index.js';
 
 test('the library loads with a large, rich set of categories and components', () => {
@@ -102,7 +102,7 @@ test('the "AI Providers & Agents" category is rich and covers providers, models,
 
 test('every component\'s "related" (Smart Suggestions) ids resolve to real components, and none self-references', () => {
   const withRelated = ALL_COMPONENTS.filter((c) => c.related?.length);
-  assert.ok(withRelated.length >= 15, `expected at least 15 components with curated related-suggestions, got ${withRelated.length}`);
+  assert.ok(withRelated.length >= 30, `expected at least 30 components with curated related-suggestions, got ${withRelated.length}`);
   for (const comp of withRelated) {
     for (const relId of comp.related) {
       assert.ok(getComponentById(relId), `"${comp.id}".related references unknown id "${relId}"`);
@@ -118,6 +118,30 @@ test('getRelatedComponents resolves ids to real defs and is empty/safe for compo
   assert.ok(redisRelated.includes('db-mysql'));
   assert.deepEqual(getRelatedComponents('does-not-exist'), []);
   assert.deepEqual(getRelatedComponents('net-dns'), []); // a real component with no curated related list
+});
+
+test('every component\'s "relatedLayers" (Smart Suggestions sub-components) ids resolve to real kind:"layer" components', () => {
+  const withRelatedLayers = ALL_COMPONENTS.filter((c) => c.relatedLayers?.length);
+  assert.ok(withRelatedLayers.length >= 8, `expected at least 8 components with curated relatedLayers, got ${withRelatedLayers.length}`);
+  for (const comp of withRelatedLayers) {
+    for (const relId of comp.relatedLayers) {
+      const rel = getComponentById(relId);
+      assert.ok(rel, `"${comp.id}".relatedLayers references unknown id "${relId}"`);
+      assert.equal(rel.kind, 'layer', `"${comp.id}".relatedLayers references "${relId}", which isn't a layer (kind: "${rel.kind}")`);
+    }
+    assert.equal(new Set(comp.relatedLayers).size, comp.relatedLayers.length, `"${comp.id}" has duplicate entries in its relatedLayers array`);
+  }
+});
+
+test('getRelatedLayers resolves ids to real layer defs and is empty/safe for components with none', () => {
+  const expressLayers = getRelatedLayers('be-express').map((c) => c.id);
+  assert.ok(expressLayers.includes('layer-controller'));
+  assert.ok(expressLayers.includes('layer-middleware'));
+  for (const layer of getRelatedLayers('fe-react')) {
+    assert.equal(layer.kind, 'layer');
+  }
+  assert.deepEqual(getRelatedLayers('does-not-exist'), []);
+  assert.deepEqual(getRelatedLayers('net-dns'), []); // a real component with no curated relatedLayers list
 });
 
 test('the "State Machines" category mixes state shapes and ready-made pattern templates', () => {

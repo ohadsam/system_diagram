@@ -6,7 +6,7 @@ const MO = '#0891B2';
 
 export const components = [
   c('mon-appdynamics', 'AppDynamics', '📉', { color: MO }),
-  c('mon-datadog', 'Datadog', '🐶', { color: '#632CA6' }),
+  c('mon-datadog', 'Datadog', '🐶', { color: '#632CA6', related: ['mon-pagerduty'] }),
   c('mon-grafana', 'Grafana', '📊', { color: '#F46800', related: ['mon-prometheus'] }),
   c('mon-jaeger', 'Jaeger', '🩺', { color: '#66CFE3' }),
   c('mon-nagios', 'Nagios', '👁️', { color: MO }),

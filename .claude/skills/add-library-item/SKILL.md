@@ -36,29 +36,49 @@ Rules:
   is the established range) — there is no real parent/child nesting in this app, it's purely
   visual: components placed over it aren't actually attached to it in the data model.
 
-### Smart Suggestions (`related`) — check this every time
+### Smart Suggestions (`related` / `relatedLayers`) — check this every time
 
 After adding any new plain component, check whether it has an obvious, well-known real-world
 companion **already in the library** — something you'd confidently draw next to it yourself,
-not just something that could plausibly connect. If so, add `related: ['other-id', ...]` to its
-`c(...)` call (and, where it makes sense, the reverse pairing on the other component too — see
-`db-redis`/`db-postgres` in `databases.js` for a symmetric example, and `net-load-balancer` →
-`srv-nginx` in `networking.js` for a one-directional one where the reverse isn't as universally
-true). This powers the "Smart Suggestions" banner (`canvas/suggestions.js`) offered right after a
-component is placed.
+not just something that could plausibly connect. Two separate curated lists, depending on what
+kind of companion it is:
 
-Bar to clear — skip it rather than force a weak pairing:
+- `related: ['other-id', ...]` — another standalone **component** commonly placed *beside* this
+  one (and, where it makes sense, the reverse pairing on the other component too — see
+  `db-redis`/`db-postgres` in `databases.js` for a symmetric example, and `net-load-balancer` →
+  `srv-nginx` in `networking.js` for a one-directional one where the reverse isn't as universally
+  true).
+- `relatedLayers: ['layer-id', ...]` — a `kind: 'layer'` id (see `categories/layers.js`) commonly
+  used *as a sub-component of this specific component* (e.g. `be-express` → `layer-controller`,
+  `layer-middleware`; `fe-react` → `layer-react-hook`, `layer-react-component`). Only makes sense
+  for components that represent actual running code (a framework, a server, a gateway) — most
+  components (a database, a queue, a cloud region box) have no natural "sub-component" and should
+  just have an empty/omitted `relatedLayers`.
+
+Both power the same "Smart Suggestions" banner (`canvas/suggestions.js`) offered right after a
+component is placed — `related` companions show as one row of "+ Add X" buttons that create a new
+node beside the placed one; `relatedLayers` show as a second row of "↳ X" buttons that attach
+directly onto the node just placed instead (same effect as dragging that layer onto it).
+
+Bar to clear — skip it rather than force a weak pairing, for either list:
 - The pairing should be something most engineers would nod at immediately (Load Balancer → a web
-  server; Kafka → Elasticsearch for a log/event pipeline; API Gateway → Lambda). "Both are used in
-  backend systems" is not specific enough.
-- Don't invent a new component just to complete a pairing (e.g. there's no Zookeeper/Schema
-  Registry in the library yet, so Kafka has no `related` entry pointing at either — that's
-  correct, not a gap to force-fill).
-- Keep each `related` list short (2-3 ids) — it's curated, not exhaustive. `related` only ever
-  points at built-in component ids, never at "My Components"/custom ones.
+  server; Kafka → Elasticsearch for a log/event pipeline; API Gateway → Lambda; Express →
+  Controller/Middleware; Django → Model/View, matching its actual MVT architecture). "Both are
+  used in backend systems" is not specific enough, and neither is "every backend framework has
+  *some* controller-ish thing" — only add `relatedLayers` for a framework whose canonical
+  architecture genuinely centers that layer (Django really is Model-View-Template; a bare
+  "Application Server" component is generic enough that Controller/Service is still a safe,
+  textbook-level default, but a niche or special-purpose framework might not warrant one at all).
+- Don't invent a new component (or layer) just to complete a pairing (e.g. there's no
+  Zookeeper/Schema Registry in the library yet, so Kafka has no `related` entry pointing at
+  either — that's correct, not a gap to force-fill).
+- Keep each list short (2-3 ids) — curated, not exhaustive. Both only ever point at built-in ids
+  (component ids for `related`, layer ids for `relatedLayers`), never at "My Components"/custom
+  ones.
 
-`componentData.test.mjs` enforces that every `related` id resolves to a real component and that
-none self-references — run it (see "Always finish with" below) after adding one.
+`componentData.test.mjs` enforces that every `related` id resolves to a real component (no
+self-references, no duplicates) and every `relatedLayers` id resolves to an actual `kind: 'layer'`
+component — run it (see "Always finish with" below) after adding either.
 
 ## A "layer" (attaches as a sub-component instead of standing alone)
 

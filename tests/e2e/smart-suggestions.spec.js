@@ -16,12 +16,21 @@ test.beforeEach(async ({ page }) => {
 // because the search's <mark> highlight wraps just the matched substring —
 // "Elastic Load Balancer" contains a `<mark>Load Balancer</mark>` whose own
 // text is an exact match too, so a plain exact-text search still finds both.
-async function addExactComponent(page, name) {
+// Some names exist in more than one category with the exact same text (e.g.
+// "API Gateway" is both a Networking component and an AWS one, and also an
+// unrelated Design Pattern) — an optional categoryLabel scopes the match to
+// the right `.sidebar-category` section instead of picking whichever one
+// happens to render first.
+async function addExactComponent(page, name, categoryLabel) {
   const search = page.locator('.sidebar-search input');
   await search.fill(name);
   await page.waitForTimeout(150);
   const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  await page.locator('.sidebar-item').filter({ has: page.locator('.item-name', { hasText: new RegExp(`^${escaped}$`) }) }).first().click();
+  const itemMatch = page.locator('.sidebar-item').filter({ has: page.locator('.item-name', { hasText: new RegExp(`^${escaped}$`) }) });
+  const scoped = categoryLabel
+    ? page.locator('.sidebar-category').filter({ has: page.locator('.category-label', { hasText: categoryLabel }) }).locator('.sidebar-item').filter({ has: page.locator('.item-name', { hasText: new RegExp(`^${escaped}$`) }) })
+    : itemMatch;
+  await scoped.first().click();
   await page.waitForTimeout(100);
 }
 
@@ -69,4 +78,31 @@ test('turning off Smart Suggestions in Default Settings suppresses the banner', 
 
   await addExactComponent(page, 'Load Balancer');
   await expect(page.locator('.suggestion-banner')).toHaveCount(0);
+});
+
+// Batch 2: `relatedLayers` — sub-component ("attach as a layer") suggestions,
+// offered alongside/instead of the plain `related` companion-component row.
+test('placing a component with curated sub-component suggestions shows an "attach" row, and accepting one attaches a layer instead of creating a new node', async ({ page }) => {
+  await addComponentByName(page, 'Express (Node.js)'); // be-express: relatedLayers only, no plain `related`
+  await expect(page.locator('.suggestion-banner')).toBeVisible();
+  await expect(page.locator('.suggestion-banner')).toContainText('Common building blocks for Express');
+  await expect(page.locator('.suggestion-banner-btn')).toHaveCount(2); // Controller, Middleware
+  await expect(page.locator('.suggestion-banner-btn-layer')).toHaveCount(2);
+
+  await page.locator('.suggestion-banner-btn-layer', { hasText: 'Controller' }).click();
+  await expect(page.locator('.suggestion-banner')).toBeHidden();
+  await expect.poll(() => nodeCount(page)).toBe(1); // attached, not a new standalone node
+  await expect(page.locator('.node-subchip', { hasText: 'Controller' })).toBeVisible();
+});
+
+test('a component with both companion and sub-component suggestions shows both rows together, dismissible as one banner', async ({ page }) => {
+  await addExactComponent(page, 'API Gateway', 'Networking'); // net-api-gateway: has both `related` and `relatedLayers`
+  await expect(page.locator('.suggestion-banner')).toBeVisible();
+  await expect(page.locator('.suggestion-banner')).toContainText('Goes well with API Gateway');
+  await expect(page.locator('.suggestion-banner')).toContainText('Common building blocks for API Gateway');
+  await expect(page.locator('.suggestion-banner-btn-layer')).toHaveCount(2); // Authentication, Rate Limiter
+
+  await page.locator('.suggestion-banner-close').click();
+  await expect(page.locator('.suggestion-banner')).toBeHidden();
+  await expect.poll(() => nodeCount(page)).toBe(1);
 });

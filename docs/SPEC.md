@@ -187,6 +187,17 @@ covering the whole library at once. Can be turned off entirely from
 "🎛️ Default settings" → "Component library" (4.2.5) for anyone who
 doesn't want it.
 
+The same banner can also suggest **sub-components** to attach directly onto
+the node just placed (e.g. Express suggests a Controller/Middleware layer;
+React suggests a Hook/Component; API Gateway suggests Authentication/Rate
+Limiter), shown as a second, visually distinct row ("↳", dashed green
+border matching the drag-a-layer-onto-a-node preview style) below the
+companion-component row when both apply. Curated the same way via a
+`relatedLayers` field (ids of `kind: 'layer'` components — see 4.2.1).
+Clicking one attaches it exactly like dragging that item from "Layers &
+Roles" onto the node, instead of creating a new standalone node, and an
+already-attached sub-component is never re-suggested.
+
 ### 4.3 Canvas node interactions
 - Drag to move, resize via handles, rotate not required.
 - Delete via `Delete`/`Backspace`, right-click menu, or toolbar button —

@@ -1,6 +1,9 @@
 /* "Smart Suggestions" banner — see canvas/suggestions.js. Fixed at the
    bottom-center of the viewport (the toast container already owns
-   bottom-right, so this stays out of its way) and slides up on show. */
+   bottom-right, so this stays out of its way) and slides up on show. Can
+   hold up to two rows — companion components (`related`) and/or
+   sub-components to attach (`relatedLayers`) — with a single close button
+   pinned to the corner regardless of how many rows are showing. */
 .suggestion-banner {
   position: fixed;
   left: 50%;
@@ -8,15 +11,14 @@
   z-index: var(--z-hint);
   transform: translate(-50%, 12px);
   display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: var(--space-1);
   max-width: min(720px, calc(100vw - 32px));
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-2) calc(var(--space-3) + 28px) var(--space-2) var(--space-3);
   opacity: 0;
   transition: opacity 0.2s ease, transform 0.2s ease;
 }
@@ -30,6 +32,13 @@
   transform: translate(-50%, 0);
 }
 
+.suggestion-banner-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
 .suggestion-banner-label {
   font-size: 13px;
   font-weight: 600;
@@ -41,6 +50,17 @@
   white-space: nowrap;
 }
 
+/* Sub-component ("attach as a layer") suggestions get the same dashed
+   green treatment as the drag-a-layer-onto-a-node preview outline (see
+   canvas.css), so the two "attach onto this node" affordances read as the
+   same concept. */
+.suggestion-banner-btn-layer {
+  border-style: dashed;
+  border-color: #0ea472;
+}
+
 .suggestion-banner-close {
-  margin-left: var(--space-1);
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
 }
