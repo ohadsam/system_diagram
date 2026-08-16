@@ -7,6 +7,15 @@ export async function dismissHints(page) {
   if (await skip.count()) await skip.click();
 }
 
+/** Opens one of the toolbar's grouped dropdown menus (see
+ * js/toolbar/toolbarDropdown.js — "File", "Create", "Tools", or "Help")
+ * so the buttons inside it become visible/clickable. Each dropdown closes
+ * itself again after any of its own buttons is used, so this needs calling
+ * again before every subsequent interaction with a button in that group. */
+export async function openToolbarGroup(page, groupLabel) {
+  await page.locator('#toolbar button.toolbar-dropdown-trigger', { hasText: groupLabel }).click();
+}
+
 /** Adds a component to the canvas by exact sidebar item name (via search + click).
  * Deliberately does not re-focus/clear the search box afterwards — the app
  * focuses the newly created node so keyboard shortcuts work right away, and

@@ -2,9 +2,19 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.6.0';
+export const APP_VERSION = '1.7.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.7.0',
+    date: '2026-08-16',
+    highlights: [
+      'New navigation tools: 🖱️ Select and ✋ Hand (pan-anywhere without moving components) toolbar toggle, with H/V keyboard shortcuts and hold-Space-to-pan.',
+      'New "⭐ Save as Component" — turns any selection of components (and the connectors between them) into a reusable "My Components" item, with or without grouping them first; drop it again anywhere to recreate the whole group, styled exactly as saved.',
+      'Toolbar reorganized into File/Create/Tools/Help dropdown menus, plus a shorter always-visible row (undo/redo, Select/Hand, zoom) — keeps things findable as more actions are added instead of the row growing indefinitely.',
+      'Every toolbar button now has a clear, descriptive tooltip.',
+    ],
+  },
   {
     version: '1.6.0',
     date: '2026-08-15',

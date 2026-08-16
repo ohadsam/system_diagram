@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openToolbarGroup } from './helpers.js';
 
 // Deliberately does NOT call the shared dismissHints() helper — these tests
 // need the first-run tour to actually be showing.
@@ -20,6 +21,7 @@ test('"Skip all" dismisses every hint for good', async ({ page }) => {
 test('the hints toggle hides the current bubble and future ones, and can be turned back on', async ({ page }) => {
   await expect(page.locator('.hint-bubble')).toBeVisible();
 
+  await openToolbarGroup(page, 'Help');
   const toggle = page.locator('#toolbar button[title="Hide hints"]');
   await toggle.click();
   await expect(page.locator('.hint-bubble')).toHaveCount(0);
@@ -27,6 +29,7 @@ test('the hints toggle hides the current bubble and future ones, and can be turn
   // Reloading while hints are off must not resurrect the bubble.
   await page.reload();
   await expect(page.locator('.hint-bubble')).toHaveCount(0);
+  await openToolbarGroup(page, 'Help');
   await expect(page.locator('#toolbar button[title="Show hints"]')).toBeVisible();
 
   // Turning it back on resumes the tour from where it left off (nothing
@@ -37,12 +40,15 @@ test('the hints toggle hides the current bubble and future ones, and can be turn
 
 test('"Show hints again" restarts the tour even if the hints toggle was off', async ({ page }) => {
   await page.locator('.hint-bubble .btn-link', { hasText: 'Skip all' }).click();
+  await openToolbarGroup(page, 'Help');
   await page.locator('#toolbar button[title="Hide hints"]').click();
+  await openToolbarGroup(page, 'Help');
   await expect(page.locator('#toolbar button[title="Show hints"]')).toBeVisible();
 
   await page.locator('#toolbar button[title="Show hints again"]').click();
   await expect(page.locator('.toast-info', { hasText: 'Hints restarted' })).toBeVisible();
   await expect(page.locator('.hint-bubble')).toBeVisible();
   // Restarting implies turning the toggle back on too.
+  await openToolbarGroup(page, 'Help');
   await expect(page.locator('#toolbar button[title="Hide hints"]')).toBeVisible();
 });

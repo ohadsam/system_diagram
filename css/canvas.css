@@ -9,6 +9,14 @@
   background-position: 0 0;
 }
 
+.canvas-viewport.tool-hand {
+  cursor: grab;
+}
+
+.canvas-viewport.tool-hand.is-panning {
+  cursor: grabbing;
+}
+
 .canvas-viewport.show-grid {
   background-image:
     linear-gradient(to right, #E2E8F0 1px, transparent 1px),

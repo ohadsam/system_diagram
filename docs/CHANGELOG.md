@@ -152,6 +152,36 @@ user-facing fix or feature, alongside this changelog.
   value `'magic'`, also chooseable for any existing connector from its
   style editor.
 
+## v1.7.0 (2026-08-16)
+
+- Added **navigation tools**: a 🖱️ **Select** / ✋ **Hand** toolbar toggle
+  (`H`/`V` keyboard shortcuts, and holding **Space** temporarily pans no
+  matter which tool is active). Hand-tool dragging pans the canvas even
+  when it starts on top of a component, without moving or altering it —
+  see `docs/ARCHITECTURE.md` "Navigation tools" for how the `pointerdown`
+  capture-phase interception makes that work without touching
+  `nodeInteractions.js`. Zoom in/out/reset/fit-to-screen were already
+  covered by the existing zoom controls.
+- Added **"⭐ Save as Component"**: any selection of 2+ components (plus
+  the connectors between them) can now be saved as one reusable "My
+  Components" item — with or without grouping them first. Unlike a
+  hand-authored Design Pattern, it captures each node's exact styling, so
+  placing it again reproduces precisely what was selected, re-grouped
+  together as one unit. A single-node selection still opens the richer,
+  editable "New Component" form instead. Fixed a latent bug this surfaced:
+  `importCustomComponents` was rebuilding every imported record from a
+  field whitelist that silently dropped a saved group's `pattern` data —
+  it would have reverted to broken single-node junk on re-import or
+  full-backup restore.
+- **Restructured the toolbar** into File/Create/Tools/Help dropdown menus,
+  keeping only continuously-used controls (undo/redo, Select/Hand, zoom)
+  flat in the always-visible row — keeps the row short and findable
+  instead of growing unbounded as more actions are added (the direct cause
+  of a past mobile horizontal-overflow bug). Every toolbar button, flat or
+  inside a dropdown, now has a clear, descriptive tooltip; the
+  release-checklist skill and `AI_AGENT_GUIDE.md` were updated to check
+  for both on every future toolbar change.
+
 ## v1.6.0 (2026-08-15)
 
 - Added **❄️ Freeze / ▶️ Resume** to each replication pair (in the

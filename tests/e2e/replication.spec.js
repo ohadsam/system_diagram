@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { dismissHints, addComponentByName, nodeCount, dragNodeBy } from './helpers.js';
+import { dismissHints, addComponentByName, nodeCount, dragNodeBy, openToolbarGroup } from './helpers.js';
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/index.html');
@@ -9,6 +9,7 @@ test.beforeEach(async ({ page }) => {
 test('creating a replication pair from a selection mirrors it as a linked side B', async ({ page }) => {
   await addComponentByName(page, 'Redis');
   await page.locator('.node').first().click();
+  await openToolbarGroup(page, 'Create');
   await page.locator('#toolbar button[title^="Replicate"]').click();
   await expect(page.locator('.replication-modal')).toBeVisible();
 
@@ -21,6 +22,7 @@ test('creating a replication pair from a selection mirrors it as a linked side B
 test('adding a new component to a replicated side auto-mirrors it to the other side', async ({ page }) => {
   await addComponentByName(page, 'Redis');
   await page.locator('.node').first().click();
+  await openToolbarGroup(page, 'Create');
   await page.locator('#toolbar button[title^="Replicate"]').click();
   await page.locator('.replication-modal button', { hasText: 'Create replication pair' }).click();
   await expect.poll(() => nodeCount(page)).toBe(2);
@@ -33,6 +35,7 @@ test('adding a new component to a replicated side auto-mirrors it to the other s
   await dragNodeBy(page, pgNode, 0, 160);
   await pgNode.click();
   await page.locator('.node.is-replicated').first().click({ modifiers: ['Shift'] });
+  await openToolbarGroup(page, 'Create');
   await page.locator('#toolbar button[title^="Replicate"]').click();
   await page.locator('.replication-pair-row button', { hasText: 'Add as side A' }).click();
 
@@ -44,6 +47,7 @@ test('adding a new component to a replicated side auto-mirrors it to the other s
 test('renaming a replicated node propagates the new text to its mirror', async ({ page }) => {
   await addComponentByName(page, 'Redis');
   await page.locator('.node').first().click();
+  await openToolbarGroup(page, 'Create');
   await page.locator('#toolbar button[title^="Replicate"]').click();
   await page.locator('.replication-modal button', { hasText: 'Create replication pair' }).click();
   await expect.poll(() => nodeCount(page)).toBe(2);
@@ -66,6 +70,7 @@ test('renaming a replicated node propagates the new text to its mirror', async (
 test('deleting a replicated node cascade-deletes its mirror too', async ({ page }) => {
   await addComponentByName(page, 'Redis');
   await page.locator('.node').first().click();
+  await openToolbarGroup(page, 'Create');
   await page.locator('#toolbar button[title^="Replicate"]').click();
   await page.locator('.replication-modal button', { hasText: 'Create replication pair' }).click();
   await expect.poll(() => nodeCount(page)).toBe(2);
@@ -78,6 +83,7 @@ test('deleting a replicated node cascade-deletes its mirror too', async ({ page 
 test('excluding a component from replication severs the link without deleting its peer', async ({ page }) => {
   await addComponentByName(page, 'Redis');
   await page.locator('.node').first().click();
+  await openToolbarGroup(page, 'Create');
   await page.locator('#toolbar button[title^="Replicate"]').click();
   await page.locator('.replication-modal button', { hasText: 'Create replication pair' }).click();
   await expect.poll(() => nodeCount(page)).toBe(2);
@@ -106,11 +112,13 @@ test('excluding a component from replication severs the link without deleting it
 test('breaking a replication pair from the modal stops future mirroring but keeps both sides as they are', async ({ page }) => {
   await addComponentByName(page, 'Redis');
   await page.locator('.node').first().click();
+  await openToolbarGroup(page, 'Create');
   await page.locator('#toolbar button[title^="Replicate"]').click();
   await page.locator('.replication-modal button', { hasText: 'Create replication pair' }).click();
   await expect.poll(() => nodeCount(page)).toBe(2);
 
   await page.locator('#canvas-viewport').click({ position: { x: 40, y: 40 } });
+  await openToolbarGroup(page, 'Create');
   await page.locator('#toolbar button[title^="Replicate"]').click();
   await page.locator('.replication-pair-row button[title="Break this replication pair"]').click();
   await page.locator('.confirm-modal button', { hasText: 'Break' }).click();
@@ -123,11 +131,13 @@ test('breaking a replication pair from the modal stops future mirroring but keep
 test('freezing a pair lets one side change without affecting the other, and resuming brings syncing back', async ({ page }) => {
   await addComponentByName(page, 'Redis');
   await page.locator('.node').first().click();
+  await openToolbarGroup(page, 'Create');
   await page.locator('#toolbar button[title^="Replicate"]').click();
   await page.locator('.replication-modal button', { hasText: 'Create replication pair' }).click();
   await expect.poll(() => nodeCount(page)).toBe(2);
 
   await page.locator('#canvas-viewport').click({ position: { x: 40, y: 40 } });
+  await openToolbarGroup(page, 'Create');
   await page.locator('#toolbar button[title^="Replicate"]').click();
   await page.locator('.replication-pair-row button[title^="Freeze"]').click();
   await expect(page.locator('.replication-pair-row', { hasText: 'frozen' })).toBeVisible();
@@ -144,6 +154,7 @@ test('freezing a pair lets one side change without affecting the other, and resu
 
   // Resume, then rename again — this time it must propagate.
   await page.locator('#canvas-viewport').click({ position: { x: 40, y: 40 } });
+  await openToolbarGroup(page, 'Create');
   await page.locator('#toolbar button[title^="Replicate"]').click();
   await page.locator('.replication-pair-row button[title^="Resume"]').click();
   await expect(page.locator('.replication-pair-row', { hasText: 'frozen' })).toHaveCount(0);

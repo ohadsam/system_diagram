@@ -231,7 +231,7 @@
         <div class="card"><h3>🖼️ Canvas</h3>Your diagram surface. Pan, zoom, arrange, and connect components here.</div>
       </div>
       <div class="grid-2">
-        <div class="card"><h3>🛠️ Toolbar</h3>Global actions (save, export, undo/redo) plus style controls that appear when something is selected.</div>
+        <div class="card"><h3>🛠️ Toolbar</h3>Undo/redo, navigation tools and zoom stay visible; everything else (File, Create, Tools, Help) lives behind a dropdown to keep things tidy. Style controls appear when something is selected.</div>
         <div class="card"><h3>ℹ️ Details panel</h3>Slides in from the right with notes, labels and sub-components for the selected item.</div>
       </div>
       <div class="tip">💡 First time here? A short guided tour of hints will point at each area automatically. You can restart it any time from the 💡 button in the toolbar, or turn hint bubbles off/on with the 🔔/🔕 button right next to it (without losing your place in the tour).</div>
@@ -279,7 +279,7 @@
         <tr><td>Move a component</td><td>Drag it. Selecting several first (Shift-click or drag a selection box) moves them together.</td></tr>
         <tr><td>Resize</td><td>Select it, then drag one of the four corner handles.</td></tr>
         <tr><td>Multi-select</td><td>Drag on empty canvas to draw a selection box (picks up connectors fully inside it too, not just components), or Shift/Ctrl-click items — components and connectors — one by one.</td></tr>
-        <tr><td>Pan</td><td>Scroll, or drag with the middle mouse button / a single touch finger.</td></tr>
+        <tr><td>Pan</td><td>Scroll, drag with the middle mouse button / a single touch finger, or switch to the ✋ Hand tool and drag anywhere.</td></tr>
         <tr><td>Zoom</td><td>Ctrl/Cmd + scroll, the −/+/fit buttons in the toolbar, or <kbd>Ctrl/Cmd</kbd>+<kbd>+</kbd> / <kbd>Ctrl/Cmd</kbd>+<kbd>-</kbd> / <kbd>Ctrl/Cmd</kbd>+<kbd>0</kbd> to zoom in / out / reset to 100%.</td></tr>
         <tr><td>Delete</td><td>Select and press <kbd>Delete</kbd>, or right-click → Delete. Deleting a component always removes every connector attached to it too — no dangling arrows.</td></tr>
         <tr><td>Duplicate</td><td><kbd>Ctrl/Cmd</kbd> + <kbd>D</kbd>, or right-click → Duplicate. Works on a mixed selection of components and connectors together.</td></tr>
@@ -288,6 +288,8 @@
       </table>
       <h3>Grouping components</h3>
       <p>Select 2 or more components and click the 🔗 "Group" button in the toolbar's contextual row — from then on, clicking or dragging any one of them selects/moves the whole group together. The ✂️ "Ungroup" button (shown whenever your selection includes a grouped component) releases them back to independent components. Duplicating a group gives the copy its own new group.</p>
+      <h3>🖱️ Select &amp; ✋ Hand tools</h3>
+      <p>Two toggle buttons at the start of the toolbar switch how dragging behaves. <strong>Select</strong> (the default) is the normal behavior above — drag a component to move it, drag empty canvas to marquee-select. <strong>Hand</strong> makes any drag pan the canvas instead, even one starting on top of a component, without moving or changing anything — the safest way to navigate a dense or unfamiliar diagram. Switch with the buttons, the <kbd>H</kbd>/<kbd>V</kbd> keys, or just hold <kbd>Space</kbd> to pan temporarily no matter which tool is active.</p>
     </section>
 
     <section id="styling">
@@ -328,6 +330,8 @@
       <p>Click "✨ New Component" in the toolbar to design your own reusable component (icon, colors, shape, default sub-components) and save it to <strong>My Components</strong> in the sidebar. Select an existing component first and it's used as a starting point. Give it an optional <strong>folder</strong> (with autocomplete of folders you've already used) to group related components together — folders show up as collapsible 📁 sub-groups under "My Components" in the sidebar; components with no folder stay listed directly, same as before. Your library can be exported/imported as its own JSON file — handy for sharing a house style across a team — either from this modal, the 📤/📥 icons on the "My Components" sidebar header, or the "Backup &amp; Restore" toolbar button.</p>
       <h3>Add Shape</h3>
       <p>Click "🔷 Add Shape" for instant basic shapes: rectangle, rounded rectangle, circle, diamond, hexagon, cylinder (database), cloud, sticky note, and "server with rows". Style it afterwards like any other component.</p>
+      <h3>⭐ Save a selection as a component</h3>
+      <p>Select 2 or more components — with or without grouping them first — and click the "⭐" button in the toolbar's contextual row to save the whole selection (including any connectors between them) as one item in <strong>My Components</strong>. Unlike a Design Pattern, it keeps each component's exact styling, so placing it again reproduces exactly what you selected, re-grouped together as one unit. Selecting just a single component instead opens the full "New Component" form above, so you can still tweak its fields before saving.</p>
     </section>
 
     <section id="saving">
@@ -409,6 +413,9 @@
         <tr><td><kbd>Ctrl/Cmd</kbd>+<kbd>D</kbd></td><td>Duplicate selection</td></tr>
         <tr><td><kbd>Ctrl/Cmd</kbd>+<kbd>+</kbd> / <kbd>Ctrl/Cmd</kbd>+<kbd>-</kbd></td><td>Zoom in / out</td></tr>
         <tr><td><kbd>Ctrl/Cmd</kbd>+<kbd>0</kbd></td><td>Reset zoom to 100%</td></tr>
+        <tr><td><kbd>H</kbd></td><td>Switch to the Hand tool (pan-anywhere)</td></tr>
+        <tr><td><kbd>V</kbd></td><td>Switch to the Select tool</td></tr>
+        <tr><td>Hold <kbd>Space</kbd></td><td>Temporarily pan, whichever tool is active</td></tr>
         <tr><td><kbd>Esc</kbd></td><td>Clear selection / close panels</td></tr>
       </table>
     </section>

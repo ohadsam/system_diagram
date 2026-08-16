@@ -100,6 +100,91 @@ fresh every render straight from current node positions, exactly like
 every other routing already is, so a magic edge re-routes live as nodes
 move and can never go stale.
 
+## Navigation tools (`canvas/toolMode.js`)
+
+`toolMode.js` is a tiny module-level pub-sub (`getToolMode`/`setToolMode`/
+`onToolModeChange`) holding which of `'select'`/`'hand'` currently governs
+canvas pointer interactions, plus a separate `spaceHeld` flag for a
+momentary hold-Space-to-pan override that never touches the persisted
+`baseTool`. This deliberately fixes the one weak spot in the older Magic
+Arrow toggle (`connectorInteractions.js`'s `magicModeActive`): that flag
+has no subscribe mechanism, so its toolbar button is the *only* thing that
+can desync from it if the mode were ever changed from elsewhere.
+`toolMode.js` instead notifies every subscriber (the toolbar buttons' own
+`.active` class *and* `canvas.js`'s cursor class) on every change, so there
+is exactly one source of truth.
+
+`canvas.js#wireBackgroundInteractions`'s `pointerdown` listener is
+registered with `{ capture: true }` specifically so the Hand-tool branch
+(checked first) can `stopPropagation()` *before* the event reaches a
+node's own bubble-phase handlers (`nodeInteractions.js#beginMove`,
+connection-point drag, etc.) — that's what makes a Hand-tool drag pan the
+canvas even when it starts on top of a component, without
+`nodeInteractions.js` needing any Hand-tool awareness at all. When the
+Hand tool is off, this listener's added top branch is a no-op and
+everything falls through to the exact same code path as before.
+
+## Toolbar dropdown groups (`toolbar/toolbarDropdown.js`)
+
+`toolbar.js`'s always-visible row only holds controls used continuously
+while working (undo/redo, the Select/Hand toggle, zoom); everything else
+is grouped behind one of four dropdown trigger buttons (File/Create/
+Tools/Help — `toolbar.js#buildFileGroupButtons` etc.), built by
+`buildToolbarDropdown(label, icon, title, buttons)`. This exists to keep
+the row from growing unbounded as buttons are added — a flat row of
+full-text buttons was the direct cause of a real mobile horizontal-
+overflow bug (see the "Adding a toolbar button?" pitfall in
+`AI_AGENT_GUIDE.md`). It's a distinct, simpler component from
+`canvas/contextMenu.js` (the right-click menu): a dropdown's `buttons` are
+ordinary already-built `<button title="...">` elements — the exact same
+`el(...)` shape as any flat toolbar button, just hidden inside an
+absolutely-positioned panel until the trigger is clicked — rather than a
+generic `{label, onClick}` item list, so each keeps its own clear tooltip
+and a toggle button's `.active` state/icon-swap logic works unmodified.
+Only one dropdown panel is ever open at a time (module-level `openPanel`);
+it closes on an outside click, `Escape`, or immediately after one of its
+own buttons is used.
+
+## Custom multi-component groups (`modals/saveComponentGroupModal.js`, `canvas.js#buildGroupSnapshotFromSelection`)
+
+Saving a selection of 2+ components as a custom component reuses the
+built-in Design Pattern runtime (`kind: 'pattern'`, `instantiatePattern` —
+see 4.2.2/4.2.7 in `SPEC.md`) rather than inventing a parallel one:
+`resolveComponentDef`, `sidebar.js`'s badge/tooltip rendering, and
+`dragSource.js`'s drop/click routing are already `kind`-agnostic, so a
+saved group gets correct sidebar rendering and instantiation with zero
+changes there. What a hand-authored pattern (`data/schema.js#definePattern`)
+doesn't need, though, is fidelity to a *specific* node's actual styling —
+its node spec only ever carries `{key, defId, dx, dy, label}` and always
+re-derives appearance from `resolveComponentDef(defId)`. A saved selection
+needs the opposite: the user's exact fill/stroke/size/sub-components/text
+position, or even `defId: null` (e.g. a basic shape). `buildGroupSnapshotFromSelection`
+solves this with an additive `overrides` field per node/edge spec — a full
+field snapshot (everything but id/x/y/zIndex/groupId for nodes, id/from/to
+for edges) — and `instantiatePattern` spreads `spec.overrides` last when
+present, so it's a strict superset: built-in patterns (no `overrides`)
+instantiate exactly as before, saved groups instantiate with full fidelity.
+Positions are stored relative to the selection's bounding-box center, and
+edges are harvested the same way `duplicateSelection()` already does
+(internal edges + explicitly-selected edges, deduped, from/to remapped by
+key) — see that function for the precedent.
+
+A saved group also sets `groupOnInstantiate: true` on the custom-component
+record when it has 2+ nodes; `instantiatePattern` reads that flag (absent/
+false for every built-in pattern, so their behavior is unchanged) to
+assign the newly-created nodes a shared fresh `groupId`, so placing the
+group back down behaves like an explicit Group (4.3.1) automatically.
+
+**Import/export round-trip**: `io/customComponents.js#importCustomComponents`
+used to rebuild every imported record from an explicit field whitelist
+that didn't include `kind`/`pattern`/`groupOnInstantiate` — a saved group
+would silently revert to broken single-node data the moment it was
+exported and re-imported, or included in a full-backup restore
+(`io/fullBackup.js` round-trips through this same function). Fixed by
+validating and passing those three fields through
+(`validatePatternField` drops any node/edge spec that isn't shaped right,
+rather than importing something that would fail at instantiation time).
+
 ## Data library (`data/`)
 
 Every category file exports `{ category, components }` where `components`

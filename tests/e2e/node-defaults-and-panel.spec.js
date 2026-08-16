@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { dismissHints, addComponentByName, nodeCount } from './helpers.js';
+import { dismissHints, addComponentByName, nodeCount, openToolbarGroup } from './helpers.js';
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/index.html');
@@ -7,6 +7,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('the Default Settings modal changes apply to newly created components', async ({ page }) => {
+  await openToolbarGroup(page, 'Create');
   await page.locator('#toolbar button[title="Default settings for new components"]').click();
   await expect(page.locator('.default-settings-modal')).toBeVisible();
 
@@ -32,6 +33,7 @@ test('"Apply to all existing components now" bulk-updates every node on the canv
   await addComponentByName(page, 'MongoDB');
   await expect.poll(() => nodeCount(page)).toBe(2);
 
+  await openToolbarGroup(page, 'Create');
   await page.locator('#toolbar button[title="Default settings for new components"]').click();
   await page.locator('.default-settings-modal input[type=checkbox]').nth(1).uncheck(); // hide icon
   await page.locator('.default-settings-modal button', { hasText: 'Apply to all existing components now' }).click();

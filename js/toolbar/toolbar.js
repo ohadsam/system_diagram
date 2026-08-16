@@ -1,19 +1,35 @@
 // Top toolbar: global actions (row 1) + contextual style editor (row 2,
 // shown only while something is selected).
+//
+// Row 1 groups related one-off actions behind a handful of dropdown
+// buttons (see toolbarDropdown.js) rather than laying every action out
+// flat — a flat row grows unbounded as features are added and was the
+// direct cause of a past mobile overflow bug (see docs/AI_AGENT_GUIDE.md
+// "Add a toolbar button"). Frequently-used, always-relevant controls
+// (undo/redo, the Select/Hand tool toggle, zoom) stay flat regardless.
+//
+// EVERY button — flat or inside a dropdown — must set a clear `title`
+// describing what it does; see docs/AI_AGENT_GUIDE.md "Add a toolbar
+// button" for the convention this file follows.
 import * as store from '../core/store.js';
 import { createEmptyProject } from '../core/project.js';
 import { el, clear } from '../utils/dom.js';
-import { deleteSelection, duplicateSelection, groupSelection, ungroupSelection, selectionHasGroup, duplicateProjectAsNew } from '../canvas/canvas.js';
+import {
+  deleteSelection, duplicateSelection, groupSelection, ungroupSelection, selectionHasGroup, duplicateProjectAsNew,
+} from '../canvas/canvas.js';
 import { setMagicMode, isMagicModeActive } from '../canvas/connectorInteractions.js';
+import { getBaseToolMode, setToolMode, onToolModeChange } from '../canvas/toolMode.js';
 import { renderNodeStyleEditor } from './styleEditor.js';
 import { renderEdgeStyleEditor } from './arrowEditor.js';
 import { renderZoomControls } from './zoomControls.js';
+import { buildToolbarDropdown } from './toolbarDropdown.js';
 import { exportProjectToFile, pickJSONFile, parseProjectFile } from '../io/fileIO.js';
 import { exportPNG } from '../io/exportImage.js';
 import { exportPDF } from '../io/exportPdf.js';
 import { openSaveAsModal } from '../modals/saveAsModal.js';
 import { openLoadProjectModal } from '../modals/loadProjectModal.js';
 import { openCustomComponentModal } from '../modals/customComponentModal.js';
+import { openSaveComponentGroupModal } from '../modals/saveComponentGroupModal.js';
 import { openCustomShapeModal } from '../modals/customShapeModal.js';
 import { openDefaultSettingsModal } from '../modals/defaultSettingsModal.js';
 import { openBackupModal } from '../modals/backupModal.js';
@@ -38,14 +54,14 @@ export function initToolbar(root) {
   const row1 = el('div', { class: 'toolbar-row toolbar-row-main' });
   row1.appendChild(buildBrand());
   row1.appendChild(buildHistoryGroup());
-  row1.appendChild(buildFileGroup());
-  row1.appendChild(buildCreateGroup());
-  row1.appendChild(buildExportGroup());
+  row1.appendChild(buildNavToolGroup());
+  row1.appendChild(buildToolbarDropdown('File', '🗂️', 'File: new, save, load, duplicate, import/export, backup', buildFileGroupButtons()));
+  row1.appendChild(buildToolbarDropdown('Create', '✨', 'Create: custom component, shape, generated design, replication, defaults', buildCreateGroupButtons()));
   const spacer = el('div', { class: 'toolbar-spacer' });
   row1.appendChild(spacer);
   row1.appendChild(renderZoomControls());
-  row1.appendChild(buildViewGroup());
-  row1.appendChild(buildHelpGroup());
+  row1.appendChild(buildToolbarDropdown('Tools', '🛠️', 'Tools: grid, Magic Arrow, AI Design Review', buildToolsGroupButtons()));
+  row1.appendChild(buildToolbarDropdown('Help', '❓', 'Help: user guide, hints, what\'s new', buildHelpGroupButtons()));
   root.appendChild(row1);
 
   contextRow = el('div', { class: 'toolbar-row toolbar-row-context', hidden: true });
@@ -93,7 +109,31 @@ function syncHistoryButtons() {
   if (redoBtn) redoBtn.disabled = !store.canRedo();
 }
 
-function buildFileGroup() {
+/** Select (default click/marquee-drag) vs Hand (pan-anywhere, never moves a
+ * component) tool toggle — see canvas/toolMode.js. Kept flat (not in a
+ * dropdown) since it's a mode switched constantly while working, not a
+ * one-off action. Holding Space temporarily switches to Hand no matter
+ * which of these is pressed; releasing it restores whichever was active. */
+function buildNavToolGroup() {
+  const selectBtn = el('button', {
+    type: 'button', class: 'btn btn-icon', title: 'Select tool (V): click to select, drag empty space to marquee-select', text: '🖱️',
+    onClick: () => setToolMode('select'),
+  });
+  const handBtn = el('button', {
+    type: 'button', class: 'btn btn-icon', title: 'Hand tool (H, or hold Space): drag anywhere to pan the canvas without moving components', text: '✋',
+    onClick: () => setToolMode('hand'),
+  });
+  const sync = () => {
+    const active = getBaseToolMode();
+    selectBtn.classList.toggle('active', active === 'select');
+    handBtn.classList.toggle('active', active === 'hand');
+  };
+  onToolModeChange(sync);
+  sync();
+  return group(selectBtn, handBtn);
+}
+
+function buildFileGroupButtons() {
   const newBtn = el('button', {
     type: 'button', class: 'btn', title: 'New diagram', text: '🆕 New',
     onClick: async () => {
@@ -109,13 +149,42 @@ function buildFileGroup() {
   const saveAsBtn = el('button', { type: 'button', class: 'btn', title: 'Save this diagram with a name', text: '💾 Save As', onClick: openSaveAsModal });
   const loadBtn = el('button', { type: 'button', class: 'btn', title: 'Load a saved diagram', text: '📂 Load', onClick: openLoadProjectModal });
   const duplicateProjectBtn = el('button', {
-    type: 'button', class: 'btn btn-icon', title: 'Duplicate this project into a new one (the original stays untouched)', text: '📄',
+    type: 'button', class: 'btn', title: 'Duplicate this project into a new one (the original stays untouched)', text: '📄 Duplicate project',
     onClick: duplicateProjectAsNew,
   });
-  return group(newBtn, saveAsBtn, loadBtn, duplicateProjectBtn);
+  const exportJsonBtn = el('button', { type: 'button', class: 'btn', title: 'Export project as JSON', text: '⬇️ Export JSON', onClick: () => exportProjectToFile(store.getState()) });
+  const importJsonBtn = el('button', {
+    type: 'button', class: 'btn', title: 'Import project from JSON', text: '⬆️ Import JSON',
+    onClick: async () => {
+      const text = await pickJSONFile();
+      if (!text) return;
+      const result = parseProjectFile(text);
+      if (!result.ok) { showToast(`Could not load file: ${result.error}`, 'error'); return; }
+      store.loadProject(result.project);
+      showToast(`Loaded "${result.project.name}".`, 'success');
+    },
+  });
+  const pngBtn = el('button', {
+    type: 'button', class: 'btn', title: 'Export diagram as PNG image', text: '🖼️ Export PNG',
+    onClick: async () => {
+      showToast('Rendering PNG…', 'info', 1500);
+      const result = await exportPNG(store.getState().name);
+      if (!result.ok) showToast(result.error, 'error');
+    },
+  });
+  const pdfBtn = el('button', {
+    type: 'button', class: 'btn', title: 'Export diagram as PDF', text: '📄 Export PDF',
+    onClick: async () => {
+      showToast('Rendering PDF…', 'info', 1500);
+      const result = await exportPDF(store.getState().name);
+      if (!result.ok) showToast(result.error, 'error');
+    },
+  });
+  const backupBtn = el('button', { type: 'button', class: 'btn', title: 'Backup & restore everything', text: '🗄️ Backup & Restore', onClick: openBackupModal });
+  return [newBtn, saveAsBtn, loadBtn, duplicateProjectBtn, exportJsonBtn, importJsonBtn, pngBtn, pdfBtn, backupBtn];
 }
 
-function buildCreateGroup() {
+function buildCreateGroupButtons() {
   const newComponentBtn = el('button', {
     type: 'button', class: 'btn', title: 'Build a custom saved component', text: '✨ New Component',
     onClick: () => {
@@ -127,49 +196,15 @@ function buildCreateGroup() {
   });
   const addShapeBtn = el('button', { type: 'button', class: 'btn', title: 'Add a basic shape', text: '🔷 Add Shape', onClick: openCustomShapeModal });
   const generateDesignBtn = el('button', { type: 'button', class: 'btn', title: 'Generate a design from a spec, with AI help', text: '🧠 Generate Design', onClick: openGenerateDesignModal });
-  const replicateBtn = el('button', { type: 'button', class: 'btn btn-icon', title: 'Replicate: link components to auto-mirror across two sides', text: '🔁', onClick: openReplicationModal });
-  const defaultsBtn = el('button', { type: 'button', class: 'btn btn-icon', title: 'Default settings for new components', text: '🎛️', onClick: openDefaultSettingsModal });
-  return group(newComponentBtn, addShapeBtn, generateDesignBtn, replicateBtn, defaultsBtn);
+  const replicateBtn = el('button', { type: 'button', class: 'btn', title: 'Replicate: link components to auto-mirror across two sides', text: '🔁 Replicate', onClick: openReplicationModal });
+  const defaultsBtn = el('button', { type: 'button', class: 'btn', title: 'Default settings for new components', text: '🎛️ Default Settings', onClick: openDefaultSettingsModal });
+  return [newComponentBtn, addShapeBtn, generateDesignBtn, replicateBtn, defaultsBtn];
 }
 
-function buildExportGroup() {
-  const exportJsonBtn = el('button', { type: 'button', class: 'btn', title: 'Export project as JSON', text: '⬇️ JSON', onClick: () => exportProjectToFile(store.getState()) });
-  const importJsonBtn = el('button', {
-    type: 'button', class: 'btn', title: 'Import project from JSON', text: '⬆️ JSON',
-    onClick: async () => {
-      const text = await pickJSONFile();
-      if (!text) return;
-      const result = parseProjectFile(text);
-      if (!result.ok) { showToast(`Could not load file: ${result.error}`, 'error'); return; }
-      store.loadProject(result.project);
-      showToast(`Loaded "${result.project.name}".`, 'success');
-    },
-  });
-  const pngBtn = el('button', {
-    type: 'button', class: 'btn', title: 'Export diagram as PNG image', text: '🖼️ PNG',
-    onClick: async () => {
-      showToast('Rendering PNG…', 'info', 1500);
-      const result = await exportPNG(store.getState().name);
-      if (!result.ok) showToast(result.error, 'error');
-    },
-  });
-  const pdfBtn = el('button', {
-    type: 'button', class: 'btn', title: 'Export diagram as PDF', text: '📄 PDF',
-    onClick: async () => {
-      showToast('Rendering PDF…', 'info', 1500);
-      const result = await exportPDF(store.getState().name);
-      if (!result.ok) showToast(result.error, 'error');
-    },
-  });
-  const backupBtn = el('button', { type: 'button', class: 'btn btn-icon', title: 'Backup & restore everything', text: '🗄️', onClick: openBackupModal });
-  const aiReviewBtn = el('button', { type: 'button', class: 'btn btn-icon', title: 'AI Design Review', text: '🤖', onClick: toggleAiReviewPanel });
-  return group(exportJsonBtn, importJsonBtn, pngBtn, pdfBtn, backupBtn, aiReviewBtn);
-}
-
-function buildViewGroup() {
+function buildToolsGroupButtons() {
   const prefs = readJSON('prefs', {});
   const gridBtn = el('button', {
-    type: 'button', class: 'btn btn-icon', title: 'Toggle grid background', text: '▦',
+    type: 'button', class: 'btn', title: 'Toggle grid background', text: '▦ Toggle Grid',
     onClick: () => {
       const next = !document.querySelector('.canvas-viewport')?.classList.contains('show-grid');
       document.querySelector('.canvas-viewport')?.classList.toggle('show-grid', next);
@@ -185,7 +220,7 @@ function buildViewGroup() {
   }
 
   const magicBtn = el('button', {
-    type: 'button', class: 'btn btn-icon magic-arrow-btn', title: 'Magic Arrow: arm to auto-route the next connector around every other component', text: '🪄',
+    type: 'button', class: 'btn magic-arrow-btn', title: 'Magic Arrow: arm to auto-route the next connector around every other component', text: '🪄 Magic Arrow',
     onClick: () => {
       const next = !isMagicModeActive();
       setMagicMode(next);
@@ -193,33 +228,33 @@ function buildViewGroup() {
       if (next) showToast('Magic Arrow armed — drag from a connection point to draw an auto-routed connector.', 'info', 2600);
     },
   });
-  return group(gridBtn, magicBtn);
+  const aiReviewBtn = el('button', { type: 'button', class: 'btn', title: 'AI Design Review', text: '🤖 AI Design Review', onClick: toggleAiReviewPanel });
+  return [gridBtn, magicBtn, aiReviewBtn];
 }
 
-function buildHelpGroup() {
+function buildHelpGroupButtons() {
   const helpBtn = el('button', {
-    type: 'button', class: 'btn btn-icon', title: 'Help & user guide', text: '❓',
+    type: 'button', class: 'btn', title: 'Help & user guide', text: '❓ Help & Guide',
     onClick: () => window.open('help.html', '_blank', 'noopener'),
   });
   const hintsBtn = el('button', {
-    type: 'button', class: 'btn btn-icon', title: 'Show hints again', text: '💡',
+    type: 'button', class: 'btn', title: 'Show hints again', text: '💡 Show hints again',
     onClick: () => { resetHints(); updateHintsToggle(); showToast('Hints restarted.', 'info', 1800); },
   });
-  const hintsToggleBtn = el('button', {
-    type: 'button', class: 'btn btn-icon', onClick: () => { setHintsEnabled(!areHintsEnabled()); updateHintsToggle(); },
-  });
+  const hintsToggleBtn = el('button', { type: 'button', class: 'btn' });
+  hintsToggleBtn.addEventListener('click', () => { setHintsEnabled(!areHintsEnabled()); updateHintsToggle(); });
   function updateHintsToggle() {
     const on = areHintsEnabled();
-    hintsToggleBtn.textContent = on ? '🔔' : '🔕';
+    hintsToggleBtn.textContent = on ? '🔔 Hide hints' : '🔕 Show hints';
     hintsToggleBtn.title = on ? 'Hide hints' : 'Show hints';
     hintsToggleBtn.classList.toggle('active', on);
   }
   updateHintsToggle();
   const whatsNewBtn = el('button', {
-    type: 'button', class: 'btn btn-icon', title: "What's new", text: '🆕',
+    type: 'button', class: 'btn', title: "What's new", text: '🆕 What\'s New',
     onClick: () => openWhatsNewModal(),
   });
-  return group(helpBtn, hintsBtn, hintsToggleBtn, whatsNewBtn);
+  return [helpBtn, hintsBtn, hintsToggleBtn, whatsNewBtn];
 }
 
 function renderContextRow(selection) {
@@ -254,6 +289,24 @@ function renderContextRow(selection) {
   }
   if (selectionHasGroup()) {
     actions.appendChild(el('button', { type: 'button', class: 'btn btn-icon', title: 'Ungroup', text: '✂️', onClick: ungroupSelection }));
+  }
+  if (hasNodes) {
+    // Works whether or not the selection was grouped first — a saved custom
+    // component just needs the nodes (+ any connectors between them) to
+    // exist, not a shared groupId. A single node with no edges instead opens
+    // the richer, editable "New Component" flow (customComponentModal.js)
+    // so its shape/colors/etc. stay tweakable before saving.
+    actions.appendChild(el('button', {
+      type: 'button', class: 'btn btn-icon', title: 'Save selection as a reusable custom component', text: '⭐',
+      onClick: () => {
+        if (selection.nodeIds.length === 1 && !hasEdges) {
+          const node = store.getState().nodes.find((n) => n.id === selection.nodeIds[0]);
+          openCustomComponentModal({ seedFromNode: node });
+        } else {
+          openSaveComponentGroupModal();
+        }
+      },
+    }));
   }
   duplicateBtn = el('button', { type: 'button', class: 'btn btn-icon', title: 'Duplicate (Ctrl+D)', text: '⧉', onClick: duplicateSelection });
   actions.appendChild(duplicateBtn);

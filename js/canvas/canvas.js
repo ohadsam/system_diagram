@@ -17,6 +17,7 @@ import { attachNodeInteractions } from './nodeInteractions.js';
 import { createEdgeEl, updateEdgeEl, configureEdgeHandlers, initConnectorDefs } from './connector.js';
 import { initConnectorInteractions } from './connectorInteractions.js';
 import { showContextMenu, hideContextMenu } from './contextMenu.js';
+import { getToolMode, onToolModeChange } from './toolMode.js';
 
 let viewportEl = null;
 let contentEl = null;
@@ -60,6 +61,9 @@ export function initCanvas(root) {
   wireBackgroundInteractions();
   wireWheel();
 
+  onToolModeChange((tool) => viewportEl.classList.toggle('tool-hand', tool === 'hand'));
+  viewportEl.classList.toggle('tool-hand', getToolMode() === 'hand');
+
   store.subscribe('change', render);
   store.subscribe('selection', renderSelectionOnly);
   render(store.getState());
@@ -82,7 +86,21 @@ function wireWheel() {
 }
 
 function wireBackgroundInteractions() {
+  // Registered with `capture: true` so that while the Hand tool is active
+  // this runs *before* a pointerdown over a node/edge reaches their own
+  // (bubble-phase) handlers — stopPropagation() there then keeps it from
+  // ever starting a node drag/resize or connector draw, letting a Hand-tool
+  // drag pan the canvas no matter what it starts on top of. When the Hand
+  // tool is off this branch is skipped entirely, so nothing here changes
+  // for the default Select tool.
   viewportEl.addEventListener('pointerdown', (e) => {
+    if (getToolMode() === 'hand' && (e.button === 0 || e.pointerType === 'touch')) {
+      e.stopPropagation();
+      viewportEl.focus({ preventScroll: true });
+      document.querySelector('.sidebar.open')?.classList.remove('open');
+      beginPan(e);
+      return;
+    }
     if (e.target !== viewportEl && e.target !== contentEl && e.target !== nodeLayer && e.target !== edgeLayer) return;
     // Move focus off e.g. the sidebar search box so keyboard shortcuts work
     // right after interacting with the canvas (see nodeInteractions.js beginMove).
@@ -96,7 +114,7 @@ function wireBackgroundInteractions() {
     }
     if (e.button !== 0) return;
     beginMarquee(e);
-  });
+  }, { capture: true });
   viewportEl.addEventListener('contextmenu', (e) => {
     if (e.target !== viewportEl && e.target !== contentEl && e.target !== nodeLayer && e.target !== edgeLayer) return;
     e.preventDefault();
@@ -106,6 +124,7 @@ function wireBackgroundInteractions() {
 
 function beginPan(e) {
   e.preventDefault();
+  viewportEl.classList.add('is-panning');
   let last = { x: e.clientX, y: e.clientY };
   const onMove = (ev) => {
     viewport.pan(ev.clientX - last.x, ev.clientY - last.y);
@@ -114,6 +133,7 @@ function beginPan(e) {
   const onUp = () => {
     window.removeEventListener('pointermove', onMove);
     window.removeEventListener('pointerup', onUp);
+    viewportEl.classList.remove('is-panning');
   };
   window.addEventListener('pointermove', onMove);
   window.addEventListener('pointerup', onUp);
@@ -319,19 +339,33 @@ export function instantiatePattern(defId, clientX, clientY) {
   let z = nextZIndex(state);
   const creationOverrides = buildCreationOverrides();
   const idByKey = new Map();
+  // `spec.overrides`/`edgeSpec.overrides` (see buildGroupSnapshotFromSelection
+  // below) carries a full per-node/per-edge style snapshot for custom
+  // components saved from a real selection — absent for hand-authored
+  // built-in patterns (data/categories/*.js), which only ever set
+  // defId/dx/dy/label and rely on the def's own styling, unchanged from before.
   const newNodes = patternDef.pattern.nodes.map((spec) => {
     const def = resolveComponentDef(spec.defId);
-    const node = createNode(def, point.x + spec.dx - (def?.defaultSize.w ?? 160) / 2, point.y + spec.dy - (def?.defaultSize.h ?? 84) / 2, {
+    const w = spec.overrides?.w ?? def?.defaultSize.w ?? 160;
+    const h = spec.overrides?.h ?? def?.defaultSize.h ?? 84;
+    const node = createNode(def, point.x + spec.dx - w / 2, point.y + spec.dy - h / 2, {
       zIndex: z++,
       text: spec.label || def?.name || spec.key,
       ...creationOverrides,
+      ...(spec.overrides || {}),
     });
     idByKey.set(spec.key, node.id);
     return node;
   });
+  // Saved multi-component custom components (groupOnInstantiate) come back
+  // as one movable unit, same as an explicit Group — see groupSelection().
+  if (patternDef.groupOnInstantiate && newNodes.length > 1) {
+    const groupId = nextId('group');
+    for (const n of newNodes) n.groupId = groupId;
+  }
   const newEdges = (patternDef.pattern.edges || [])
     .filter((edgeSpec) => idByKey.has(edgeSpec.from) && idByKey.has(edgeSpec.to))
-    .map((edgeSpec) => createEdge(idByKey.get(edgeSpec.from), idByKey.get(edgeSpec.to), {
+    .map((edgeSpec) => createEdge(idByKey.get(edgeSpec.from), idByKey.get(edgeSpec.to), edgeSpec.overrides || {
       label: edgeSpec.label || '',
       routing: edgeSpec.routing || 'orthogonal',
       dash: edgeSpec.dash || 'solid',
@@ -420,6 +454,48 @@ export function duplicateSelection() {
   store.select(newNodes.map((n) => n.id), newEdges.map((e) => e.id));
   if (newNodes[0]) focusNode(newNodes[0].id);
   else if (newEdges[0]) focusEdge(newEdges[0].id);
+}
+
+/** Builds a saveable snapshot of the current selection's nodes (+ their
+ * internal/selected connectors), as a `{key, defId, dx, dy, overrides}`
+ * pattern spec (see instantiatePattern) — every per-node style field
+ * (fill, stroke, size, subComponents, textPosition, etc.) is captured in
+ * `overrides` so the saved custom component reproduces the selection
+ * exactly, not just a defId-referencing blueprint like a built-in pattern.
+ * Positions are stored relative to the selection's bounding-box center so
+ * the saved component drops in centered wherever the user places it.
+ * Returns null if nothing is selected. */
+export function buildGroupSnapshotFromSelection() {
+  const selection = store.getSelection();
+  if (!selection.nodeIds.length) return null;
+  const state = store.getState();
+  const nodes = selection.nodeIds.map((id) => state.nodes.find((n) => n.id === id)).filter(Boolean);
+  if (!nodes.length) return null;
+
+  const minX = Math.min(...nodes.map((n) => n.x));
+  const minY = Math.min(...nodes.map((n) => n.y));
+  const maxX = Math.max(...nodes.map((n) => n.x + n.w));
+  const maxY = Math.max(...nodes.map((n) => n.y + n.h));
+  const centerX = (minX + maxX) / 2;
+  const centerY = (minY + maxY) / 2;
+
+  const keyById = new Map();
+  const patternNodes = nodes.map((n, idx) => {
+    const key = `n${idx}`;
+    keyById.set(n.id, key);
+    const { id: _id, x, y, zIndex: _zIndex, groupId: _groupId, defId: _defId, ...overrides } = n;
+    return { key, defId: n.defId || null, dx: x + n.w / 2 - centerX, dy: y + n.h / 2 - centerY, overrides };
+  });
+
+  const internalEdges = state.edges.filter((e) => keyById.has(e.from) && keyById.has(e.to));
+  const selectedEdges = state.edges.filter((e) => selection.edgeIds.includes(e.id) && keyById.has(e.from) && keyById.has(e.to));
+  const edgesToSave = [...new Map([...internalEdges, ...selectedEdges].map((e) => [e.id, e])).values()];
+  const patternEdges = edgesToSave.map((e) => {
+    const { id: _id, from, to, ...overrides } = e;
+    return { from: keyById.get(from), to: keyById.get(to), overrides };
+  });
+
+  return { nodeCount: nodes.length, pattern: { nodes: patternNodes, edges: patternEdges } };
 }
 
 /** Duplicates every node and connector currently on the canvas, offset in

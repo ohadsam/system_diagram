@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { dismissHints, addComponentByName, nodeCount } from './helpers.js';
+import { dismissHints, addComponentByName, nodeCount, openToolbarGroup } from './helpers.js';
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/index.html');
@@ -7,6 +7,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 async function saveAs(page, name) {
+  await openToolbarGroup(page, 'File');
   await page.locator('#toolbar button', { hasText: 'Save As' }).click();
   await page.locator('.save-as-modal input[type="text"]').fill(name);
   await page.locator('.save-as-modal button', { hasText: 'Save' }).click();
@@ -14,6 +15,7 @@ async function saveAs(page, name) {
 }
 
 async function startNewDiagram(page) {
+  await openToolbarGroup(page, 'File');
   await page.locator('#toolbar button[title="New diagram"]').click();
   await page.locator('.confirm-modal button', { hasText: 'Start new' }).click();
   await expect.poll(() => nodeCount(page)).toBe(0);
@@ -26,6 +28,7 @@ test('favoriting a saved project sorts it first and the favorites-only filter na
   await addComponentByName(page, 'Docker');
   await saveAs(page, 'Project B');
 
+  await openToolbarGroup(page, 'File');
   await page.locator('#toolbar button', { hasText: 'Load' }).click();
   const rows = page.locator('.saved-project-row');
   await expect(rows).toHaveCount(2);
@@ -43,6 +46,7 @@ test('Load modal "Export all… / Import all…" round-trips saved projects, ove
   await addComponentByName(page, 'Kafka');
   await saveAs(page, 'Bulk Test Project');
 
+  await openToolbarGroup(page, 'File');
   await page.locator('#toolbar button', { hasText: 'Load' }).click();
   const [download] = await Promise.all([
     page.waitForEvent('download'),
@@ -60,6 +64,7 @@ test('Load modal "Export all… / Import all…" round-trips saved projects, ove
 });
 
 test('a custom component with a folder groups into a collapsible sidebar sub-group', async ({ page }) => {
+  await openToolbarGroup(page, 'Create');
   await page.locator('#toolbar button', { hasText: 'New Component' }).click();
   const inputs = page.locator('.custom-component-modal input[type="text"]');
   await inputs.nth(0).fill('☁️');
@@ -76,6 +81,7 @@ test('a custom component with a folder groups into a collapsible sidebar sub-gro
 });
 
 test('sidebar "My Components" header quick-exports and re-imports the whole library', async ({ page }) => {
+  await openToolbarGroup(page, 'Create');
   await page.locator('#toolbar button', { hasText: 'New Component' }).click();
   const inputs = page.locator('.custom-component-modal input[type="text"]');
   await inputs.nth(0).fill('🚀');
@@ -104,6 +110,7 @@ test('Backup & Restore exports a full backup and restores it into a fresh canvas
   await addComponentByName(page, 'Redis');
   await expect.poll(() => nodeCount(page)).toBe(1);
 
+  await openToolbarGroup(page, 'File');
   await page.locator('#toolbar button[title="Backup & restore everything"]').click();
   await expect(page.locator('.backup-modal')).toBeVisible();
   const [download] = await Promise.all([
@@ -116,6 +123,7 @@ test('Backup & Restore exports a full backup and restores it into a fresh canvas
 
   await startNewDiagram(page);
 
+  await openToolbarGroup(page, 'File');
   await page.locator('#toolbar button[title="Backup & restore everything"]').click();
   const fileChooserPromise = page.waitForEvent('filechooser');
   await page.locator('.backup-modal button', { hasText: 'Restore full backup…' }).click();

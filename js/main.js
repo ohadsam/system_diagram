@@ -15,6 +15,7 @@ import { showToast } from './utils/toast.js';
 import { checkWhatsNew, markVersionSeen } from './io/whatsNew.js';
 import { openWhatsNewModal } from './modals/whatsNewModal.js';
 import * as viewport from './canvas/viewport.js';
+import { setToolMode, setSpaceHeld } from './canvas/toolMode.js';
 
 function isTypingTarget(elRef) {
   if (!elRef) return false;
@@ -65,7 +66,19 @@ function initKeyboardShortcuts() {
       hideContextMenu();
       closeDetailsPanel();
       closeAiReviewPanel();
+    } else if (e.key === ' ' && !e.repeat) {
+      // Hold Space to temporarily pan (Hand tool) no matter which tool is
+      // active, Figma-style — released back to whatever was active before.
+      e.preventDefault();
+      setSpaceHeld(true);
+    } else if (!mod && e.key.toLowerCase() === 'h') {
+      setToolMode('hand');
+    } else if (!mod && e.key.toLowerCase() === 'v') {
+      setToolMode('select');
     }
+  });
+  window.addEventListener('keyup', (e) => {
+    if (e.key === ' ') setSpaceHeld(false);
   });
 }
 

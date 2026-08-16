@@ -56,3 +56,59 @@ test('importCustomComponents: a brand new component (no clash) is simply added',
   assert.equal(result.imported, 1);
   assert.equal(getCustomComponents().length, 2);
 });
+
+// A saved multi-node custom component (kind:'pattern', built by
+// canvas.js#buildGroupSnapshotFromSelection) must survive an export/import
+// round-trip intact — this is exactly the io/fullBackup.js restore path too.
+// It used to silently revert to junk single-node data because
+// importCustomComponents rebuilt every record from an explicit field
+// whitelist that didn't include kind/pattern/groupOnInstantiate.
+test('importCustomComponents preserves a multi-node pattern component\'s kind/pattern/groupOnInstantiate', () => {
+  const saved = saveCustomComponent({
+    name: 'Cache + DB group',
+    icon: '🧩',
+    kind: 'pattern',
+    groupOnInstantiate: true,
+    pattern: {
+      nodes: [
+        { key: 'n0', defId: null, dx: -80, dy: 0, overrides: { text: 'Redis', fill: '#EEF2FF', w: 160, h: 84 } },
+        { key: 'n1', defId: 'aws-rds', dx: 80, dy: 0, overrides: { text: 'DB' } },
+      ],
+      edges: [{ from: 'n0', to: 'n1', overrides: { color: '#334155', routing: 'orthogonal' } }],
+    },
+  });
+
+  const exported = { formatVersion: 1, kind: 'sdb-custom-components', components: getCustomComponents() };
+  // Simulate a fresh library (e.g. restoring on another machine) before re-importing.
+  resetStorage();
+  const result = importCustomComponents(exported);
+  assert.equal(result.ok, true);
+  assert.equal(result.imported, 1);
+
+  const list = getCustomComponents();
+  assert.equal(list.length, 1);
+  const restored = list[0];
+  assert.equal(restored.id, saved.id);
+  assert.equal(restored.kind, 'pattern');
+  assert.equal(restored.groupOnInstantiate, true);
+  assert.equal(restored.pattern.nodes.length, 2);
+  assert.equal(restored.pattern.nodes[0].overrides.text, 'Redis');
+  assert.equal(restored.pattern.edges.length, 1);
+  assert.equal(restored.pattern.edges[0].from, 'n0');
+});
+
+test('importCustomComponents drops a pattern component whose pattern field is malformed, instead of importing junk', () => {
+  const result = importCustomComponents({
+    components: [{ id: 'custom_bad', name: 'Broken group', icon: '🧩', kind: 'pattern', pattern: { nodes: 'not an array' } }],
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.imported, 0);
+  assert.equal(getCustomComponents().length, 0);
+});
+
+test('importCustomComponents: a plain (non-pattern) component still imports as kind "component"', () => {
+  const result = importCustomComponents({ components: [{ id: 'custom_plain', name: 'Plain', icon: '⬛' }] });
+  assert.equal(result.ok, true);
+  assert.equal(getCustomComponents()[0].kind, 'component');
+  assert.equal('pattern' in getCustomComponents()[0], false);
+});

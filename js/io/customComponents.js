@@ -51,6 +51,38 @@ export function exportCustomComponents() {
   downloadJSON({ formatVersion: 1, kind: 'sdb-custom-components', components: getCustomComponents() }, 'my-components.json');
 }
 
+/** Validates a saved multi-node custom component's `pattern` field (see
+ * canvas.js#buildGroupSnapshotFromSelection / instantiatePattern) down to
+ * only well-shaped node/edge specs, dropping anything malformed rather than
+ * importing junk that would fail (or silently misrender) at instantiation
+ * time. Returns null if the whole field isn't usable. */
+function validatePatternField(raw) {
+  if (!raw || typeof raw !== 'object' || !Array.isArray(raw.nodes)) return null;
+  const nodes = raw.nodes
+    .filter((n) => n && typeof n.key === 'string' && Number.isFinite(n.dx) && Number.isFinite(n.dy))
+    .map((n) => ({
+      key: n.key,
+      defId: typeof n.defId === 'string' ? n.defId : null,
+      dx: n.dx,
+      dy: n.dy,
+      ...(typeof n.label === 'string' ? { label: n.label } : {}),
+      ...(n.overrides && typeof n.overrides === 'object' ? { overrides: n.overrides } : {}),
+    }));
+  if (!nodes.length) return null;
+  const nodeKeys = new Set(nodes.map((n) => n.key));
+  const edges = Array.isArray(raw.edges)
+    ? raw.edges
+        .filter((e) => e && typeof e === 'object' && nodeKeys.has(e.from) && nodeKeys.has(e.to))
+        .map((e) => ({
+          from: e.from,
+          to: e.to,
+          ...(typeof e.label === 'string' ? { label: e.label } : {}),
+          ...(e.overrides && typeof e.overrides === 'object' ? { overrides: e.overrides } : {}),
+        }))
+    : [];
+  return { nodes, edges };
+}
+
 /** Validate + merge an imported custom-components JSON file's parsed content. Never throws. */
 export function importCustomComponents(parsed) {
   if (!parsed || !Array.isArray(parsed.components)) return { ok: false, error: 'Invalid custom components file' };
@@ -60,6 +92,14 @@ export function importCustomComponents(parsed) {
   let imported = 0;
   for (const raw of parsed.components) {
     if (!raw || typeof raw.name !== 'string' || typeof raw.icon !== 'string') continue;
+    // A saved multi-node custom component (kind:'pattern', see
+    // canvas.js#buildGroupSnapshotFromSelection) needs its `pattern` field
+    // to survive import intact — dropping it here would silently revert the
+    // record to junk single-node data. A malformed pattern field is
+    // skipped entirely rather than imported half-broken.
+    const kind = raw.kind === 'pattern' ? 'pattern' : 'component';
+    const pattern = kind === 'pattern' ? validatePatternField(raw.pattern) : null;
+    if (kind === 'pattern' && !pattern) continue;
     const id = typeof raw.id === 'string' && raw.id ? raw.id : nextId('custom');
     const name = byId.has(id) ? raw.name : disambiguateName(raw.name, namesInUse);
     namesInUse.add(name);
@@ -67,6 +107,7 @@ export function importCustomComponents(parsed) {
       id,
       name,
       icon: raw.icon,
+      kind,
       shape: typeof raw.shape === 'string' ? raw.shape : 'rounded',
       color: typeof raw.color === 'string' ? raw.color : '#4F46E5',
       fill: typeof raw.fill === 'string' ? raw.fill : '#FFFFFF',
@@ -75,6 +116,7 @@ export function importCustomComponents(parsed) {
       tags: Array.isArray(raw.tags) ? raw.tags.filter((t) => typeof t === 'string') : [],
       subComponents: Array.isArray(raw.subComponents) ? raw.subComponents.filter((s) => s && typeof s.name === 'string') : [],
       defaultSize: raw.defaultSize && Number.isFinite(raw.defaultSize.w) && Number.isFinite(raw.defaultSize.h) ? raw.defaultSize : { w: 160, h: 84 },
+      ...(pattern ? { pattern, groupOnInstantiate: raw.groupOnInstantiate === true } : {}),
     });
     imported += 1;
   }

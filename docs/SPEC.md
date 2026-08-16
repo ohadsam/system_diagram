@@ -155,6 +155,23 @@ sidebar/search — a diagram that already has state-machine components on
 its canvas is completely unaffected, and toggling it back on doesn't lose
 anything.
 
+#### 4.2.7 Saving a selection as a custom component
+Beyond building one custom component from scratch (4.5), any current
+selection of **2 or more components** (plus whichever connectors run
+between them) can be saved as one reusable "My Components" item via the
+contextual toolbar's "⭐" button — with or without grouping them first
+(4.3.1's Group is unrelated; this works on any selection). Unlike a
+hand-authored Design Pattern (4.2.2), which is a blueprint referencing
+existing component definitions, a saved selection captures each node's
+*exact* current styling (fill, stroke, size, sub-components, text
+position, etc. — a full per-node snapshot, `kind: 'pattern'` under the
+hood with a style-override channel design patterns don't need) so
+dropping it again reproduces precisely what was selected, not just its
+shape. Placing it back down instantiates every node + connector at once,
+re-grouped together as a single movable unit. A selection of exactly one
+component (no connectors) instead opens the richer, editable "New
+Component" form (4.5) so its fields stay tweakable before saving.
+
 ### 4.3 Canvas node interactions
 - Drag to move, resize via handles, rotate not required.
 - Delete via `Delete`/`Backspace`, right-click menu, or toolbar button —
@@ -189,6 +206,19 @@ anything.
   to independent components. Duplicating a grouped selection gives the
   copies their own new group, independent of the original.
 
+#### 4.3.2 Navigation tools
+- **Select tool** (default) and **Hand tool** are a mutually-exclusive
+  toolbar toggle (`js/canvas/toolMode.js`). Select is today's normal
+  behavior: click/drag a component to move it, drag empty canvas to
+  marquee-select. Hand makes *any* drag — including one starting on top of
+  a component — pan the canvas instead, without moving or altering
+  anything; it's the safe way to navigate a dense diagram.
+- Keyboard: `H` switches to Hand, `V` switches to Select, and holding
+  **Space** temporarily pans no matter which tool is active (Figma-style),
+  reverting to whichever was active the moment it's released.
+- Zoom in / out / reset-to-100% / fit-to-screen (toolbar buttons, Ctrl/Cmd
+  + "+"/"-"/"0", and Ctrl/Cmd+scroll) round out navigation — see 4.5.
+
 ### 4.4 Arrows / connectors
 - Draw by dragging from a node's connection point to another node. Both
   ends must land on a component (no free-floating endpoints in v1 — see
@@ -218,28 +248,37 @@ its style editor's Routing dropdown — it isn't a one-time creation-only
 choice.
 
 ### 4.5 Toolbar
+- **Layout**: the always-visible row keeps only controls used continuously
+  while working — undo/redo, the Select/Hand navigation-tool toggle (4.3.2),
+  and zoom — plus four dropdown menus (**File**, **Create**, **Tools**,
+  **Help**) that group every one-off action, so the row stays short and
+  findable instead of growing unbounded as features are added. Every
+  button, flat or inside a dropdown, has a clear descriptive tooltip (its
+  only affordance beyond an icon — there's no custom tooltip system).
 - Style controls for current selection: fill color, "no background"
   toggle, border color, border width/style, shape, text, font size, text
   align, text position, show-icon toggle, corner radius.
 - Arrow style controls (see 4.4) shown when an edge is selected.
-- Undo / Redo.
-- Save (autosave to localStorage), Save As (named project), Load (from
-  localStorage list or from a JSON file), Duplicate Project (see 4.7.4),
-  Export JSON, Export PNG, Export PDF.
-- "New component" modal — build a custom styled component from the current
-  selection (or from scratch) and save it into "My Components" (persisted
-  in localStorage; exportable/importable as JSON).
-- "Add shape" modal — basic shapes as instant custom components: rectangle,
-  rounded rectangle, circle/ellipse, diamond, hexagon, cylinder (DB shape),
-  cloud, "server with rows" (a container node where the user defines and
-  reorders internal rows/components), sticky note / text label, group
-  container.
-- Zoom controls + fit-to-screen + grid toggle + "🪄 Magic Arrow" mode toggle
-  (see 4.4.1). Zoom also works via Ctrl/Cmd + "+"/"-"/"0" (in) / (out) /
-  (reset to 100%), alongside the buttons and Ctrl/Cmd+scroll.
-- Group / Ungroup buttons for multi-component selections (see 4.3.1).
-- Help button opens `help.html` (interactive guide) in a new tab, a
-  "hints" toggle, and a "🆕 What's new" button (see 4.11).
+- **File**: New diagram, Save (autosave to localStorage) / Save As (named
+  project), Load (from localStorage list or a JSON file), Duplicate
+  Project (see 4.7.4), Export/Import JSON, Export PNG, Export PDF, Backup
+  & Restore.
+- **Create**: "New component" modal — build a custom styled component from
+  the current selection (or from scratch) and save it into "My Components"
+  (persisted in localStorage; exportable/importable as JSON); "Add shape"
+  modal — basic shapes as instant custom components (rectangle, rounded
+  rectangle, circle/ellipse, diamond, hexagon, cylinder, cloud, "server
+  with rows", sticky note, group container); Generate Design; Replicate;
+  Default settings for new components.
+- **Tools**: grid toggle, "🪄 Magic Arrow" mode toggle (see 4.4.1), AI
+  Design Review.
+- **Help**: the interactive guide (`help.html`), a "hints" toggle, "Show
+  hints again", and "🆕 What's new" (see 4.11).
+- Zoom controls (in/out/reset/fit-to-screen) stay flat; also reachable via
+  Ctrl/Cmd + "+"/"-"/"0" and Ctrl/Cmd+scroll.
+- Contextual row (shown only while something is selected): Group / Ungroup
+  for multi-component selections (see 4.3.1), "⭐ Save as Component" for
+  any selection (see 4.2.7), Duplicate, Delete.
 
 ### 4.6 Node details panel
 - Opens on demand (ⓘ button / double-click). Shows: name, icon/color

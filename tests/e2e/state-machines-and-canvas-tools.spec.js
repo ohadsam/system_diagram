@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import {
-  dismissHints, addComponentByName, nodeCount, edgeCount, dragNodeBy, connectNodes, clickEdgeNearNode,
+  dismissHints, addComponentByName, nodeCount, edgeCount, dragNodeBy, connectNodes, clickEdgeNearNode, openToolbarGroup,
 } from './helpers.js';
 
 test.beforeEach(async ({ page }) => {
@@ -20,6 +20,7 @@ test('hiding "State Machines" removes it from the sidebar without touching the c
   await addComponentByName(page, 'Traffic Light State Machine');
   await expect.poll(() => nodeCount(page)).toBe(4);
 
+  await openToolbarGroup(page, 'Create');
   await page.locator('#toolbar button[title="Default settings for new components"]').click();
   await page.locator('.default-settings-modal input[type=checkbox]').nth(2).check();
   await page.locator('.default-settings-modal .modal-close').click();
@@ -28,6 +29,7 @@ test('hiding "State Machines" removes it from the sidebar without touching the c
   await expect.poll(() => nodeCount(page)).toBe(4); // existing canvas content untouched
 
   // toggling back off brings it back
+  await openToolbarGroup(page, 'Create');
   await page.locator('#toolbar button[title="Default settings for new components"]').click();
   await page.locator('.default-settings-modal input[type=checkbox]').nth(2).uncheck();
   await page.locator('.default-settings-modal .modal-close').click();
@@ -127,6 +129,7 @@ test('Magic Arrow mode draws a connector with magic routing', async ({ page }) =
   const nodes = page.locator('.node');
   await dragNodeBy(page, nodes.nth(1), 260, 0);
 
+  await openToolbarGroup(page, 'Tools');
   await page.locator('.magic-arrow-btn').click();
   await expect(page.locator('.magic-arrow-btn')).toHaveClass(/active/);
 
@@ -139,6 +142,7 @@ test('Magic Arrow mode draws a connector with magic routing', async ({ page }) =
 });
 
 test('the toolbar\'s "What\'s new" button opens the version-highlights modal', async ({ page }) => {
+  await openToolbarGroup(page, 'Help');
   await page.locator('#toolbar button[title="What\'s new"]').click();
   await expect(page.locator('.whats-new-modal')).toBeVisible();
   await expect(page.locator('.whats-new-entry')).not.toHaveCount(0);

@@ -57,6 +57,13 @@ Or open `index.html` directly in a browser.
   inline, pan/zoom (buttons, Ctrl/Cmd+scroll, or keyboard Ctrl/Cmd +
   "+"/"-"/"0"), right-click context menu, and Group/Ungroup for tying
   components together as one selectable/movable unit.
+- **Navigation tools** — a 🖱️ Select / ✋ Hand toolbar toggle (`H`/`V`
+  shortcuts, or hold **Space**): Hand pans the canvas by dragging anywhere,
+  even over a component, without moving or altering it.
+- **Save any selection as a component** — turn 2+ selected components
+  (plus the connectors between them) into a reusable "My Components" item
+  in one click, with or without grouping them first — drop it again to
+  recreate the whole group, styled exactly as saved.
 - **Connectors** — drag between components to draw arrows with
   configurable routing (straight/elbow/curved, or "🪄 Magic" — auto-routes
   around every other component with the fewest bends), independent

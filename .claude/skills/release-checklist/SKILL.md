@@ -48,6 +48,12 @@ the others missed in this repo's history:
      the toolbar wraps onto multiple rows well before 900px) rather than a hardcoded pixel offset.
    - Verify color, spacing and copy are consistent with sibling features already in the app,
      including in dark mode where applicable.
+   - **Every toolbar button touched or added this batch has a clear, specific `title`** (the
+     app's only tooltip mechanism — no custom tooltip system). If it's a new button, also check it
+     landed inside one of `toolbar.js`'s dropdown groups (`toolbarDropdown.js`) rather than flat,
+     unless it's a continuously-used control like undo/redo/zoom/a tool-mode toggle — see
+     `docs/AI_AGENT_GUIDE.md`'s "Add a toolbar button" pitfall for the convention and why (a flat
+     row of full-text buttons was the direct cause of a past mobile horizontal-overflow bug).
 
 Fix everything found before moving on. If a pass finds nothing, say so and continue — don't
 manufacture a finding.

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { dismissHints, addComponentByName, nodeCount, edgeCount, dragNodeBy, connectNodes } from './helpers.js';
+import { dismissHints, addComponentByName, nodeCount, edgeCount, dragNodeBy, connectNodes, openToolbarGroup } from './helpers.js';
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/index.html');
@@ -8,15 +8,18 @@ test.beforeEach(async ({ page }) => {
 
 test('"Duplicate Project" clones the canvas into a new project and leaves the original saved copy untouched', async ({ page }) => {
   await addComponentByName(page, 'Redis');
+  await openToolbarGroup(page, 'File');
   await page.locator('#toolbar button', { hasText: 'Save As' }).click();
   await page.locator('.save-as-modal input[type="text"]').fill('Original Project');
   await page.locator('.save-as-modal button', { hasText: 'Save' }).click();
   await expect.poll(() => nodeCount(page)).toBe(1);
 
+  await openToolbarGroup(page, 'File');
   await page.locator('#toolbar button[title^="Duplicate this project"]').click();
   await expect(page.locator('.toast-success', { hasText: 'Duplicated into a new project' })).toBeVisible();
   await expect.poll(() => nodeCount(page)).toBe(1); // same content, not doubled — it's a *new* project
 
+  await openToolbarGroup(page, 'File');
   await page.locator('#toolbar button', { hasText: 'Load' }).click();
   await expect(page.locator('.saved-project-name', { hasText: 'Original Project' })).toBeVisible();
   await expect(page.locator('.saved-project-row')).toHaveCount(1); // the duplicate was never auto-saved as a named project
@@ -41,6 +44,7 @@ test('"Duplicate entire canvas" (canvas right-click) copies every component and 
 
 test('the AI Design Review panel opens, builds a prompt from the diagram, and accepts a spec attachment', async ({ page }) => {
   await addComponentByName(page, 'PostgreSQL');
+  await openToolbarGroup(page, 'Tools');
   await page.locator('#toolbar button[title="AI Design Review"]').click();
   await expect(page.locator('#ai-review-panel')).toHaveClass(/open/);
 
@@ -59,6 +63,7 @@ test('the AI Design Review panel opens, builds a prompt from the diagram, and ac
 
 test('pasting an AI response back into the panel saves it for the session with copy/remove controls', async ({ page }) => {
   await addComponentByName(page, 'Kafka');
+  await openToolbarGroup(page, 'Tools');
   await page.locator('#toolbar button[title="AI Design Review"]').click();
 
   await page.locator('.ai-review-response').fill('Consider adding a dead-letter queue.');
@@ -73,11 +78,13 @@ test('pasting an AI response back into the panel saves it for the session with c
 
 test('switching to a genuinely different project resets the AI review panel\'s scratch state', async ({ page }) => {
   await addComponentByName(page, 'Kafka');
+  await openToolbarGroup(page, 'Tools');
   await page.locator('#toolbar button[title="AI Design Review"]').click();
   await page.locator('.ai-review-response').fill('Old response for the old project.');
   await page.locator('.ai-review-pasteback button', { hasText: 'Save to this session' }).click();
   await expect(page.locator('.ai-review-saved-card')).toHaveCount(1);
 
+  await openToolbarGroup(page, 'File');
   await page.locator('#toolbar button[title="New diagram"]').click();
   await page.locator('.confirm-modal button', { hasText: 'Start new' }).click();
 

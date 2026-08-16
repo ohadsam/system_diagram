@@ -44,7 +44,8 @@ this repo" quick-start.
 | Add a "design pattern" (multi-node blueprint)     | `js/data/categories/design-patterns.js` — `definePattern(id, name, icon, { nodes, edges })`, node `defId`s must reference real components/layers |
 | Change node drag/resize behavior                  | `js/canvas/nodeInteractions.js` |
 | Change arrow routing/markers                      | `js/canvas/connector.js`, `connectorInteractions.js` |
-| Add a toolbar button                              | `js/toolbar/toolbar.js` (+ new module if it needs its own state) |
+| Add a toolbar button                              | `js/toolbar/toolbar.js` — put it in an existing dropdown group (`buildFileGroupButtons`/`buildCreateGroupButtons`/`buildToolsGroupButtons`/`buildHelpGroupButtons`, rendered via `toolbarDropdown.js`) unless it's used continuously while working (like undo/redo, the Select/Hand tool toggle, zoom), which stay flat. **Always set a clear, specific `title`** on the button — see "Add a toolbar button" pitfall below. |
+| Add a canvas navigation/interaction mode (like Hand/Select) | `js/canvas/toolMode.js` (mode state + pub-sub) + dispatch logic in `canvas.js#wireBackgroundInteractions` |
 | Add a style control                               | `js/toolbar/styleEditor.js` (node) or `arrowEditor.js` (edge) |
 | Change what the details panel shows/edits         | `js/panel/detailsPanel.js` |
 | Add a modal                                       | `js/modals/*.js`, register it in `modals/modal.js` |
@@ -167,6 +168,25 @@ npm test
   the second one miss — a pre-existing characteristic of the layout, not
   something to "fix" in the app; just settle the selection in the test
   first, matching how a real user would naturally interact.
+- **Every toolbar button — flat or inside a dropdown — must have a clear,
+  specific `title`.** It's the only affordance an icon-only button gives
+  (native browser tooltip; the app deliberately has no custom tooltip
+  system). "What does this button do?" should be answerable from the title
+  alone, not just the emoji. A `title^="X"` or `{hasText: 'X'}` Playwright
+  selector elsewhere in `tests/e2e/` is a strong hint the exact wording is
+  load-bearing — check before changing one you didn't add.
+- **Toolbar buttons live inside one of the row's dropdown groups
+  (`toolbarDropdown.js`), not flat, unless they're used continuously while
+  working** (undo/redo, the Select/Hand tool toggle in `toolMode.js`, zoom
+  controls) — this is what keeps the always-visible row short as buttons are
+  added; see the next bullet for why that matters. A dropdown's own buttons
+  are ordinary `<button title="...">` elements (built the same `el(...)`
+  way as any flat toolbar button) inside a panel that only renders visible
+  once its trigger is clicked — so a Playwright test clicking one must open
+  its group first (`openToolbarGroup(page, 'File'|'Create'|'Tools'|'Help')`
+  in `tests/e2e/helpers.js`); the panel also auto-closes after any of its
+  own buttons is used, so re-open it before every subsequent interaction in
+  the same test.
 - **Adding a toolbar button? Check it doesn't push a `.toolbar-group` past
   the mobile viewport width.** `.toolbar-row` wraps *groups* onto new lines
   on narrow screens, but without `.toolbar-group { flex-wrap: wrap }` (set

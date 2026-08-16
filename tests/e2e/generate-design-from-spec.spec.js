@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { dismissHints, addComponentByName, nodeCount } from './helpers.js';
+import { dismissHints, addComponentByName, nodeCount, openToolbarGroup } from './helpers.js';
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/index.html');
@@ -26,6 +26,7 @@ const AI_RESPONSE = `Sure, here's a design:
 Hope that helps!`;
 
 test('the full wizard: spec → prompt → pasted AI result → generated diagram', async ({ page }) => {
+  await openToolbarGroup(page, 'Create');
   await page.locator('#toolbar button', { hasText: 'Generate Design' }).click();
   await expect(page.locator('.generate-design-modal')).toBeVisible();
   await expect(page.locator('.modal-step-indicator')).toHaveText(/Step 1 of 3/);
@@ -58,6 +59,7 @@ test('the full wizard: spec → prompt → pasted AI result → generated diagra
 });
 
 test('pasting unusable text shows an inline error and keeps the modal open for a retry', async ({ page }) => {
+  await openToolbarGroup(page, 'Create');
   await page.locator('#toolbar button', { hasText: 'Generate Design' }).click();
   await page.locator('.generate-design-spec').fill('A simple todo app.');
   await page.locator('.generate-design-modal button', { hasText: 'Next' }).click();
@@ -75,6 +77,7 @@ test('generating a design when the canvas already has content asks for confirmat
   await addComponentByName(page, 'Redis');
   await expect.poll(() => nodeCount(page)).toBe(1);
 
+  await openToolbarGroup(page, 'Create');
   await page.locator('#toolbar button', { hasText: 'Generate Design' }).click();
   await page.locator('.generate-design-spec').fill('A simple todo app.');
   await page.locator('.generate-design-modal button', { hasText: 'Next' }).click();
@@ -89,6 +92,7 @@ test('generating a design when the canvas already has content asks for confirmat
 });
 
 test('the Back button returns to the previous step without losing entered spec text', async ({ page }) => {
+  await openToolbarGroup(page, 'Create');
   await page.locator('#toolbar button', { hasText: 'Generate Design' }).click();
   await page.locator('.generate-design-spec').fill('Spec text that should survive navigation.');
   await page.locator('.generate-design-modal button', { hasText: 'Next' }).click();
