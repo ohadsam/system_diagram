@@ -152,6 +152,23 @@ user-facing fix or feature, alongside this changelog.
   value `'magic'`, also chooseable for any existing connector from its
   style editor.
 
+## v1.7.1 (2026-08-16)
+
+- Moved "🔷 Add Shape" and "🪄 Magic Arrow" back out of the Create/Tools
+  dropdown menus (added in v1.7.0) to the always-visible toolbar row —
+  user feedback that both are used too frequently while actively drawing a
+  diagram for a dropdown click to be worth it. See `buildQuickCreateGroup`
+  in `js/toolbar/toolbar.js`.
+- Fixed a real mobile bug (reported on a real device, not just simulated
+  viewport testing): a toolbar dropdown panel (File/Create/Tools/Help)
+  could render partly off the edge of the screen instead of staying fully
+  visible. The panel's CSS `position: absolute` (relative to its trigger)
+  had no way to know it needed to flip/clamp itself once the toolbar
+  wrapped a trigger onto a row with less room than the panel needed —
+  switched to `position: fixed` with JS-computed, viewport-clamped
+  coordinates (same pattern as `canvas/contextMenu.js`'s right-click
+  menu). See `js/toolbar/toolbarDropdown.js`.
+
 ## v1.7.0 (2026-08-16)
 
 - Added **navigation tools**: a 🖱️ **Select** / ✋ **Hand** toolbar toggle

@@ -2,11 +2,22 @@
 // click — keeps the always-visible toolbar row from growing unbounded as
 // features are added (the mobile toolbar overflow this once caused is
 // documented in docs/AI_AGENT_GUIDE.md). Distinct from canvas/contextMenu.js
-// (the right-click menu): the panel here is anchored under its trigger
-// button and holds real <button> elements built the same way as any other
-// toolbar button (so each keeps its own clear title/text), not a generic
-// {label,onClick} item list.
+// (the right-click menu): the panel here holds real <button> elements built
+// the same way as any other toolbar button (so each keeps its own clear
+// title/text), not a generic {label,onClick} item list.
+//
+// The panel is positioned with `position: fixed` and explicit pixel
+// coordinates computed (and viewport-clamped) from the trigger's own
+// getBoundingClientRect() — the same approach contextMenu.js already uses
+// for the right-click menu — rather than CSS `position: absolute; top:
+// 100%` relative to the trigger. That relative-positioning approach could
+// still render partly off-screen on a narrow/mobile viewport (a trigger
+// near the toolbar's row-wrapped edge, or the panel simply being wider
+// than the remaining space); computing fixed viewport coordinates and
+// clamping them is correct regardless of where the trigger ends up.
 import { el } from '../utils/dom.js';
+
+const EDGE_MARGIN = 8;
 
 let openPanel = null; // { root, close } of the currently open dropdown, if any
 
@@ -40,6 +51,20 @@ export function buildToolbarDropdown(label, icon, title, buttons) {
     if (e.target.closest('button')) closeOpenPanel();
   });
 
+  // Fixed viewport coordinates, clamped to stay fully on-screen — see the
+  // module comment above for why this is more robust than CSS `position:
+  // absolute` relative to the trigger.
+  function positionPanel() {
+    const triggerRect = trigger.getBoundingClientRect();
+    const panelRect = panel.getBoundingClientRect();
+    const maxLeft = window.innerWidth - panelRect.width - EDGE_MARGIN;
+    const left = Math.max(EDGE_MARGIN, Math.min(triggerRect.left, maxLeft));
+    const maxTop = window.innerHeight - panelRect.height - EDGE_MARGIN;
+    const top = Math.max(EDGE_MARGIN, Math.min(triggerRect.bottom + 4, maxTop));
+    panel.style.left = `${left}px`;
+    panel.style.top = `${top}px`;
+  }
+
   const trigger = el(
     'button',
     {
@@ -54,18 +79,9 @@ export function buildToolbarDropdown(label, icon, title, buttons) {
         closeOpenPanel();
         if (!willOpen) return;
         panel.hidden = false;
-        panel.style.left = '0';
-        panel.style.right = '';
         trigger.setAttribute('aria-expanded', 'true');
         trigger.classList.add('active');
-        // A trigger near the right edge of the toolbar (Tools/Help) would
-        // otherwise render its panel partly off-screen — flip to right-
-        // anchored (under the trigger's right edge instead of its left)
-        // whenever the default left-aligned placement would overflow.
-        if (panel.getBoundingClientRect().right > window.innerWidth) {
-          panel.style.left = 'auto';
-          panel.style.right = '0';
-        }
+        positionPanel();
         openPanel = {
           root,
           close: () => {

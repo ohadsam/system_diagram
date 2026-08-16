@@ -82,6 +82,30 @@ test.describe('mobile viewport (390x844)', () => {
     });
     expect(rects.panelTop).toBeGreaterThanOrEqual(rects.toolbarBottom - 1);
   });
+
+  // Regression: a toolbar dropdown panel (js/toolbar/toolbarDropdown.js)
+  // positioned with CSS `position: absolute; left: 0` relative to its
+  // trigger could render partly off the right edge of a narrow viewport
+  // once the toolbar wrapped its trigger onto a row where it sits further
+  // right than the panel is wide — fixed by positioning with `position:
+  // fixed` and JS-computed, viewport-clamped coordinates instead (same
+  // approach as canvas/contextMenu.js).
+  test('every toolbar dropdown panel stays fully within the viewport', async ({ page }) => {
+    for (const label of ['File', 'Create', 'Tools', 'Help']) {
+      await page.locator('#toolbar button.toolbar-dropdown-trigger', { hasText: label }).click();
+      const rect = await page.evaluate((lbl) => {
+        const trigger = [...document.querySelectorAll('.toolbar-dropdown-trigger')].find((b) => b.textContent.includes(lbl));
+        return trigger.parentElement.querySelector('.toolbar-dropdown-panel').getBoundingClientRect();
+      }, label);
+      expect(rect.left).toBeGreaterThanOrEqual(0);
+      expect(rect.right).toBeLessThanOrEqual(390);
+      expect(rect.top).toBeGreaterThanOrEqual(0);
+      expect(rect.bottom).toBeLessThanOrEqual(844);
+      await page.keyboard.press('Escape');
+    }
+    const info = await scrollWidthInfo(page);
+    expect(info.scroll).toBeLessThanOrEqual(info.inner);
+  });
 });
 
 test.describe('tablet viewport (768x1024)', () => {

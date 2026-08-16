@@ -55,12 +55,13 @@ export function initToolbar(root) {
   row1.appendChild(buildBrand());
   row1.appendChild(buildHistoryGroup());
   row1.appendChild(buildNavToolGroup());
+  row1.appendChild(buildQuickCreateGroup());
   row1.appendChild(buildToolbarDropdown('File', '🗂️', 'File: new, save, load, duplicate, import/export, backup', buildFileGroupButtons()));
-  row1.appendChild(buildToolbarDropdown('Create', '✨', 'Create: custom component, shape, generated design, replication, defaults', buildCreateGroupButtons()));
+  row1.appendChild(buildToolbarDropdown('Create', '✨', 'Create: custom component, generated design, replication, defaults', buildCreateGroupButtons()));
   const spacer = el('div', { class: 'toolbar-spacer' });
   row1.appendChild(spacer);
   row1.appendChild(renderZoomControls());
-  row1.appendChild(buildToolbarDropdown('Tools', '🛠️', 'Tools: grid, Magic Arrow, AI Design Review', buildToolsGroupButtons()));
+  row1.appendChild(buildToolbarDropdown('Tools', '🛠️', 'Tools: grid, AI Design Review', buildToolsGroupButtons()));
   row1.appendChild(buildToolbarDropdown('Help', '❓', 'Help: user guide, hints, what\'s new', buildHelpGroupButtons()));
   root.appendChild(row1);
 
@@ -133,6 +134,25 @@ function buildNavToolGroup() {
   return group(selectBtn, handBtn);
 }
 
+/** "Add Shape" and "Magic Arrow" stay flat (not in a dropdown) — both are
+ * quick, frequent, one-click actions used while actively drawing a
+ * diagram, not occasional setup/admin actions like the rest of Create/
+ * Tools, so burying them behind a dropdown click would slow down exactly
+ * the moment they're needed. */
+function buildQuickCreateGroup() {
+  const addShapeBtn = el('button', { type: 'button', class: 'btn', title: 'Add a basic shape', text: '🔷 Add Shape', onClick: openCustomShapeModal });
+  const magicBtn = el('button', {
+    type: 'button', class: 'btn magic-arrow-btn', title: 'Magic Arrow: arm to auto-route the next connector around every other component', text: '🪄 Magic Arrow',
+    onClick: () => {
+      const next = !isMagicModeActive();
+      setMagicMode(next);
+      magicBtn.classList.toggle('active', next);
+      if (next) showToast('Magic Arrow armed — drag from a connection point to draw an auto-routed connector.', 'info', 2600);
+    },
+  });
+  return group(addShapeBtn, magicBtn);
+}
+
 function buildFileGroupButtons() {
   const newBtn = el('button', {
     type: 'button', class: 'btn', title: 'New diagram', text: '🆕 New',
@@ -194,11 +214,10 @@ function buildCreateGroupButtons() {
       openCustomComponentModal({ seedFromNode });
     },
   });
-  const addShapeBtn = el('button', { type: 'button', class: 'btn', title: 'Add a basic shape', text: '🔷 Add Shape', onClick: openCustomShapeModal });
   const generateDesignBtn = el('button', { type: 'button', class: 'btn', title: 'Generate a design from a spec, with AI help', text: '🧠 Generate Design', onClick: openGenerateDesignModal });
   const replicateBtn = el('button', { type: 'button', class: 'btn', title: 'Replicate: link components to auto-mirror across two sides', text: '🔁 Replicate', onClick: openReplicationModal });
   const defaultsBtn = el('button', { type: 'button', class: 'btn', title: 'Default settings for new components', text: '🎛️ Default Settings', onClick: openDefaultSettingsModal });
-  return [newComponentBtn, addShapeBtn, generateDesignBtn, replicateBtn, defaultsBtn];
+  return [newComponentBtn, generateDesignBtn, replicateBtn, defaultsBtn];
 }
 
 function buildToolsGroupButtons() {
@@ -219,17 +238,8 @@ function buildToolsGroupButtons() {
     });
   }
 
-  const magicBtn = el('button', {
-    type: 'button', class: 'btn magic-arrow-btn', title: 'Magic Arrow: arm to auto-route the next connector around every other component', text: '🪄 Magic Arrow',
-    onClick: () => {
-      const next = !isMagicModeActive();
-      setMagicMode(next);
-      magicBtn.classList.toggle('active', next);
-      if (next) showToast('Magic Arrow armed — drag from a connection point to draw an auto-routed connector.', 'info', 2600);
-    },
-  });
   const aiReviewBtn = el('button', { type: 'button', class: 'btn', title: 'AI Design Review', text: '🤖 AI Design Review', onClick: toggleAiReviewPanel });
-  return [gridBtn, magicBtn, aiReviewBtn];
+  return [gridBtn, aiReviewBtn];
 }
 
 function buildHelpGroupButtons() {

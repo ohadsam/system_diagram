@@ -2,9 +2,17 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.7.0';
+export const APP_VERSION = '1.7.1';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.7.1',
+    date: '2026-08-16',
+    highlights: [
+      'Moved "🔷 Add Shape" and "🪄 Magic Arrow" out of the Create/Tools dropdown menus back to the always-visible toolbar row — both are used too often while actively drawing a diagram to be worth a dropdown click.',
+      'Fixed: a toolbar dropdown menu (File/Create/Tools/Help) could render partly off-screen on a narrow/mobile viewport instead of staying fully visible.',
+    ],
+  },
   {
     version: '1.7.0',
     date: '2026-08-16',

@@ -126,10 +126,12 @@ everything falls through to the exact same code path as before.
 
 ## Toolbar dropdown groups (`toolbar/toolbarDropdown.js`)
 
-`toolbar.js`'s always-visible row only holds controls used continuously
-while working (undo/redo, the Select/Hand toggle, zoom); everything else
-is grouped behind one of four dropdown trigger buttons (File/Create/
-Tools/Help — `toolbar.js#buildFileGroupButtons` etc.), built by
+`toolbar.js`'s always-visible row only holds controls needed continuously
+or at a moment's notice while actively working (undo/redo, the Select/Hand
+toggle, zoom, "Add Shape", "Magic Arrow" — `buildQuickCreateGroup`);
+everything else — occasional/setup actions — is grouped behind one of four
+dropdown trigger buttons (File/Create/Tools/Help —
+`toolbar.js#buildFileGroupButtons` etc.), built by
 `buildToolbarDropdown(label, icon, title, buttons)`. This exists to keep
 the row from growing unbounded as buttons are added — a flat row of
 full-text buttons was the direct cause of a real mobile horizontal-
@@ -137,10 +139,23 @@ overflow bug (see the "Adding a toolbar button?" pitfall in
 `AI_AGENT_GUIDE.md`). It's a distinct, simpler component from
 `canvas/contextMenu.js` (the right-click menu): a dropdown's `buttons` are
 ordinary already-built `<button title="...">` elements — the exact same
-`el(...)` shape as any flat toolbar button, just hidden inside an
-absolutely-positioned panel until the trigger is clicked — rather than a
-generic `{label, onClick}` item list, so each keeps its own clear tooltip
-and a toggle button's `.active` state/icon-swap logic works unmodified.
+`el(...)` shape as any flat toolbar button — rather than a generic
+`{label, onClick}` item list, so each keeps its own clear tooltip and a
+toggle button's `.active` state/icon-swap logic works unmodified.
+
+**Panel positioning**: the panel uses `position: fixed` with `left`/`top`
+computed from the trigger's `getBoundingClientRect()` and clamped to the
+viewport (`positionPanel()`), the same pattern `canvas/contextMenu.js`
+already uses for the right-click menu — not CSS `position: absolute; top:
+100%` relative to the trigger. The relative-to-trigger approach rendered
+correctly in ad-hoc desktop testing but could still put the panel partly
+off-screen in practice (reported on a real mobile device): once the
+toolbar wraps a trigger onto a row where it sits further right/lower than
+the panel has room for, an ancestor-relative `absolute` panel has no way
+to know it needs to flip or clamp itself — only a viewport-relative
+computation can. See `tests/e2e/mobile-responsive.spec.js`'s "every
+toolbar dropdown panel stays fully within the viewport" test.
+
 Only one dropdown panel is ever open at a time (module-level `openPanel`);
 it closes on an outside click, `Escape`, or immediately after one of its
 own buttons is used.

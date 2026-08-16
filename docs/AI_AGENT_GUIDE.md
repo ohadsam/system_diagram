@@ -176,17 +176,33 @@ npm test
   selector elsewhere in `tests/e2e/` is a strong hint the exact wording is
   load-bearing — check before changing one you didn't add.
 - **Toolbar buttons live inside one of the row's dropdown groups
-  (`toolbarDropdown.js`), not flat, unless they're used continuously while
-  working** (undo/redo, the Select/Hand tool toggle in `toolMode.js`, zoom
-  controls) — this is what keeps the always-visible row short as buttons are
-  added; see the next bullet for why that matters. A dropdown's own buttons
-  are ordinary `<button title="...">` elements (built the same `el(...)`
-  way as any flat toolbar button) inside a panel that only renders visible
-  once its trigger is clicked — so a Playwright test clicking one must open
-  its group first (`openToolbarGroup(page, 'File'|'Create'|'Tools'|'Help')`
-  in `tests/e2e/helpers.js`); the panel also auto-closes after any of its
-  own buttons is used, so re-open it before every subsequent interaction in
-  the same test.
+  (`toolbarDropdown.js`), not flat, unless they're needed continuously or
+  at a moment's notice while actively working** (undo/redo, the Select/Hand
+  tool toggle in `toolMode.js`, zoom controls, "Add Shape", "Magic Arrow" —
+  `toolbar.js#buildQuickCreateGroup`) — this is what keeps the always-visible
+  row short as buttons are added; see the next bullet for why that matters.
+  A genuinely frequent one-click action used *while drawing* (not a
+  setup/admin action) belongs flat even if it seems like it "should" live
+  with its siblings conceptually — Add Shape and Magic Arrow were moved out
+  of the Create/Tools dropdowns for exactly this reason after user feedback
+  that burying them behind a click slowed down active diagramming. A
+  dropdown's own buttons are ordinary `<button title="...">` elements
+  (built the same `el(...)` way as any flat toolbar button) inside a panel
+  that only renders visible once its trigger is clicked — so a Playwright
+  test clicking one must open its group first (`openToolbarGroup(page,
+  'File'|'Create'|'Tools'|'Help')` in `tests/e2e/helpers.js`); the panel
+  also auto-closes after any of its own buttons is used, so re-open it
+  before every subsequent interaction in the same test.
+- **A dropdown panel positions itself with `position: fixed` + JS-computed,
+  viewport-clamped coordinates (`toolbarDropdown.js#positionPanel`), not
+  CSS `position: absolute` relative to the trigger.** The relative approach
+  was tried first and looked fine in desktop testing, but rendered partly
+  off-screen in practice on mobile once the toolbar wrapped a trigger onto
+  a row where it had less room than the panel needed — only a
+  viewport-relative, clamped computation (same pattern as
+  `canvas/contextMenu.js`) is reliably correct regardless of the trigger's
+  position. Don't revert to relative positioning for a dropdown/popover
+  added elsewhere in the toolbar.
 - **Adding a toolbar button? Check it doesn't push a `.toolbar-group` past
   the mobile viewport width.** `.toolbar-row` wraps *groups* onto new lines
   on narrow screens, but without `.toolbar-group { flex-wrap: wrap }` (set

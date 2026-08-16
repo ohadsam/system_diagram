@@ -249,29 +249,35 @@ choice.
 
 ### 4.5 Toolbar
 - **Layout**: the always-visible row keeps only controls used continuously
-  while working — undo/redo, the Select/Hand navigation-tool toggle (4.3.2),
-  and zoom — plus four dropdown menus (**File**, **Create**, **Tools**,
-  **Help**) that group every one-off action, so the row stays short and
-  findable instead of growing unbounded as features are added. Every
-  button, flat or inside a dropdown, has a clear descriptive tooltip (its
-  only affordance beyond an icon — there's no custom tooltip system).
+  or needed at a moment's notice while actively working — undo/redo, the
+  Select/Hand navigation-tool toggle (4.3.2), zoom, "🔷 Add Shape", and "🪄
+  Magic Arrow" — plus four dropdown menus (**File**, **Create**, **Tools**,
+  **Help**) that group every occasional/setup action, so the row stays
+  short and findable instead of growing unbounded as features are added.
+  Every button, flat or inside a dropdown, has a clear descriptive tooltip
+  (its only affordance beyond an icon — there's no custom tooltip system).
+  A dropdown's panel is positioned in viewport-clamped screen coordinates
+  (not CSS relative-to-trigger), so it always renders fully on-screen
+  regardless of where its trigger ends up, including on a narrow/mobile
+  viewport where the toolbar wraps onto several rows.
 - Style controls for current selection: fill color, "no background"
   toggle, border color, border width/style, shape, text, font size, text
   align, text position, show-icon toggle, corner radius.
 - Arrow style controls (see 4.4) shown when an edge is selected.
+- **Add Shape** (flat): instant basic shapes as custom components
+  (rectangle, rounded rectangle, circle/ellipse, diamond, hexagon,
+  cylinder, cloud, "server with rows", sticky note, group container).
+- **Magic Arrow** (flat, see 4.4.1): arms auto-routing for the next
+  connector drawn.
 - **File**: New diagram, Save (autosave to localStorage) / Save As (named
   project), Load (from localStorage list or a JSON file), Duplicate
   Project (see 4.7.4), Export/Import JSON, Export PNG, Export PDF, Backup
   & Restore.
 - **Create**: "New component" modal — build a custom styled component from
   the current selection (or from scratch) and save it into "My Components"
-  (persisted in localStorage; exportable/importable as JSON); "Add shape"
-  modal — basic shapes as instant custom components (rectangle, rounded
-  rectangle, circle/ellipse, diamond, hexagon, cylinder, cloud, "server
-  with rows", sticky note, group container); Generate Design; Replicate;
-  Default settings for new components.
-- **Tools**: grid toggle, "🪄 Magic Arrow" mode toggle (see 4.4.1), AI
-  Design Review.
+  (persisted in localStorage; exportable/importable as JSON); Generate
+  Design; Replicate; Default settings for new components.
+- **Tools**: grid toggle, AI Design Review.
 - **Help**: the interactive guide (`help.html`), a "hints" toggle, "Show
   hints again", and "🆕 What's new" (see 4.11).
 - Zoom controls (in/out/reset/fit-to-screen) stay flat; also reachable via

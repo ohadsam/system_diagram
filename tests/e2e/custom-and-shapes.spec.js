@@ -24,7 +24,6 @@ test('creating a custom component saves it into "My Components" and it can be pl
 });
 
 test('the Add Shape modal drops a basic shape onto the canvas', async ({ page }) => {
-  await openToolbarGroup(page, 'Create');
   await page.locator('#toolbar button', { hasText: 'Add Shape' }).click();
   await expect(page.locator('.shape-picker-modal')).toBeVisible();
   await page.locator('.shape-card', { hasText: 'Diamond' }).click();
@@ -33,7 +32,6 @@ test('the Add Shape modal drops a basic shape onto the canvas', async ({ page })
 });
 
 test('a "server with rows" node lets you add and remove rows', async ({ page }) => {
-  await openToolbarGroup(page, 'Create');
   await page.locator('#toolbar button', { hasText: 'Add Shape' }).click();
   await page.locator('.shape-card', { hasText: 'Server (with rows)' }).click();
   const node = page.locator('.node[data-shape="rows"]');

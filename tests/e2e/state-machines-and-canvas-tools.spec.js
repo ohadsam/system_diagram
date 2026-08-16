@@ -129,7 +129,6 @@ test('Magic Arrow mode draws a connector with magic routing', async ({ page }) =
   const nodes = page.locator('.node');
   await dragNodeBy(page, nodes.nth(1), 260, 0);
 
-  await openToolbarGroup(page, 'Tools');
   await page.locator('.magic-arrow-btn').click();
   await expect(page.locator('.magic-arrow-btn')).toHaveClass(/active/);
 
