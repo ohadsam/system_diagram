@@ -409,7 +409,11 @@ can silently unmask a bug the *other* one was covering for — worth
 specifically re-testing "do the same thing twice in a row without moving
 anything in between" whenever a layout-affecting side effect (a panel
 resizing shared layout, a scroll position, anything with a stateful
-side-effect beyond its own obvious job) is removed or changed.
+side-effect beyond its own obvious job) is removed or changed. The same
+"always targets the exact canvas center" pattern turned up a second place
+during the release-checklist's own review pass — `addCustomShapeNode` (the
+"Add Shape" modal) — before it ever became a user-visible bug there; fixed
+the same way, reusing `findClearCenter` rather than duplicating the logic.
 
 ## Details panel (`panel/detailsPanel.js`)
 

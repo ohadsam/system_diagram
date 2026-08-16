@@ -31,6 +31,20 @@ test('the Add Shape modal drops a basic shape onto the canvas', async ({ page })
   await expect(page.locator('.node[data-shape="diamond"]')).toHaveCount(1);
 });
 
+test('adding the same shape twice from "Add Shape" (without moving either) still leaves both individually clickable', async ({ page }) => {
+  for (let i = 0; i < 2; i += 1) {
+    await page.locator('#toolbar button', { hasText: 'Add Shape' }).click();
+    await page.locator('.shape-card', { hasText: 'Circle' }).click();
+  }
+  await expect.poll(() => nodeCount(page)).toBe(2);
+
+  const nodes = page.locator('.node');
+  for (let i = 0; i < 2; i += 1) {
+    await nodes.nth(i).click({ timeout: 5000 });
+    await expect(nodes.nth(i)).toHaveClass(/selected/);
+  }
+});
+
 test('a "server with rows" node lets you add and remove rows', async ({ page }) => {
   await page.locator('#toolbar button', { hasText: 'Add Shape' }).click();
   await page.locator('.shape-card', { hasText: 'Server (with rows)' }).click();

@@ -11,6 +11,7 @@ export const VERSION_HISTORY = [
     highlights: [
       'New: the style editor row (shown when a component/connector is selected) can now float as a small card next to the selection instead of always pushing the toolbar/canvas — click 📌 on it to pin it to the top of the screen instead, or set your preferred default (floating, pinned to top, or pinned to bottom) in "🎛️ Default Settings".',
       'Fixed: the diamond and hexagon shapes\' border didn\'t follow their actual outline — it now hugs the shape correctly, matching every other shape.',
+      'Fixed: adding two components in a row (via sidebar click or "Add Shape") without moving either one could leave the first one stuck exactly underneath the second, unable to be clicked — the newer one now nudges out of the way automatically.',
     ],
   },
   {

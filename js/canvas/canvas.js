@@ -316,19 +316,22 @@ export function resolveComponentDef(defId) {
 /** Nudges `(x, y)` diagonally in fixed 24px steps (same cascade offset
  * `duplicateSelection` already uses) while a same-sized box centered there
  * would cover an existing node's own center point. Every repeat click of
- * the same sidebar item (or a same-point drag-drop) would otherwise land
- * the new node in *exactly* the same spot as the last one — and since the
- * new node always gets the higher zIndex, its box then sits directly over
- * the older node's own center, the exact point a plain click targets,
- * making that older node permanently unreachable by a normal click (higher
- * zIndex always wins, and nothing else in the UI moves a freshly-created
- * node out of the way) — see docs/ARCHITECTURE.md's "Contextual
- * style-editor row" for why this became reachable: 'floating' mode no
- * longer resizes #canvas-viewport the way pinned-top incidentally did, so
- * the click-to-add center point stopped shifting between clicks. A small
- * partial overlap elsewhere is fine (real diagrams often place components
- * close together) — this only cares about covering the *center* of an
- * older node, which is what actually blocks a plain click on it. */
+ * the same sidebar item or "Add Shape" card (or a same-point drag-drop)
+ * would otherwise land the new node in *exactly* the same spot as the last
+ * one — and since the new node always gets the higher zIndex, its box then
+ * sits directly over the older node's own center, the exact point a plain
+ * click targets, making that older node permanently unreachable by a
+ * normal click (higher zIndex always wins, and nothing else in the UI
+ * moves a freshly-created node out of the way) — see
+ * docs/ARCHITECTURE.md's "Contextual style-editor row" for why this became
+ * reachable: 'floating' mode no longer resizes #canvas-viewport the way
+ * pinned-top incidentally did, so the click-to-add center point stopped
+ * shifting between clicks. A small partial overlap elsewhere is fine (real
+ * diagrams often place components close together) — this only cares about
+ * covering the *center* of an older node, which is what actually blocks a
+ * plain click on it. Used by both `createNodeFromDrop` (sidebar click-add
+ * and drag-drop) and `addCustomShapeNode` (the "Add Shape" modal), the two
+ * entry points that default to the canvas's exact current center. */
 function findClearCenter(x, y, w, h, existingNodes) {
   const STEP = 24;
   let cx = x;
@@ -476,7 +479,12 @@ export function instantiatePatternAtCenter(defId) {
 
 export function addCustomShapeNode(shapeDef, centerPoint) {
   const state = store.getState();
-  const point = centerPoint || screenCenterCanvasPoint();
+  const rawPoint = centerPoint || screenCenterCanvasPoint();
+  // Same stacking risk as createNodeFromDrop's click-to-add path (see its
+  // own comment on findClearCenter) — the "Add Shape" modal also always
+  // targets the canvas center, so picking the same shape twice in a row
+  // would otherwise land both nodes in the exact same spot.
+  const point = findClearCenter(rawPoint.x, rawPoint.y, shapeDef.defaultSize.w, shapeDef.defaultSize.h, state.nodes);
   const node = createNode(shapeDef, point.x - shapeDef.defaultSize.w / 2, point.y - shapeDef.defaultSize.h / 2, {
     zIndex: nextZIndex(state),
     ...buildCreationOverrides(),

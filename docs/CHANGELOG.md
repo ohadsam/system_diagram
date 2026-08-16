@@ -187,9 +187,10 @@ Two more reported bugs: the contextual style row's canvas-jump complaint got a r
   masking (selecting a newly-added node grew the toolbar, which shifted `#canvas-viewport`'s
   center before the next click-add landed). `'floating'` mode doesn't resize anything, so that
   accidental workaround went away and every click-added component started landing in the exact
-  same spot as the last. `createNodeFromDrop` now nudges a new node's position diagonally
-  (24px steps, same cascade `duplicateSelection` uses) only while it would otherwise cover an
-  existing node's own center point — see `docs/ARCHITECTURE.md` gotcha #5.
+  same spot as the last. `createNodeFromDrop` (and `addCustomShapeNode`, the "Add Shape" modal,
+  which has the same "always targets the exact canvas center" pattern) now nudges a new node's
+  position diagonally (24px steps, same cascade `duplicateSelection` uses) only while it would
+  otherwise cover an existing node's own center point — see `docs/ARCHITECTURE.md` gotcha #5.
 - **Fixed: diamond and hexagon shapes' border didn't follow their actual outline.** A plain CSS
   `border` doesn't follow `clip-path`'s polygon — the border box underneath is still a rectangle,
   so the clip crops that rectangle's border unevenly instead of hugging the visible shape. Fixed
