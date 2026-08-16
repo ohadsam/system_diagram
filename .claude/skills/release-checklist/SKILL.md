@@ -31,6 +31,11 @@ concrete examples). Do all three, in order, every single time this skill runs:
 2. **Functional/integration.** Trace how the change interacts with existing features: undo/redo,
    JSON import/export, duplicate-project, autosave, the details panel, multi-select. A feature that
    works in isolation but breaks e.g. cascade-delete or the export format is not done.
+   **If this batch added any new predefined component(s) or a whole new category**, also check
+   whether it should get a `related` (Smart Suggestions) entry — see the "add-library-item" skill's
+   "Smart Suggestions (`related`)" section for the bar a pairing needs to clear. Skip it and say so
+   if nothing in the batch has an obvious, already-in-the-library companion — don't force a weak
+   pairing just to have added one.
 3. **UI/UX, with explicit desktop-vs-mobile emphasis.** This is the pass most likely to be
    shortchanged — don't. For every new/changed screen (toolbar buttons, modals, panels):
    - Screenshot at a **desktop width** (~1280px) via Playwright.

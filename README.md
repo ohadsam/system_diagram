@@ -64,6 +64,11 @@ Or open `index.html` directly in a browser.
   (plus the connectors between them) into a reusable "My Components" item
   in one click, with or without grouping them first — drop it again to
   recreate the whole group, styled exactly as saved.
+- **✨ Smart Suggestions** — placing a component with a well-known
+  real-world companion (Load Balancer → a web server; Kafka →
+  Elasticsearch; API Gateway → Lambda; and more) shows a small dismissible
+  banner with one-click "+ Add" buttons for each one. Off switch in
+  Default Settings for anyone who doesn't want it.
 - **Connectors** — drag between components to draw arrows with
   configurable routing (straight/elbow/curved, or "🪄 Magic" — auto-routes
   around every other component with the fewest bends), independent

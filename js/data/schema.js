@@ -16,6 +16,14 @@
  * @param {'component'|'layer'} [opts.kind] 'layer' items (see categories/layers.js)
  *   can also be dropped onto an existing node (or added via its details panel)
  *   to attach as one of its sub-components, instead of only standing alone.
+ * @param {string[]} [opts.related] ids of other components commonly used
+ *   alongside this one in real designs (e.g. a load balancer → a web
+ *   server), offered as one-click "Smart Suggestions" when this component
+ *   is placed — see canvas/suggestions.js. Curated by hand, deliberately
+ *   sparse: only add a pairing you'd confidently draw yourself, not every
+ *   component that could plausibly connect to this one — see
+ *   docs/AI_AGENT_GUIDE.md "Add a predefined component" and
+ *   .claude/skills/add-library-item/SKILL.md for the bar to clear.
  */
 export function c(id, name, icon, opts = {}) {
   return {
@@ -30,6 +38,7 @@ export function c(id, name, icon, opts = {}) {
     tags: opts.tags || [],
     subComponents: opts.subComponents || [],
     defaultSize: opts.defaultSize || { w: 160, h: 84 },
+    related: opts.related || [],
   };
 }
 

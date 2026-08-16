@@ -1,8 +1,8 @@
-// App-level component-library visibility settings — currently just
-// whether to hide the "State Machines" category/patterns from the
-// sidebar, for users who don't want that content cluttering the picker.
-// Purely a browse/search filter: it never touches state-machine content
-// that's already placed on a diagram.
+// App-level component-library settings: whether to hide the "State
+// Machines" category/patterns from the sidebar (purely a browse/search
+// filter — never touches state-machine content already placed on a
+// diagram), and whether to show the "Smart Suggestions" banner
+// (canvas/suggestions.js) after placing a component.
 import { readJSON, writeJSON } from './storage.js';
 
 const KEY = 'librarySettings';
@@ -10,6 +10,7 @@ const listeners = new Set();
 
 export const DEFAULT_LIBRARY_SETTINGS = {
   hideStateMachines: false,
+  suggestionsEnabled: true,
 };
 
 export function getLibrarySettings() {

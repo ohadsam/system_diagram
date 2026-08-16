@@ -289,6 +289,43 @@ alongside `kind: 'pattern'` whole-state-machine templates, all in one
 support at all — it's just that edge's ordinary `label` field, set the
 same way any connector's label is.
 
+## Smart Suggestions (`canvas/suggestions.js`, `data/schema.js`'s `related` field)
+
+Each component definition can carry an optional, hand-curated `related:
+string[]` — other built-in component ids commonly used alongside it in
+real designs (`db-redis` ↔ `db-postgres`, `net-load-balancer` →
+`srv-nginx`, ...; see the `add-library-item` skill for the curation bar).
+`data/index.js#getRelatedComponents(id)` resolves those ids to real defs,
+dropping any that don't resolve rather than surfacing a broken suggestion.
+
+`canvas.js#createNodeFromDrop` — the single choke point both drag-drop and
+click-to-place funnel through (`addComponentAtCenter` just calls it with a
+computed screen point) — calls `suggestions.js#showSuggestionsFor(def,
+onAdd)` right after creating the node. That function does the actual
+filtering (Smart Suggestions setting off → nothing; no curated `related`
+→ nothing; every related component already present on the canvas →
+nothing) and, if anything survives, shows a small fixed-position banner
+with one "+ Add X" button per suggestion.
+
+**Deliberately no import from `suggestions.js` back to `canvas.js`** even
+though clicking a suggestion needs to *create* a node (`canvas.js`'s job):
+`canvas.js` passes its own `addRelatedComponent` as a plain callback
+(`onAdd`) into `showSuggestionsFor` instead of `suggestions.js` importing
+`canvas.js` to call it directly — dependency injection at the call site
+avoids what would otherwise be a circular `canvas.js` ⇄ `suggestions.js`
+import (canvas.js already imports suggestions.js to trigger the banner in
+the first place). `addRelatedComponent` places the new node in *canvas*
+coordinates directly, offset from the node that prompted the suggestion
+(to the right, stacked vertically if more than one suggestion from the
+same banner is accepted) — unlike `createNodeFromDrop`, there's no real
+pointer position to convert from a banner-button click.
+
+Turning suggestions off entirely lives in `io/librarySettings.js`
+(`suggestionsEnabled`, alongside `hideStateMachines` — same
+read/write/subscribe module, just one more key) and is exposed from
+"🎛️ Default settings" → "Component library", the same modal section as
+the State Machines toggle.
+
 ## Persistence (`io/`)
 
 - `storage.js`: thin wrapper around `localStorage` with a versioned key

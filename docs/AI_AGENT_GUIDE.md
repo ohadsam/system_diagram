@@ -42,6 +42,8 @@ this repo" quick-start.
 | Add a new category                                | new file in `js/data/categories/` + import in `js/data/index.js` |
 | Add a "layer/role" (attachable to any node)       | `js/data/categories/layers.js` — just `c(id, name, icon, { kind: 'layer', ... })` |
 | Add a "design pattern" (multi-node blueprint)     | `js/data/categories/design-patterns.js` — `definePattern(id, name, icon, { nodes, edges })`, node `defId`s must reference real components/layers |
+| Add/change a "Smart Suggestions" companion pairing | `related: ['other-id']` in the `c(...)` call — see `add-library-item` skill's "Smart Suggestions" section for the curation bar |
+| Change the Smart Suggestions banner/trigger        | `js/canvas/suggestions.js` (banner + filtering), `canvas.js#createNodeFromDrop` (trigger point) |
 | Change node drag/resize behavior                  | `js/canvas/nodeInteractions.js` |
 | Change arrow routing/markers                      | `js/canvas/connector.js`, `connectorInteractions.js` |
 | Add a toolbar button                              | `js/toolbar/toolbar.js` — put it in an existing dropdown group (`buildFileGroupButtons`/`buildCreateGroupButtons`/`buildToolsGroupButtons`/`buildHelpGroupButtons`, rendered via `toolbarDropdown.js`) unless it's used continuously while working (like undo/redo, the Select/Hand tool toggle, zoom), which stay flat. **Always set a clear, specific `title`** on the button — see "Add a toolbar button" pitfall below. |

@@ -152,6 +152,28 @@ user-facing fix or feature, alongside this changelog.
   value `'magic'`, also chooseable for any existing connector from its
   style editor.
 
+## v1.9.0 (2026-08-16)
+
+- Added "✨ Smart Suggestions": placing a component with a curated list of
+  well-known real-world companions (Load Balancer → Nginx Web Server /
+  Auto Scaling Group; Kafka → Elasticsearch; API Gateway → Lambda/Cognito;
+  S3 → CDN/CloudFront; Redis ↔ Postgres/MySQL/MongoDB; Docker ↔ Kubernetes;
+  Prometheus ↔ Grafana; and more — ~22 components, ~25 pairings) shows a
+  small dismissible banner with one-click "+ Add X" buttons, positioned
+  next to the component just placed. Already-present companions are never
+  re-offered, and a component with no curated companions shows no banner.
+  New `related` field on component definitions (`js/data/schema.js#c`),
+  resolved via `getRelatedComponents()` (`js/data/index.js`), rendered by
+  the new `js/canvas/suggestions.js`. See `docs/ARCHITECTURE.md` "Smart
+  Suggestions" for the design (deliberately hand-curated and sparse, no
+  circular import between `canvas.js` and `suggestions.js`).
+- New "🎛️ Default settings" → "Component library" toggle to turn Smart
+  Suggestions off entirely.
+- `.claude/skills/add-library-item/SKILL.md` and
+  `.claude/skills/release-checklist/SKILL.md` now prompt checking for a
+  `related` (Smart Suggestions) pairing whenever a new predefined
+  component or category is added.
+
 ## v1.8.0 (2026-08-16)
 
 - Added a collapse/close header to the toolbar's contextual style-editor row

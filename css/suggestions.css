@@ -1,0 +1,46 @@
+/* "Smart Suggestions" banner — see canvas/suggestions.js. Fixed at the
+   bottom-center of the viewport (the toast container already owns
+   bottom-right, so this stays out of its way) and slides up on show. */
+.suggestion-banner {
+  position: fixed;
+  left: 50%;
+  bottom: var(--space-4);
+  z-index: var(--z-hint);
+  transform: translate(-50%, 12px);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  max-width: min(720px, calc(100vw - 32px));
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-2) var(--space-3);
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.suggestion-banner[hidden] {
+  display: none;
+}
+
+.suggestion-banner.visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.suggestion-banner-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
+.suggestion-banner-btn {
+  white-space: nowrap;
+}
+
+.suggestion-banner-close {
+  margin-left: var(--space-1);
+}

@@ -74,3 +74,14 @@ export function getComponentsForCategory(categoryId) {
 export function getLayerComponents() {
   return ALL_COMPONENTS.filter((comp) => comp.kind === 'layer');
 }
+
+/** Resolves a component's curated `related` ids (see schema.js#c) to their
+ * actual definitions, for the canvas "Smart Suggestions" banner (see
+ * canvas/suggestions.js) — silently drops any id that doesn't resolve
+ * (e.g. a custom component was since deleted) rather than surfacing a
+ * broken suggestion. */
+export function getRelatedComponents(id) {
+  const def = getComponentById(id);
+  if (!def?.related?.length) return [];
+  return def.related.map((relId) => getComponentById(relId)).filter(Boolean);
+}

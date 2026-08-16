@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CATEGORIES, ALL_COMPONENTS, COMPONENTS_BY_CATEGORY, getComponentById, getComponentsForCategory, getLayerComponents } from '../../js/data/index.js';
+import {
+  CATEGORIES, ALL_COMPONENTS, COMPONENTS_BY_CATEGORY, getComponentById, getComponentsForCategory, getLayerComponents, getRelatedComponents,
+} from '../../js/data/index.js';
 
 test('the library loads with a large, rich set of categories and components', () => {
   assert.ok(CATEGORIES.length >= 15, `expected at least 15 categories, got ${CATEGORIES.length}`);
@@ -96,6 +98,26 @@ test('the "AI Providers & Agents" category is rich and covers providers, models,
   for (const expected of ['OpenAI', 'Anthropic', 'MCP Server', 'AI Agent', 'Skill']) {
     assert.ok(names.includes(expected), `expected "${expected}" to be present in AI Providers & Agents`);
   }
+});
+
+test('every component\'s "related" (Smart Suggestions) ids resolve to real components, and none self-references', () => {
+  const withRelated = ALL_COMPONENTS.filter((c) => c.related?.length);
+  assert.ok(withRelated.length >= 15, `expected at least 15 components with curated related-suggestions, got ${withRelated.length}`);
+  for (const comp of withRelated) {
+    for (const relId of comp.related) {
+      assert.ok(getComponentById(relId), `"${comp.id}".related references unknown id "${relId}"`);
+      assert.notEqual(relId, comp.id, `"${comp.id}" lists itself in its own related array`);
+    }
+    assert.equal(new Set(comp.related).size, comp.related.length, `"${comp.id}" has duplicate entries in its related array`);
+  }
+});
+
+test('getRelatedComponents resolves ids to real defs and is empty/safe for components with none', () => {
+  const redisRelated = getRelatedComponents('db-redis').map((c) => c.id);
+  assert.ok(redisRelated.includes('db-postgres'));
+  assert.ok(redisRelated.includes('db-mysql'));
+  assert.deepEqual(getRelatedComponents('does-not-exist'), []);
+  assert.deepEqual(getRelatedComponents('net-dns'), []); // a real component with no curated related list
 });
 
 test('the "State Machines" category mixes state shapes and ready-made pattern templates', () => {

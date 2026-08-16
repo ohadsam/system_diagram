@@ -172,6 +172,21 @@ re-grouped together as a single movable unit. A selection of exactly one
 component (no connectors) instead opens the richer, editable "New
 Component" form (4.5) so its fields stay tweakable before saving.
 
+#### 4.2.8 Smart Suggestions
+Placing a component with a curated list of well-known real-world companions
+(e.g. a Load Balancer → a web server; Apache Kafka → Elasticsearch; an API
+Gateway → Lambda) shows a small dismissible banner offering one-click
+"+ Add X" buttons for each one, positioned next to the component just
+placed. Suggestions already present on the canvas are never re-offered,
+and a component with no curated companions shows no banner at all. The
+mapping is hand-curated (`related` on each `c(...)` definition — see
+`js/data/schema.js` and the `add-library-item` skill's "Smart Suggestions"
+section for the bar a pairing needs to clear) rather than automatic or
+heuristic, deliberately sparse and grown incrementally rather than
+covering the whole library at once. Can be turned off entirely from
+"🎛️ Default settings" → "Component library" (4.2.5) for anyone who
+doesn't want it.
+
 ### 4.3 Canvas node interactions
 - Drag to move, resize via handles, rotate not required.
 - Delete via `Delete`/`Backspace`, right-click menu, or toolbar button —

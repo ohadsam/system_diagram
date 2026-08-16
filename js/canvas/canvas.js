@@ -18,6 +18,7 @@ import { createEdgeEl, updateEdgeEl, configureEdgeHandlers, initConnectorDefs } 
 import { initConnectorInteractions } from './connectorInteractions.js';
 import { showContextMenu, hideContextMenu } from './contextMenu.js';
 import { getToolMode, onToolModeChange } from './toolMode.js';
+import { showSuggestionsFor } from './suggestions.js';
 
 let viewportEl = null;
 let contentEl = null;
@@ -302,11 +303,36 @@ export function createNodeFromDrop(defId, clientX, clientY) {
   });
   store.select([node.id], []);
   focusNode(node.id);
+  showSuggestionsFor(def, (relDefId, offsetIndex) => addRelatedComponent(relDefId, node.id, offsetIndex));
 }
 
 export function addComponentAtCenter(defId) {
   const rect = viewportEl.getBoundingClientRect();
   createNodeFromDrop(defId, rect.left + rect.width / 2, rect.top + rect.height / 2);
+}
+
+/** Places a "Smart Suggestions" companion component (see
+ * canvas/suggestions.js) just to the right of the node that prompted it,
+ * stacked vertically if more than one suggestion is accepted from the same
+ * banner — reusing canvas coordinates directly (unlike createNodeFromDrop)
+ * since there's no real pointer position to convert from a button click. */
+function addRelatedComponent(defId, anchorNodeId, offsetIndex) {
+  const def = resolveComponentDef(defId);
+  if (!def) return;
+  const state = store.getState();
+  const anchor = state.nodes.find((n) => n.id === anchorNodeId);
+  const point = anchor
+    ? { x: anchor.x + anchor.w + 60, y: anchor.y + offsetIndex * (def.defaultSize.h + 24) }
+    : screenCenterCanvasPoint();
+  const node = createNode(def, point.x, point.y, {
+    zIndex: nextZIndex(state),
+    ...buildCreationOverrides(),
+  });
+  store.dispatch((draft) => {
+    draft.nodes.push(node);
+  });
+  store.select([node.id], []);
+  focusNode(node.id);
 }
 
 /** Attaches a "layer" component (see data/categories/layers.js) as a

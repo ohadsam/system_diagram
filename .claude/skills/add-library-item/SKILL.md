@@ -36,6 +36,30 @@ Rules:
   is the established range) — there is no real parent/child nesting in this app, it's purely
   visual: components placed over it aren't actually attached to it in the data model.
 
+### Smart Suggestions (`related`) — check this every time
+
+After adding any new plain component, check whether it has an obvious, well-known real-world
+companion **already in the library** — something you'd confidently draw next to it yourself,
+not just something that could plausibly connect. If so, add `related: ['other-id', ...]` to its
+`c(...)` call (and, where it makes sense, the reverse pairing on the other component too — see
+`db-redis`/`db-postgres` in `databases.js` for a symmetric example, and `net-load-balancer` →
+`srv-nginx` in `networking.js` for a one-directional one where the reverse isn't as universally
+true). This powers the "Smart Suggestions" banner (`canvas/suggestions.js`) offered right after a
+component is placed.
+
+Bar to clear — skip it rather than force a weak pairing:
+- The pairing should be something most engineers would nod at immediately (Load Balancer → a web
+  server; Kafka → Elasticsearch for a log/event pipeline; API Gateway → Lambda). "Both are used in
+  backend systems" is not specific enough.
+- Don't invent a new component just to complete a pairing (e.g. there's no Zookeeper/Schema
+  Registry in the library yet, so Kafka has no `related` entry pointing at either — that's
+  correct, not a gap to force-fill).
+- Keep each `related` list short (2-3 ids) — it's curated, not exhaustive. `related` only ever
+  points at built-in component ids, never at "My Components"/custom ones.
+
+`componentData.test.mjs` enforces that every `related` id resolves to a real component and that
+none self-references — run it (see "Always finish with" below) after adding one.
+
 ## A "layer" (attaches as a sub-component instead of standing alone)
 
 Same `c()` call, add `kind: 'layer'`. See `js/data/categories/layers.js` for the full set — used
@@ -76,7 +100,11 @@ Rules:
 1. New file `js/data/categories/<name>.js`, same shape as the others (`export const category =
    {id, label, color}`, `export const components = [...]`).
 2. Register it in `js/data/index.js` (the aggregator every other file already lists itself in).
-3. If it should be user-hideable (like State Machines), wire it into
+3. Check the new category's items against the "Smart Suggestions" bar above — both for obvious
+   pairings *within* the new category and between a new item and something already in the
+   library (e.g. a new message-queue category's flagship product might pair with an existing
+   monitoring/analytics component).
+4. If it should be user-hideable (like State Machines), wire it into
    `js/io/librarySettings.js` + `js/sidebar/sidebar.js#HIDEABLE_CATEGORIES` +
    `js/modals/defaultSettingsModal.js` — see docs/AI_AGENT_GUIDE.md's row for that pattern. Most
    new categories don't need this; only add it if asked for.

@@ -11,7 +11,7 @@ export const components = [
   c('misc-external-api', 'Third-Party API', '🔌', { color: MI }),
   c('misc-external-system', 'External System', '🏢', { shape: 'rect', color: MI }),
   c('misc-feature-flags', 'Feature Flags', '🚩', { color: MI }),
-  c('misc-graphql', 'GraphQL Server', '◈', { color: '#E10098' }),
+  c('misc-graphql', 'GraphQL Server', '◈', { color: '#E10098', related: ['net-api-gateway'] }),
   c('misc-grpc', 'gRPC Service', '📡', { color: MI }),
   c('misc-payment-gateway', 'Payment Gateway', '💳', { color: MI }),
   c('misc-push-notification', 'Push Notification Service', '🔔', { color: MI }),

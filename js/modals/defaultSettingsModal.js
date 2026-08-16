@@ -41,6 +41,11 @@ export function openDefaultSettingsModal() {
 
       form.appendChild(el('h3', { class: 'modal-subheading', text: 'Component library' }));
       form.appendChild(checkbox(libraryModel.hideStateMachines, (v) => { libraryModel.hideStateMachines = v; saveLibrarySettings(libraryModel); }, 'Hide "State Machines" components & templates from the sidebar'));
+      form.appendChild(checkbox(
+        libraryModel.suggestionsEnabled,
+        (v) => { libraryModel.suggestionsEnabled = v; saveLibrarySettings(libraryModel); },
+        'Show "Smart Suggestions" (companion components) after placing a component',
+      ));
 
       const actions = el('div', { class: 'modal-actions' });
       const secondary = el('div', { class: 'modal-actions-secondary' });

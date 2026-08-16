@@ -11,7 +11,7 @@ export const components = [
   c('srv-iis', 'IIS', '🪟', { color: '#5391FE' }),
   c('srv-microservice', 'Microservice', '🧩', { color: SV }),
   c('srv-monolith', 'Monolith', '🏛️', { color: SV, defaultSize: { w: 200, h: 120 } }),
-  c('srv-nginx', 'Nginx Web Server', '🟩', { color: '#009639' }),
+  c('srv-nginx', 'Nginx Web Server', '🟩', { color: '#009639', related: ['net-load-balancer'] }),
   c('srv-serverless-fn', 'Serverless Function', 'ƒ', { color: SV }),
   c('srv-tomcat', 'Apache Tomcat', '🐈', { color: '#F8DC75' }),
   c('srv-vm', 'Virtual Machine', '🖥️', { color: SV }),

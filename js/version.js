@@ -2,9 +2,16 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.8.0';
+export const APP_VERSION = '1.9.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.9.0',
+    date: '2026-08-16',
+    highlights: [
+      'New "✨ Smart Suggestions" — placing a component with a well-known real-world companion (e.g. a Load Balancer → a web server; Kafka → Elasticsearch; an API Gateway → Lambda) shows a small dismissible banner with one-click "+ Add" buttons for each one. Can be turned off from "🎛️ Default settings" → "Component library".',
+    ],
+  },
   {
     version: '1.8.0',
     date: '2026-08-16',
