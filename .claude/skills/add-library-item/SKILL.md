@@ -75,6 +75,15 @@ Bar to clear — skip it rather than force a weak pairing, for either list:
 - Keep each list short (2-3 ids) — curated, not exhaustive. Both only ever point at built-in ids
   (component ids for `related`, layer ids for `relatedLayers`), never at "My Components"/custom
   ones.
+- **After adding/extending several `related` pairings in one batch, re-run the *full* e2e suite,
+  not just tests for the component(s) you touched.** A plain-substring sidebar search (like
+  `tests/e2e/helpers.js#addComponentByName`) can rank a component you just gave a new `related`
+  list ahead of the one a test actually meant to place (e.g. searching "DNS" always matched both
+  `net-dns` and `aws-route53`, tagged `dns`, with Route 53 ranking first — a "no companions" test
+  using that search broke only once Route 53 *gained* curated companions in this exact kind of
+  batch). Any test whose outcome depends on *which specific* component a fuzzy search lands on
+  should use `tests/e2e/smart-suggestions.spec.js`'s own `addExactComponent(page, name,
+  categoryLabel?)` helper instead.
 
 `componentData.test.mjs` enforces that every `related` id resolves to a real component (no
 self-references, no duplicates) and every `relatedLayers` id resolves to an actual `kind: 'layer'`

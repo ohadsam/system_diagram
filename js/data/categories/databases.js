@@ -14,7 +14,7 @@ export const components = [
   c('db-firestore', 'Firebase Firestore', '🔥', { ...CYL, color: '#FFA000', tags: ['nosql', 'realtime'] }),
   c('db-generic', 'Database', '🗄️', { ...CYL, color: DB, tags: ['sql', 'generic'] }),
   c('db-influxdb', 'InfluxDB', '📈', { ...CYL, color: '#22ADF6', tags: ['time-series'] }),
-  c('db-mariadb', 'MariaDB', '🦭', { ...CYL, color: '#003545', tags: ['sql'] }),
+  c('db-mariadb', 'MariaDB', '🦭', { ...CYL, color: '#003545', tags: ['sql'], related: ['db-redis'] }),
   c('db-mongodb', 'MongoDB', '🍃', { ...CYL, color: '#47A248', tags: ['nosql', 'document'], related: ['db-redis'] }),
   c('db-mysql', 'MySQL', '🐬', { ...CYL, color: '#4479A1', tags: ['sql'], related: ['db-redis'] }),
   c('db-neo4j', 'Neo4j', '🕸️', { ...CYL, color: '#008CC1', tags: ['graph'] }),

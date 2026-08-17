@@ -152,6 +152,34 @@ user-facing fix or feature, alongside this changelog.
   value `'magic'`, also chooseable for any existing connector from its
   style editor.
 
+## v1.14.0 (2026-08-17)
+
+Expanded ✨ Smart Suggestions coverage — a deliberate, precision-first pass, not an attempt to
+cover the whole library:
+
+- **~90 new curated `related`/`relatedLayers` pairings** across AWS, Containers & Orchestration,
+  Monitoring & Observability, Security & Identity, Databases, Storage, DevOps & CI/CD, Logging,
+  Servers & Compute, Networking, AI/ML, AI Providers & Agents, Frontend Frameworks, Backend
+  Frameworks, and Cloud Providers. Every addition clears the `add-library-item` skill's curation
+  bar (something most engineers would nod at immediately) — several categories of pairing were
+  considered and deliberately skipped for being too generic ("every CI tool could use Docker",
+  "every backend framework could use a database") or ambiguous (a component with several
+  equally-plausible companions and no single canonical one). Highlights: AWS resource hierarchies
+  that are literally direct parent/child relationships (ECS Cluster → Service → Task, EKS Cluster
+  → Node Group → Pod), named AWS patterns (SNS → SQS fan-out, Route 53 → CloudFront/ELB, a VPC →
+  its Internet/NAT Gateways), 1:1 AI provider → flagship model pairings (Anthropic → Claude, xAI →
+  Grok, OpenAI → GPT/DALL·E/Whisper, ...), the MCP client/server/tool triad, a RAG Pipeline →
+  Vector Database/Reranker/Knowledge Base, meta-frameworks built directly on another library in
+  this one (Next.js/Gatsby/Remix → React, Nuxt → Vue), and two more MVC-architecture frameworks
+  (Laravel, ASP.NET Core) getting the same `relatedLayers` treatment Rails/Django already had.
+- **Fixed a pre-existing e2e test fragility this batch's data changes exposed**:
+  `tests/e2e/smart-suggestions.spec.js`'s "no curated companions" test used a plain substring
+  search for "DNS", which had always matched both `net-dns` and `aws-route53` (tagged `dns`) with
+  Route 53 ranking first — harmless while neither had a `related` list, but broken the moment
+  Route 53 legitimately gained one in this batch. Switched to the file's own exact-match
+  `addExactComponent` helper. See `docs/AI_AGENT_GUIDE.md`'s new pitfall entry for the general
+  lesson (re-run the full suite after any `related` batch, not just new tests).
+
 ## v1.13.1 (2026-08-17)
 
 Two reported UI bugs, both real regressions/oversights caught by the reporter, not by review:

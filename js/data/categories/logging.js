@@ -12,7 +12,7 @@ export const components = [
   c('log-graylog', 'Graylog', '🐺', { color: '#F4952C' }),
   c('log-kibana', 'Kibana', '🧭', { color: '#005571', related: ['db-elasticsearch'] }),
   c('log-logstash', 'Logstash', '🚂', { color: '#005571', related: ['db-elasticsearch', 'log-kibana'] }),
-  c('log-loki', 'Loki', '🪵', { color: '#F5A623' }),
+  c('log-loki', 'Loki', '🪵', { color: '#F5A623', related: ['mon-grafana'] }),
   c('log-splunk', 'Splunk', '💡', { color: '#000000' }),
   c('log-store', 'Log Store', '🗂️', { shape: 'cylinder', color: LG }),
 ];

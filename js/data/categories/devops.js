@@ -15,7 +15,7 @@ export const components = [
   c('devops-gitlab-ci', 'GitLab CI', '🦊', { color: '#FC6D26' }),
   c('devops-jenkins', 'Jenkins', '🎩', { color: '#D24939', related: ['ctr-docker'] }),
   c('devops-puppet', 'Puppet', '🎎', { color: '#FFAE1A' }),
-  c('devops-spinnaker', 'Spinnaker', '❄️', { color: '#139BB4' }),
+  c('devops-spinnaker', 'Spinnaker', '❄️', { color: '#139BB4', related: ['ctr-kubernetes'] }),
   c('devops-teamcity', 'TeamCity', '🚦', { color: '#000000' }),
   c('devops-terraform', 'Terraform', '🌍', { color: '#7B42BC' }),
   c('devops-travisci', 'Travis CI', '🐫', { color: '#3EAAAF' }),

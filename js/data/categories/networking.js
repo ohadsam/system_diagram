@@ -15,7 +15,7 @@ export const components = [
   c('net-proxy', 'Proxy Server', '🛰️', { color: NW }),
   c('net-reverse-proxy', 'Reverse Proxy', '🔁', { color: NW }),
   c('net-router', 'Router', '📡', { color: NW }),
-  c('net-service-mesh', 'Service Mesh', '🕸️', { color: NW }),
+  c('net-service-mesh', 'Service Mesh', '🕸️', { color: NW, related: ['srv-microservice'] }),
   c('net-subnet', 'Subnet', '🔲', { shape: 'rect', color: NW, defaultSize: { w: 220, h: 140 } }),
   c('net-vpn-gateway', 'VPN Gateway', '🔐', { color: NW }),
   c('net-vpc', 'Virtual Network / VPC', '🕸️', { shape: 'rect', color: NW, defaultSize: { w: 260, h: 180 } }),

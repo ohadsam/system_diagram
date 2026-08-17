@@ -55,7 +55,12 @@ test('the dismiss (✕) button closes the banner without adding anything', async
 });
 
 test('a component with no curated companions shows no banner', async ({ page }) => {
-  await addComponentByName(page, 'DNS');
+  // addComponentByName's plain substring search for "DNS" also matches
+  // "Route 53" (tagged 'dns') and can rank it first — Route 53 has its own
+  // curated companions (aws-cloudfront/aws-elb), so this needs the exact
+  // "DNS" item, not whatever the search ranks first (same reasoning as
+  // addExactComponent's own header comment above).
+  await addExactComponent(page, 'DNS');
   await expect(page.locator('.suggestion-banner')).toHaveCount(0);
 });
 

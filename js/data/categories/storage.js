@@ -5,7 +5,7 @@ export const category = { id: 'storage', label: 'Storage', color: '#334155' };
 const ST = '#334155';
 
 export const components = [
-  c('storage-backup', 'Backup Storage', '🗄️', { color: ST }),
+  c('storage-backup', 'Backup Storage', '🗄️', { color: ST, related: ['storage-tape'] }),
   c('storage-block', 'Block Storage', '💽', { color: ST }),
   c('storage-file', 'File Storage', '🗂️', { color: ST }),
   c('storage-nas', 'NAS', '🗃️', { color: ST }),

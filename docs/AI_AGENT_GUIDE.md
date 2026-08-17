@@ -390,3 +390,19 @@ npm test
   truncating-text UI with a deliberately long value, not just the short
   example strings used elsewhere in this repo's tests — that's what
   surfaced this one.
+- **Adding a `related`/`relatedLayers` pairing to a component can silently
+  break an *unrelated* e2e test that uses a plain substring search to place
+  a different component whose name happens to be a substring of, or whose
+  `tags` include, the one you just changed.** `tests/e2e/helpers.js#addComponentByName`
+  clicks whichever sidebar item a fuzzy search ranks first — searching
+  "DNS" had always matched both `net-dns` ("DNS") and `aws-route53`
+  ("Route 53", tagged `dns`), with Route 53 ranking first, but a
+  "no-companions" test using that search only broke once `aws-route53`
+  *gained* a curated `related` list, since until then neither of the two
+  matches had one. Use `tests/e2e/smart-suggestions.spec.js`'s own
+  `addExactComponent(page, name, categoryLabel?)` helper (exact `.item-name`
+  match, optionally scoped to a category) for any test that depends on
+  *which specific* component got placed — never assume a fuzzy-search test
+  fixture has no curated companions just because it didn't when the test
+  was written; re-run the full suite (not just the new component's own
+  tests) after any batch of `related`/`relatedLayers` additions.

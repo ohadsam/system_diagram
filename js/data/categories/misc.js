@@ -18,7 +18,7 @@ export const components = [
   c('misc-rest-api', 'REST API', '🔗', { color: MI }),
   c('misc-search-engine', 'Search Engine', '🔍', { color: MI }),
   c('misc-sms-service', 'SMS Service', '💬', { color: MI }),
-  c('misc-third-party-auth', 'Social/Third-Party Login', '👤', { color: MI }),
+  c('misc-third-party-auth', 'Social/Third-Party Login', '👤', { color: MI, related: ['sec-oauth'] }),
   c('misc-webhook', 'Webhook', '🪝', { color: MI }),
   c('misc-worker', 'Background Worker', '⚙️', { color: MI }),
 ];

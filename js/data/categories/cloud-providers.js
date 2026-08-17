@@ -9,6 +9,6 @@ export const components = [
   c('cloud-digitalocean', 'DigitalOcean', '🌊', { color: '#0080FF' }),
   c('cloud-gcp', 'Google Cloud Platform', '☁️', { color: '#4285F4', shape: 'cloud', defaultSize: { w: 220, h: 140 } }),
   c('cloud-heroku', 'Heroku', '🟣', { color: '#430098' }),
-  c('cloud-netlify', 'Netlify', '🟦', { color: '#00C7B7' }),
-  c('cloud-vercel', 'Vercel', '▲', { color: '#000000' }),
+  c('cloud-netlify', 'Netlify', '🟦', { color: '#00C7B7', related: ['client-static-site'] }),
+  c('cloud-vercel', 'Vercel', '▲', { color: '#000000', related: ['fe-nextjs'] }),
 ];

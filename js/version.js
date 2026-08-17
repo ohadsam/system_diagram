@@ -2,9 +2,16 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.13.1';
+export const APP_VERSION = '1.14.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.14.0',
+    date: '2026-08-17',
+    highlights: [
+      'Expanded ✨ Smart Suggestions with ~90 new curated component/sub-component pairings across AWS, AI Providers & Agents, AI/ML, Containers, Monitoring, Security, and more — e.g. an ECS Cluster now suggests ECS Service (→ ECS Task), SNS suggests SQS, an AI model provider suggests its own flagship model, and a RAG Pipeline suggests a Vector Database, Reranker and Knowledge Base.',
+    ],
+  },
   {
     version: '1.13.1',
     date: '2026-08-17',
