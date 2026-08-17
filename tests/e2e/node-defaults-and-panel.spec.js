@@ -75,6 +75,37 @@ test('sub-components display mode ("chips" vs "full") is controllable per node f
   await expect(node.locator('.node-subchip')).toHaveCount(0);
 });
 
+// Regression: `.sub-icon-input { width: 52px }` (modal.css, a single class
+// selector, specificity 0,1,0) lost to base.css's `input[type="text"] {
+// width: 100% }` (specificity 0,1,1 — a type selector beats a bare class
+// regardless of stylesheet load order), so the icon input rendered at the
+// row's *full* width instead of 52px, shoving the name input and the ×
+// remove button off the edge of the details panel and off-screen entirely
+// — not just visually wrong but genuinely unusable (the name input's text
+// was never readable, and the remove button was unclickable without
+// `force: true`, which is exactly why the older, less strict test above
+// didn't catch this). Assert every row control is both within the panel's
+// own box and reachable through a plain (non-forced) click.
+test('every control in a sub-component row (icon, name, remove) stays inside the details panel and is independently clickable', async ({ page }) => {
+  await addComponentByName(page, 'DynamoDB');
+  const node = page.locator('.node').first();
+  await node.hover();
+  await node.locator('.node-info-btn').click({ force: true });
+
+  await page.locator('.details-body .subcomponent-editor button', { hasText: '+ Add sub-component' }).click();
+  const row = page.locator('.subcomponent-row').first();
+  const nameInput = row.locator('input[type=text]').nth(1);
+  await nameInput.fill('Table'); // plain (non-forced) fill — fails if the input is off-panel/obscured
+
+  const panelRight = await page.locator('#details-panel').evaluate((el) => el.getBoundingClientRect().right);
+  const kidsRight = await row.evaluate((el) => [...el.children].map((c) => c.getBoundingClientRect().right));
+  for (const right of kidsRight) expect(right).toBeLessThanOrEqual(panelRight + 0.5);
+
+  const removeBtn = row.locator('.btn-icon');
+  await removeBtn.click(); // plain click — fails if the button sits outside the viewport/panel
+  await expect(page.locator('.subcomponent-row')).toHaveCount(0);
+});
+
 test('details panel collapse toggle shrinks it without closing, X fully closes it', async ({ page }) => {
   await addComponentByName(page, 'GraphQL Server');
   const node = page.locator('.node').first();

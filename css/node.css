@@ -38,13 +38,25 @@
    polygon — percentages in a polygon are relative to whichever box is
    being clipped, so the identical coordinates on the smaller, inset
    pseudo-element naturally produce a proportionally smaller, centered
-   inner shape. Real content (icon/label/chips) are normal-flow children of
-   .node-body, so they still paint on top of the ::before "fill" layer
-   (pseudo-elements without an explicit stacking context always paint
-   behind subsequent normal-flow content) without needing z-index. Colors/
-   width come from the --node-fill/--node-stroke/--node-border-width custom
-   properties node.js sets alongside the (here-unused) inline border-*
-   properties every other shape relies on directly. */
+   inner shape. Colors/width come from the --node-fill/--node-stroke/
+   --node-border-width custom properties node.js sets alongside the
+   (here-unused) inline border-* properties every other shape relies on
+   directly.
+
+   Real content (icon/label/chips) — normal-flow, non-positioned children of
+   .node-body — must still paint on top of the ::before "fill" layer. A
+   first version relied on "pseudo-elements paint behind subsequent
+   normal-flow content" for that, which is only true for a *non-positioned*
+   pseudo-element: `clip-path` (needed above) itself creates a stacking
+   context on .node-body, and per the CSS2 painting-order algorithm, a
+   *positioned* z-index:auto descendant (which ::before must be, for `inset`
+   to apply) paints in a later step than in-flow non-positioned descendants
+   within that same stacking context — i.e. on top of them, not behind,
+   hiding every node's icon/label/sub-component chips outright. Fixed with
+   an explicit negative z-index on ::before, which instead paints it in the
+   painting order's negative-stack-level step — before (under) the in-flow
+   content, same relative order as the (correct) written intent, just via
+   the mechanism that actually produces it. */
 .node[data-shape="diamond"] .node-body,
 .node[data-shape="hexagon"] .node-body {
   background: var(--node-stroke) !important;
@@ -56,6 +68,7 @@
 .node[data-shape="hexagon"] .node-body::before {
   content: '';
   position: absolute;
+  z-index: -1;
   inset: var(--node-border-width, 2px);
   background: var(--node-fill);
   clip-path: inherit;

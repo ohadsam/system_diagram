@@ -1053,15 +1053,32 @@ inherit`-ing the *same* polygon coordinates. Since a polygon's percentages
 are relative to whichever box is being clipped, the identical coordinates
 on the smaller, inset pseudo-element naturally produce a proportionally
 smaller, centered inner shape — no separate math needed for the inner
-outline. Real content (icon/label/chips) are normal-flow children of
-`.node-body`, so they still paint on top of the `::before` "fill" layer
-without any `z-index` (a pseudo-element without its own stacking context
-always paints behind subsequent normal-flow content). The colors/width feed
-in via `--node-fill`/`--node-stroke`/`--node-border-width` custom
-properties (`node.js#updateNodeEl` sets them on `.node-body` alongside the
-inline `border-*` properties every other shape relies on directly) — a
-pseudo-element can't be targeted from JS directly, but it can read a
-`var(--...)` custom property set as an inline style on its real parent.
+outline. The colors/width feed in via `--node-fill`/`--node-stroke`/
+`--node-border-width` custom properties (`node.js#updateNodeEl` sets them on
+`.node-body` alongside the inline `border-*` properties every other shape
+relies on directly) — a pseudo-element can't be targeted from JS directly,
+but it can read a `var(--...)` custom property set as an inline style on its
+real parent.
+
+Real content (icon/label/chips) — normal-flow, non-positioned children of
+`.node-body` — must paint on top of the `::before` "fill" layer, and the
+`::before` rule carries an explicit `z-index: -1` to make that happen. A
+first version omitted it on the theory that "a pseudo-element without its
+own stacking context always paints behind subsequent normal-flow content" —
+true for a non-positioned pseudo-element, but `clip-path` on `.node-body`
+itself creates a stacking context, and *within* that context `::before` is
+a **positioned** element (`position: absolute`, required for `inset` to
+apply). Per the CSS2 painting-order algorithm, a positioned z-index:auto
+descendant paints in a *later* step than in-flow non-positioned descendants
+of the same stacking context — i.e. on top of them, not behind — so every
+diamond/hexagon node's icon and label rendered completely hidden behind the
+opaque fill layer. `z-index: -1` moves `::before` to the algorithm's
+negative-stack-level step instead, which *does* paint before the in-flow
+content, restoring the intended order without needing to touch every
+content wrapper. See `tests/e2e/custom-and-shapes.spec.js`'s border test for
+a regression check that hit-tests the label's own center point rather than
+just asserting it's present with non-zero size — the earlier version of
+that test only checked clip-path/color values and never caught this.
 
 ## Security notes
 

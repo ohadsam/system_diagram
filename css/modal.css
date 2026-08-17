@@ -106,9 +106,25 @@
   margin-bottom: 0;
 }
 
-.sub-icon-input {
+/* Selector must out-specify base.css's `input[type="text"] { width: 100% }`
+   (specificity 0,1,1 — a type selector plus an attribute selector) or that
+   rule wins regardless of stylesheet load order, since a bare class alone
+   is only 0,1,0. Without this, the icon input rendered at the row's full
+   width instead of 52px, shoving the name input and remove button off the
+   edge of the details panel and off-screen entirely — not just visually
+   wrong but genuinely unreachable (unclickable, untypeable). */
+.subcomponent-row .sub-icon-input {
   width: 52px;
   text-align: center;
+  flex: 0 0 auto;
+}
+
+.subcomponent-row input:not(.sub-icon-input) {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.subcomponent-row .btn-icon {
   flex: 0 0 auto;
 }
 

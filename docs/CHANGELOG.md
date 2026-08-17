@@ -152,6 +152,29 @@ user-facing fix or feature, alongside this changelog.
   value `'magic'`, also chooseable for any existing connector from its
   style editor.
 
+## v1.13.1 (2026-08-17)
+
+Two reported UI bugs, both real regressions/oversights caught by the reporter, not by review:
+
+- **Fixed: a sub-component row in the details panel (and the "New Component" modal, which shares
+  the same markup) rendered its icon field at the row's full width instead of a fixed 52px,
+  pushing the name field and the "×" remove button off the edge of the panel and off-screen
+  entirely.** Root cause: `.sub-icon-input { width: 52px }` (a bare class selector, specificity
+  0,1,0) lost to base.css's `input[type="text"] { width: 100% }` (0,1,1 — a type selector *and*
+  an attribute selector), regardless of stylesheet load order. Fixed by scoping the override to
+  `.subcomponent-row .sub-icon-input` (0,2,0), which unambiguously wins; also added `min-width: 0`
+  to the row's other inputs and `flex: 0 0 auto` to its remove button for robustness at the
+  details panel's narrowest resizable width. See `docs/AI_AGENT_GUIDE.md`'s new "bare class loses
+  to `input[type]`" pitfall for the general lesson.
+- **Fixed: diamond and hexagon components rendered with no visible border, and their icon/label
+  were completely hidden.** The double-layer clip-path border technique (added in v1.12.0) put
+  its `::before` "fill" layer on top of the real content instead of underneath it. Root cause:
+  `clip-path` on `.node-body` creates a stacking context, and within it a *positioned* `::before`
+  (required for its `inset` offset) paints in a later step than in-flow non-positioned content per
+  the CSS2 painting-order algorithm — the opposite of what the original implementation assumed.
+  Fixed with an explicit `z-index: -1` on `::before`. See `docs/ARCHITECTURE.md`'s "Borders on
+  clip-path shapes" section for the full mechanism and why the fix works.
+
 ## v1.13.0 (2026-08-16)
 
 A mobile bug report plus a requested feature, both from the same message:

@@ -170,6 +170,25 @@ npm test
   element sets `background-image` — this exact bug made "Toggle Grid" look
   completely broken (`css/layout.css`'s `#canvas-viewport` vs.
   `css/canvas.css`'s `.canvas-viewport`/`.show-grid`).
+- **A bare class selector loses to `input[type="…"]` regardless of
+  stylesheet load order, because the type-plus-attribute selector has
+  *higher* specificity** — `.sub-icon-input { width: 52px }` (specificity
+  0,1,0) lost to base.css's `input[type="text"] { width: 100% }` (0,1,1: one
+  type selector *and* one attribute selector), even though `.sub-icon-input`
+  was declared later in modal.css. The icon input silently rendered at its
+  row's full width instead of 52px, shoving every sibling control off the
+  edge of the details panel/modal and off-screen — not just visually wrong
+  but genuinely unreachable (unfillable, unclickable). When styling an
+  `<input>` (or any element commonly matched by a `tag[attr=...]` rule
+  elsewhere in the codebase) by class, check whether a `tag[attr]` rule
+  already targets it and, if so, scope the override with at least as much
+  specificity (e.g. a descendant selector like `.subcomponent-row
+  .sub-icon-input`, not a bare class) rather than relying on cascade order.
+  A width/size override that silently loses this way won't error or warn —
+  it just quietly produces an oversized/undersized element, so this class
+  of bug is easy to miss without literally measuring the rendered
+  `getBoundingClientRect()` (see `tests/e2e/node-defaults-and-panel.spec.js`
+  for the regression test this produced).
 - **A `position: absolute`/negative-offset element inside a container with
   `overflow-y: auto` (or any single-axis overflow) gets silently clipped
   out of hit-testing, not just view** — per the CSS spec, a `visible`

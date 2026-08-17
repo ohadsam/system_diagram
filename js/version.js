@@ -2,9 +2,17 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.13.0';
+export const APP_VERSION = '1.13.1';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.13.1',
+    date: '2026-08-17',
+    highlights: [
+      'Fixed: a sub-component row in the details panel (and the "New Component" modal) rendered its icon field at the full row width, pushing the name field and the "×" remove button off the edge of the panel — both are now correctly sized and reachable again.',
+      'Fixed: diamond and hexagon components rendered with no visible border and a completely hidden icon/label — their fill layer was painting on top of the content instead of underneath it.',
+    ],
+  },
   {
     version: '1.13.0',
     date: '2026-08-16',

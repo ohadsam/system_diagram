@@ -86,6 +86,22 @@ test('diamond and hexagon shapes render a border that hugs their clip-path outli
     expect(styles.bodyBackground).not.toBe(styles.beforeBackground);
     expect(styles.beforeClipPath).toBe(styles.bodyClipPath);
     expect(styles.bodyClipPath).not.toBe('none');
+
+    // Regression: the ::before "fill" layer is `position: absolute` (needed
+    // for `inset` to apply), which — because `clip-path` on .node-body
+    // creates a stacking context — paints *after* (on top of) .node-body's
+    // own in-flow, non-positioned children (icon/label) unless it's given a
+    // negative z-index. Without that, the label/icon were entirely hidden
+    // behind the opaque fill on every diamond/hexagon node. Verify the
+    // label is actually the topmost paint at its own center point, not
+    // just present in the DOM with non-zero size.
+    const label = node.locator('.node-label');
+    const hitTarget = await label.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return top === el || el.contains(top);
+    });
+    expect(hitTarget).toBe(true);
   }
 });
 
