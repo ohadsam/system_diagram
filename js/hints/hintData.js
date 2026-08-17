@@ -12,4 +12,6 @@ export const HINTS = [
   { id: 'hint-node-info', target: '.toolbar-row-main', placement: 'bottom', text: 'Click the ⓘ button on any component to add notes, labels and sub-components. Components with extra info show a small dot badge.' },
   { id: 'hint-canvas-search', target: '.toolbar-canvas-search input', placement: 'bottom', text: '🔎 Find on canvas searches components and connectors already placed in your diagram (not the library) — type a name/label, then press Enter to jump between matches.' },
   { id: 'hint-autosave', target: '.toolbar-row-main', placement: 'bottom', text: 'Your diagram autosaves in this browser as you work. Use "Save As" for named versions, or export to JSON/PNG/PDF any time.' },
+  { id: 'hint-auto-arrange', target: '.toolbar-row-main', placement: 'bottom', text: '🗺️ Tools → Auto-arrange tidies every component into a clean top-to-bottom layout that follows your connectors\' direction.' },
+  { id: 'hint-favorites', target: '.sidebar-categories', placement: 'right', text: '⭐ Right-click any component and choose "Add to Favorites" to pin it to the Favorites section at the top — organize favorites into folders from there too.' },
 ];

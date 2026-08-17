@@ -2,9 +2,20 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.14.0';
+export const APP_VERSION = '1.15.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.15.0',
+    date: '2026-08-17',
+    highlights: [
+      'Accepting a "✨ Smart Suggestions" companion now draws the connecting arrow between the two components automatically, in the right direction, and places the new one in a sensible spot relative to the original — previously it just dropped in unconnected.',
+      'New "🗺️ Auto-arrange" (Tools menu) — rearranges every component on the canvas into a clean top-to-bottom layout that follows your connectors\' direction, and reconnects every arrow along the shortest sensible path.',
+      'Every newly-drawn connector now automatically picks the most sensible side of each component to anchor on (regardless of which exact point you dragged from) and routes around any component in the way — previously this "smart routing" only applied when Magic Arrow mode was explicitly turned on.',
+      'The component library now highlights the most commonly-used components in each category (PostgreSQL, Docker, S3, Kafka, React, and more) with a subtle background tint and a ★ badge, to help you spot a familiar building block faster in a long list.',
+      'New "⭐ Favorites" — right-click any component and choose "Add to Favorites" to pin it to a new Favorites section at the top of the sidebar; organize favorites into folders and subfolders, reorder them, rename or delete folders, all from the same right-click menu.',
+    ],
+  },
   {
     version: '1.14.0',
     date: '2026-08-17',

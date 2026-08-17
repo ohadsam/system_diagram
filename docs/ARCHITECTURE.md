@@ -81,24 +81,76 @@ entry on pointer-up, so undo of a drag is a single step.
 ### Connector routing (`canvas/connector.js`, `core/magicRouter.js`)
 
 `connector.js#buildEdgePath` picks the path builder by `edge.routing`:
-`straight`/`orthogonal`/`curved` go through the pure, stateless
-`core/geometry.js#buildPath`, same as always. `'magic'` instead calls
-`core/magicRouter.js#computeMagicWaypoints(fromNode, toNode, obstacles,
-fromSide, toSide)` — a DOM-free, unit-testable, grid-based least-turns
-router (obstacles = every other node's rect, from `canvas.js#render`'s
-`allNodes` passed through `updateEdgeEl`'s options). It quantizes the
-bounding area between the two nodes into a grid sized so the cell count
-stays under a fixed cap regardless of canvas scale, then runs a 0-1
-bucket-queue Dijkstra over `(cell, last-direction)` states — 0 cost to
-continue straight, 1 to turn — to find the path with the fewest bends,
-then collapses it to just its turning points and appends the two nodes'
-exact anchor points. If it can't find a route in budget (or the grid
-would be too large) it returns `null`, and `buildEdgePath` falls back to
-a plain `orthogonal` route rather than leaving the connector broken.
-Nothing about the computed path is persisted on the edge — it's derived
-fresh every render straight from current node positions, exactly like
-every other routing already is, so a magic edge re-routes live as nodes
-move and can never go stale.
+`straight`/`curved` go through the pure, stateless `core/geometry.js#buildPath`
+as literal styles, unaffected by obstacles. `'orthogonal'` (the default) and
+`'magic'` **both** now run `core/magicRouter.js#computeMagicWaypoints(fromNode,
+toNode, obstacles, fromSide, toSide)` — a DOM-free, unit-testable,
+grid-based least-turns router (obstacles = every other node's rect, from
+`canvas.js#render`'s `allNodes` passed through `updateEdgeEl`'s options). It
+quantizes the bounding area between the two nodes into a grid sized so the
+cell count stays under a fixed cap regardless of canvas scale, then runs a
+0-1 bucket-queue Dijkstra over `(cell, last-direction)` states — 0 cost to
+continue straight, 1 to turn — to find the path with the fewest bends, then
+collapses it to just its turning points and appends the two nodes' exact
+anchor points. If it can't find a route in budget (or the grid would be too
+large) it returns `null`, and `buildEdgePath` falls back to a plain
+`buildPath('orthogonal', ...)` route rather than leaving the connector
+broken. Nothing about the computed path is persisted on the edge — it's
+derived fresh every render straight from current node positions, exactly
+like every other routing already is, so a routed edge re-routes live as
+nodes move and can never go stale.
+
+Every freshly-drawn connector therefore gets obstacle-avoiding routing by
+default now, not just ones explicitly armed via the toolbar's "🪄 Magic
+Arrow" toggle (`connectorInteractions.js`'s `magicModeActive`, which still
+sets `edge.routing = 'magic'` specifically and still gets its own
+`.edge-magic` CSS glow) — Magic Arrow is functionally close to redundant
+for brand-new connectors now, but was left in place unchanged rather than
+removed, since removing a previously-shipped, tested, documented feature
+wasn't part of the request that made `'orthogonal'` obstacle-avoiding too.
+
+**Anchor-side selection** (`core/geometry.js#pickBestSides(fromRect,
+toRect)`): a pure, symmetric function that picks which side of each
+component a connector should anchor on, from the two components' actual
+relative position (comparing the real gap between their edges along
+whichever axis has one, falling back to a center-delta comparison if the
+rects overlap on both axes) — not from whichever literal connection point a
+user happened to drag from/to. Used both when drawing a brand-new connector
+(`connectorInteractions.js#beginConnectFromNode`'s pointerup handler) and
+when `autoArrangeAll()` (below) repositions every node and needs to re-pick
+every edge's sides to match.
+
+## Auto-arrange (`core/autoLayout.js`, `canvas.js#autoArrangeAll`)
+
+`computeAutoLayout(nodes, edges)` is a pure function (no DOM, no store) that
+returns a new `{ id, x, y }[]` — a deliberately simplified layered
+("Sugiyama-style") layout, not a production-grade one:
+
+1. **Rank assignment**: longest-path-from-sources via Kahn's-algorithm
+   topological processing — every node with no incoming edge starts at rank
+   0, and every other node's rank is one more than the max rank among its
+   predecessors, so a node always ends up strictly below everything that
+   points to it. A cycle (or a self-loop, or an edge referencing a missing
+   node id) can't produce an infinite loop here — nodes still in the
+   pending set once no more progress can be made are just assigned the next
+   rank and dropped from further consideration, rather than the algorithm
+   hanging.
+2. **Ordering within a rank**: a single-pass barycenter sort (each node
+   ordered by the mean x-position of its already-placed predecessors in the
+   rank above) — reduces obvious crossings but isn't iterative
+   crossing-minimization, and there are no dummy nodes inserted for edges
+   that span more than one rank (unlike a textbook Sugiyama layout), so a
+   long edge can still visually cross an intermediate rank's nodes.
+3. **Row-wrap**: a rank wider than `MAX_ROW_WIDTH` wraps onto additional
+   rows rather than growing the canvas unboundedly sideways.
+
+`canvas.js#autoArrangeAll()` calls this, `store.dispatch`es the new
+positions for every node **and** re-picks every edge's `fromSide`/`toSide`
+via `geometry.js#pickBestSides` in the same dispatch (one undo step) — without
+this second step, edges keep whatever anchor sides they had before the
+nodes moved, which can leave an unnecessary loop-out even once the nodes
+themselves are cleanly stacked — then calls `fitToScreen()`. Wired to the
+Tools dropdown's "🗺️ Auto-arrange" button (`toolbar.js#buildToolsGroupButtons`).
 
 ## Navigation tools (`canvas/toolMode.js`)
 
@@ -621,6 +673,14 @@ alongside `kind: 'pattern'` whole-state-machine templates, all in one
 support at all — it's just that edge's ordinary `label` field, set the
 same way any connector's label is.
 
+A `popular: boolean` flag (default `false`, set via `c(id, name, icon, {
+popular: true, ... })`) marks a component as one most engineers would
+immediately recognize as a common building block in its category — purely
+a sidebar rendering hint (`sidebar.js#renderItem` adds an `.item-popular`
+class + a small ★ badge), never affecting sort order, search, or anything
+else. Same "would most engineers immediately agree" curation bar as
+`related` below, and equally deliberately sparse.
+
 ## Smart Suggestions (`canvas/suggestions.js`, `data/schema.js`'s `related`/`relatedLayers` fields)
 
 Each component definition can carry two optional, hand-curated arrays (see
@@ -669,13 +729,17 @@ function the drag-a-layer-onto-a-node flow uses) as plain callbacks
 injection at the call site avoids what would otherwise be a circular
 `canvas.js` ⇄ `suggestions.js` import (canvas.js already imports
 suggestions.js to trigger the banner in the first place). `addRelatedComponent`
-places the new node in *canvas* coordinates directly, offset from the node
-that prompted the suggestion (to the right, stacked vertically if more
-than one companion is accepted from the same banner) — unlike
-`createNodeFromDrop`, there's no real pointer position to convert from a
-banner-button click. `addLayerToNode` needs no such placement logic since
-it doesn't create a node at all, just pushes onto the existing node's
-`subComponents`.
+places the new node via the same `findClearCenter(x, y, w, h, existingNodes)`
+anti-overlap helper node-creation already uses (initial guess: to the right
+of the node that prompted the suggestion, nudged diagonally away from
+anything already there — not a blind fixed offset), **and creates the
+connecting edge** in one dispatch: `geometry.js#pickBestSides` picks the
+anchor sides from the two nodes' actual placement, and `createEdge` builds
+an edge from the prompting node to the new one, matching the natural
+"anchor produces/depends-on suggestion" reading of the vast majority of
+curated `related` pairs. `addLayerToNode` needs no such placement/edge
+logic since it doesn't create a node at all, just pushes onto the existing
+node's `subComponents`.
 
 Turning suggestions off entirely (both rows together — there's no separate
 toggle per list) lives in `io/librarySettings.js` (`suggestionsEnabled`,
@@ -726,6 +790,39 @@ library", the same modal section as the State Machines toggle.
   modal's `<datalist>` (`utils/folderDatalist.js`, rebuilt on every modal
   open since folders change over time — unlike the static
   `utils/layerDatalist.js`, built once).
+- `favorites.js`: personal component-library shortcut list (docs/SPEC.md
+  4.2.10) — two flat arrays under their own keys, `favoriteFolders`
+  (`{id, name, parentId, order}`) and `favorites`
+  (`{id, defId, folderId, order}`, `folderId: null` = unfiled at the
+  Favorites root). Folders nest by `parentId` referencing another folder's
+  `id` — arbitrary depth, no schema-level limit — rather than a real tree
+  structure in storage; `sidebar.js`'s renderer walks it recursively
+  (`getChildFolders(parentId)` + `getFavoritesInFolder(folderId)`) to build
+  the nested `.sidebar-folder` DOM, mirroring (but generalizing to N levels)
+  the single-level folder grouping `customComponents.js` already has for
+  "My Components". `order` is a plain number scoped to same-parent
+  siblings (folders) or same-`folderId` siblings (favorites); reordering
+  (`reorderFolder`/`reorderFavorite`) swaps two siblings' `order` rather
+  than renumbering the whole list. `deleteFolder(id)` cascades: it
+  recursively collects every descendant folder's id first
+  (`collectFolderIds`), then removes all of them plus every favorite whose
+  `folderId` is in that set in one pass — favorites lose their folder
+  pointer (i.e. are un-favorited), the underlying component is never
+  touched. `sidebar.js#resolveFavoriteDef(defId)` resolves a favorite back
+  to a real definition by checking the built-in library
+  (`data/index.js#getComponentById`) then "My Components"
+  (`getCustomComponents()`), silently skipping (never crashing on) a
+  `defId` that resolves to neither — the one case that can produce this is
+  a custom component getting deleted while still favorited, which
+  `customComponents.js#deleteCustomComponent` proactively avoids by calling
+  `removeFavorite(id)` itself rather than leaving a dangling reference
+  behind. Folder naming (create/rename/add-subfolder) uses a new
+  `modals/promptModal.js#promptText({title, label, defaultValue,
+  confirmLabel})` — this app's first single-line text-entry confirmation
+  dialog (everything before it was either a full custom-field modal or
+  `modals/confirmModal.js`'s yes/no `confirmAction()`); no native
+  `window.prompt()`, which can't be styled or driven reliably from
+  Playwright.
 - **Import collision handling** (`customComponents.js#importCustomComponents`,
   `projects.js#importSavedProjectsBundle`, and `fullBackup.js`): every
   merge-style import applies the same rule — an incoming record whose `id`
@@ -733,12 +830,18 @@ library", the same modal section as the State Machines toggle.
   *different* `id` gets a disambiguating suffix (`"(imported)"`, then
   `"(imported 2)"`, ...), computed by the shared
   `utils/disambiguateName.js`, instead of silently colliding — so nothing
-  is ever dropped. `fullBackup.js#importFullBackupFile()` composes this
-  with a direct `store.loadProject()` for the bundled canvas and a plain
-  `saveNodeDefaults()` overwrite for defaults — those two aren't
-  "libraries" with multiple entries, so there's nothing to merge, only
-  replace, which is why the UI (`modals/backupModal.js`) gates the whole
-  restore behind one `confirmAction()` up front rather than per-field.
+  is ever dropped. `favorites.js#importFavoritesBundle` (used only by
+  `fullBackup.js`, there's no standalone Favorites export/import UI) is
+  additive-merge too, but simpler: matched purely by `id` (folders/favorites
+  have no user-facing "name collision" concept the way a named custom
+  component does), so an incoming record whose `id` already exists locally
+  is just left alone rather than overwritten. `fullBackup.js#importFullBackupFile()`
+  composes all of the above with a direct `store.loadProject()` for the
+  bundled canvas and a plain `saveNodeDefaults()` overwrite for defaults —
+  those two aren't "libraries" with multiple entries, so there's nothing to
+  merge, only replace, which is why the UI (`modals/backupModal.js`) gates
+  the whole restore behind one `confirmAction()` up front rather than
+  per-field.
 
 - `librarySettings.js`: app-level sidebar visibility settings (currently
   just `hideStateMachines`), a small `readJSON`/`writeJSON`/change-listener

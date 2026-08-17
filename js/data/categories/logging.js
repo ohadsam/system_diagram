@@ -6,7 +6,7 @@ const LG = '#4B5563';
 
 export const components = [
   c('log-cloudwatch-logs', 'CloudWatch Logs', '📄', { color: '#FF9900' }),
-  c('log-elk', 'ELK Stack', '🦌', { color: LG }),
+  c('log-elk', 'ELK Stack', '🦌', { popular: true, color: LG }),
   c('log-filebeat', 'Filebeat', '🥁', { color: LG, related: ['log-logstash'] }),
   c('log-fluentd', 'Fluentd', '💧', { color: '#0E83C8', related: ['db-elasticsearch'] }),
   c('log-graylog', 'Graylog', '🐺', { color: '#F4952C' }),

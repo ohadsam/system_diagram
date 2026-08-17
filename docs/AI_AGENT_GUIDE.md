@@ -80,6 +80,11 @@ this repo" quick-start.
 | Add a border to a new clip-path shape (like diamond/hexagon)      | `css/node.css` — a plain `border` won't follow `clip-path`; see the double-layer `::before` technique documented right above `.node[data-shape="diamond"] .node-body` and in `docs/ARCHITECTURE.md`'s "Borders on clip-path shapes" |
 | Change the "Find on canvas" search (searches placed components/connectors, not the library) | `js/toolbar/toolbar.js` (`buildCanvasSearchGroup`/`runCanvasSearch`/`jumpToMatch`) + `js/canvas/viewport.js#centerOn` (pan-only recenter). Keep it appended *last* in `initToolbar`'s row-1 sequence — see "Add a toolbar button" pitfall below. |
 | Change canvas touch/pointer gesture behavior (pan, drag, resize, connect) | `css/canvas.css`'s `#canvas-viewport { touch-action: none }` (do not remove) + the `setPointerCapture()` calls in `canvas.js#beginPan`/`nodeInteractions.js#beginResize`/`connectorInteractions.js#beginConnectFromNode` — see "Common pitfalls" below before touching any of this |
+| Change which side a connector anchors on (new connector, or after Auto-arrange) | `js/core/geometry.js#pickBestSides(fromRect, toRect)` — pure, symmetric, unit-testable. Called from `connectorInteractions.js#beginConnectFromNode` (pointerup) and `canvas.js#autoArrangeAll` |
+| Change Auto-arrange's layout algorithm | `js/core/autoLayout.js#computeAutoLayout(nodes, edges)` — pure, DOM-free (rank assignment, barycenter ordering, row-wrap constants at the top of the file) + `js/canvas/canvas.js#autoArrangeAll` (dispatch + re-pick edge sides + `fitToScreen`) |
+| Change which routing avoids obstacles by default | `js/canvas/connector.js#buildEdgePath` — `'orthogonal'` and `'magic'` both call `core/magicRouter.js#computeMagicWaypoints` now; `'straight'`/`'curved'` stay literal |
+| Mark a component as "popular" (sidebar highlight)   | `popular: true` in the `c(...)` call (`js/data/schema.js`) — same curation bar as `related`, see `add-library-item` skill |
+| Add/change Favorites (folders, CRUD, reorder)       | `js/io/favorites.js` (storage — folders/favorites as flat arrays with `parentId`/`folderId` + `order`) + `js/sidebar/sidebar.js` (`renderFavoritesCategory`/`renderFavoritesTree`/`renderFavoriteFolder`, the recursive tree UI) + `js/modals/promptModal.js` (folder-name text prompt) |
 
 ## Running things locally
 
@@ -406,3 +411,16 @@ npm test
   fixture has no curated companions just because it didn't when the test
   was written; re-run the full suite (not just the new component's own
   tests) after any batch of `related`/`relatedLayers` additions.
+- **Never assume a connector's rendered anchor point in an e2e test.**
+  `pickBestSides` (above) picks the exit/entry side from the two nodes'
+  actual relative position — since it changed a plain-elbow test connector's
+  side from the historical "always right/left" to whichever side genuinely
+  fits a given test's node layout, several existing tests broke at once
+  (screen-math like "click just right of node A" no longer landed on the
+  edge). Use `tests/e2e/helpers.js#edgeClickPoint`/`clickEdgeNearNode` (SVG
+  `getPointAtLength` + `getScreenCTM`, walking a few length-fractions and
+  verifying each candidate with `elementFromPoint(...).closest('[data-edge-id]')`
+  before trusting it — a selected node's floating style-editor card can sit
+  right on top of an obvious click point on a short connector) instead of
+  computing a screen-space guess — this is the one reliable way to click a
+  rendered edge regardless of which side it actually anchored on.

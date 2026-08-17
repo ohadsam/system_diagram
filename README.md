@@ -28,7 +28,13 @@ Or open `index.html` directly in a browser.
   categories (AWS, Databases, Cache, Messaging, Monitoring, DevOps,
   Containers, Networking, Security, Servers, Client/Frontend, Frontend &
   Backend frameworks, Storage, Logging, AI/ML, Cloud providers, Basic
-  shapes, and more), searchable and alphabetically sorted.
+  shapes, and more), searchable and alphabetically sorted, with the most
+  commonly-used component in each category (PostgreSQL, Docker, S3, Kafka,
+  React, ...) subtly highlighted with a ★ badge.
+- **⭐ Favorites** — right-click any component and pin it to a Favorites
+  section at the top of the sidebar; organize favorites into folders and
+  subfolders, reorder, rename, or delete — all from the same right-click
+  menu (or the section's own "+ New folder" button).
 - **AI Providers & Agents** — ~57 generative-AI building blocks: model
   providers (OpenAI, Anthropic, Google, Bedrock, Azure OpenAI, Mistral,
   Cohere, Hugging Face, Ollama, ...), model families (GPT, Claude,
@@ -60,6 +66,9 @@ Or open `index.html` directly in a browser.
 - **Navigation tools** — a 🖱️ Select / ✋ Hand toolbar toggle (`H`/`V`
   shortcuts, or hold **Space**): Hand pans the canvas by dragging anywhere,
   even over a component, without moving or altering it.
+- **🗺️ Auto-arrange** — rearranges every component on the canvas into a
+  clean top-to-bottom layout that follows your connectors' direction, and
+  reconnects every arrow to match.
 - **🔎 Find on canvas** — a toolbar search box that finds components and
   connectors already placed in your diagram by name/label (not the sidebar
   library), selecting and centering the view on each match as you type;
@@ -71,14 +80,17 @@ Or open `index.html` directly in a browser.
 - **✨ Smart Suggestions** — placing a component with a well-known
   real-world companion (Load Balancer → a web server; Kafka →
   Elasticsearch; API Gateway → Lambda; and more) shows a small dismissible
-  banner with one-click "+ Add" buttons for each one, and, where relevant,
-  a second row of one-click sub-components to attach directly onto that
-  node (Express → Controller/Middleware; React → Hook/Component; API
-  Gateway → Authentication/Rate Limiter). Off switch in Default Settings
-  for anyone who doesn't want it.
-- **Connectors** — drag between components to draw arrows with
-  configurable routing (straight/elbow/curved, or "🪄 Magic" — auto-routes
-  around every other component with the fewest bends), independent
+  banner with one-click "+ Add" buttons for each one — accepting one draws
+  the connecting arrow automatically and places the new component sensibly
+  — and, where relevant, a second row of one-click sub-components to attach
+  directly onto that node (Express → Controller/Middleware; React →
+  Hook/Component; API Gateway → Authentication/Rate Limiter). Off switch in
+  Default Settings for anyone who doesn't want it.
+- **Connectors** — drag between components to draw arrows that anchor on
+  whichever side actually makes sense between the two (not just whichever
+  point you dragged from) with configurable routing (straight/elbow/curved,
+  or "🪄 Magic" — auto-routes around every other component with the fewest
+  bends; every other routing now auto-avoids obstacles too), independent
   start/end arrow-head styles, color, thickness, dash pattern and labels.
   Deleting a component always cleans up every connector attached to it.
 - **Style toolbar** — colors, shape, border, font, text alignment/position
@@ -108,8 +120,9 @@ Or open `index.html` directly in a browser.
   "Save As" projects (with ⭐ favorites and a favorites filter), and JSON
   import/export for backup/sharing at every level: a single project, the
   whole My Components library, every saved project together, or a single
-  "🗄️ Backup & Restore" file with everything at once — all with automatic
-  name/id collision handling on import.
+  "🗄️ Backup & Restore" file with everything at once (including the
+  component Favorites library) — all with automatic name/id collision
+  handling on import.
 - **Duplicate Project** — clone the whole diagram into a new, independent
   project in one click (the original stays untouched), or duplicate the
   entire canvas in place within the same project.

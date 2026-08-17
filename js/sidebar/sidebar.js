@@ -1,20 +1,28 @@
 // Left sidebar: search box + categorized, alphabetically sorted, draggable
-// component library (built-in + the user's "My Components").
-import { CATEGORIES, COMPONENTS_BY_CATEGORY } from '../data/index.js';
+// component library (built-in + the user's "My Components" + "Favorites").
+import { CATEGORIES, COMPONENTS_BY_CATEGORY, getComponentById } from '../data/index.js';
 import {
   getCustomComponents, onCustomComponentsChange, deleteCustomComponent,
   exportCustomComponents, importCustomComponents,
 } from '../io/customComponents.js';
+import {
+  getFavorites, onFavoritesChange, isFavorite, toggleFavorite, removeFavorite,
+  moveFavoriteToFolder, reorderFavorite, getFavoritesInFolder,
+  getFavoriteFolders, getChildFolders, createFolder, renameFolder, reorderFolder,
+  countFolderContents, deleteFolder,
+} from '../io/favorites.js';
 import { el, clear } from '../utils/dom.js';
-import { filterComponents, normalize } from './search.js';
+import { filterComponents, normalize, componentMatches } from './search.js';
 import { makeDraggable } from './dragSource.js';
 import { showContextMenu } from '../canvas/contextMenu.js';
 import { confirmAction } from '../modals/confirmModal.js';
+import { promptText } from '../modals/promptModal.js';
 import { pickJSONFile } from '../io/fileIO.js';
 import { showToast } from '../utils/toast.js';
 import { getLibrarySettings, onLibrarySettingsChange } from '../io/librarySettings.js';
 
 const CUSTOM_CATEGORY = { id: '__custom__', label: 'My Components', color: '#0F172A' };
+const FAVORITES_CATEGORY = { id: '__favorites__', label: 'Favorites', color: '#F59E0B' };
 const NO_FOLDER = '';
 
 let rootEl = null;
@@ -22,8 +30,16 @@ let searchInput = null;
 let listEl = null;
 const expanded = new Map();
 const folderExpanded = new Map();
+const favFolderExpanded = new Map();
 let query = '';
 let editCustomComponentHandler = null;
+
+/** Resolves a favorite's stored defId back to its full component definition
+ * — either a built-in library component or one of the user's own "My
+ * Components" — so it can render the same as any other sidebar item. */
+function resolveFavoriteDef(defId) {
+  return getComponentById(defId) || getCustomComponents().find((c) => c.id === defId) || null;
+}
 
 export function configureSidebar({ onEditCustomComponent } = {}) {
   editCustomComponentHandler = onEditCustomComponent || null;
@@ -50,12 +66,17 @@ export function initSidebar(root) {
   listEl = el('div', { class: 'sidebar-categories' });
   rootEl.appendChild(listEl);
 
-  for (const cat of [CUSTOM_CATEGORY, ...CATEGORIES]) expanded.set(cat.id, false);
+  for (const cat of [FAVORITES_CATEGORY, CUSTOM_CATEGORY, ...CATEGORIES]) expanded.set(cat.id, false);
 
   onCustomComponentsChange(() => {
     // Auto-reveal "My Components" whenever it changes, so a just-saved
     // component is immediately visible instead of hidden in a collapsed category.
     expanded.set(CUSTOM_CATEGORY.id, true);
+    renderList();
+  });
+  onFavoritesChange(() => {
+    // Auto-reveal "Favorites" whenever it changes, same reasoning as above.
+    expanded.set(FAVORITES_CATEGORY.id, true);
     renderList();
   });
   onLibrarySettingsChange(renderList);
@@ -87,6 +108,12 @@ function renderList() {
   ];
 
   let anyMatch = false;
+
+  if (!q || favoritesMatchQuery(q)) {
+    anyMatch = true;
+    listEl.appendChild(renderFavoritesCategory(q));
+  }
+
   for (const cat of categories) {
     const matches = filterComponents(cat.components, query);
     if (cat.id === CUSTOM_CATEGORY.id && !matches.length && !q) {
@@ -154,7 +181,7 @@ function renderCategory(cat, matches, q) {
   if (isCustom) {
     renderCustomComponentsGrouped(list, matches, q);
   } else {
-    for (const comp of matches) list.appendChild(renderItem(comp, q, false));
+    for (const comp of matches) list.appendChild(renderItem(comp, q));
   }
   wrap.appendChild(list);
   return wrap;
@@ -186,20 +213,212 @@ function renderCustomComponentsGrouped(list, matches, q) {
     folderWrap.appendChild(folderHeader);
 
     const folderList = el('div', { class: 'folder-list' });
-    for (const comp of byFolder.get(folder)) folderList.appendChild(renderItem(comp, q, true));
+    for (const comp of byFolder.get(folder)) folderList.appendChild(renderItem(comp, q, { isCustom: true }));
     folderWrap.appendChild(folderList);
     list.appendChild(folderWrap);
   }
 
   for (const comp of byFolder.get(NO_FOLDER) || []) {
-    list.appendChild(renderItem(comp, q, true));
+    list.appendChild(renderItem(comp, q, { isCustom: true }));
   }
 }
 
-function renderItem(def, q, isCustom) {
+// --- Favorites: folder tree + CRUD ------------------------------------
+// A favorite is a {id, defId, folderId, order} entry (see io/favorites.js)
+// pointing at any built-in or "My Components" definition; folderId===null
+// means it sits unfiled at the Favorites root. Folders nest arbitrarily
+// (subfolders) via their own parentId, each carrying an independent
+// `order` among same-parent siblings — this tree renderer walks that
+// structure recursively, one level of <div class="sidebar-folder"> per
+// folder, mirroring (but generalizing to N levels) the single-level
+// "My Components" folder grouping above.
+
+function renderFavoritesCategory(q) {
+  const isOpen = q ? true : expanded.get(FAVORITES_CATEGORY.id);
+  const wrap = el('div', { class: 'sidebar-category', 'data-open': isOpen ? 'true' : 'false' });
+
+  const header = el('div', { class: 'category-header' });
+  const toggle = el('button', {
+    class: 'category-toggle',
+    type: 'button',
+    'aria-expanded': String(isOpen),
+    onClick: () => {
+      expanded.set(FAVORITES_CATEGORY.id, !expanded.get(FAVORITES_CATEGORY.id));
+      renderList();
+    },
+  });
+  toggle.appendChild(el('span', { class: 'category-dot', style: `background:${FAVORITES_CATEGORY.color}` }));
+  toggle.appendChild(el('span', { class: 'category-label', text: FAVORITES_CATEGORY.label }));
+  toggle.appendChild(el('span', { class: 'category-count', text: String(countFavoritesRecursive(null)) }));
+  toggle.appendChild(el('span', { class: 'category-chevron', text: '▸' }));
+  header.appendChild(toggle);
+
+  header.appendChild(el('button', {
+    type: 'button', class: 'category-icon-btn', title: 'New folder…', 'aria-label': 'New favorites folder', text: '📁',
+    onClick: async (e) => {
+      e.stopPropagation();
+      const name = await promptText({ title: 'New favorites folder', label: 'Folder name', confirmLabel: 'Create' });
+      if (name) createFolder(name, null);
+    },
+  }));
+  wrap.appendChild(header);
+
+  const list = el('div', { class: 'category-list' });
+  if (!getFavorites().length && !getFavoriteFolders().length) {
+    list.appendChild(el('p', { class: 'sidebar-empty small', text: 'Right-click any component below and choose "Add to Favorites".' }));
+  }
+  renderFavoritesTree(list, null, q);
+  wrap.appendChild(list);
+  return wrap;
+}
+
+function renderFavoritesTree(container, parentId, q) {
+  for (const folder of getChildFolders(parentId)) {
+    if (q && !folderContainsMatch(folder.id, q)) continue;
+    container.appendChild(renderFavoriteFolder(folder, q));
+  }
+
+  const items = getFavoritesInFolder(parentId);
+  const customIds = new Set(getCustomComponents().map((c) => c.id));
+  items.forEach((fav, idx) => {
+    const def = resolveFavoriteDef(fav.defId);
+    if (!def) return; // stale reference (its component was deleted elsewhere) — silently skip
+    if (q && !componentMatches(def, q)) return;
+    const menuItems = buildFavoriteMenuItems(fav, idx, items.length);
+    container.appendChild(renderItem(def, q, { isCustom: customIds.has(def.id), favoriteMenuItems: menuItems }));
+  });
+}
+
+function renderFavoriteFolder(folder, q) {
+  const key = `fav:${folder.id}`;
+  const isOpen = q ? true : (favFolderExpanded.get(key) ?? true);
+  const wrap = el('div', { class: 'sidebar-folder', 'data-open': isOpen ? 'true' : 'false' });
+
+  const headerRow = el('div', { class: 'folder-header-row' });
+  const toggle = el('button', {
+    class: 'folder-header',
+    type: 'button',
+    'aria-expanded': String(isOpen),
+    onClick: () => { favFolderExpanded.set(key, !isOpen); renderList(); },
+  });
+  toggle.appendChild(el('span', { class: 'folder-chevron', text: '▸' }));
+  toggle.appendChild(el('span', { class: 'folder-icon', text: '📁', 'aria-hidden': 'true' }));
+  toggle.appendChild(el('span', { class: 'folder-label', text: folder.name }));
+  toggle.appendChild(el('span', { class: 'category-count', text: String(countFavoritesRecursive(folder.id)) }));
+  headerRow.appendChild(toggle);
+
+  headerRow.appendChild(el('button', {
+    type: 'button',
+    class: 'category-icon-btn',
+    title: `Options for "${folder.name}"`,
+    'aria-label': `Options for folder ${folder.name}`,
+    text: '⋮',
+    onClick: (e) => { e.stopPropagation(); showContextMenu(e.clientX, e.clientY, folderContextMenuItems(folder)); },
+  }));
+  headerRow.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    showContextMenu(e.clientX, e.clientY, folderContextMenuItems(folder));
+  });
+  wrap.appendChild(headerRow);
+
+  const body = el('div', { class: 'folder-list' });
+  renderFavoritesTree(body, folder.id, q);
+  wrap.appendChild(body);
+  return wrap;
+}
+
+function folderContextMenuItems(folder) {
+  const siblings = getChildFolders(folder.parentId);
+  const idx = siblings.findIndex((f) => f.id === folder.id);
+  return [
+    { label: 'Add subfolder', icon: '📁', onClick: async () => {
+      const name = await promptText({ title: `New subfolder in "${folder.name}"`, label: 'Folder name', confirmLabel: 'Create' });
+      if (name) createFolder(name, folder.id);
+    } },
+    { label: 'Rename', icon: '✏️', onClick: async () => {
+      const name = await promptText({ title: 'Rename folder', label: 'Folder name', defaultValue: folder.name, confirmLabel: 'Rename' });
+      if (name) renameFolder(folder.id, name);
+    } },
+    'separator',
+    { label: 'Move up', icon: '⬆️', disabled: idx <= 0, onClick: () => reorderFolder(folder.id, 'up') },
+    { label: 'Move down', icon: '⬇️', disabled: idx === -1 || idx >= siblings.length - 1, onClick: () => reorderFolder(folder.id, 'down') },
+    'separator',
+    { label: 'Delete folder', icon: '🗑️', danger: true, onClick: async () => {
+      const counts = countFolderContents(folder.id);
+      const parts = [];
+      if (counts.subfolders) parts.push(`${counts.subfolders} subfolder${counts.subfolders === 1 ? '' : 's'}`);
+      if (counts.favorites) parts.push(`${counts.favorites} favorite${counts.favorites === 1 ? '' : 's'}`);
+      const message = parts.length
+        ? `Delete "${folder.name}" and its ${parts.join(' + ')}? The favorited components themselves won't be deleted, only removed from Favorites. This cannot be undone.`
+        : `Delete "${folder.name}"? This cannot be undone.`;
+      const ok = await confirmAction({ title: 'Delete folder', message });
+      if (ok) deleteFolder(folder.id);
+    } },
+  ];
+}
+
+function buildFavoriteMenuItems(fav, idx, siblingCount) {
+  const items = [{ label: 'Remove from Favorites', icon: '🔖', danger: true, onClick: () => removeFavorite(fav.defId) }];
+  if (getFavoriteFolders().length) {
+    items.push('separator', ...moveToFolderMenuItems(fav));
+  }
+  items.push(
+    'separator',
+    { label: 'Move up', icon: '⬆️', disabled: idx <= 0, onClick: () => reorderFavorite(fav.defId, 'up') },
+    { label: 'Move down', icon: '⬇️', disabled: idx === -1 || idx >= siblingCount - 1, onClick: () => reorderFavorite(fav.defId, 'down') },
+  );
+  return items;
+}
+
+function moveToFolderMenuItems(fav) {
+  const items = [{
+    label: 'Unfiled (root)',
+    icon: fav.folderId === null ? '✓' : '　',
+    disabled: fav.folderId === null,
+    onClick: () => moveFavoriteToFolder(fav.defId, null),
+  }];
+  for (const { folder, depth } of flattenFoldersWithDepth()) {
+    items.push({
+      label: `${'　'.repeat(depth)}${folder.name}`,
+      icon: fav.folderId === folder.id ? '✓' : '　',
+      disabled: fav.folderId === folder.id,
+      onClick: () => moveFavoriteToFolder(fav.defId, folder.id),
+    });
+  }
+  return items;
+}
+
+function flattenFoldersWithDepth(parentId = null, depth = 0, out = []) {
+  for (const folder of getChildFolders(parentId)) {
+    out.push({ folder, depth });
+    flattenFoldersWithDepth(folder.id, depth + 1, out);
+  }
+  return out;
+}
+
+function folderContainsMatch(folderId, q) {
+  if (getFavoritesInFolder(folderId).some((f) => { const def = resolveFavoriteDef(f.defId); return def && componentMatches(def, q); })) return true;
+  return getChildFolders(folderId).some((sub) => folderContainsMatch(sub.id, q));
+}
+
+function countFavoritesRecursive(folderId) {
+  let count = getFavoritesInFolder(folderId).length;
+  for (const sub of getChildFolders(folderId)) count += countFavoritesRecursive(sub.id);
+  return count;
+}
+
+function favoritesMatchQuery(q) {
+  return getFavorites().some((f) => {
+    const def = resolveFavoriteDef(f.defId);
+    return def && componentMatches(def, q);
+  });
+}
+
+function renderItem(def, q, opts = {}) {
+  const { isCustom = false, favoriteMenuItems = null } = opts;
   const kindLabel = def.kind === 'layer' ? 'Drag onto a component to attach, or click to add standalone: ' : def.kind === 'pattern' ? 'Drag or click to add this whole pattern: ' : '';
   const item = el('div', {
-    class: 'sidebar-item',
+    class: def.popular ? 'sidebar-item item-popular' : 'sidebar-item',
     'data-name': def.name,
     'data-kind': def.kind,
     title: `${kindLabel}${def.description || def.name}`,
@@ -211,6 +430,8 @@ function renderItem(def, q, isCustom) {
   const nameEl = el('span', { class: 'item-name' });
   renderHighlighted(nameEl, def.name, q);
   item.appendChild(nameEl);
+  if (def.popular) item.appendChild(el('span', { class: 'item-popular-badge', text: '★', title: 'Commonly used in real designs', 'aria-hidden': 'true' }));
+  if (isFavorite(def.id)) item.appendChild(el('span', { class: 'item-favorite-badge', text: '🔖', title: 'In your Favorites', 'aria-hidden': 'true' }));
   if (def.kind === 'layer') item.appendChild(el('span', { class: 'item-kind-badge kind-layer', text: '+', title: 'Can attach to a component', 'aria-hidden': 'true' }));
   if (def.kind === 'pattern') item.appendChild(el('span', { class: 'item-kind-badge kind-pattern', text: '⎈', title: 'Adds a group of components', 'aria-hidden': 'true' }));
 
@@ -223,18 +444,31 @@ function renderItem(def, q, isCustom) {
     }
   });
 
-  if (isCustom) {
-    item.addEventListener('contextmenu', (e) => {
-      e.preventDefault();
-      showContextMenu(e.clientX, e.clientY, [
+  item.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    const menuItems = [];
+    if (isCustom) {
+      menuItems.push(
         { label: 'Edit component', icon: '✏️', onClick: () => editCustomComponentHandler?.(def) },
         { label: 'Delete', icon: '🗑️', danger: true, onClick: async () => {
           const ok = await confirmAction({ title: 'Delete component', message: `Remove "${def.name}" from My Components? This cannot be undone.` });
           if (ok) deleteCustomComponent(def.id);
         } },
-      ]);
-    });
-  }
+        'separator',
+      );
+    }
+    if (favoriteMenuItems) {
+      menuItems.push(...favoriteMenuItems);
+    } else {
+      const fav = isFavorite(def.id);
+      menuItems.push({
+        label: fav ? 'Remove from Favorites' : 'Add to Favorites',
+        icon: fav ? '🔖' : '☆',
+        onClick: () => toggleFavorite(def.id),
+      });
+    }
+    showContextMenu(e.clientX, e.clientY, menuItems);
+  });
   return item;
 }
 

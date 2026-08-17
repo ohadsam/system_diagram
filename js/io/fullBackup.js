@@ -7,6 +7,7 @@ import { downloadJSON } from '../utils/download.js';
 import { getNodeDefaults, saveNodeDefaults } from './nodeDefaults.js';
 import { getCustomComponents, importCustomComponents } from './customComponents.js';
 import { getRawSavedProjects, importSavedProjectsBundle } from './projects.js';
+import { getFavoriteFolders, getFavorites, importFavoritesBundle } from './favorites.js';
 
 export function exportFullBackup() {
   const backup = {
@@ -17,6 +18,8 @@ export function exportFullBackup() {
     nodeDefaults: getNodeDefaults(),
     customComponents: getCustomComponents(),
     savedProjects: getRawSavedProjects(),
+    favoriteFolders: getFavoriteFolders(),
+    favorites: getFavorites(),
   };
   downloadJSON(backup, 'system-diagram-backup.json');
 }
@@ -46,11 +49,15 @@ export function importFullBackupFile(parsed) {
   const projectsResult = Array.isArray(parsed.savedProjects)
     ? importSavedProjectsBundle({ projects: parsed.savedProjects })
     : { imported: 0 };
+  const favoritesResult = (parsed.favoriteFolders || parsed.favorites)
+    ? importFavoritesBundle(parsed.favoriteFolders, parsed.favorites)
+    : { importedFolders: 0, importedFavorites: 0 };
 
   return {
     ok: true,
     loadedProject,
     importedComponents: componentsResult.imported || 0,
     importedProjects: projectsResult.imported || 0,
+    importedFavorites: favoritesResult.importedFavorites || 0,
   };
 }

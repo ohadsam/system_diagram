@@ -5,7 +5,7 @@ import * as store from '../core/store.js';
 import { createEdge } from '../core/project.js';
 import { svgEl } from '../utils/dom.js';
 import { screenToCanvas } from './viewport.js';
-import { sideAnchor, closestSide, straightPath } from '../core/geometry.js';
+import { sideAnchor, pickBestSides, straightPath } from '../core/geometry.js';
 import { focusEdge } from './canvas.js';
 
 let draftLayer = null;
@@ -64,9 +64,14 @@ export function beginConnectFromNode(nodeId, side, e) {
 
     if (targetNodeId) {
       const toNode = store.getState().nodes.find((n) => n.id === targetNodeId);
-      const dropPoint = screenToCanvas(ev.clientX, ev.clientY);
-      const toSide = toNode ? closestSide(toNode, dropPoint) : 'left';
-      const edge = createEdge(nodeId, targetNodeId, { fromSide: side, toSide, ...(magicModeActive ? { routing: 'magic' } : {}) });
+      // Anchor sides come from the two nodes' actual relative position
+      // (pickBestSides), not from whichever exact connection-point handle
+      // was dragged from/to — a literal drag-point side produced needlessly
+      // awkward paths (e.g. exiting left when the target sits to the
+      // right) whenever the grabbed handle didn't happen to face the other
+      // node. See docs/ARCHITECTURE.md's connector routing section.
+      const sides = toNode ? pickBestSides(fromNode, toNode) : { fromSide: side, toSide: 'left' };
+      const edge = createEdge(nodeId, targetNodeId, { ...sides, ...(magicModeActive ? { routing: 'magic' } : {}) });
       store.dispatch((d) => {
         d.edges.push(edge);
       });

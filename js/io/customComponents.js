@@ -5,6 +5,7 @@ import { readJSON, writeJSON } from './storage.js';
 import { nextId } from '../core/id.js';
 import { downloadJSON } from '../utils/download.js';
 import { disambiguateName } from '../utils/disambiguateName.js';
+import { removeFavorite } from './favorites.js';
 
 const KEY = 'customComponents';
 const listeners = new Set();
@@ -44,6 +45,7 @@ export function saveCustomComponent(def) {
 export function deleteCustomComponent(id) {
   const list = getCustomComponents().filter((c) => c.id !== id);
   writeJSON(KEY, list);
+  removeFavorite(id); // drop any dangling Favorites entry pointing at the now-deleted component
   emit();
 }
 

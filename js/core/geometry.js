@@ -37,6 +37,43 @@ export function closestSide(rect, point) {
   return ratioY > 0 ? 'bottom' : 'top';
 }
 
+/**
+ * Picks the most sensible anchor side *pair* for a connector between two
+ * rects, based purely on their relative position — not on whichever exact
+ * connection-point handle a user happened to drag from/to. Prefers
+ * whichever axis (horizontal/vertical) the two rects are actually
+ * separated along; if they're separated along both (a diagonal
+ * arrangement), picks the axis with the *larger* gap, since that's the
+ * more clearly dominant separation. Falls back to comparing center deltas
+ * only when the rects overlap on both axes (e.g. one nested in/crossing
+ * the other), where there's no real "gap" to measure.
+ */
+export function pickBestSides(fromRect, toRect) {
+  const gapX = toRect.x >= fromRect.x + fromRect.w
+    ? toRect.x - (fromRect.x + fromRect.w)
+    : fromRect.x >= toRect.x + toRect.w
+      ? fromRect.x - (toRect.x + toRect.w)
+      : -1;
+  const gapY = toRect.y >= fromRect.y + fromRect.h
+    ? toRect.y - (fromRect.y + fromRect.h)
+    : fromRect.y >= toRect.y + toRect.h
+      ? fromRect.y - (toRect.y + toRect.h)
+      : -1;
+
+  const fc = rectCenter(fromRect);
+  const tc = rectCenter(toRect);
+  const useX = gapX >= 0 && gapX >= gapY
+    ? true
+    : gapY >= 0
+      ? false
+      : Math.abs(tc.x - fc.x) >= Math.abs(tc.y - fc.y);
+
+  if (useX) {
+    return tc.x >= fc.x ? { fromSide: 'right', toSide: 'left' } : { fromSide: 'left', toSide: 'right' };
+  }
+  return tc.y >= fc.y ? { fromSide: 'bottom', toSide: 'top' } : { fromSide: 'top', toSide: 'bottom' };
+}
+
 export function distance(a, b) {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }

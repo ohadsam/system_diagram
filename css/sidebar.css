@@ -160,6 +160,44 @@
   opacity: 0.4;
 }
 
+.sidebar-item.item-popular {
+  background: #FFFBEB;
+}
+
+.sidebar-item.item-popular:hover {
+  background: #FEF3C7;
+}
+
+.item-popular-badge {
+  flex: 0 0 auto;
+  font-size: 10px;
+  color: #F59E0B;
+  opacity: 0.9;
+}
+
+.item-favorite-badge {
+  flex: 0 0 auto;
+  font-size: 11px;
+  opacity: 0.85;
+}
+
+.folder-header-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+  padding-right: var(--space-2);
+}
+
+.folder-header-row:hover {
+  background: var(--color-surface-alt);
+}
+
+.folder-header-row .folder-header {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .item-icon {
   font-size: 16px;
   width: 22px;

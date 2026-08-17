@@ -32,6 +32,14 @@
  *   dragging that layer onto it) instead of creating a new standalone
  *   node. Same curation bar as `related`; ids here must resolve to a
  *   `kind: 'layer'` component, not a plain one.
+ * @param {boolean} [opts.popular] marks a component most engineers would
+ *   immediately recognize as one of the most common building blocks in its
+ *   category (e.g. PostgreSQL, Docker, S3) — shown with a subtle sidebar
+ *   highlight (see sidebar.js/css) to help someone scanning a long
+ *   category find a familiar landmark first. Hand-curated and deliberately
+ *   sparse (a handful per category, not a ranking of every item) — same
+ *   "would most engineers immediately agree" bar as `related`, see
+ *   .claude/skills/add-library-item/SKILL.md.
  */
 export function c(id, name, icon, opts = {}) {
   return {
@@ -48,6 +56,7 @@ export function c(id, name, icon, opts = {}) {
     defaultSize: opts.defaultSize || { w: 160, h: 84 },
     related: opts.related || [],
     relatedLayers: opts.relatedLayers || [],
+    popular: !!opts.popular,
   };
 }
 

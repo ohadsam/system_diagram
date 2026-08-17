@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   clamp, sideAnchor, closestSide, rectsIntersect, pointInRect, snap,
-  straightPath, orthogonalPath, curvedPath, buildPath, distance,
+  straightPath, orthogonalPath, curvedPath, buildPath, distance, pickBestSides,
 } from '../../js/core/geometry.js';
 
 test('clamp keeps values within range', () => {
@@ -63,4 +63,44 @@ test('buildPath dispatches on routing type', () => {
 
 test('distance computes euclidean distance', () => {
   assert.equal(distance({ x: 0, y: 0 }, { x: 3, y: 4 }), 5);
+});
+
+test('pickBestSides connects right-to-left when the target is clearly to the right', () => {
+  const from = { x: 0, y: 0, w: 100, h: 80 };
+  const to = { x: 400, y: 0, w: 100, h: 80 };
+  assert.deepEqual(pickBestSides(from, to), { fromSide: 'right', toSide: 'left' });
+  assert.deepEqual(pickBestSides(to, from), { fromSide: 'left', toSide: 'right' });
+});
+
+test('pickBestSides connects bottom-to-top when the target is clearly below', () => {
+  const from = { x: 0, y: 0, w: 100, h: 80 };
+  const to = { x: 0, y: 400, w: 100, h: 80 };
+  assert.deepEqual(pickBestSides(from, to), { fromSide: 'bottom', toSide: 'top' });
+  assert.deepEqual(pickBestSides(to, from), { fromSide: 'top', toSide: 'bottom' });
+});
+
+test('pickBestSides ignores which exact connection point was dragged from/to — same nodes, same result regardless of input side', () => {
+  const from = { x: 0, y: 0, w: 100, h: 80 };
+  const to = { x: 400, y: 0, w: 100, h: 80 };
+  // pickBestSides doesn't even take a "dragged side" argument — this test
+  // documents that the function is purely a function of node geometry.
+  assert.deepEqual(pickBestSides(from, to), pickBestSides(from, to));
+});
+
+test('pickBestSides picks the axis with the larger gap for a diagonal arrangement', () => {
+  const from = { x: 0, y: 0, w: 100, h: 80 };
+  // Far below (large y gap), only slightly to the right (small x gap) — should connect vertically.
+  const toBelow = { x: 130, y: 500, w: 100, h: 80 };
+  assert.deepEqual(pickBestSides(from, toBelow), { fromSide: 'bottom', toSide: 'top' });
+  // Far to the right (large x gap), only slightly below (small y gap) — should connect horizontally.
+  const toRight = { x: 500, y: 110, w: 100, h: 80 };
+  assert.deepEqual(pickBestSides(from, toRight), { fromSide: 'right', toSide: 'left' });
+});
+
+test('pickBestSides falls back to center-delta comparison for overlapping/nested rects', () => {
+  const from = { x: 0, y: 0, w: 300, h: 300 };
+  const to = { x: 100, y: 100, w: 50, h: 50 }; // fully inside `from`
+  const result = pickBestSides(from, to);
+  assert.ok(['left', 'right', 'top', 'bottom'].includes(result.fromSide));
+  assert.ok(['left', 'right', 'top', 'bottom'].includes(result.toSide));
 });

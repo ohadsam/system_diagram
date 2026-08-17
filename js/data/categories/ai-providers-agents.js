@@ -12,7 +12,7 @@ const AI = '#6D28D9';
 
 export const components = [
   // Providers
-  c('ai-provider-anthropic', 'Anthropic (Claude)', '🟠', { color: AI, tags: ['provider', 'llm'], description: 'Anthropic API — Claude models.', related: ['ai-model-claude'] }),
+  c('ai-provider-anthropic', 'Anthropic (Claude)', '🟠', { popular: true, color: AI, tags: ['provider', 'llm'], description: 'Anthropic API — Claude models.', related: ['ai-model-claude'] }),
   c('ai-provider-aws-bedrock', 'AWS Bedrock', '🪨', { color: AI, tags: ['provider', 'aws', 'llm'], description: 'Managed access to multiple foundation models on AWS.' }),
   c('ai-provider-azure-openai', 'Azure OpenAI Service', '🔷', { color: AI, tags: ['provider', 'azure', 'llm'], related: ['ai-model-gpt'] }),
   c('ai-provider-cohere', 'Cohere', '🟣', { color: AI, tags: ['provider', 'llm', 'embeddings'] }),
@@ -24,7 +24,7 @@ export const components = [
   c('ai-provider-mistral', 'Mistral AI', '🌬️', { color: AI, tags: ['provider', 'llm'], related: ['ai-model-mistral'] }),
   c('ai-provider-nvidia-nim', 'NVIDIA NIM', '🟩', { color: AI, tags: ['provider', 'inference'] }),
   c('ai-provider-ollama', 'Ollama (Local Models)', '🦙', { color: AI, tags: ['provider', 'local', 'self-hosted'] }),
-  c('ai-provider-openai', 'OpenAI', '🤖', { color: AI, tags: ['provider', 'llm'], description: 'OpenAI API — GPT models.', related: ['ai-model-gpt', 'ai-model-dalle', 'ai-model-whisper'] }),
+  c('ai-provider-openai', 'OpenAI', '🤖', { popular: true, color: AI, tags: ['provider', 'llm'], description: 'OpenAI API — GPT models.', related: ['ai-model-gpt', 'ai-model-dalle', 'ai-model-whisper'] }),
   c('ai-provider-perplexity', 'Perplexity AI', '❓', { color: AI, tags: ['provider', 'search', 'llm'] }),
   c('ai-provider-replicate', 'Replicate', '🔁', { color: AI, tags: ['provider', 'hosting', 'models'] }),
   c('ai-provider-stabilityai', 'Stability AI', '🎨', { color: AI, tags: ['provider', 'image-generation'], related: ['ai-model-stable-diffusion'] }),

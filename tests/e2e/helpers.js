@@ -56,10 +56,49 @@ export async function connectNodes(page, nodeALocator, nodeBLocator) {
   await page.mouse.up();
 }
 
-/** Clicks a connector at a point guaranteed to be on its first (straight) segment,
- * just outside node A's right edge — an elbow-routed path's overall bounding-box
- * center is often on empty space inside the bend, so that's not a safe click target. */
-export async function clickEdgeNearNode(page, nodeALocator) {
-  const a = await nodeALocator.boundingBox();
-  await page.mouse.click(a.x + a.width + 15, a.y + a.height / 2);
+/** Screen-space point along a connector's *rendered* path (via SVG
+ * getPointAtLength + getScreenCTM) — not its bounding-box center, which is
+ * often empty space inside an elbow route's bend, and not a fixed offset
+ * from either endpoint node's edge, since which side a connector actually
+ * anchors on is picked automatically from the two nodes' relative position
+ * (core/geometry.js#pickBestSides) rather than fixed to whichever side
+ * happened to get dragged from — a screen-math assumption like "just right
+ * of node A" broke the moment a test's node layout made the real anchor
+ * side something other than right/left.
+ *
+ * Tries a few points along the path (starting at the midpoint, which stays
+ * as far as possible from both endpoint nodes' own hit areas for any path
+ * shape) and picks the first one that `elementFromPoint` confirms actually
+ * belongs to *this* edge — a selected node's floating style-editor card
+ * (positioned near the selection, not aware of every other canvas element
+ * under it) can otherwise sit directly on top of the midpoint and silently
+ * swallow the click. Falls back to the midpoint if every candidate is
+ * covered (shouldn't normally happen). `nth` disambiguates when more than
+ * one edge is on the canvas. */
+export async function edgeClickPoint(page, nth = 0) {
+  const edgeId = await page.locator('.edge').nth(nth).getAttribute('data-edge-id');
+  return page.locator('.edge-line').nth(nth).evaluate((el, id) => {
+    const len = el.getTotalLength();
+    const ctm = el.getScreenCTM();
+    const toScreen = (p) => ({ x: p.x * ctm.a + p.y * ctm.c + ctm.e, y: p.x * ctm.b + p.y * ctm.d + ctm.f });
+    const fractions = [0.5, 0.3, 0.7, 0.15, 0.85];
+    let fallback = null;
+    for (const f of fractions) {
+      const point = toScreen(el.getPointAtLength(len * f));
+      if (!fallback) fallback = point;
+      const top = document.elementFromPoint(point.x, point.y);
+      if (top?.closest(`[data-edge-id="${id}"]`)) return point;
+    }
+    return fallback;
+  }, edgeId);
+}
+
+export async function clickEdgeNearNode(page, nth = 0) {
+  const point = await edgeClickPoint(page, nth);
+  await page.mouse.click(point.x, point.y);
+}
+
+export async function rightClickEdgeNearNode(page, nth = 0) {
+  const point = await edgeClickPoint(page, nth);
+  await page.mouse.click(point.x, point.y, { button: 'right' });
 }

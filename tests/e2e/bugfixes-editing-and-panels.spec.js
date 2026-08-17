@@ -5,16 +5,8 @@
 // scroll-position reset on category expand/collapse.
 import { test, expect } from '@playwright/test';
 import {
-  dismissHints, addComponentByName, edgeCount, connectNodes, openToolbarGroup, dragNodeBy,
+  dismissHints, addComponentByName, edgeCount, connectNodes, openToolbarGroup, dragNodeBy, rightClickEdgeNearNode,
 } from './helpers.js';
-
-// A connector's overall bounding-box center can land on empty space (e.g.
-// inside an elbow route's bend), which isn't a safe click target — mirrors
-// helpers.js#clickEdgeNearNode but for a right-click.
-async function rightClickEdgeNearNode(page, nodeALocator) {
-  const a = await nodeALocator.boundingBox();
-  await page.mouse.click(a.x + a.width + 15, a.y + a.height / 2, { button: 'right' });
-}
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/index.html');
@@ -99,7 +91,7 @@ test('right-clicking a connector offers Duplicate, and it works', async ({ page 
   await connectNodes(page, nodes.nth(0), nodes.nth(1));
   await expect.poll(() => edgeCount(page)).toBe(1);
 
-  await rightClickEdgeNearNode(page, nodes.nth(0));
+  await rightClickEdgeNearNode(page);
   const duplicateItem = page.locator('.context-menu-item', { hasText: 'Duplicate' });
   await expect(duplicateItem).toBeVisible();
   await duplicateItem.click();

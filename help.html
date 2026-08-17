@@ -245,10 +245,15 @@
         <li><strong>Drag onto the canvas</strong> — press and drag an item; drop it anywhere over the canvas.</li>
         <li><strong>Click to add</strong> — on touch devices (or if you just want it centered), a single tap/click drops the component in the middle of your current view.</li>
         <li><strong>My Components</strong> — your own saved components (see "Custom components" below) appear in their own category at the top, with right-click Edit/Delete.</li>
+        <li><strong>★ Popular</strong> — a small tinted background and ★ badge mark the handful of components in each category most engineers would immediately recognize as common building blocks (PostgreSQL, Docker, S3, Kafka, React, ...) — purely a visual landmark, it never changes sort order or search.</li>
       </ul>
       <div class="tip">🧠 The <strong>AI Providers &amp; Agents</strong> category covers the generative-AI world: model providers (OpenAI, Anthropic, Google, AWS Bedrock, Azure OpenAI, Mistral, Cohere, Hugging Face, Ollama, ...), specific models (GPT, Claude, Gemini, Llama, Whisper, DALL·E, ...), the Model Context Protocol (MCP Server/Client/Tool/Resource/Prompt), agents &amp; agent frameworks (LangGraph, AutoGen, CrewAI, Semantic Kernel, LlamaIndex), and skills/tools/RAG building blocks (Skill, System Prompt, RAG Pipeline, Knowledge Base, Guardrails, Function Calling). These behave like any other component — drag or click to add.</div>
       <div class="tip">☸️ The <strong>AWS</strong> category includes container-orchestration building blocks — EKS Cluster, EKS Node Group, Pod (EKS), ECS Cluster, ECS Service, ECS Task — alongside the managed services (EKS, ECS, Fargate, ...) themselves.</div>
       <div class="tip">🌎 It also has 12 <strong>Region</strong> components (US East/West, Canada, Europe, Asia Pacific, South America) — big boxes for depicting multi-region architectures, plus a <strong>CloudFront Edge Location</strong> component for CDN detail. Search "Region:" to find them all at once.</div>
+      <h3>⭐ Favorites</h3>
+      <p>Right-click any component — built-in or "My Components" — and choose <strong>"Add to Favorites"</strong> to pin it to a <strong>Favorites</strong> section at the very top of the sidebar, above "My Components". Right-click it again there to remove it, or reach the same toggle from its normal spot in the library.</p>
+      <p>Organize favorites into <strong>folders</strong>, which can hold their own <strong>subfolders</strong> too: click the Favorites section's "📁" header button (or a folder's own "⋮" options button) for Add subfolder / Rename / Move up / Move down / Delete, and a favorited item's own right-click menu for Move to folder / Move up / Move down / Remove from Favorites. Deleting a folder removes its subfolders too and un-favorites whatever was filed in any of them — the components themselves are never touched, just their favorite/folder — and asks you to confirm first, showing exactly what will be affected.</p>
+      <div class="tip">💡 Favorites is personal library data, like "My Components" — it's not part of the project file (so it survives switching/loading projects, and undo/redo never touches it) and travels with a "🗄️ Backup &amp; Restore" full backup.</div>
     </section>
 
     <section id="layers-patterns">
@@ -292,8 +297,10 @@
       <p>Two toggle buttons at the start of the toolbar switch how dragging behaves. <strong>Select</strong> (the default) is the normal behavior above — drag a component to move it, drag empty canvas to marquee-select. <strong>Hand</strong> makes any drag pan the canvas instead, even one starting on top of a component, without moving or changing anything — the safest way to navigate a dense or unfamiliar diagram. Switch with the buttons, the <kbd>H</kbd>/<kbd>V</kbd> keys, or just hold <kbd>Space</kbd> to pan temporarily no matter which tool is active.</p>
       <h3>🔎 Find on canvas</h3>
       <p>The search box in the toolbar finds components and connectors <strong>already placed in your diagram</strong> by name/label — different from the sidebar's search, which searches the component library to add something new. Type a few letters and the first match is selected and centered in the view (without changing your zoom level); press <kbd>Enter</kbd> (or <kbd>Shift</kbd>+<kbd>Enter</kbd> to go backward) to cycle through the rest, wrapping back around once you reach the end.</p>
+      <h3>🗺️ Auto-arrange</h3>
+      <p>Click "🗺️ Auto-arrange" in the Tools menu to rearrange <em>every</em> component on the canvas into a clean top-to-bottom layout that follows your connectors' direction — everything a component points to ends up on a row below it — and reconnects every arrow to match the new positions. One click, one undo step.</p>
       <h3>✨ Smart Suggestions</h3>
-      <p>Placing a component that has a well-known real-world companion — a Load Balancer with a web server, Kafka with Elasticsearch, an API Gateway with Lambda, and more — shows a small banner with one-click "+ Add X" buttons for each one, positioned right next to the component you just placed.</p>
+      <p>Placing a component that has a well-known real-world companion — a Load Balancer with a web server, Kafka with Elasticsearch, an API Gateway with Lambda, and more — shows a small banner with one-click "+ Add X" buttons for each one, positioned right next to the component you just placed. Accepting one draws the connecting arrow between the two automatically (in the right direction) and places the new component in a sensible spot relative to the one you just placed, instead of dropping it unconnected.</p>
       <p>Some components also suggest ready-made <strong>sub-components</strong> for that exact box — e.g. placing Express (Node.js) offers a Controller and a Middleware, React offers a Hook and a Component. These show in a second row with a dashed "↳" button; clicking one attaches it directly onto the node you just placed (same as dragging it in from "Layers &amp; Roles"), instead of adding a new box next to it.</p>
       <div class="tip">💡 Both lists are hand-curated, not automatic — only pairings most engineers would immediately recognize are included, and they grow a little with each release. A component with no curated companion or sub-component, or ones already present, shows no banner (or no row) at all.</div>
       <p>Not interested? Click "🎛️" in the toolbar and uncheck "Show 'Smart Suggestions'..." under Component library — or just dismiss an individual banner with its ✕, which times out on its own after a few seconds either way.</p>
@@ -314,8 +321,8 @@
 
     <section id="connectors">
       <h2><span class="icon-badge">➡️</span> Connectors &amp; arrows</h2>
-      <p>Hover or select a component to reveal four small connection points on its edges. Drag from one to another component to draw a connector — it stays attached and re-routes live as you move things.</p>
-      <p>Select a connector to style it: color, thickness, dash pattern, routing (straight / elbow / curved / 🪄 magic — see below), an independent arrow-head style for each end (none, open, filled, diamond, circle — so you can build one-way, two-way, or plain lines), and an optional label.</p>
+      <p>Hover or select a component to reveal four small connection points on its edges. Drag from one to another component to draw a connector — it stays attached and re-routes live as you move things. Which point it actually starts/ends on is picked automatically from where the two components sit relative to each other, not fixed to whichever point you happened to grab — so a connector always exits/enters on the geometrically sensible side, whichever exact point you dragged from.</p>
+      <p>Select a connector to style it: color, thickness, dash pattern, routing (straight / elbow / curved / 🪄 magic — see below), an independent arrow-head style for each end (none, open, filled, diamond, circle — so you can build one-way, two-way, or plain lines), and an optional label. The default (elbow) routing now automatically avoids every other component in its path too, the same obstacle-avoiding behavior described for Magic Arrow below — Magic Arrow stays around for its extra shortest-path-with-fewest-bends guarantee and its own glowing style.</p>
       <h3>🪄 Magic Arrow</h3>
       <p>Click "🪄" in the toolbar to arm Magic Arrow mode, then draw your next connector as usual — it automatically routes itself around every other component in the way, using as few bends as possible, instead of potentially cutting straight through something. Great for busy diagrams. If no clear path exists it falls back to a normal elbow connector rather than failing. You can also switch any existing connector to (or off) magic routing later from its Routing dropdown — it's not a one-time choice.</p>
       <div class="tip">💡 A magic connector keeps re-routing itself live as you move components around, exactly like every other routing style.</div>
@@ -359,7 +366,7 @@
       <ul>
         <li><strong>All saved projects together</strong> — "Export all… / Import all…" in the Load modal.</li>
         <li><strong>All of My Components together</strong> — the 📤/📥 icons on the sidebar's "My Components" header.</li>
-        <li><strong>Everything at once</strong> — the toolbar's "🗄️ Backup &amp; Restore" button bundles the live canvas, default settings, My Components and every saved project into one file, and restores all of it back (after a confirmation, since it replaces your current canvas and defaults).</li>
+        <li><strong>Everything at once</strong> — the toolbar's "🗄️ Backup &amp; Restore" button bundles the live canvas, default settings, My Components, your Favorites (folders included), and every saved project into one file, and restores all of it back (after a confirmation, since it replaces your current canvas and defaults).</li>
       </ul>
       <div class="tip">🔁 Importing never silently loses data on a name clash: if an incoming item's <code>id</code> matches something you already have, it overwrites that item; if only the <em>name</em> matches (different id), the import is kept as a separate item renamed "… (imported)" (or "(imported 2)", etc.).</div>
       <div class="tip">🔒 Everything — autosave, saved projects, your custom component library — lives only in your browser's local storage. Nothing is sent to a server.</div>
@@ -459,7 +466,11 @@
       </details>
       <details>
         <summary>How do I move everything to a new browser/computer?</summary>
-        <p>Use the toolbar's "🗄️ Backup &amp; Restore" button to export a full backup, then import that same file in the new browser — it brings over the current canvas, default settings, My Components and every saved project in one step.</p>
+        <p>Use the toolbar's "🗄️ Backup &amp; Restore" button to export a full backup, then import that same file in the new browser — it brings over the current canvas, default settings, My Components, Favorites, and every saved project in one step.</p>
+      </details>
+      <details>
+        <summary>There are two "favorites" — what's the difference?</summary>
+        <p>The sidebar's <strong>Favorites</strong> section (right-click any component → "Add to Favorites") is about pinning library <em>components</em> you use a lot, organizable into folders. The ☆ next to a project in the <strong>Load</strong> modal is a completely separate thing — favoriting a saved <em>project</em> so it sorts first. Same word, two independent features.</p>
       </details>
       <details>
         <summary>Does the "AI Design Review" button send my diagram to Anthropic/OpenAI/Google/Microsoft automatically?</summary>

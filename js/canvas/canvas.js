@@ -4,11 +4,12 @@
 import * as store from '../core/store.js';
 import { createEdge, nextZIndex, removeNode as removeNodeFromProject, removeEdge as removeEdgeFromProject, createNode, duplicateProject } from '../core/project.js';
 import { buildReplicationPair } from '../core/replication.js';
+import { computeAutoLayout } from '../core/autoLayout.js';
 import { getComponentById } from '../data/index.js';
 import { getCustomComponents } from '../io/customComponents.js';
 import { buildCreationOverrides } from '../io/nodeDefaults.js';
 import { el, svgEl } from '../utils/dom.js';
-import { rectsIntersect } from '../core/geometry.js';
+import { rectsIntersect, pickBestSides } from '../core/geometry.js';
 import { nextId } from '../core/id.js';
 import { showToast } from '../utils/toast.js';
 import * as viewport from './viewport.js';
@@ -384,24 +385,43 @@ export function addComponentAtCenter(defId) {
 }
 
 /** Places a "Smart Suggestions" companion component (see
- * canvas/suggestions.js) just to the right of the node that prompted it,
- * stacked vertically if more than one suggestion is accepted from the same
- * banner — reusing canvas coordinates directly (unlike createNodeFromDrop)
- * since there's no real pointer position to convert from a button click. */
+ * canvas/suggestions.js) beside the node that prompted it — guessing "to
+ * the right", stacked vertically if more than one suggestion is accepted
+ * from the same banner, then nudged by `findClearCenter` (the same
+ * anti-overlap search click-to-add already uses) if that guess would land
+ * on top of an existing node, so a crowded area doesn't stack a suggestion
+ * onto something unrelated. Also creates the connecting edge from the
+ * anchor to the new node — a curated companion is only ever suggested
+ * *because* the two are typically connected, so the pre-suggestions
+ * behavior of leaving them unconnected was a real gap — with anchor sides
+ * picked from actual relative position (`pickBestSides`), not a hardcoded
+ * side, so the edge still looks right however the placement above landed. */
 function addRelatedComponent(defId, anchorNodeId, offsetIndex) {
   const def = resolveComponentDef(defId);
   if (!def) return;
   const state = store.getState();
   const anchor = state.nodes.find((n) => n.id === anchorNodeId);
-  const point = anchor
-    ? { x: anchor.x + anchor.w + 60, y: anchor.y + offsetIndex * (def.defaultSize.h + 24) }
+  const w = def.defaultSize.w;
+  const h = def.defaultSize.h;
+  const guess = anchor
+    ? { x: anchor.x + anchor.w + 60 + w / 2, y: anchor.y + h / 2 + offsetIndex * (h + 24) }
     : screenCenterCanvasPoint();
+  const center = findClearCenter(guess.x, guess.y, w, h, state.nodes);
+  const point = { x: center.x - w / 2, y: center.y - h / 2 };
   const node = createNode(def, point.x, point.y, {
     zIndex: nextZIndex(state),
     ...buildCreationOverrides(),
   });
+
+  const newEdges = [];
+  if (anchor) {
+    const sides = pickBestSides(anchor, { x: point.x, y: point.y, w, h });
+    newEdges.push(createEdge(anchorNodeId, node.id, sides));
+  }
+
   store.dispatch((draft) => {
     draft.nodes.push(node);
+    draft.edges.push(...newEdges);
   });
   store.select([node.id], []);
   focusNode(node.id);
@@ -785,6 +805,41 @@ export function fitToScreen() {
   const bounds = getContentBounds();
   if (bounds) viewport.fitToContent(bounds);
   else viewport.resetViewport();
+}
+
+/** Rearranges every node into a layered top-to-bottom layout based on
+ * connector direction (see core/autoLayout.js) — a source flows into its
+ * dependents one row per hop, disconnected nodes/components spread out
+ * below/beside the rest instead of overlapping. One undo step for the
+ * whole rearrangement. Edges aren't touched directly; their rendering
+ * already recomputes from current node positions every time nodes move,
+ * same as any drag. */
+export function autoArrangeAll() {
+  const state = store.getState();
+  if (!state.nodes.length) return;
+  const positions = computeAutoLayout(state.nodes, state.edges);
+  store.dispatch((draft) => {
+    for (const n of draft.nodes) {
+      const p = positions.get(n.id);
+      if (p) {
+        n.x = p.x;
+        n.y = p.y;
+      }
+    }
+    // Re-pick every edge's anchor sides for the new layout too — an edge
+    // otherwise keeps whatever sides it was originally drawn with, which
+    // usually reads fine on its own but tends to produce an unnecessary
+    // loop-out once auto-arrange has straightened everything else into
+    // tidy rows (e.g. a straight vertical chain, but one edge still exits
+    // "right" and re-enters "left" because that's what its two endpoints
+    // happened to face when it was first connected).
+    for (const e of draft.edges) {
+      const from = draft.nodes.find((n) => n.id === e.from);
+      const to = draft.nodes.find((n) => n.id === e.to);
+      if (from && to) Object.assign(e, pickBestSides(from, to));
+    }
+  });
+  fitToScreen();
 }
 
 // ---- context menus ----

@@ -44,14 +44,14 @@ export function openBackupModal() {
             }
             const ok = await confirmAction({
               title: 'Restore full backup?',
-              message: 'This replaces the current canvas and default settings, and merges the backup\'s My Components and saved projects into your library. This cannot be undone.',
+              message: 'This replaces the current canvas and default settings, and merges the backup\'s My Components, saved projects, and Favorites into your library. This cannot be undone.',
               confirmLabel: 'Restore',
               danger: true,
             });
             if (!ok) return;
             const result = importFullBackupFile(parsed);
             if (!result.ok) { showToast(result.error, 'error'); return; }
-            showToast(`Restored backup: ${result.importedComponents} component(s), ${result.importedProjects} project(s).`, 'success');
+            showToast(`Restored backup: ${result.importedComponents} component(s), ${result.importedProjects} project(s), ${result.importedFavorites} favorite(s).`, 'success');
           },
         }),
       ));

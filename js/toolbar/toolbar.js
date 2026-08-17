@@ -16,7 +16,7 @@ import { createEmptyProject } from '../core/project.js';
 import { el, clear, rerenderPreservingUiState } from '../utils/dom.js';
 import {
   deleteSelection, duplicateSelection, groupSelection, ungroupSelection, selectionHasGroup, duplicateProjectAsNew,
-  getSelectionScreenRect,
+  getSelectionScreenRect, autoArrangeAll,
 } from '../canvas/canvas.js';
 import { setMagicMode, isMagicModeActive } from '../canvas/connectorInteractions.js';
 import { getBaseToolMode, setToolMode, onToolModeChange } from '../canvas/toolMode.js';
@@ -402,7 +402,17 @@ function buildToolsGroupButtons() {
   }
 
   const aiReviewBtn = el('button', { type: 'button', class: 'btn', title: 'AI Design Review', text: '🤖 AI Design Review', onClick: toggleAiReviewPanel });
-  return [gridBtn, aiReviewBtn];
+  const autoArrangeBtn = el('button', {
+    type: 'button',
+    class: 'btn',
+    title: 'Auto-arrange: rearrange every component into a top-to-bottom layout that follows connector direction',
+    text: '🗺️ Auto-arrange',
+    onClick: () => {
+      autoArrangeAll();
+      showToast('Rearranged the diagram.', 'success', 1800);
+    },
+  });
+  return [gridBtn, aiReviewBtn, autoArrangeBtn];
 }
 
 function buildHelpGroupButtons() {

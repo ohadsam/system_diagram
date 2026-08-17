@@ -7,6 +7,7 @@ import { importFullBackupFile } from '../../js/io/fullBackup.js';
 import { getNodeDefaults } from '../../js/io/nodeDefaults.js';
 import { getCustomComponents } from '../../js/io/customComponents.js';
 import { getRawSavedProjects } from '../../js/io/projects.js';
+import { getFavoriteFolders, getFavorites } from '../../js/io/favorites.js';
 
 const resetStorage = installMemoryLocalStorage();
 beforeEach(() => resetStorage());
@@ -26,17 +27,22 @@ test('importFullBackupFile loads the bundled canvas, overwrites defaults, and me
     nodeDefaults: { transparentFill: true, showIcon: false, textPosition: 'above', subComponentsDisplay: 'full' },
     customComponents: [{ id: 'custom_1', name: 'Backed-up Component', icon: '⬛' }],
     savedProjects: [{ id: 'proj_1', name: 'Backed-up Project', nodes: [], edges: [] }],
+    favoriteFolders: [{ id: 'favfolder_1', name: 'Databases', parentId: null, order: 0 }],
+    favorites: [{ id: 'fav_1', defId: 'db-postgres', folderId: 'favfolder_1', order: 0 }],
   });
 
   assert.equal(result.ok, true);
   assert.equal(result.loadedProject, true);
   assert.equal(result.importedComponents, 1);
   assert.equal(result.importedProjects, 1);
+  assert.equal(result.importedFavorites, 1);
 
   assert.equal(store.getState().name, 'Restored Diagram');
   assert.deepEqual(getNodeDefaults(), { transparentFill: true, showIcon: false, textPosition: 'above', subComponentsDisplay: 'full' });
   assert.equal(getCustomComponents().length, 1);
   assert.equal(getRawSavedProjects().length, 1);
+  assert.equal(getFavoriteFolders().length, 1);
+  assert.equal(getFavorites().length, 1);
 });
 
 test('importFullBackupFile tolerates a backup missing the optional sections', () => {
@@ -45,4 +51,5 @@ test('importFullBackupFile tolerates a backup missing the optional sections', ()
   assert.equal(result.loadedProject, false);
   assert.equal(result.importedComponents, 0);
   assert.equal(result.importedProjects, 0);
+  assert.equal(result.importedFavorites, 0);
 });

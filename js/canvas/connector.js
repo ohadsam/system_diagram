@@ -107,13 +107,23 @@ export function updateEdgeEl(g, edge, fromNode, toNode, { selected = false, allN
   }
 }
 
-/** "Magic" routing computes an obstacle-avoiding path fresh from current
- * node positions each render (nothing persisted) — same "dynamic reshaping"
+/** Obstacle-avoiding routing computes a path fresh from current node
+ * positions each render (nothing persisted) — same "dynamic reshaping"
  * behavior every other routing already gets when nodes move, and it never
  * goes stale. Falls back to a plain elbow route if no path is found (e.g.
- * the target is fully boxed in) so a magic edge never simply disappears. */
+ * the target is fully boxed in) so an edge never simply disappears.
+ *
+ * Applies to the default 'orthogonal' routing too, not just an explicitly
+ * armed 'magic' one — a freshly-drawn connector should route around
+ * whatever's in the way out of the box, not only when the user remembers
+ * to arm 🪄 Magic Arrow first. 'magic' still exists as its own routing
+ * value (and gets the `.edge-magic` glow — see connector.css) for a user
+ * who wants to force this behavior on an edge whose *sides* were set some
+ * other way (e.g. hand-edited after drawing); 'straight'/'curved' are
+ * deliberately literal, simple styles and stay untouched by this — that's
+ * the whole point of choosing them over an elbow. */
 function buildEdgePath(edge, fromNode, toNode, a, b, allNodes) {
-  if (edge.routing === 'magic') {
+  if (edge.routing === 'magic' || edge.routing === 'orthogonal') {
     const obstacles = allNodes.filter((n) => n.id !== fromNode.id && n.id !== toNode.id);
     const waypoints = computeMagicWaypoints(fromNode, toNode, obstacles, edge.fromSide, edge.toSide);
     if (waypoints) return waypointsPath(waypoints);

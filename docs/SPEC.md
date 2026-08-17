@@ -189,7 +189,12 @@ section for the bar a pairing needs to clear) rather than automatic or
 heuristic, deliberately sparse and grown incrementally rather than
 covering the whole library at once. Can be turned off entirely from
 "🎛️ Default settings" → "Component library" (4.2.5) for anyone who
-doesn't want it.
+doesn't want it. Accepting a companion suggestion also **creates the
+connecting edge** between the two components (anchored via 4.4's smart
+side-picking) and **places the new node with anti-overlap placement**
+(`canvas.js#addRelatedComponent`, reusing the same `findClearCenter` helper
+node-creation already uses) rather than dropping it unconnected at a blind
+fixed offset.
 
 The same banner can also suggest **sub-components** to attach directly onto
 the node just placed (e.g. Express suggests a Controller/Middleware layer;
@@ -201,6 +206,39 @@ companion-component row when both apply. Curated the same way via a
 Clicking one attaches it exactly like dragging that item from "Layers &
 Roles" onto the node, instead of creating a new standalone node, and an
 already-attached sub-component is never re-suggested.
+
+#### 4.2.9 Popular component highlighting
+A hand-curated subset of components — the ones most engineers would
+immediately recognize as one of the most common building blocks in their
+category (PostgreSQL, Docker, S3, Kafka, React, ...) — get a subtle
+background tint and a small ★ badge in the sidebar, so scanning a long
+category turns up a familiar landmark first. Marked via a `popular: boolean`
+flag on `c(...)` (`js/data/schema.js`), same "would most engineers
+immediately agree" curation bar as `related` (4.2.8) — deliberately sparse
+(a handful per category), and purely visual: it never reorders or filters
+the list.
+
+#### 4.2.10 Favorites
+Any component (built-in or "My Components") can be pinned to a personal
+**Favorites** section shown at the very top of the sidebar, above "My
+Components" — right-click it and choose "Add to Favorites" (or "Remove from
+Favorites" to unpin). Distinct from the ⭐ **saved-project** favorites
+described in 4.7.1 — same word, two unrelated things: this section is about
+favoriting library *components*, that one is about favoriting saved
+*projects* in the Load modal. Favorites can be organized into **folders**, which can
+themselves nest **subfolders** to any depth, each with its own manual
+ordering. From the Favorites section's "+ New folder" header button, or a
+folder's "⋮" options menu (Add subfolder / Rename / Move up / Move down /
+Delete), or a favorited item's own right-click menu (Move to folder / Move
+up / Move down / Remove from Favorites): the full set is create, rename,
+delete (cascades through subfolders, un-favoriting — never deleting — the
+components filed inside any of them, with a confirmation summarizing what
+will be removed), reorder, and move an item between folders. A favorited
+item still drags/clicks onto the canvas exactly like its normal sidebar
+entry. Favorites is personal library data, like "My Components" — persisted
+separately in `localStorage` (`js/io/favorites.js`), not part of the
+project file, unaffected by undo/redo or "New Project", and included in the
+full-backup export/import (4.7.3).
 
 ### 4.3 Canvas node interactions
 - Drag to move, resize via handles, rotate not required.
@@ -272,13 +310,31 @@ already-attached sub-component is never re-suggested.
   reverting to whichever was active the moment it's released.
 - Zoom in / out / reset-to-100% / fit-to-screen (toolbar buttons, Ctrl/Cmd
   + "+"/"-"/"0", and Ctrl/Cmd+scroll) round out navigation — see 4.5.
+- **Auto-arrange** (Tools menu, `js/core/autoLayout.js`): rearranges every
+  component on the canvas into a top-to-bottom layered layout that follows
+  connector direction — a simplified Sugiyama-style layout (rank assignment
+  by longest path from source nodes, single-pass barycenter ordering within
+  each rank to reduce crossings, wrapping an overly-wide rank onto
+  additional rows) — then re-picks every edge's anchor sides (4.4) to match
+  the new positions and fits the view to the result. One undo step.
 
 ### 4.4 Arrows / connectors
 - Draw by dragging from a node's connection point to another node. Both
   ends must land on a component (no free-floating endpoints in v1 — see
-  `PLAN.md` for that as a possible v2 idea).
+  `PLAN.md` for that as a possible v2 idea). Which side of each component
+  the connector actually anchors on is picked from the two components'
+  real relative position (`core/geometry.js#pickBestSides`), not fixed to
+  whichever exact connection point you happened to drag from/to — dragging
+  from any point on the source still produces a geometrically sensible
+  connector (e.g. exiting the bottom of a node stacked above another,
+  rather than always the point that was literally grabbed).
 - Style: color, thickness, dash pattern, routing (straight, orthogonal
-  /elbow, curved/bezier, or **magic** — see 4.4.1), label text.
+  /elbow, curved/bezier, or **magic** — see 4.4.1), label text. The default
+  orthogonal routing also auto-avoids every other component in its path
+  (the same obstacle-avoiding routing described in 4.4.1), not only when
+  Magic Arrow mode is explicitly armed — Magic Arrow remains available
+  (and functionally distinct) for its shortest-least-bends-path guarantee
+  and its own visual style.
 - Arrow-head per end independently: none, open, filled triangle, diamond,
   circle — and direction: source→target, target→source, bidirectional,
   none.
@@ -398,11 +454,13 @@ Three export/import scopes, each downloadable/uploadable as its own
 - **Saved projects** (every named project together, favorites included) —
   "Export all… / Import all…" in the Load modal, or from "Backup & Restore".
 - **Full backup** — everything at once: the live canvas, global default
-  settings, the whole My Components library and every saved project, via
-  the toolbar's "🗄️ Backup & Restore" modal. Restoring a full backup
-  replaces the current canvas and default settings (after a confirmation
-  dialog, since this can't be undone) and merges its components/projects
-  into the existing libraries using the same collision rule as above.
+  settings, the whole My Components library, every saved project, and the
+  component Favorites library (folders + entries, 4.2.10) — via the
+  toolbar's "🗄️ Backup & Restore" modal. Restoring a full backup replaces
+  the current canvas and default settings (after a confirmation dialog,
+  since this can't be undone) and merges its components/projects/favorites
+  into the existing libraries (favorites merge additively by id, same
+  reasoning as My Components — see `io/favorites.js#importFavoritesBundle`).
 
 **Collision handling** (applies to every import above, and to the
 single-project "Load from JSON file" and single-library "Import My

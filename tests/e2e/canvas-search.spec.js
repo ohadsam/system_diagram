@@ -34,9 +34,10 @@ test('search matches connector labels too, and cycles through multiple matches w
   // Give the connector a label matching text also present in a component
   // name, so the search has more than one hit to cycle through. A
   // connector's overall bounding-box center can land on empty space (e.g.
-  // inside an elbow route's bend), so click near node A's edge instead —
-  // same helper the other connector-selection tests use.
-  await clickEdgeNearNode(page, nodes.nth(0));
+  // inside an elbow route's bend), so click a real point along its
+  // rendered path instead — same helper the other connector-selection
+  // tests use.
+  await clickEdgeNearNode(page);
   const labelInput = page.locator('.toolbar-row-context input[type="text"]').first();
   await labelInput.fill('web traffic');
   await page.keyboard.press('Tab');

@@ -89,6 +89,18 @@ Bar to clear — skip it rather than force a weak pairing, for either list:
 self-references, no duplicates) and every `relatedLayers` id resolves to an actual `kind: 'layer'`
 component — run it (see "Always finish with" below) after adding either.
 
+### `popular` — optional, and almost never for a brand-new component
+
+`popular: true` in the `c(...)` call gives a component a subtle sidebar highlight (background
+tint + ★ badge) marking it as one most engineers would immediately recognize as a common building
+block in its category — see `js/data/schema.js`'s JSDoc for the exact wording. Same "would most
+engineers immediately agree" bar as `related` above, and same "deliberately sparse" rule: a
+handful per category, not a ranking of every item. In practice this almost never applies to a
+component you're adding for the first time — a brand-new, unproven addition to the library is
+rarely also one of the most universally-recognized in its category on day one. Reach for it only
+when explicitly asked to highlight/promote specific existing components, not as a default
+alongside every new `c(...)` call.
+
 ## A "layer" (attaches as a sub-component instead of standing alone)
 
 Same `c()` call, add `kind: 'layer'`. See `js/data/categories/layers.js` for the full set — used

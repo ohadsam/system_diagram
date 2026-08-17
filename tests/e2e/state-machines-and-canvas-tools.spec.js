@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import {
-  dismissHints, addComponentByName, nodeCount, edgeCount, dragNodeBy, connectNodes, clickEdgeNearNode, openToolbarGroup,
+  dismissHints, addComponentByName, nodeCount, edgeCount, dragNodeBy, connectNodes, clickEdgeNearNode, edgeClickPoint, openToolbarGroup,
 } from './helpers.js';
 
 test.beforeEach(async ({ page }) => {
@@ -117,12 +117,22 @@ test('a mixed component+connector selection duplicates and deletes together', as
   await expect.poll(() => edgeCount(page)).toBe(1);
 
   await nodes.nth(0).click({ force: true });
-  const box = await nodes.nth(0).boundingBox();
+  // Collapse the floating style-editor card before locating a click point
+  // on the edge — on nodes this close together, the expanded card (which
+  // anchors right next to the just-selected node, with no awareness of
+  // what else is on the canvas underneath it) can cover the *entire*
+  // connector, leaving no uncovered point along its path to click.
+  // Collapsing removes the card's body from the DOM outright (not just a
+  // CSS hide), clearing the way; expanded back below once both are
+  // selected, for the "both style editors visible" assertions after.
+  await page.locator('.toolbar-context-collapse-toggle').click();
+  const edgePoint = await edgeClickPoint(page);
   await page.keyboard.down('Shift');
-  await page.mouse.click(box.x + box.width + 15, box.y + box.height / 2);
+  await page.mouse.click(edgePoint.x, edgePoint.y);
   await page.keyboard.up('Shift');
   await expect(page.locator('.node.selected')).toHaveCount(1);
   await expect(page.locator('.edge.selected')).toHaveCount(1);
+  await page.locator('.toolbar-context-collapse-toggle').click();
 
   // Both the component and connector style editors must render at once —
   // they're rendered into separate containers specifically because both
@@ -153,7 +163,7 @@ test('Magic Arrow mode draws a connector with magic routing', async ({ page }) =
   await connectNodes(page, nodes.nth(0), nodes.nth(1));
   await expect.poll(() => edgeCount(page)).toBe(1);
 
-  await clickEdgeNearNode(page, nodes.nth(0));
+  await clickEdgeNearNode(page);
   const routingSelect = page.locator('.toolbar-row-context select').nth(1);
   await expect(routingSelect).toHaveValue('magic');
 });

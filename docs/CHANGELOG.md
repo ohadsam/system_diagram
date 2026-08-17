@@ -152,6 +152,40 @@ user-facing fix or feature, alongside this changelog.
   value `'magic'`, also chooseable for any existing connector from its
   style editor.
 
+## v1.15.0 (2026-08-17)
+
+Five related improvements to how you build and organize a diagram, requested together:
+
+- **Smart Suggestions now draws the connecting arrow**: accepting a companion from the "✨ Smart
+  Suggestions" banner previously just dropped an unconnected new node next to the one you placed —
+  it now also creates the edge between them (in the natural anchor → suggestion direction) and
+  places the new node with anti-overlap placement instead of a blind fixed offset
+  (`canvas.js#addRelatedComponent`, reusing the pre-existing `findClearCenter` helper).
+- **New "🗺️ Auto-arrange"** (Tools menu): rearranges every component on the canvas into a clean
+  top-to-bottom layered layout that follows connector direction (a simplified Sugiyama-style
+  layout — rank-by-longest-path, single-pass barycenter ordering within each rank, row-wrap for
+  very wide ranks — see the new `core/autoLayout.js`), and re-picks every edge's anchor sides to
+  match the new positions.
+- **Smarter connector anchoring and routing, for every new connector**: which side of a component
+  a connector's endpoint lands on is now picked from the two components' actual relative position
+  (`core/geometry.js#pickBestSides`) rather than fixed to whichever exact point you dragged from —
+  drag from anywhere on the source, the arrow still exits/enters on the geometrically sensible
+  side. The default (`'orthogonal'`) routing also now auto-avoids other components in its path,
+  the same obstacle-avoiding routing previously only used by the explicit "🪄 Magic Arrow" toggle
+  (which is unchanged and still available for its shortest-path guarantee).
+- **Popular component highlighting**: the sidebar library now gives a subtle background tint and a
+  ★ badge to a hand-curated set of components most engineers would immediately recognize as common
+  building blocks in their category (PostgreSQL, Docker, S3, Kafka, React, and ~30 more across
+  AWS, Databases, Containers, Networking, Monitoring, and more) — a new `popular` flag on the
+  component schema (`js/data/schema.js`), same curation bar as `related`.
+- **New "⭐ Favorites"**: right-click any component (built-in or "My Components") and choose "Add
+  to Favorites" to pin it to a new Favorites section at the top of the sidebar. Organize favorites
+  into folders and subfolders from the same right-click menu (or the section's own "+ New folder"
+  button): rename, delete (cascades to subfolders, un-favoriting their contents without touching
+  the underlying components), and reorder folders/favorites with "Move up"/"Move down". Favorites
+  are personal library data like "My Components" — not part of the project file, unaffected by
+  undo/redo, and now included in the full-backup export/import (`io/favorites.js`).
+
 ## v1.14.0 (2026-08-17)
 
 Expanded ✨ Smart Suggestions coverage — a deliberate, precision-first pass, not an attempt to

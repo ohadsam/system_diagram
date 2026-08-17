@@ -13,7 +13,7 @@ export const components = [
   c('sec-identity-provider', 'Identity Provider (IdP)', '🪪', { color: SEC, related: ['sec-sso'] }),
   c('sec-jwt', 'JWT', '🎫', { color: SEC }),
   c('sec-ldap', 'LDAP / Active Directory', '🗃️', { color: SEC }),
-  c('sec-oauth', 'OAuth / OIDC', '🔓', { color: SEC, related: ['sec-jwt'] }),
+  c('sec-oauth', 'OAuth / OIDC', '🔓', { popular: true, color: SEC, related: ['sec-jwt'] }),
   c('sec-secrets-manager', 'Secrets Manager', '🤫', { color: SEC }),
   c('sec-siem', 'SIEM', '🕵️', { color: SEC }),
   c('sec-sso', 'Single Sign-On (SSO)', '🔑', { color: SEC }),

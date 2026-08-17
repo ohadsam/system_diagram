@@ -113,7 +113,7 @@ test('selecting a connector reveals the arrow style editor and routing can be ch
   await connectNodes(page, nodes.nth(0), nodes.nth(1));
   await expect.poll(() => edgeCount(page)).toBe(1);
 
-  await clickEdgeNearNode(page, nodes.nth(0));
+  await clickEdgeNearNode(page);
   await expect(page.locator('.toolbar-row-context')).toBeVisible();
   const selects = page.locator('.toolbar-row-context select');
   await expect(selects).toHaveCount(4); // dash, routing, start arrow, end arrow
