@@ -2,9 +2,16 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.16.0';
+export const APP_VERSION = '1.17.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.17.0',
+    date: '2026-08-18',
+    highlights: [
+      '23 new curated "✨ Smart Suggestions" sub-component pairings — e.g. AWS Lambda and Serverless Function both suggest a Handler; Gin, Fiber and Actix (Go/Rust) suggest a Handler + Middleware; FastAPI suggests a Validator + DTO; Service Mesh suggests a Sidecar Proxy; a Cron Job suggests a Scheduler; Step Functions and the Multi-Agent Orchestrator both suggest an Orchestrator; Next.js, Nuxt, Preact and Remix now suggest the same sub-components their underlying library (React/Vue) already did.',
+    ],
+  },
   {
     version: '1.16.0',
     date: '2026-08-18',

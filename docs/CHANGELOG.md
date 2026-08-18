@@ -152,6 +152,36 @@ user-facing fix or feature, alongside this changelog.
   value `'magic'`, also chooseable for any existing connector from its
   style editor.
 
+## v1.17.0 (2026-08-18)
+
+Expanded ✨ Smart Suggestions' `relatedLayers` (sub-component) curation — a precision-first pass,
+same bar as every prior expansion (something most engineers would nod at immediately, not every
+plausible pairing):
+
+- **23 new pairings across 7 category files**: backend framework/language handler+middleware
+  conventions (Actix, Fastify, Fiber, Gin all suggest Handler/Middleware — their own docs use these
+  exact terms; FastAPI suggests Validator + DTO for its defining Pydantic-model validation; Phoenix
+  suggests Controller + Model, matching Rails/Django's existing MVC treatment); serverless entry
+  points (`aws-lambda`, `srv-serverless-fn`) both suggest Handler, since every serverless runtime
+  literally calls its entry point that; orchestration-named components (`aws-step-functions`,
+  `ai-agent-orchestrator`) suggest Orchestrator; `net-service-mesh` suggests Sidecar Proxy (the
+  textbook service-mesh sub-component); `misc-cron` suggests Scheduler (an exact-name match);
+  `misc-webhook` suggests Webhook Handler (ditto); `misc-worker` suggests Event Handler;
+  `misc-rest-api`/`misc-grpc`/`ai-chat-endpoint` suggest Controller/Service + DTO for their
+  request/response shape; `srv-microservice` gets the same Controller/Service pairing
+  `srv-app-server` already had; React-based meta-frameworks already pointing at React via `related`
+  (Next.js, Remix) or Vue via Nuxt now also get their underlying library's own `relatedLayers`
+  (React Hook/Component, Vue Component/Store) so dropping the meta-framework itself offers the same
+  sub-component suggestions dropping the base library would; Preact gets the same React
+  Hook/Component pairing since its API explicitly mirrors React's, hooks included.
+- Deliberately skipped candidates that didn't clear the bar: Flask (intentionally unopinionated, no
+  canonical layer), SvelteKit/Svelte (no matching layer exists in the library yet), Ember (its
+  historical Controller concept is largely deprecated in modern Ember Octane), raw
+  languages/runtimes (Go, Python, Node.js, .NET, Java — no single-app-layer structure at the
+  language level), and infrastructure/message-broker components (queues, caches, databases) that
+  the library has never given `relatedLayers` — matching the existing "a queue/database has no
+  natural sub-component" precedent.
+
 ## v1.16.0 (2026-08-18)
 
 - Added a persistent way to revisit **✨ Smart Suggestions**' curated sub-component ("attach as a

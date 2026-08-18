@@ -6,7 +6,7 @@ const AWS = '#FF9900';
 
 export const components = [
   c('aws-amplify', 'Amplify', '📱', { color: AWS, tags: ['frontend', 'hosting'], description: 'Full-stack app hosting & CI/CD.' }),
-  c('aws-api-gateway', 'API Gateway', '🚪', { popular: true, color: AWS, tags: ['api', 'rest'], description: 'Managed API front door.', related: ['aws-lambda', 'aws-cognito'] }),
+  c('aws-api-gateway', 'API Gateway', '🚪', { popular: true, color: AWS, tags: ['api', 'rest'], description: 'Managed API front door.', related: ['aws-lambda', 'aws-cognito'], relatedLayers: ['layer-authentication', 'layer-rate-limiter'] }),
   c('aws-app-runner', 'App Runner', '🏃', { color: AWS, tags: ['compute', 'containers'] }),
   c('aws-appsync', 'AppSync', '🔗', { color: AWS, tags: ['graphql', 'api'] }),
   c('aws-athena', 'Athena', '🔎', { color: AWS, tags: ['analytics', 'sql'], related: ['aws-glue', 'aws-s3'] }),
@@ -53,7 +53,7 @@ export const components = [
   c('aws-kendra', 'Kendra', '🔍', { color: AWS, tags: ['search', 'ai'] }),
   c('aws-kinesis', 'Kinesis', '🌊', { color: AWS, tags: ['streaming', 'analytics'] }),
   c('aws-kms', 'KMS (Key Management Service)', '🔑', { color: AWS, tags: ['security', 'encryption'] }),
-  c('aws-lambda', 'Lambda', 'λ', { popular: true, color: AWS, tags: ['serverless', 'compute', 'function'], related: ['aws-api-gateway', 'aws-dynamodb'] }),
+  c('aws-lambda', 'Lambda', 'λ', { popular: true, color: AWS, tags: ['serverless', 'compute', 'function'], related: ['aws-api-gateway', 'aws-dynamodb'], relatedLayers: ['layer-handler'] }),
   c('aws-lex', 'Lex', '💬', { color: AWS, tags: ['ai', 'chatbot'] }),
   c('aws-lightsail', 'Lightsail', '💡', { color: AWS, tags: ['compute', 'vps'] }),
   c('aws-mq', 'MQ', '✉️', { color: AWS, tags: ['messaging', 'queue'] }),
@@ -91,7 +91,7 @@ export const components = [
   c('aws-sns', 'SNS (Simple Notification Service)', '📣', { color: AWS, tags: ['messaging', 'pub-sub'], related: ['aws-sqs'] }),
   c('aws-sqs', 'SQS (Simple Queue Service)', '📬', { color: AWS, tags: ['messaging', 'queue'] }),
   c('aws-ssm', 'Systems Manager', '🧰', { color: AWS, tags: ['ops', 'management'] }),
-  c('aws-step-functions', 'Step Functions', '🪜', { color: AWS, tags: ['orchestration', 'workflow'], related: ['aws-lambda'] }),
+  c('aws-step-functions', 'Step Functions', '🪜', { color: AWS, tags: ['orchestration', 'workflow'], related: ['aws-lambda'], relatedLayers: ['layer-orchestrator'] }),
   c('aws-storage-gateway', 'Storage Gateway', '🚪', { color: AWS, tags: ['storage', 'hybrid'] }),
   c('aws-textract', 'Textract', '📝', { color: AWS, tags: ['ai', 'ocr'] }),
   c('aws-timestream', 'Timestream', '⏱️', { shape: 'cylinder', color: AWS, tags: ['database', 'time-series'] }),

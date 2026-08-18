@@ -55,7 +55,7 @@ export const components = [
   // Agents & agent frameworks
   c('ai-agent', 'AI Agent', '🤖', { color: AI, tags: ['agent'], description: 'An LLM-driven actor that plans and takes actions.', related: ['ai-agent-memory', 'ai-agent-planner', 'ai-tool-function-calling'] }),
   c('ai-agent-memory', 'Agent Memory', '🧠', { color: AI, tags: ['agent', 'state'], related: ['ai-agent'] }),
-  c('ai-agent-orchestrator', 'Multi-Agent Orchestrator', '🎼', { color: AI, tags: ['agent', 'orchestration'], related: ['ai-subagent'] }),
+  c('ai-agent-orchestrator', 'Multi-Agent Orchestrator', '🎼', { color: AI, tags: ['agent', 'orchestration'], related: ['ai-subagent'], relatedLayers: ['layer-orchestrator'] }),
   c('ai-agent-planner', 'Agent Planner', '🗺️', { color: AI, tags: ['agent', 'planning'], related: ['ai-agent'] }),
   c('ai-framework-autogen', 'AutoGen', '🔄', { color: AI, tags: ['agent-framework'] }),
   c('ai-framework-crewai', 'CrewAI', '👥', { color: AI, tags: ['agent-framework'] }),
@@ -65,7 +65,7 @@ export const components = [
   c('ai-subagent', 'Sub-Agent', '🧬', { color: AI, tags: ['agent'], related: ['ai-agent-orchestrator'] }),
 
   // Skills, tools & RAG
-  c('ai-chat-endpoint', 'Chat Completion Endpoint', '💬', { color: AI, tags: ['api', 'llm'] }),
+  c('ai-chat-endpoint', 'Chat Completion Endpoint', '💬', { color: AI, tags: ['api', 'llm'], relatedLayers: ['layer-controller', 'layer-dto'] }),
   c('ai-fine-tuning', 'Fine-Tuning Job', '🎛️', { color: AI, tags: ['training', 'customization'] }),
   c('ai-guardrails', 'Guardrails / Content Moderation', '🚧', { color: AI, tags: ['safety'] }),
   c('ai-inference-api', 'Inference API', '🔌', { color: AI, tags: ['api'] }),
