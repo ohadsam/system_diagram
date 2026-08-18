@@ -4,6 +4,7 @@
 // directly since they involve no pointer-move gesture state.
 import * as store from '../core/store.js';
 import { el, clear } from '../utils/dom.js';
+import { getUnattachedLayerSuggestions } from './suggestions.js';
 
 let handlers = {
   onSelect: () => {},
@@ -29,7 +30,7 @@ export function createNodeEl(node) {
   });
 
   root.addEventListener('pointerdown', (e) => {
-    if (e.target.closest('.conn-point, .resize-handle, .node-info-btn, .node-menu-btn, .row-item, .node-add-row')) return;
+    if (e.target.closest('.conn-point, .resize-handle, .node-info-btn, .node-menu-btn, .node-suggestion-badge, .row-item, .node-add-row')) return;
     handlers.onSelect(node.id, e.shiftKey || e.metaKey || e.ctrlKey, e);
   });
   root.addEventListener('contextmenu', (e) => {
@@ -98,6 +99,19 @@ export function createNodeEl(node) {
   });
   root.appendChild(infoBtn);
 
+  const suggestionBadge = el('button', {
+    class: 'node-suggestion-badge',
+    type: 'button',
+    title: 'Suggested sub-components available — click to view them in the details panel',
+    'aria-label': 'View suggested sub-components',
+    text: '💡',
+    onClick: (e) => {
+      e.stopPropagation();
+      handlers.onOpenDetails(node.id);
+    },
+  });
+  root.appendChild(suggestionBadge);
+
   const menuBtn = el('button', {
     class: 'node-menu-btn',
     type: 'button',
@@ -135,6 +149,7 @@ export function updateNodeEl(rootEl, node, { selected = false, replicated = fals
 
   const hasInfo = !!(node.notes?.trim() || node.labels?.length || (node.subComponents?.length && node.shape !== 'rows'));
   rootEl.classList.toggle('has-info', hasInfo);
+  rootEl.classList.toggle('has-suggestions', getUnattachedLayerSuggestions(node).length > 0);
   rootEl.setAttribute('aria-label', node.text || 'component');
 
   const body = rootEl.querySelector('.node-body');

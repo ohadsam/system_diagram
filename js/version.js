@@ -2,9 +2,16 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.15.0';
+export const APP_VERSION = '1.16.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.16.0',
+    date: '2026-08-18',
+    highlights: [
+      'Any component with unattached "✨ Smart Suggestions" sub-components (like Express\'s Controller/Middleware) now shows a small 💡 badge — click it to open the details panel\'s new "Suggested sub-components" section, check off any number of them, and attach them all at once. Works any time, not just right after placing the component.',
+    ],
+  },
   {
     version: '1.15.0',
     date: '2026-08-17',

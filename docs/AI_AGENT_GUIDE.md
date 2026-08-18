@@ -45,6 +45,7 @@ this repo" quick-start.
 | Add/change a "Smart Suggestions" companion pairing | `related: ['other-id']` in the `c(...)` call — see `add-library-item` skill's "Smart Suggestions" section for the curation bar |
 | Add/change a "Smart Suggestions" sub-component pairing | `relatedLayers: ['layer-id']` in the `c(...)` call (ids must be `kind: 'layer'`) — same curation bar, same skill section |
 | Change the Smart Suggestions banner/trigger        | `js/canvas/suggestions.js` (banner + filtering), `canvas.js#createNodeFromDrop` (trigger point) |
+| Change the persistent "revisit sub-component suggestions" badge/panel section | `js/canvas/suggestions.js#getUnattachedLayerSuggestions` (shared filter) + `js/canvas/node.js` (`.node-suggestion-badge`, toggled via `.has-suggestions`) + `js/panel/detailsPanel.js#renderSuggestedSubComponents` (checkbox list + batch "Add selected") |
 | Change node drag/resize behavior                  | `js/canvas/nodeInteractions.js` |
 | Change arrow routing/markers                      | `js/canvas/connector.js`, `connectorInteractions.js` |
 | Add a toolbar button                              | `js/toolbar/toolbar.js` — put it in an existing dropdown group (`buildFileGroupButtons`/`buildCreateGroupButtons`/`buildToolsGroupButtons`/`buildHelpGroupButtons`, rendered via `toolbarDropdown.js`) unless it's used continuously while working (like undo/redo, the Select/Hand tool toggle, zoom), which stay flat. **Always set a clear, specific `title`** on the button — see "Add a toolbar button" pitfall below. |
@@ -424,3 +425,11 @@ npm test
   right on top of an obvious click point on a short connector) instead of
   computing a screen-space guess — this is the one reliable way to click a
   rendered edge regardless of which side it actually anchored on.
+- **A corner badge that's always in the DOM and only CSS-hidden (`.node-badge`,
+  `.node-replication-badge`, `.node-suggestion-badge` — anything toggled via a
+  class like `.has-info`/`.has-suggestions` rather than being conditionally
+  appended) needs `expect(locator).toBeHidden()`/`toBeVisible()` in a test, not
+  `toHaveCount(0)`** — the element is always there, so a count assertion
+  never fails even when the feature is correctly absent, silently testing
+  nothing. This one's easy to get wrong the first time and won't show up as
+  a failure — it shows up as a test that can never catch a regression.

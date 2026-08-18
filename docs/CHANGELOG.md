@@ -152,6 +152,17 @@ user-facing fix or feature, alongside this changelog.
   value `'magic'`, also chooseable for any existing connector from its
   style editor.
 
+## v1.16.0 (2026-08-18)
+
+- Added a persistent way to revisit **✨ Smart Suggestions**' curated sub-component ("attach as a
+  building block") suggestions after the placement-time banner is gone — a component with any
+  unattached curated suggestion now shows a small 💡 badge on the node; clicking it opens the
+  details panel's new "Suggested sub-components" section, which offers the same curated list as
+  checkboxes so any number can be selected and attached together in one step ("+ Add selected"),
+  instead of one click per suggestion. Works on a node loaded from a saved project too, not only
+  right after placement. New `canvas/suggestions.js#getUnattachedLayerSuggestions` shared filter,
+  `js/canvas/node.js` badge, `js/panel/detailsPanel.js#renderSuggestedSubComponents` section.
+
 ## v1.15.0 (2026-08-17)
 
 Five related improvements to how you build and organize a diagram, requested together:

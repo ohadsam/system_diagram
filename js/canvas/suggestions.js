@@ -38,6 +38,21 @@ function notifyVisibilityChange(visible) {
   for (const fn of visibilityListeners) fn(visible);
 }
 
+/** Layer suggestions for `node` (curated via its def's `relatedLayers`)
+ * that aren't already attached as one of its sub-components — the same
+ * filter `showSuggestionsFor` uses for its "attach" row, but exposed
+ * standalone so it can be re-checked any time later, not just right after
+ * placement (see canvas/node.js's suggestion badge and
+ * panel/detailsPanel.js's "Suggested sub-components" section, both of
+ * which need this to still work on a node loaded from a saved project,
+ * long after the placement-time banner is gone). Returns `[]` for a node
+ * with no def (a bare custom shape) or no curated `relatedLayers`. */
+export function getUnattachedLayerSuggestions(node) {
+  if (!node.defId) return [];
+  const existingSubNames = new Set((node.subComponents || []).map((sc) => sc.name));
+  return getRelatedLayers(node.defId).filter((rel) => !existingSubNames.has(rel.name));
+}
+
 function ensureBanner() {
   if (bannerEl) return bannerEl;
   bannerEl = el('div', { class: 'suggestion-banner', hidden: true, role: 'status', 'aria-live': 'polite' });
@@ -88,8 +103,7 @@ export function showSuggestionsFor(def, node, { onAddComponent, onAddLayer }) {
   const existingDefIds = new Set(store.getState().nodes.map((n) => n.defId).filter(Boolean));
   const componentSuggestions = getRelatedComponents(def.id).filter((rel) => !existingDefIds.has(rel.id));
 
-  const existingSubNames = new Set((node.subComponents || []).map((sc) => sc.name));
-  const layerSuggestions = getRelatedLayers(def.id).filter((rel) => !existingSubNames.has(rel.name));
+  const layerSuggestions = getUnattachedLayerSuggestions(node);
 
   if (!componentSuggestions.length && !layerSuggestions.length) return;
 

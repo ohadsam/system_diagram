@@ -747,6 +747,55 @@ alongside `hideStateMachines` — same read/write/subscribe module, just one
 more key) and is exposed from "🎛️ Default settings" → "Component
 library", the same modal section as the State Machines toggle.
 
+### Revisiting sub-component suggestions later (`suggestions.js#getUnattachedLayerSuggestions`, `canvas/node.js`, `panel/detailsPanel.js`)
+
+The placement-time banner's `relatedLayers` ("attach") row is transient by
+design (auto-hides, easy to dismiss) and never appears at all for a node
+loaded from a saved project — so there needed to be a way back to the same
+curated suggestions any time later. `getUnattachedLayerSuggestions(node)`
+factors the filter `showSuggestionsFor` already did inline (curated
+`relatedLayers` minus names already in `node.subComponents`) into a
+standalone, reusable pure function — both the new call sites below and
+`showSuggestionsFor` itself now share this one implementation.
+
+- **`canvas/node.js`**: `updateNodeEl` (which already runs on every store
+  `'change'` event for every node, right alongside the existing `hasInfo`
+  computation) toggles a `.has-suggestions` class based on
+  `getUnattachedLayerSuggestions(node).length > 0` — so a suggestion
+  attached any way at all (this new flow, the placement banner, or the
+  details panel's plain "+ Add sub-component" field) makes the badge
+  disappear live, no manual invalidation needed. The badge itself
+  (`.node-suggestion-badge`, a 💡 button) is created unconditionally in
+  `createNodeEl` — like `.node-replication-badge`, it's always in the DOM
+  and purely CSS-hidden (`display: none` unless `.has-suggestions` is set),
+  which matters for testing: check visibility (`toBeHidden()`/`toBeVisible()`),
+  not DOM presence (`toHaveCount(0)` never passes). It's appended to the
+  DOM *after* `.node-resize-handles`, same as `.node-info-btn`/`.node-menu-btn`
+  — later siblings paint on top, so it stays clickable above a corner resize
+  handle when the node is selected, unlike an earlier-appended element would
+  be. Its `onClick` reuses the exact same `handlers.onOpenDetails(node.id)`
+  the ⓘ button calls — no new handler wiring needed.
+- **`panel/detailsPanel.js`**: a "💡 Suggested sub-components" section
+  (`renderSuggestedSubComponents`, rendered right after the existing
+  "Sub-components" editor, and rendered as nothing — not an empty section —
+  once `getUnattachedLayerSuggestions` returns `[]`) offers the same
+  curated list as checkboxes instead of the banner's one-click-per-item
+  buttons, so multiple can be queued and attached in a single dispatch (one
+  undo step) via "+ Add selected (N)". Which names are checked is
+  module-level state (`suggestionSelection`, a `Set` of names, since a
+  suggestion has no id of its own on the node) rather than per-render
+  state, because `render()` fully rebuilds the panel's DOM on every store
+  change (see the module's own comment on `rerenderPreservingUiState`) —
+  a plain local variable inside the render function would reset on every
+  rebuild. `open(nodeId)` resets this Set on every call (including when
+  `store.subscribe('selection', ...)` auto-switches the panel to a newly
+  selected node), so selections never leak from one node's suggestions to
+  another's. `renderSuggestedSubComponents` also prunes any checked name
+  that's no longer being suggested — attached some other way (e.g. the
+  plain "+ Add sub-component" field) while its checkbox sat checked — so a
+  stale name can't render as still-checked or sneak into a later "Add
+  selected" click for the same node.
+
 ## Persistence (`io/`)
 
 - `storage.js`: thin wrapper around `localStorage` with a versioned key

@@ -149,6 +149,42 @@ body.resizing-details-panel {
   padding: 2px 4px;
 }
 
+.suggested-subcomponents {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.suggested-subcomponents-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid #FDE68A;
+  background: #FFFBEB;
+  border-radius: var(--radius-sm);
+  padding: var(--space-2);
+}
+
+.suggested-subcomponent-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 2px 0;
+}
+
+.suggested-subcomponent-icon {
+  font-size: 15px;
+  width: 20px;
+  text-align: center;
+  flex: 0 0 auto;
+}
+
+.suggested-subcomponent-name {
+  flex: 1 1 auto;
+}
+
 .ai-review-title {
   flex: 1 1 auto;
   font-weight: 700;

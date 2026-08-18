@@ -7,6 +7,7 @@ import { textInput, field, selectInput, checkbox } from '../utils/formControls.j
 import { LAYER_DATALIST_ID, ensureLayerDatalist, findLayerByName } from '../utils/layerDatalist.js';
 import { SUBCOMPONENTS_DISPLAY_MODES } from '../core/project.js';
 import { getReplicationInfoForNode } from '../canvas/canvas.js';
+import { getUnattachedLayerSuggestions } from '../canvas/suggestions.js';
 import { readJSON, writeJSON } from '../io/storage.js';
 
 const SUBCOMPONENTS_DISPLAY_LABELS = { chips: 'Compact chips', full: 'Full list' };
@@ -17,6 +18,11 @@ let rootEl = null;
 let currentNodeId = null;
 let isCollapsed = false;
 let resizeHandleEl = null;
+// Which curated sub-component suggestions are currently checked, keyed by
+// name (suggestions have no id of their own on the node) — module-level
+// rather than per-render state since render() fully rebuilds the DOM on
+// every store change; cleared whenever a different node is opened.
+let suggestionSelection = new Set();
 
 export function initDetailsPanel(root) {
   rootEl = root;
@@ -109,6 +115,7 @@ function open(nodeId) {
   const node = store.getState().nodes.find((n) => n.id === nodeId);
   if (!node) return;
   isCollapsed = false;
+  suggestionSelection = new Set();
   render(node);
   rootEl.classList.add('open');
 }
@@ -173,6 +180,12 @@ function render(node) {
 
   body.appendChild(el('h3', { text: 'Sub-components' }));
   body.appendChild(renderSubComponents(node));
+
+  const suggestions = renderSuggestedSubComponents(node);
+  if (suggestions) {
+    body.appendChild(el('h3', { text: '💡 Suggested sub-components' }));
+    body.appendChild(suggestions);
+  }
 
   if (node.shape === 'rows') {
     body.appendChild(el('h3', { text: 'Rows' }));
@@ -264,6 +277,67 @@ function renderSubComponents(node) {
     onClick: () => updateNode((n) => { n.subComponents = [...(n.subComponents || []), { id: nextId('sc'), name: '', icon: '' }]; }),
   }));
   wrap.appendChild(el('p', { class: 'modal-hint', text: 'Tip: names matching the Layers & Roles library (Controller, Service, DAL, React Hook, …) auto-fill their icon.' }));
+  return wrap;
+}
+
+/** The same curated "Common building blocks" suggestions Smart Suggestions
+ * offers right after placement (canvas/suggestions.js#showSuggestionsFor),
+ * but revisitable any time from the details panel — the placement-time
+ * banner is easy to miss/dismiss, and a node loaded from a saved project
+ * never saw it in this session at all. Lets you check off any number and
+ * add them all in one dispatch, instead of one click per suggestion.
+ * Returns null (renders nothing) once every curated suggestion is already
+ * attached. */
+function renderSuggestedSubComponents(node) {
+  const suggestions = getUnattachedLayerSuggestions(node);
+  // Drop a checked name no longer being suggested — attached some other
+  // way (the manual "+ Add sub-component" field, for instance) while this
+  // checkbox sat checked — so a stale name can't render as still-checked
+  // or sneak into a later "Add selected" click.
+  for (const name of [...suggestionSelection]) {
+    if (!suggestions.some((rel) => rel.name === name)) suggestionSelection.delete(name);
+  }
+  if (!suggestions.length) return null;
+
+  const wrap = el('div', { class: 'suggested-subcomponents' });
+  wrap.appendChild(el('p', { class: 'modal-hint', text: 'Common building blocks for this component, hand-picked — not automatic. Select one or more to add.' }));
+
+  const list = el('div', { class: 'suggested-subcomponents-list' });
+  const labelFor = () => (suggestionSelection.size ? `+ Add selected (${suggestionSelection.size})` : '+ Add selected');
+  const addBtn = el('button', {
+    type: 'button',
+    class: 'btn btn-secondary btn-sm',
+    text: labelFor(),
+    disabled: suggestionSelection.size === 0,
+    onClick: () => {
+      const toAdd = suggestions.filter((rel) => suggestionSelection.has(rel.name));
+      if (!toAdd.length) return;
+      updateNode((n) => {
+        n.subComponents = [...(n.subComponents || []), ...toAdd.map((rel) => ({ id: nextId('sc'), name: rel.name, icon: rel.icon }))];
+      });
+      suggestionSelection.clear();
+    },
+  });
+
+  for (const rel of suggestions) {
+    const row = el('label', { class: 'suggested-subcomponent-row' });
+    row.appendChild(el('input', {
+      type: 'checkbox',
+      checked: suggestionSelection.has(rel.name),
+      'aria-label': `Select ${rel.name}`,
+      onChange: (e) => {
+        if (e.target.checked) suggestionSelection.add(rel.name);
+        else suggestionSelection.delete(rel.name);
+        addBtn.disabled = suggestionSelection.size === 0;
+        addBtn.textContent = labelFor();
+      },
+    }));
+    row.appendChild(el('span', { class: 'suggested-subcomponent-icon', text: rel.icon, 'aria-hidden': 'true' }));
+    row.appendChild(el('span', { class: 'suggested-subcomponent-name', text: rel.name }));
+    list.appendChild(row);
+  }
+  wrap.appendChild(list);
+  wrap.appendChild(addBtn);
   return wrap;
 }
 

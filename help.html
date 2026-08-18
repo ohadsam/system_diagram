@@ -304,6 +304,8 @@
       <p>Some components also suggest ready-made <strong>sub-components</strong> for that exact box — e.g. placing Express (Node.js) offers a Controller and a Middleware, React offers a Hook and a Component. These show in a second row with a dashed "↳" button; clicking one attaches it directly onto the node you just placed (same as dragging it in from "Layers &amp; Roles"), instead of adding a new box next to it.</p>
       <div class="tip">💡 Both lists are hand-curated, not automatic — only pairings most engineers would immediately recognize are included, and they grow a little with each release. A component with no curated companion or sub-component, or ones already present, shows no banner (or no row) at all.</div>
       <p>Not interested? Click "🎛️" in the toolbar and uncheck "Show 'Smart Suggestions'..." under Component library — or just dismiss an individual banner with its ✕, which times out on its own after a few seconds either way.</p>
+      <h3>Revisiting sub-component suggestions later</h3>
+      <p>The placement banner is easy to miss — and a component loaded from a saved project never saw it at all. Any component with unattached sub-component suggestions keeps a small <strong>💡 badge</strong> on it, for as long as any of them remain unattached. Click the badge any time to open the details panel's "Suggested sub-components" section, where the same curated list appears as checkboxes — check off any number and click "+ Add selected" to attach them all in one step, instead of one click per suggestion. See "Notes &amp; sub-components" below.</p>
     </section>
 
     <section id="styling">
@@ -330,14 +332,15 @@
 
     <section id="details">
       <h2><span class="icon-badge">ℹ️</span> Notes &amp; sub-components</h2>
-      <p>Click the small ⓘ button on a component to open the details panel on the right. There you can add:</p>
+      <p>Click the small ⓘ button on a component — or its 💡 badge, if it has one — to open the details panel on the right. There you can add:</p>
       <ul>
         <li><strong>Notes</strong> — free-form text about that component.</li>
         <li><strong>Labels</strong> — short tags shown as chips (e.g. "prod", "critical").</li>
         <li><strong>Sub-components</strong> — a list of internal parts (e.g. an API Gateway's routes, or a service's modules). Choose whether they show on the component as compact chips (default, truncated after 4) or a full untruncated list.</li>
+        <li><strong>💡 Suggested sub-components</strong> — when curated suggestions (see "✨ Smart Suggestions") remain unattached for this component, they appear here as checkboxes; select any number and click "+ Add selected" to attach them all in one step.</li>
         <li><strong>Rows</strong> — for "server with rows" style components, manage each internal row directly (also editable right on the node with the "+ Add row" button).</li>
       </ul>
-      <p>Any component with notes, labels or sub-components shows a small dot badge, so you always know where extra detail is hiding.</p>
+      <p>Any component with notes, labels or sub-components shows a small dot badge, and any component with unattached suggestions shows the 💡 badge, so you always know where extra detail — or a suggestion worth a look — is hiding.</p>
       <div class="tip">💡 Use the small ‹ / › button next to the ✕ in the panel header to collapse it to a slim strip without losing your place — handy when you want to see more of the canvas but aren't done editing. The ✕ fully closes it instead.</div>
       <p>Drag the panel's left edge to make it wider or narrower — your chosen width is remembered next time. Selecting a different component while the panel is open switches it straight to that component; clicking empty canvas (or otherwise deselecting) closes it.</p>
     </section>

@@ -207,6 +207,17 @@ Clicking one attaches it exactly like dragging that item from "Layers &
 Roles" onto the node, instead of creating a new standalone node, and an
 already-attached sub-component is never re-suggested.
 
+**Revisiting sub-component suggestions later** (4.6): the placement-time
+banner is easy to miss or dismiss, and a node loaded from a saved project
+never sees it at all in that session — so any component with unattached
+`relatedLayers` suggestions shows a small 💡 badge on the node itself,
+persisting for as long as any curated suggestion remains unattached.
+Clicking it opens the details panel's "Suggested sub-components" section:
+the same curated list, but as checkboxes — check any number and click
+"Add selected" to attach them all in one step, instead of one click per
+suggestion like the banner. The badge and section both disappear once
+every curated suggestion for that component is attached.
+
 #### 4.2.9 Popular component highlighting
 A hand-curated subset of components — the ones most engineers would
 immediately recognize as one of the most common building blocks in their
@@ -407,12 +418,16 @@ choice.
   any selection (see 4.2.7), Duplicate, Delete.
 
 ### 4.6 Node details panel
-- Opens on demand (ⓘ button, or pressing Enter with a node focused — not
+- Opens on demand (ⓘ button, the node's 💡 suggestion badge when it has
+  one — see 4.2.8, or pressing Enter with a node focused — not
   double-click, which instead renames the node inline; see 4.3). Shows:
   name, icon/color summary, free-text notes, labels (tag chips), and an
   editable list of sub-components (name + icon, add/remove/reorder, plus a
   "compact chips vs full list" display-mode control — see 4.2.5). For
-  "server with rows" nodes, this is also where rows are managed.
+  "server with rows" nodes, this is also where rows are managed. If any
+  curated `relatedLayers` suggestions remain unattached for this
+  component, a "💡 Suggested sub-components" section follows with a
+  checkbox per suggestion and an "Add selected" button — see 4.2.8.
 - **Collapse / expand**: a chevron button in the panel header shrinks it to
   a slim clickable strip (content hidden, selection/edits untouched) —
   distinct from the **✕ close** button, which fully closes it and clears
