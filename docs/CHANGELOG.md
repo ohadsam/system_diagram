@@ -152,6 +152,33 @@ user-facing fix or feature, alongside this changelog.
   value `'magic'`, also chooseable for any existing connector from its
   style editor.
 
+## v1.18.0 (2026-08-18)
+
+21 more curated `relatedLayers` pairings — same precision-first bar, but exercising a new part of
+the mechanism for the first time: a `kind: 'layer'` component can carry its own `relatedLayers`
+pointing at *another* layer, and it works identically once dropped standalone (not attached onto
+something else) — `createNodeFromDrop` never branched on `kind`, so this was already
+technically possible, just never curated before:
+
+- **19 layer-to-layer pairings**, all named, textbook design-pattern-role relationships rather
+  than loose associations — GoF (`layer-adapter` → `layer-adaptee`, `layer-factory`/`layer-builder`
+  → `layer-product`, `layer-context-role` → `layer-strategy`), DDD/enterprise (`layer-repository`
+  → `layer-unit-of-work`, `layer-dto` → `layer-mapper`), Hexagonal/Ports & Adapters
+  (`layer-port` → `layer-adapter`, `layer-core-domain` → `layer-port`), and framework-agnostic
+  backend conventions (`layer-router` → `layer-controller`, `layer-migration`/`layer-seeder` →
+  `layer-schema`/`layer-migration`, `layer-circuit-breaker` → `layer-retry-policy`,
+  `layer-webhook-handler` → `layer-validator`, `layer-session-manager` → `layer-authentication`,
+  `layer-trigger` → `layer-stored-procedure`, `layer-saga-coordinator` → `layer-command-handler`,
+  `layer-provider` → `layer-interface`). Direction always goes on the *containing/wrapping* role,
+  pointing at what it holds (Adapter wraps an Adaptee, not the reverse) — same convention every
+  other `relatedLayers` entry already follows.
+- Plus 2 more component-level pairings: `ai-inference-endpoint` → Controller + DTO (an API
+  endpoint shape, same reasoning as the REST API/gRPC/Chat Endpoint pairings from the last batch),
+  `ctr-istio` → Sidecar Proxy (the textbook service-mesh sub-component, same reasoning as
+  `net-service-mesh`).
+- Documented the "layers can suggest other layers, direction matters" nuance in
+  `docs/ARCHITECTURE.md`'s Smart Suggestions section and the `add-library-item` skill.
+
 ## v1.17.0 (2026-08-18)
 
 Expanded ✨ Smart Suggestions' `relatedLayers` (sub-component) curation — a precision-first pass,

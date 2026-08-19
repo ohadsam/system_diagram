@@ -700,6 +700,20 @@ the `add-library-item` skill for the curation bar both need to clear):
 Both resolvers drop any id that doesn't resolve rather than surfacing a
 broken suggestion.
 
+**A `kind: 'layer'` component can carry `related`/`relatedLayers` too, and
+they work identically once the layer is standing alone as its own node** —
+`createNodeFromDrop` (below) doesn't branch on `kind` at all, so dropping a
+layer onto *empty* canvas (rather than onto an existing node, which attaches
+it instead — see 4.2.1) triggers the same suggestion flow as any plain
+component. Exercised for the first time by a batch of textbook pattern-role
+pairings (`layer-repository` → `layer-unit-of-work`, `layer-adapter` →
+`layer-adaptee`, `layer-context-role` → `layer-strategy`, `layer-port` →
+`layer-adapter`, ...) — pick the *containing/wrapping* role as the one that
+gets the `relatedLayers` entry (e.g. Adapter wraps an Adaptee, so
+`layer-adapter` points at `layer-adaptee`, not the reverse), mirroring how a
+framework's `relatedLayers` always points from the container outward to
+what it holds.
+
 `canvas.js#createNodeFromDrop` — the single choke point both drag-drop and
 click-to-place funnel through (`addComponentAtCenter` just calls it with a
 computed screen point) — calls `suggestions.js#showSuggestionsFor(def,

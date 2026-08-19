@@ -7,7 +7,7 @@ const AI = '#8B5CF6';
 export const components = [
   c('ai-embedding-model', 'Embedding Model', '🧬', { color: AI, related: ['ai-vector-db'] }),
   c('ai-feature-store', 'Feature Store', '🗃️', { shape: 'cylinder', color: AI }),
-  c('ai-inference-endpoint', 'Inference Endpoint', '🎯', { color: AI, related: ['ai-model-registry'] }),
+  c('ai-inference-endpoint', 'Inference Endpoint', '🎯', { color: AI, related: ['ai-model-registry'], relatedLayers: ['layer-controller', 'layer-dto'] }),
   c('ai-jupyter', 'Jupyter Notebook', '📓', { color: '#F37626' }),
   c('ai-langchain', 'LangChain', '🔗', { color: AI, related: ['ai-llm', 'ai-vector-db'] }),
   c('ai-llm', 'LLM (Large Language Model)', '🧠', { color: AI, related: ['ai-prompt-cache', 'ai-inference-endpoint'] }),

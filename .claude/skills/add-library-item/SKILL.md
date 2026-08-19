@@ -54,6 +54,15 @@ kind of companion it is:
   for components that represent actual running code (a framework, a server, a gateway) — most
   components (a database, a queue, a cloud region box) have no natural "sub-component" and should
   just have an empty/omitted `relatedLayers`.
+  - **This also applies to a `layers.js` entry itself** — a layer can carry its own
+    `relatedLayers` pointing at *another* layer, and it works identically once that layer is
+    dropped standalone (not attached onto something else). Reserve this for a named,
+    textbook-recognized pattern-role pairing (GoF/DDD/Hexagonal), not a loose association: Adapter
+    → Adaptee, Repository → Unit of Work, Context (Strategy role) → Strategy, Port (Hexagonal) →
+    Adapter, Router → Controller. **Direction matters** — the entry goes on whichever role is the
+    *container/wrapper*, pointing at what it holds (Adapter wraps an Adaptee, so `layer-adapter`
+    points at `layer-adaptee`, never the reverse), the same "container → what it holds" direction
+    every other `relatedLayers` entry already follows.
 
 Both power the same "Smart Suggestions" banner (`canvas/suggestions.js`) offered right after a
 component is placed — `related` companions show as one row of "+ Add X" buttons that create a new

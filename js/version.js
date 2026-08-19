@@ -2,9 +2,16 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.17.0';
+export const APP_VERSION = '1.18.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.18.0',
+    date: '2026-08-18',
+    highlights: [
+      '21 more curated "✨ Smart Suggestions" sub-component pairings, including — for the first time — layers suggesting *other* layers when placed standalone: Repository suggests a Unit of Work, Adapter suggests an Adaptee, Router suggests a Controller, Port (Hexagonal) suggests an Adapter, Context suggests a Strategy, and more textbook design-pattern-role pairings. Also added an Inference Endpoint → Controller/DTO pairing and Istio → Sidecar Proxy.',
+    ],
+  },
   {
     version: '1.17.0',
     date: '2026-08-18',
