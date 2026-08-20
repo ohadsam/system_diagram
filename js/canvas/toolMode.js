@@ -2,9 +2,9 @@
 // dragging a node moves it) or 'hand' (pan-only — dragging anywhere,
 // including over a node, pans the canvas without touching components).
 // A tiny pub-sub keeps the toolbar button and canvas.js's background
-// dispatch in sync, unlike the older Magic Arrow toggle
-// (connectorInteractions.js) which only updates its own button's CSS class
-// and can desync if the mode were ever changed from elsewhere.
+// dispatch in sync — deliberately unlike the old (now-removed) Magic Arrow
+// toggle, which only updated its own button's CSS class directly and
+// could desync if the mode were ever changed from elsewhere.
 //
 // `baseTool` is the persistent choice (toggled by the toolbar buttons or
 // the H/V keyboard shortcuts). `spaceHeld` is a momentary override — Figma-

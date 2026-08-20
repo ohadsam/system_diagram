@@ -68,14 +68,17 @@ this repo" quick-start.
 | Add a state-machine shape/pattern                  | `js/data/categories/state-machines.js` — plain `c(...)` for a state shape, `definePattern(...)` for a whole template; a transition's condition is just that edge's `label`, nothing special |
 | Change the "hide State Machines" (or any future hideable category) setting | `js/io/librarySettings.js` (storage) + `js/modals/defaultSettingsModal.js` "Component library" section (UI) + `js/sidebar/sidebar.js#HIDEABLE_CATEGORIES` (the filter) |
 | Change Group/Ungroup or mixed component+connector selection | `js/canvas/canvas.js` (`groupSelection`/`ungroupSelection`/`selectNode`/`beginMarquee`/`duplicateSelection`) + `js/toolbar/toolbar.js#renderContextRow` |
-| Change Magic Arrow routing                         | `js/core/magicRouter.js` (pure grid router, DOM-free — unit-test it directly) + `js/canvas/connector.js#buildEdgePath` (rendering, falls back to `orthogonal` on failure) + `js/canvas/connectorInteractions.js` (`setMagicMode`/`isMagicModeActive`, the creation-time toggle) |
+| Change obstacle-avoiding connector routing (default + the per-edge "Magic" routing style) | `js/core/magicRouter.js` (pure grid router, DOM-free — unit-test it directly) + `js/canvas/connector.js#buildEdgePath` (rendering, falls back to `orthogonal` on failure) — no separate toolbar arming step exists any more, both `'orthogonal'` (default) and `'magic'` (explicit per-edge choice via the arrow editor's Routing dropdown, adds the `.edge-magic` glow) route through the same function |
 | Change the "What's New" modal / version highlights  | `js/version.js` (`APP_VERSION`, `VERSION_HISTORY`) + `js/io/whatsNew.js` (last-seen-version tracking) + `js/modals/whatsNewModal.js` (UI) |
 | Change "Duplicate Project" / "Duplicate entire canvas" | `js/core/project.js#duplicateProject` (pure id-remapping clone) + `js/canvas/canvas.js` (`duplicateProjectAsNew`/`duplicateEntireCanvas`) + toolbar/canvas-context-menu wiring in `toolbar.js`/`canvas.js#openCanvasContextMenu` |
 | Change the AI Design Review prompt/providers/panel  | `js/io/aiReview.js` (`buildReviewPrompt`, `AI_PROVIDERS`) + `js/panel/aiReviewPanel.js` (UI, paste-back). See "Common pitfalls" below before touching this — it's intentionally not an API integration. |
 | Change the Generate Design from Spec prompt/wizard   | `js/io/aiGenerateDesign.js` (`buildGenerateDesignPrompt`, `extractProjectJSON`, `autoArrangeIfNeeded`) + `js/modals/generateDesignModal.js` (the 3-step wizard UI). Same "not an API integration" constraint as AI Design Review applies. |
 | Change how missing node/edge ids are handled on import | `js/core/project.js#validateProject` — backfills a missing/invalid id via `core/id.js#nextId` rather than dropping the node/edge; covers file import, backup restore, and pasted AI results alike |
 | Change Live Replication's sync rules                | `js/core/replication.js` (`syncReplication`, `buildReplicationPair`) — pure, DOM-free, called from `js/core/store.js#dispatch`/`loadProject`. See "Common pitfalls" below before touching this. |
-| Change the Replicate create/join/break UI            | `js/modals/replicationModal.js` (UI) + `js/canvas/canvas.js` (`createReplicationPairFromSelection`, `addSelectionToReplicationSide`, `breakReplicationPair`, `getReplicationInfoForNode`) |
+| Change the Replicate create/join/break UI            | `js/modals/replicationModal.js` (UI) + `js/canvas/canvas.js` (`createReplicationPairFromSelection`, `addSelectionToReplicationSide`, `breakReplicationPair`, `getReplicationInfoForNode`). The node context menu's "🔁 Join replication..." shortcut dispatches a `sdb:open-replication` window event (listened for in `replicationModal.js`) rather than importing the modal directly — see docs/ARCHITECTURE.md's Live Replication section for why. |
+| Change the group/replication-side background boundary | `js/canvas/groupBackgrounds.js` (`computeGroupBounds`, pure) + `js/canvas/canvas.js#renderGroupBackgrounds` (DOM) — see docs/ARCHITECTURE.md's "Group backgrounds" section. Dismissing one is session-only (`hiddenGroupBackgrounds`, not part of the project schema). |
+| Add/adjust the sidebar's "★ Popular only" filter     | `js/sidebar/sidebar.js` (`popularOnly` module state, the toggle button in `initSidebar`, the filter inside `renderList`) — scoped to built-in categories only, not Favorites/My Components |
+| Let a predefined component pin its own `textPosition`/`iconVisible` default | `js/data/schema.js#c()` (accepts the opts, only include them if set) + `js/core/project.js#createNode` (reads `def.textPosition`/`def.iconVisible` *after* spreading `overrides`, so the def wins over the user's global Default Settings) — see docs/ARCHITECTURE.md's "A component's own textPosition/iconVisible default" |
 | Add an AWS cluster/node/pod-style component or an HA design pattern | `js/data/categories/aws.js` (plain `c(...)`) or `js/data/categories/design-patterns.js` (`definePattern(...)`) |
 | Change the contextual style row's floating/pinned-top/pinned-bottom display mode | `js/io/uiPrefs.js` (storage, `CONTEXT_ROW_MODES`) + `js/toolbar/toolbar.js` (`mountContextRow`, `positionFloatingRow`, the 📌 pin button) + `js/modals/defaultSettingsModal.js` ("Style editor" section, the only way to reach `pinned-bottom`). See "Common pitfalls" below before touching `positionFloatingRow`. |
 | Add a border to a new clip-path shape (like diamond/hexagon)      | `css/node.css` — a plain `border` won't follow `clip-path`; see the double-layer `::before` technique documented right above `.node[data-shape="diamond"] .node-body` and in `docs/ARCHITECTURE.md`'s "Borders on clip-path shapes" |
@@ -114,6 +117,23 @@ npm test
 - The canvas has its own pan/zoom transform; always convert
   screen↔canvas coordinates via `canvas/canvas.js#screenToCanvas` rather
   than using raw client coordinates.
+- `canvas.js#getContentBounds` (used by "fit to screen" and PNG/PDF export)
+  is *not* a pure function of `state.nodes` — it also reads the live DOM
+  (`edgeLayer.getBBox()` for edge routing that juts past node boxes,
+  `.node-external-label` rects for above/below labels), so it must be
+  called while the canvas is actually mounted and rendered, not from a
+  unit test or before `initCanvas` runs.
+- `core/project.js#createNode`'s field precedence is layered, not a flat
+  spread: base defaults, then `overrides` (the caller's `zIndex` plus the
+  user's *global* Default Settings via `buildCreationOverrides()`), then —
+  for `textPosition`/`iconVisible` only — the component `def`'s own value
+  if it set one. That's the opposite of every other def-derived field
+  above it (`shape`/`fill`/`stroke`/... are never in `overrides` at all,
+  so there's nothing for them to lose to); if you add a new per-def
+  structural default, follow this same "spread after `overrides`, only
+  when the def actually sets it" pattern, not a plain merge — a plain
+  merge would let the global default silently win for every user who
+  hasn't customized it, defeating the point.
 - Sidebar drag uses pointer events, not HTML5 DnD — don't mix the two
   paradigms when extending it.
 - Every `components` array entry (including `layer`/`pattern` kinds) still
@@ -294,14 +314,17 @@ npm test
 - **Toolbar buttons live inside one of the row's dropdown groups
   (`toolbarDropdown.js`), not flat, unless they're needed continuously or
   at a moment's notice while actively working** (undo/redo, the Select/Hand
-  tool toggle in `toolMode.js`, zoom controls, "Add Shape", "Magic Arrow" —
+  tool toggle in `toolMode.js`, zoom controls, "Add Shape" —
   `toolbar.js#buildQuickCreateGroup`) — this is what keeps the always-visible
   row short as buttons are added; see the next bullet for why that matters.
   A genuinely frequent one-click action used *while drawing* (not a
   setup/admin action) belongs flat even if it seems like it "should" live
-  with its siblings conceptually — Add Shape and Magic Arrow were moved out
-  of the Create/Tools dropdowns for exactly this reason after user feedback
-  that burying them behind a click slowed down active diagramming. A
+  with its siblings conceptually — Add Shape was moved out of the
+  Create/Tools dropdowns for exactly this reason after user feedback that
+  burying it behind a click slowed down active diagramming. (Its former flat
+  neighbor, the "🪄 Magic Arrow" toggle, was later removed outright rather
+  than re-homed — see docs/ARCHITECTURE.md's connector routing section for
+  why arming it ahead of drawing had become pure redundancy.) A
   dropdown's own buttons are ordinary `<button title="...">` elements
   (built the same `el(...)` way as any flat toolbar button) inside a panel
   that only renders visible once its trigger is clicked — so a Playwright

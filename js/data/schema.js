@@ -40,6 +40,19 @@
  *   sparse (a handful per category, not a ranking of every item) — same
  *   "would most engineers immediately agree" bar as `related`, see
  *   .claude/skills/add-library-item/SKILL.md.
+ * @param {string} [opts.textPosition] one of core/project.js TEXT_POSITIONS —
+ *   pins a structural default for *this shape specifically* (e.g. a
+ *   container/frame box wanting its caption at the top so it doesn't sit
+ *   centered over whatever gets placed inside it), overriding the user's
+ *   *global* new-component default the same way `shape`/`color`/
+ *   `defaultSize` already do. Leave unset for an ordinary component — this
+ *   is for describing something inherent to the shape, not a style
+ *   preference; most components should let the global default (or a
+ *   per-node override afterward) decide.
+ * @param {boolean} [opts.iconVisible] set to `false` to pin "no icon" as
+ *   this shape's own default (e.g. a plain frame/label shape that has no
+ *   icon to show) — same override reasoning as `textPosition` above. Omit
+ *   for the ordinary case (icon shown, per the global default).
  */
 export function c(id, name, icon, opts = {}) {
   return {
@@ -57,6 +70,8 @@ export function c(id, name, icon, opts = {}) {
     related: opts.related || [],
     relatedLayers: opts.relatedLayers || [],
     popular: !!opts.popular,
+    ...(opts.textPosition ? { textPosition: opts.textPosition } : {}),
+    ...(opts.iconVisible === false ? { iconVisible: false } : {}),
   };
 }
 

@@ -105,7 +105,16 @@ export function showSuggestionsFor(def, node, { onAddComponent, onAddLayer }) {
 
   const layerSuggestions = getUnattachedLayerSuggestions(node);
 
-  if (!componentSuggestions.length && !layerSuggestions.length) return;
+  // A component with nothing curated to suggest must still hide whatever
+  // banner is already up — otherwise placing e.g. Express (which has
+  // suggestions) followed by a component with none leaves Express's banner
+  // sitting on screen, stale and mislabeled for the wrong node, which reads
+  // as "Smart Suggestions stopped working" since it never again reflects
+  // whatever was actually just placed.
+  if (!componentSuggestions.length && !layerSuggestions.length) {
+    hide();
+    return;
+  }
 
   const banner = ensureBanner();
   clear(banner);

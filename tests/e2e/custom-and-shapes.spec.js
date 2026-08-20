@@ -113,29 +113,41 @@ test('the database cylinder shape renders an ellipse cap and a curved bottom, no
   const body = node.locator('.node-body');
   const styles = await body.evaluate((el) => {
     const before = getComputedStyle(el, '::before');
+    const after = getComputedStyle(el, '::after');
     return {
-      bodyBorderTopWidth: getComputedStyle(el).borderTopWidth,
-      bodyBorderBottomWidth: getComputedStyle(el).borderBottomWidth,
-      bodyBorderBottomLeftRadius: getComputedStyle(el).borderBottomLeftRadius,
+      bodyBorderWidth: getComputedStyle(el).borderTopWidth,
       beforeContent: before.content,
       beforeBorderRadius: before.borderRadius,
+      beforeBorderWidth: before.borderTopWidth,
       beforeHeight: before.height,
+      afterContent: after.content,
+      afterBorderTopWidth: after.borderTopWidth,
+      afterBorderBottomWidth: after.borderBottomWidth,
+      afterBorderBottomLeftRadius: after.borderBottomLeftRadius,
     };
   });
-  // The body's own top border is suppressed (the ellipse ::before cap
-  // covers that edge instead) while the bottom/sides keep their normal
-  // border and the bottom corners are rounded into a curve — see
-  // docs/ARCHITECTURE.md's "Database cylinder shape" section.
-  expect(styles.bodyBorderTopWidth).toBe('0px');
-  expect(parseFloat(styles.bodyBorderBottomWidth)).toBeGreaterThan(0);
-  expect(styles.bodyBorderBottomLeftRadius).not.toBe('0px');
+  // .node-body itself carries no border at all — the outline comes
+  // entirely from two border-only pseudo-elements, ::before (the cap
+  // ellipse) and ::after (the sides + curved bottom, meeting the cap
+  // exactly at its equator) — see docs/ARCHITECTURE.md's "Database
+  // cylinder shape" section for why (an earlier version gave .node-body
+  // its own left/right border and only suppressed its top border, but an
+  // ellipse is narrower than the full width above its equator, so that
+  // border stuck out past the cap's curve in both top corners).
+  expect(styles.bodyBorderWidth).toBe('0px');
   expect(styles.beforeContent).not.toBe('none');
   expect(styles.beforeBorderRadius).toBe('50%');
+  expect(parseFloat(styles.beforeBorderWidth)).toBeGreaterThan(0);
   expect(parseFloat(styles.beforeHeight)).toBeGreaterThan(0);
+  expect(styles.afterContent).not.toBe('none');
+  expect(styles.afterBorderTopWidth).toBe('0px');
+  expect(parseFloat(styles.afterBorderBottomWidth)).toBeGreaterThan(0);
+  expect(styles.afterBorderBottomLeftRadius).not.toBe('0px');
 
-  // Regression: unlike diamond/hexagon, the ::before cap has no z-index, so
-  // correctness relies on it never overlapping the label — verify the
-  // label still hit-tests as the topmost element at its own center.
+  // Regression: unlike diamond/hexagon, neither pseudo-element has a
+  // z-index, so correctness relies on them never overlapping the label —
+  // verify the label still hit-tests as the topmost element at its own
+  // center.
   const label = node.locator('.node-label');
   const hitTarget = await label.evaluate((el) => {
     const r = el.getBoundingClientRect();

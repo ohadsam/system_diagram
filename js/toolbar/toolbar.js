@@ -18,7 +18,6 @@ import {
   deleteSelection, duplicateSelection, groupSelection, ungroupSelection, selectionHasGroup, duplicateProjectAsNew,
   getSelectionScreenRect, autoArrangeAll,
 } from '../canvas/canvas.js';
-import { setMagicMode, isMagicModeActive } from '../canvas/connectorInteractions.js';
 import { getBaseToolMode, setToolMode, onToolModeChange } from '../canvas/toolMode.js';
 import { onViewportChange, centerOn } from '../canvas/viewport.js';
 import { renderNodeStyleEditor } from './styleEditor.js';
@@ -214,23 +213,20 @@ function buildNavToolGroup() {
   return group(selectBtn, handBtn);
 }
 
-/** "Add Shape" and "Magic Arrow" stay flat (not in a dropdown) — both are
- * quick, frequent, one-click actions used while actively drawing a
- * diagram, not occasional setup/admin actions like the rest of Create/
- * Tools, so burying them behind a dropdown click would slow down exactly
- * the moment they're needed. */
+/** "Add Shape" stays flat (not in a dropdown) — it's a quick, frequent,
+ * one-click action used while actively drawing a diagram, not an
+ * occasional setup/admin action like the rest of Create/Tools, so burying
+ * it behind a dropdown click would slow down exactly the moment it's
+ * needed. (The former "🪄 Magic Arrow" toggle that used to live next to it
+ * was removed — every connector already gets the same obstacle-avoiding
+ * routing by default now, see connector.js#buildEdgePath, so arming it
+ * ahead of a draw never did anything the default didn't already do. The
+ * 'magic' routing value itself — and its glow style — still exists and
+ * stays reachable per-edge from the arrow editor's Routing dropdown for
+ * anyone who wants it explicitly.) */
 function buildQuickCreateGroup() {
   const addShapeBtn = el('button', { type: 'button', class: 'btn', title: 'Add a basic shape', text: '🔷 Add Shape', onClick: openCustomShapeModal });
-  const magicBtn = el('button', {
-    type: 'button', class: 'btn magic-arrow-btn', title: 'Magic Arrow: arm to auto-route the next connector around every other component', text: '🪄 Magic Arrow',
-    onClick: () => {
-      const next = !isMagicModeActive();
-      setMagicMode(next);
-      magicBtn.classList.toggle('active', next);
-      if (next) showToast('Magic Arrow armed — drag from a connection point to draw an auto-routed connector.', 'info', 2600);
-    },
-  });
-  return group(addShapeBtn, magicBtn);
+  return group(addShapeBtn);
 }
 
 /** Searches components/connectors already placed *on the canvas* by their

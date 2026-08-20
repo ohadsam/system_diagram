@@ -64,6 +64,18 @@ export function createNode(def, x, y, overrides = {}) {
     // docs/SPEC.md "Live Replication".
     replicationExcluded: false,
     ...overrides,
+    // A def's own textPosition/iconVisible (data/schema.js#c) describes
+    // something structural about that specific shape (e.g. a container/
+    // frame box wanting its caption at the top, not centered over whatever
+    // gets placed inside it) — so it deliberately wins over `overrides`
+    // (which carries the user's *global* new-component defaults, see
+    // io/nodeDefaults.js#buildCreationOverrides), the same way
+    // shape/fill/stroke above already always come from `def` rather than
+    // being overridable at creation time. Most components don't set
+    // either, so this is a no-op for them and the global default (or a
+    // later per-node override) decides as before.
+    ...(def?.textPosition ? { textPosition: def.textPosition } : {}),
+    ...(def?.iconVisible === false ? { iconVisible: false } : {}),
   };
 }
 

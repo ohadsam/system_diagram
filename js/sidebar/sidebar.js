@@ -32,6 +32,7 @@ const expanded = new Map();
 const folderExpanded = new Map();
 const favFolderExpanded = new Map();
 let query = '';
+let popularOnly = false;
 let editCustomComponentHandler = null;
 
 /** Resolves a favorite's stored defId back to its full component definition
@@ -62,6 +63,22 @@ export function initSidebar(root) {
   searchWrap.appendChild(searchInput);
   searchWrap.appendChild(el('span', { class: 'sidebar-search-icon', text: '🔎', 'aria-hidden': 'true' }));
   rootEl.appendChild(searchWrap);
+
+  const popularBtn = el('button', {
+    type: 'button',
+    class: 'sidebar-popular-toggle',
+    'aria-pressed': 'false',
+    title: 'Show only ★ popular components — the most commonly-used building block in each category',
+    onClick: () => {
+      popularOnly = !popularOnly;
+      popularBtn.classList.toggle('active', popularOnly);
+      popularBtn.setAttribute('aria-pressed', String(popularOnly));
+      renderList();
+    },
+  });
+  popularBtn.appendChild(el('span', { text: '★', 'aria-hidden': 'true' }));
+  popularBtn.appendChild(el('span', { text: 'Popular only' }));
+  rootEl.appendChild(popularBtn);
 
   listEl = el('div', { class: 'sidebar-categories' });
   rootEl.appendChild(listEl);
@@ -115,7 +132,14 @@ function renderList() {
   }
 
   for (const cat of categories) {
-    const matches = filterComponents(cat.components, query);
+    let matches = filterComponents(cat.components, query);
+    // "Popular only" is scoped to the built-in library — `popular` is a
+    // curated per-component data flag (see data/schema.js), not something
+    // "My Components" (the user's own, unrated) or Favorites (already a
+    // deliberate personal shortlist) ever carry, so filtering those the
+    // same way would just make already-curated sections vanish instead of
+    // narrowing them.
+    if (popularOnly && cat.id !== CUSTOM_CATEGORY.id) matches = matches.filter((c) => c.popular);
     if (cat.id === CUSTOM_CATEGORY.id && !matches.length && !q) {
       // Still show an empty "My Components" hint when not searching.
     } else if (!matches.length) {
@@ -125,7 +149,8 @@ function renderList() {
     listEl.appendChild(renderCategory(cat, matches, q));
   }
   if (!anyMatch) {
-    listEl.appendChild(el('p', { class: 'sidebar-empty', text: `No components match "${query}".` }));
+    const reason = popularOnly && !query ? 'No ★ popular components match the current filters.' : `No components match "${query}".`;
+    listEl.appendChild(el('p', { class: 'sidebar-empty', text: reason }));
   }
   listEl.scrollTop = savedScrollTop;
 }

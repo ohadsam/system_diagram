@@ -75,19 +75,28 @@
 }
 /* Database cylinder — classic "drum" icon (ellipse cap + straight sides +
    curved bottom), the standard look for DB/cache components in most
-   system-design diagrams. Built from the body itself (sides + curved
-   bottom, its own top border/radius suppressed) plus a ::before that draws
-   a full ellipse "cap" clipped to the top band by the body's own
-   overflow:hidden — the cap's lower arc reads as the cylinder's front seam
-   line, the same technique classic CSS-only database icons use. No
-   clip-path here (unlike diamond/hexagon above), so none of that stacking-
-   context workaround is needed — just keep content clear of the cap band
-   via padding-top so paint order between ::before and the in-flow
-   icon/label never has to matter. */
+   system-design diagrams. .node-body itself carries no border at all —
+   just its own background (already set inline, same as every other
+   shape) — and is purely an overflow:hidden layout box for the icon/label.
+   Two borderless-fill, border-only pseudo-elements draw the outline:
+   ::before is the full cap ellipse, ::after is the sides + curved bottom,
+   starting exactly at the ellipse's own vertical midpoint (its equator,
+   where the oval's edge is already running perfectly vertical) so the two
+   outlines meet with no gap and no double line. An earlier version gave
+   .node-body its own left/right border for the sides and only suppressed
+   its *top* border — but an ellipse is narrower than the full box width
+   everywhere above its equator, so that border's straight vertical run
+   from y:0 stuck out past the cap's curve in both top corners instead of
+   being hidden under/behind it. No clip-path here (unlike diamond/hexagon
+   above), so none of that shape group's z-index stacking-context
+   workaround applies — both pseudo-elements are outline-only
+   (background: transparent), so they never visually cover the icon/label
+   beneath them regardless of paint order. */
 .node[data-shape="cylinder"] .node-body {
+  --cyl-cap: clamp(14px, 28%, 24px);
   position: relative;
-  border-top: none;
-  border-radius: 0 0 45% 45% / 0 0 22% 22%;
+  border: none !important;
+  border-radius: 0;
   padding: 22px 10px 12px;
 }
 
@@ -97,11 +106,27 @@
   left: -1px;
   right: -1px;
   top: 0;
-  height: clamp(14px, 28%, 24px);
+  height: var(--cyl-cap);
   border-radius: 50%;
-  background: var(--node-fill);
+  background: transparent;
   border: var(--node-border-width, 2px) solid var(--node-stroke);
   box-sizing: border-box;
+  pointer-events: none;
+}
+
+.node[data-shape="cylinder"] .node-body::after {
+  content: '';
+  position: absolute;
+  left: -1px;
+  right: -1px;
+  top: calc(var(--cyl-cap) / 2);
+  bottom: -1px;
+  background: transparent;
+  border: var(--node-border-width, 2px) solid var(--node-stroke);
+  border-top: none;
+  border-radius: 0 0 45% 45% / 0 0 30% 30%;
+  box-sizing: border-box;
+  pointer-events: none;
 }
 .node[data-shape="cloud"] .node-body { border-radius: 46% 54% 54% 46% / 60% 55% 45% 40%; }
 .node[data-shape="note"] .node-body { border-radius: 2px; transform: rotate(-1deg); box-shadow: var(--shadow-md); }

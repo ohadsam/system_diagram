@@ -6,8 +6,9 @@ databases, caches, message queues, frameworks, code-level layers like
 Controller/Service/DAL, ready-made design pattern and state-machine
 blueprints like MVC/CQRS/API Gateway/Traffic-Light, and generative-AI
 building blocks like model providers/MCP/agents) onto a canvas, connect
-them with configurable arrows (including an auto-routing "Magic Arrow"),
-style everything, and export the result. No backend, no build step, no
+them with configurable arrows (every connector auto-routes around
+obstacles by default), style everything, and export the result. No
+backend, no build step, no
 account — everything lives in your browser.
 
 ## Quick start
@@ -30,7 +31,8 @@ Or open `index.html` directly in a browser.
   Backend frameworks, Storage, Logging, AI/ML, Cloud providers, Basic
   shapes, and more), searchable and alphabetically sorted, with the most
   commonly-used component in each category (PostgreSQL, Docker, S3, Kafka,
-  React, ...) subtly highlighted with a ★ badge.
+  React, ...) subtly highlighted with a ★ badge — a "★ Popular only"
+  toggle narrows the list down to just those.
 - **⭐ Favorites** — right-click any component and pin it to a Favorites
   section at the top of the sidebar; organize favorites into folders and
   subfolders, reorder, rename, or delete — all from the same right-click
@@ -59,10 +61,13 @@ Or open `index.html` directly in a browser.
   Media Player, Approval Workflow, Auth Session). Hideable from the
   sidebar entirely for anyone who doesn't need it.
 - **Full canvas editing** — drag, resize, multi-select (including
-  connectors, via marquee or shift-click), duplicate, delete, rename
+  connectors, via marquee, shift-click, or Ctrl/Cmd-click to toggle one
+  item in/out of the current selection), duplicate, delete, rename
   inline, pan/zoom (buttons, Ctrl/Cmd+scroll, or keyboard Ctrl/Cmd +
   "+"/"-"/"0"), right-click context menu, and Group/Ungroup for tying
-  components together as one selectable/movable unit.
+  components together as one selectable/movable unit — a group of 2+ (and
+  each side of a Live Replication pair) shows a dismissible dashed
+  background so it reads as one unit at a glance.
 - **Navigation tools** — a 🖱️ Select / ✋ Hand toolbar toggle (`H`/`V`
   shortcuts, or hold **Space**): Hand pans the canvas by dragging anywhere,
   even over a component, without moving or altering it.

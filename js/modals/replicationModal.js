@@ -23,6 +23,18 @@ function pairSummary(pair) {
   return pair.frozen ? `❄️ ${base} (frozen)` : base;
 }
 
+// A node's right-click context menu offers "Join replication..." for a
+// node not yet part of a pair (canvas.js#openNodeContextMenu) — dispatched
+// as a window event rather than canvas.js importing this module directly,
+// since this module already imports several actions *from* canvas.js and
+// a direct import the other way would be circular. Selects the node first
+// so the modal's own "current selection" section (which reads
+// store.getSelection()) immediately shows its join options.
+window.addEventListener('sdb:open-replication', (e) => {
+  store.select([e.detail.nodeId], []);
+  openReplicationModal();
+});
+
 export function openReplicationModal() {
   let selectedMode = REPLICATION_MODES[0];
   const unsubscribers = [];

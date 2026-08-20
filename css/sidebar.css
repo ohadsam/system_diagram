@@ -19,6 +19,32 @@
   pointer-events: none;
 }
 
+.sidebar-popular-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  margin: 0 var(--space-3) var(--space-2);
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-round);
+  align-self: flex-start;
+}
+
+.sidebar-popular-toggle:hover {
+  background: var(--color-surface-alt);
+}
+
+.sidebar-popular-toggle.active {
+  color: #B45309;
+  background: #FFFBEB;
+  border-color: #F59E0B;
+}
+
 .sidebar-categories {
   flex: 1 1 auto;
   overflow-y: auto;

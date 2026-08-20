@@ -9,21 +9,9 @@ import { sideAnchor, pickBestSides, straightPath } from '../core/geometry.js';
 import { focusEdge } from './canvas.js';
 
 let draftLayer = null;
-let magicModeActive = false;
 
 export function initConnectorInteractions(svg) {
   draftLayer = svg;
-}
-
-/** Arms/disarms "Magic Arrow" mode — see toolbar.js's 🪄 toggle. While
- * active, the next connector drawn gets `routing: 'magic'` instead of the
- * usual default. */
-export function setMagicMode(active) {
-  magicModeActive = active;
-}
-
-export function isMagicModeActive() {
-  return magicModeActive;
 }
 
 export function beginConnectFromNode(nodeId, side, e) {
@@ -71,7 +59,7 @@ export function beginConnectFromNode(nodeId, side, e) {
       // right) whenever the grabbed handle didn't happen to face the other
       // node. See docs/ARCHITECTURE.md's connector routing section.
       const sides = toNode ? pickBestSides(fromNode, toNode) : { fromSide: side, toSide: 'left' };
-      const edge = createEdge(nodeId, targetNodeId, { ...sides, ...(magicModeActive ? { routing: 'magic' } : {}) });
+      const edge = createEdge(nodeId, targetNodeId, sides);
       store.dispatch((d) => {
         d.edges.push(edge);
       });

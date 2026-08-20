@@ -58,6 +58,66 @@
   height: 1px;
 }
 
+.group-bg-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+/* Sits behind both edges and nodes (see canvas.js#initCanvas's DOM order)
+   so it never intercepts a click meant for either — only its own "✕"
+   dismiss button opts back into pointer-events. */
+.group-bg {
+  position: absolute;
+  border: 1.5px dashed #94A3B8;
+  border-radius: var(--radius-md);
+  background: #94A3B814;
+  pointer-events: none;
+}
+
+.group-bg.group-bg-replicated {
+  border-color: #A855F7;
+  background: #A855F714;
+}
+
+.group-bg-label {
+  position: absolute;
+  top: -9px;
+  left: 10px;
+  padding: 0 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  background: var(--color-bg);
+}
+
+.group-bg-replicated .group-bg-label {
+  color: #7C3AED;
+}
+
+.group-bg-dismiss {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  font-size: 10px;
+  line-height: 1;
+  color: var(--color-text-muted);
+  opacity: 0;
+  pointer-events: auto;
+  box-shadow: var(--shadow-sm);
+  transition: opacity 0.1s;
+}
+
+.group-bg:hover .group-bg-dismiss {
+  opacity: 1;
+}
+
 .node-layer {
   position: absolute;
   top: 0;

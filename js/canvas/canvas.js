@@ -20,23 +20,33 @@ import { initConnectorInteractions } from './connectorInteractions.js';
 import { showContextMenu, hideContextMenu } from './contextMenu.js';
 import { getToolMode, onToolModeChange } from './toolMode.js';
 import { showSuggestionsFor } from './suggestions.js';
+import { computeGroupBounds } from './groupBackgrounds.js';
 
 let viewportEl = null;
 let contentEl = null;
 let nodeLayer = null;
 let edgeLayer = null;
+let groupBgLayer = null;
 let marqueeEl = null;
 
 const nodeElements = new Map();
 const edgeElements = new Map();
+const groupBgElements = new Map();
+// Session-only opt-out ("✕" on a group's own background) — a group that
+// dissolves (drops below 2 members) naturally falls out of
+// computeGroupBounds() and is cleaned up in render() below regardless of
+// whether it's in this set, so this never leaks stale entries.
+const hiddenGroupBackgrounds = new Set();
 
 export function initCanvas(root) {
   viewportEl = root;
   viewportEl.classList.add('canvas-viewport');
 
   contentEl = el('div', { class: 'canvas-content' });
+  groupBgLayer = el('div', { class: 'group-bg-layer' });
   edgeLayer = svgEl('svg', { class: 'edge-layer' });
   nodeLayer = el('div', { class: 'node-layer' });
+  contentEl.appendChild(groupBgLayer);
   contentEl.appendChild(edgeLayer);
   contentEl.appendChild(nodeLayer);
   viewportEl.appendChild(contentEl);
@@ -236,6 +246,7 @@ function render(state) {
     replicatedGroupIds.add(p.groupB);
     if (p.frozen) { frozenGroupIds.add(p.groupA); frozenGroupIds.add(p.groupB); }
   }
+  renderGroupBackgrounds(state.nodes, replicatedGroupIds);
   for (const node of state.nodes) {
     let elRef = nodeElements.get(node.id);
     if (!elRef) {
@@ -270,6 +281,54 @@ function render(state) {
       edgeLayer.appendChild(elRef);
     }
     updateEdgeEl(elRef, edge, fromNode, toNode, { selected: store.getSelection().edgeIds.includes(edge.id), allNodes: state.nodes });
+  }
+}
+
+/** One subtle bounding box behind every multi-member group — a regular
+ * Group/Ungroup group and a replication pair's side are both just nodes
+ * sharing a `groupId`, so this renders identically for either, with only
+ * the label/color telling them apart. `pointer-events: none` on the box
+ * itself (see css/canvas.css) keeps it from intercepting clicks meant for
+ * a node or the canvas background underneath; only its own "✕" dismiss
+ * control opts back in. Dismissing is session-only (not saved with the
+ * project) — the group itself is untouched, just its background. */
+function renderGroupBackgrounds(nodes, replicatedGroupIds) {
+  const bounds = computeGroupBounds(nodes, replicatedGroupIds).filter((b) => !hiddenGroupBackgrounds.has(b.groupId));
+  const seen = new Set();
+  for (const b of bounds) {
+    seen.add(b.groupId);
+    let elRef = groupBgElements.get(b.groupId);
+    if (!elRef) {
+      elRef = el('div', { class: 'group-bg' });
+      elRef.appendChild(el('span', { class: 'group-bg-label' }));
+      elRef.appendChild(el('button', {
+        type: 'button', class: 'group-bg-dismiss', text: '✕', title: 'Hide this group\'s background (the group itself is unaffected)',
+        onClick: () => { hiddenGroupBackgrounds.add(b.groupId); render(store.getState()); },
+      }));
+      groupBgElements.set(b.groupId, elRef);
+      groupBgLayer.appendChild(elRef);
+    }
+    const isReplicated = replicatedGroupIds.has(b.groupId);
+    elRef.classList.toggle('group-bg-replicated', isReplicated);
+    // A replication side is commonly just 1 component (the mirror is on
+    // the *other* side's own box, not this one) — "🔁 1 replicated" would
+    // read oddly, so drop the count in that case; a regular group is
+    // never rendered below 2 members (see computeGroupBounds), so it
+    // always has one to show.
+    elRef.querySelector('.group-bg-label').textContent = isReplicated
+      ? (b.count === 1 ? '🔁 Replicated' : `🔁 ${b.count} replicated`)
+      : `${b.count} grouped`;
+    elRef.style.left = `${b.x}px`;
+    elRef.style.top = `${b.y}px`;
+    elRef.style.width = `${b.w}px`;
+    elRef.style.height = `${b.h}px`;
+  }
+  for (const [groupId, elRef] of groupBgElements) {
+    if (!seen.has(groupId)) {
+      elRef.remove();
+      groupBgElements.delete(groupId);
+      hiddenGroupBackgrounds.delete(groupId);
+    }
   }
 }
 
@@ -791,13 +850,46 @@ function reorderZ(nodeId, toFront) {
   });
 }
 
+/** Node x/y/w/h alone understates a diagram's real extent: obstacle-avoiding
+ * edge routing can jut out past every node's own bounding box while
+ * detouring around a cluster, and `textPosition: 'above'/'below'` labels
+ * render entirely outside .node-body by design (see node.js's
+ * updateExternalLabel). Left uncorrected, both "fit to screen" and PNG
+ * export silently crop that overflow — worse the more edges/labels a
+ * diagram has, which is exactly why it only became visible on large
+ * diagrams. edgeLayer's own coordinate system is already canvas-space (the
+ * pan/zoom transform lives on its parent, contentEl — see
+ * viewport.js#applyViewport), so its getBBox() unions in directly with no
+ * conversion; external labels are plain positioned HTML, so their
+ * genuinely-in-viewport-pixels rect goes through screenToCanvas first. */
 export function getContentBounds() {
   const nodes = store.getState().nodes;
   if (!nodes.length) return null;
-  const minX = Math.min(...nodes.map((n) => n.x));
-  const minY = Math.min(...nodes.map((n) => n.y));
-  const maxX = Math.max(...nodes.map((n) => n.x + n.w));
-  const maxY = Math.max(...nodes.map((n) => n.y + n.h));
+  let minX = Math.min(...nodes.map((n) => n.x));
+  let minY = Math.min(...nodes.map((n) => n.y));
+  let maxX = Math.max(...nodes.map((n) => n.x + n.w));
+  let maxY = Math.max(...nodes.map((n) => n.y + n.h));
+
+  if (edgeLayer) {
+    const bbox = edgeLayer.getBBox();
+    if (bbox.width > 0 || bbox.height > 0) {
+      minX = Math.min(minX, bbox.x);
+      minY = Math.min(minY, bbox.y);
+      maxX = Math.max(maxX, bbox.x + bbox.width);
+      maxY = Math.max(maxY, bbox.y + bbox.height);
+    }
+  }
+
+  for (const labelEl of document.querySelectorAll('.node-external-label')) {
+    const r = labelEl.getBoundingClientRect();
+    const topLeft = viewport.screenToCanvas(r.left, r.top);
+    const bottomRight = viewport.screenToCanvas(r.right, r.bottom);
+    minX = Math.min(minX, topLeft.x);
+    minY = Math.min(minY, topLeft.y);
+    maxX = Math.max(maxX, bottomRight.x);
+    maxY = Math.max(maxY, bottomRight.y);
+  }
+
   return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
 }
 
@@ -851,9 +943,26 @@ function openNodeContextMenu(nodeId, evt) {
     'separator',
     { label: 'Bring to front', icon: '⬆️', onClick: () => reorderZ(nodeId, true) },
     { label: 'Send to back', icon: '⬇️', onClick: () => reorderZ(nodeId, false) },
-    'separator',
-    { label: 'Delete', icon: '🗑️', danger: true, onClick: () => { store.select([nodeId], []); deleteSelection(); } },
   ];
+  // Only offered once ≥1 replication pair already exists in the project,
+  // this specific node isn't already part of one, and it isn't already a
+  // member of some *other* multi-node group — addSelectionToReplicationSide
+  // just overwrites groupId with no merge, so joining replication from
+  // here would otherwise silently pull the node out of an existing regular
+  // group with no warning. The same "create a brand-new pair" action
+  // already lives in the toolbar's 🔁 Replicate button once something is
+  // selected, so this menu item is specifically the shortcut for the
+  // *join an existing pair* case, which otherwise required knowing to
+  // select the node and open that same modal yourself.
+  const node = store.getState().nodes.find((n) => n.id === nodeId);
+  const inOtherGroup = node?.groupId && store.getState().nodes.some((n) => n.id !== nodeId && n.groupId === node.groupId);
+  if (getReplicationPairs().length && !getReplicationInfoForNode(nodeId) && !inOtherGroup) {
+    items.push('separator', {
+      label: 'Join replication...', icon: '🔁',
+      onClick: () => window.dispatchEvent(new CustomEvent('sdb:open-replication', { detail: { nodeId } })),
+    });
+  }
+  items.push('separator', { label: 'Delete', icon: '🗑️', danger: true, onClick: () => { store.select([nodeId], []); deleteSelection(); } });
   showContextMenu(evt.clientX, evt.clientY, items);
 }
 

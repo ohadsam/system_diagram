@@ -90,6 +90,50 @@ test('Group ties components together so selecting one selects the whole group; U
   await expect(page.locator('.node.selected')).toHaveCount(1);
 });
 
+test('a multi-member group (regular or replicated) shows a dismissible background boundary', async ({ page }) => {
+  await addComponentByName(page, 'Redis');
+  await addComponentByName(page, 'PostgreSQL');
+  const nodes = page.locator('.node');
+  await dragNodeBy(page, nodes.nth(1), 220, 0);
+  await expect(page.locator('.group-bg')).toHaveCount(0);
+
+  await nodes.nth(0).click({ force: true });
+  await nodes.nth(1).click({ force: true, modifiers: ['Shift'] });
+  await page.locator('.toolbar-row-context button[title="Group selection"]').click();
+  await page.keyboard.press('Escape');
+
+  await expect(page.locator('.group-bg')).toHaveCount(1);
+  await expect(page.locator('.group-bg')).not.toHaveClass(/group-bg-replicated/);
+  await expect(page.locator('.group-bg-label')).toHaveText('2 grouped');
+
+  // Dismissing the background is session-only — it doesn't touch the group
+  // itself, so clicking one member still reselects both.
+  await page.locator('.group-bg').hover({ force: true });
+  await page.locator('.group-bg-dismiss').click({ force: true });
+  await expect(page.locator('.group-bg')).toHaveCount(0);
+  await nodes.nth(0).click({ force: true });
+  await expect(page.locator('.node.selected')).toHaveCount(2);
+
+  await nodes.nth(0).click({ force: true });
+  await page.locator('.toolbar-row-context button[title="Ungroup"]').click();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.group-bg')).toHaveCount(0);
+
+  // A replication pair's two sides are also just nodes sharing a groupId —
+  // same background mechanism, distinguished by a purple "replicated"
+  // style — but each side gets its *own* box, and a side commonly has
+  // just 1 component (the common case, unlike a regular group which needs
+  // 2+ to mean anything), so the floor is 1 member per side here, not 2.
+  await nodes.nth(0).click({ force: true });
+  await openToolbarGroup(page, 'Create');
+  await page.locator('#toolbar button[title^="Replicate"]').click();
+  await page.locator('.replication-modal button', { hasText: 'Create replication pair' }).click();
+  await page.waitForTimeout(150);
+
+  await expect(page.locator('.group-bg.group-bg-replicated')).toHaveCount(2);
+  await expect(page.locator('.group-bg-replicated .group-bg-label').first()).toHaveText('🔁 Replicated');
+});
+
 test('the contextual style-editor row can be collapsed/expanded without losing the selection, and closed to deselect', async ({ page }) => {
   await addComponentByName(page, 'Redis');
   await page.locator('.node').first().click({ force: true });
@@ -151,21 +195,27 @@ test('a mixed component+connector selection duplicates and deletes together', as
   await expect.poll(() => edgeCount(page)).toBe(1);
 });
 
-test('Magic Arrow mode draws a connector with magic routing', async ({ page }) => {
+test('a freshly-drawn connector already routes around obstacles by default (no separate arming step)', async ({ page }) => {
+  // The old "🪄 Magic Arrow" toolbar toggle was removed — every connector
+  // gets the same obstacle-avoiding routing by default now (see
+  // connector.js#buildEdgePath), so drawing one needs no extra step.
   await addComponentByName(page, 'Docker');
   await addComponentByName(page, 'Kubernetes');
   const nodes = page.locator('.node');
   await dragNodeBy(page, nodes.nth(1), 260, 0);
-
-  await page.locator('.magic-arrow-btn').click();
-  await expect(page.locator('.magic-arrow-btn')).toHaveClass(/active/);
 
   await connectNodes(page, nodes.nth(0), nodes.nth(1));
   await expect.poll(() => edgeCount(page)).toBe(1);
 
   await clickEdgeNearNode(page);
   const routingSelect = page.locator('.toolbar-row-context select').nth(1);
-  await expect(routingSelect).toHaveValue('magic');
+  await expect(routingSelect).toHaveValue('orthogonal');
+
+  // The 'magic' routing value (and its glow style) still exists and stays
+  // reachable per-edge from this same dropdown for anyone who wants it
+  // explicitly.
+  await routingSelect.selectOption('magic');
+  await expect(page.locator('.edge.edge-magic')).toHaveCount(1);
 });
 
 test('the toolbar\'s "What\'s new" button opens the version-highlights modal', async ({ page }) => {

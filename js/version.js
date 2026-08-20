@@ -2,9 +2,23 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.18.1';
+export const APP_VERSION = '1.19.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.19.0',
+    date: '2026-08-20',
+    highlights: [
+      'Database cylinder shapes no longer show stray vertical lines poking above the cap.',
+      'Fixed the "✨ Smart Suggestions" banner staying stuck on a previous component instead of updating (or hiding) for whatever you just placed.',
+      'New "★ Popular only" sidebar filter — narrows the component library to just the commonly-used, ★-marked building blocks in each category.',
+      'PNG export no longer crops a large or heavily-connected diagram — it now accounts for connector routing and above/below labels that extend past every component\'s own box, and downscales automatically if the diagram is extremely large.',
+      'Right-click a component and choose "🔁 Join replication..." to add it to an existing replication pair directly, instead of having to open the Replicate modal and select it there yourself.',
+      'New dismissible background boundary behind any multi-component group or replication side, so it reads as one unit at a glance — right-click-free, just hover it and click ✕ to hide (the group itself is unaffected).',
+      'The "Group / Container" basic shape now captions itself at the top instead of centering its label over whatever gets placed inside it, and starts larger by default.',
+      'Removed the "🪄 Magic Arrow" toolbar toggle — every connector already routes around obstacles by default now, so arming it first never did anything extra. The magic routing style itself is still available per-connector from the arrow editor\'s Routing dropdown.',
+    ],
+  },
   {
     version: '1.18.1',
     date: '2026-08-20',

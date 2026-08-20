@@ -101,13 +101,19 @@ like every other routing already is, so a routed edge re-routes live as
 nodes move and can never go stale.
 
 Every freshly-drawn connector therefore gets obstacle-avoiding routing by
-default now, not just ones explicitly armed via the toolbar's "🪄 Magic
-Arrow" toggle (`connectorInteractions.js`'s `magicModeActive`, which still
-sets `edge.routing = 'magic'` specifically and still gets its own
-`.edge-magic` CSS glow) — Magic Arrow is functionally close to redundant
-for brand-new connectors now, but was left in place unchanged rather than
-removed, since removing a previously-shipped, tested, documented feature
-wasn't part of the request that made `'orthogonal'` obstacle-avoiding too.
+default now. The toolbar's old "🪄 Magic Arrow" toggle — which pre-armed
+the *next* connector to get `routing: 'magic'` instead of the default —
+had become fully redundant once `'orthogonal'` started doing the same
+obstacle-avoiding path computation (see `buildEdgePath` above, which
+branches on `edge.routing === 'magic' || edge.routing === 'orthogonal'`
+identically), so it was removed: `connectorInteractions.js`'s
+`magicModeActive`/`setMagicMode`/`isMagicModeActive` are gone, and
+`buildQuickCreateGroup` in `toolbar.js` now renders just "Add Shape". The
+`'magic'` routing *value* itself was kept — it still exists as an explicit
+per-edge choice in the arrow editor's Routing dropdown and still gets its
+own `.edge-magic` CSS glow (`css/connector.css`) for anyone who wants that
+look deliberately; only the pre-arm-before-drawing toolbar button, which
+never did anything the default didn't already do, was removed.
 
 **Anchor-side selection** (`core/geometry.js#pickBestSides(fromRect,
 toRect)`): a pure, symmetric function that picks which side of each
@@ -158,13 +164,13 @@ Tools dropdown's "🗺️ Auto-arrange" button (`toolbar.js#buildToolsGroupButto
 `onToolModeChange`) holding which of `'select'`/`'hand'` currently governs
 canvas pointer interactions, plus a separate `spaceHeld` flag for a
 momentary hold-Space-to-pan override that never touches the persisted
-`baseTool`. This deliberately fixes the one weak spot in the older Magic
-Arrow toggle (`connectorInteractions.js`'s `magicModeActive`): that flag
-has no subscribe mechanism, so its toolbar button is the *only* thing that
-can desync from it if the mode were ever changed from elsewhere.
-`toolMode.js` instead notifies every subscriber (the toolbar buttons' own
-`.active` class *and* `canvas.js`'s cursor class) on every change, so there
-is exactly one source of truth.
+`baseTool`. This deliberately fixes the one weak spot the old (now-removed,
+see the "Connector routing" section above) Magic Arrow toggle had: its
+`magicModeActive` flag had no subscribe mechanism, so its toolbar button
+was the *only* thing that could desync from it if the mode were ever
+changed from elsewhere. `toolMode.js` instead notifies every subscriber
+(the toolbar buttons' own `.active` class *and* `canvas.js`'s cursor class)
+on every change, so there is exactly one source of truth.
 
 `canvas.js#wireBackgroundInteractions`'s `pointerdown` listener is
 registered with `{ capture: true }` specifically so the Hand-tool branch
@@ -528,7 +534,7 @@ label visible until the next unrelated render.
 
 `toolbar.js`'s always-visible row only holds controls needed continuously
 or at a moment's notice while actively working (undo/redo, the Select/Hand
-toggle, zoom, "Add Shape", "Magic Arrow" — `buildQuickCreateGroup`);
+toggle, zoom, "Add Shape" — `buildQuickCreateGroup`);
 everything else — occasional/setup actions — is grouped behind one of four
 dropdown trigger buttons (File/Create/Tools/Help —
 `toolbar.js#buildFileGroupButtons` etc.), built by
@@ -679,7 +685,41 @@ immediately recognize as a common building block in its category — purely
 a sidebar rendering hint (`sidebar.js#renderItem` adds an `.item-popular`
 class + a small ★ badge), never affecting sort order, search, or anything
 else. Same "would most engineers immediately agree" curation bar as
-`related` below, and equally deliberately sparse.
+`related` below, and equally deliberately sparse. `sidebar.js`'s "★
+Popular only" toggle filters the built-in categories down to just this
+flag (`popularOnly` module state, re-filtered inside `renderList()`) —
+deliberately scoped to `CATEGORIES` only, not Favorites/My Components,
+since `popular` is a curated *library* attribute those two sections don't
+carry (Favorites is already the user's own shortlist; My Components is
+unrated).
+
+### A component's own `textPosition`/`iconVisible` default
+
+`c(id, name, icon, { textPosition, iconVisible, ... })` can pin a
+structural default for that *specific shape* — e.g. `categories/shapes.js`'s
+`shape-group` ("Group / Container") sets `textPosition: 'top'` so its
+caption sits at the top instead of centered over whatever gets placed
+inside it, and `iconVisible: false` since a plain frame has no icon to
+show. This is different from every other opt `c()` accepts: `textPosition`/
+`iconVisible` are also independently settable *globally* (Default Settings
+→ `io/nodeDefaults.js`, applied to every newly-created node via
+`buildCreationOverrides()`) and *per-node* after placement (style editor).
+Before this, `core/project.js#createNode` only read those two fields from
+`overrides` — a component's own definition had no way to express an
+opinion about them at all, silently discarded even if a `c()` call
+happened to include them (this was the actual bug behind "Group /
+Container"'s label reading centered instead of at the top: the opts were
+being passed, `createNode` was just never looking at `def.textPosition`).
+Fixed by spreading `def.textPosition`/`def.iconVisible` (when the def sets
+them) *after* `...overrides` in `createNode`'s returned object — the same
+"the def wins" precedence `shape`/`fill`/`stroke` already have on that same
+object, just newly extended to these two fields specifically, since they'd
+never been overridable at the definition level before. Most components
+don't set either, so this is a no-op for them and the global default (or a
+later per-node override) decides exactly as before — only reach for this
+when the default is describing something inherent to the shape, not a
+style preference (see the `@param` docs on `schema.js#c` for the same
+guidance inline).
 
 ## Smart Suggestions (`canvas/suggestions.js`, `data/schema.js`'s `related`/`relatedLayers` fields)
 
@@ -826,6 +866,21 @@ standalone, reusable pure function — both the new call sites below and
 - `exportImage.js` / `exportPdf.js`: dynamically `import()` the CDN
   `html2canvas`/`jsPDF` scripts only when the user actually exports (not on
   page load), rasterize the canvas content layer, crop to diagram bounds.
+  "Diagram bounds" (`canvas.js#getContentBounds`) is more than just every
+  node's `x/y/w/h` — obstacle-avoiding edge routing can jut out past a
+  node's own box while detouring around a cluster, and
+  `textPosition: 'above'/'below'` labels render entirely outside
+  `.node-body` by design, so both get unioned in too (the edge layer's own
+  `getBBox()` for the former — its coordinate system is already
+  canvas-space, since the pan/zoom transform lives on its parent
+  `contentEl` — and each external label's real rect converted through
+  `viewport.screenToCanvas()` for the latter). `exportImage.js` also caps
+  the export `scale` down from the default 2x if the target size would
+  cross a conservative 8000px threshold — browsers cap a single
+  `<canvas>`'s dimensions (commonly ~16384px, lower on some mobile
+  browsers), past which html2canvas's own internal canvas silently clips
+  instead of erroring, so a very large diagram needs to downscale rather
+  than get cropped with no indication anything went wrong.
 - `nodeDefaults.js`: global "new component" defaults (transparent fill,
   icon visibility, text position, sub-components display — see
   docs/SPEC.md 4.2.5), stored under their own key, independent of any one
@@ -1080,6 +1135,26 @@ existing `groupId` for side A if the whole selection already shares one
 mirrored at all, and returns everything `canvas.js#createReplicationPairFromSelection`
 needs to fold into one atomic `store.dispatch()` call.
 
+**Joining an existing pair** (`canvas.js#addSelectionToReplicationSide(pairId,
+side)`) just assigns the current selection's `groupId` to that side's — no
+new mechanism, discovery pass 3 above does the rest on the next sync. This
+already worked for any selection size, including a single freshly-placed
+node, from `replicationModal.js`'s "Or add this selection to an existing
+pair" section — the real gap was discoverability, not function: a node not
+yet in a pair also gets a "🔁 Join replication..." item in its own
+right-click context menu (`canvas.js#openNodeContextMenu`), which selects
+just that node and dispatches a `sdb:open-replication` window event (the
+same "avoid a circular import" pattern `sdb:open-details` already uses —
+`replicationModal.js` imports several actions *from* `canvas.js`, so
+`canvas.js` importing `openReplicationModal` back would be circular)
+listened for by a `window.addEventListener` at `replicationModal.js`'s
+module scope. The menu item is gated on the node not already belonging to
+some *other* multi-member group too, not just "not already replicated" —
+`addSelectionToReplicationSide` overwrites `groupId` with no merge, so
+without that guard, joining replication from a node that's already a
+member of a plain Group/Ungroup group would silently detach it from that
+group with no warning.
+
 `canvas.js` also guards against a group being claimed by two different
 pairs at once (`isGroupInAnyPair`) in both the create and join actions —
 the engine itself doesn't strictly need this (each pair syncs
@@ -1110,6 +1185,43 @@ all (each frozen dispatch returned immediately, so there's no meaningful
 merge to compute — reconciling would require picking a winner between two
 independently-diverged sides, which the freeze feature exists specifically
 to allow without the engine second-guessing it).
+
+## Group backgrounds (`canvas/groupBackgrounds.js`, `canvas.js#renderGroupBackgrounds`)
+
+A subtle dismissible boundary box rendered behind every relevant `groupId`
+— a regular Group/Ungroup group and a replication pair's side are the
+*exact same mechanism* under the hood (both are just nodes sharing a
+`groupId`, see the Live Replication section above), so `computeGroupBounds`
+needs no special case for either shape-wise, only a different member-count
+floor:
+
+- A **regular group** needs 2+ members to mean anything visually — a
+  single-member "group" can legitimately happen transiently (e.g.
+  mid-ungroup) and has nothing to bound.
+- A **replication side** is meaningful — "this is a live-mirrored unit" —
+  with just 1 member, which is the common case (most replicated pairs
+  mirror one component to one peer), so `replicatedGroupIds` (every
+  `pair.groupA`/`pair.groupB` currently in play, computed once per render
+  in `canvas.js#render` from `state.replicationPairs`) gets a floor of 1
+  instead of 2. Each side gets its *own* box — a pair with 1 member per
+  side renders two separate boundaries, not one spanning both.
+
+Rendered as a `<div class="group-bg">` per active `groupId` in a new
+`groupBgLayer`, inserted into `contentEl` *before* `edgeLayer`/`nodeLayer`
+(see `initCanvas`) so it's always behind both, sharing their same
+pan/zoom-transformed coordinate space — its `x/y/w/h` are plain
+canvas-space numbers, no conversion needed. `pointer-events: none` on the
+box itself keeps it from intercepting clicks meant for a node or the
+canvas background underneath; only its own "✕" dismiss button
+(`pointer-events: auto`, shown on hover) opts back in.
+
+Dismissing is **session-only** — `hiddenGroupBackgrounds` is a plain
+in-memory `Set` in `canvas.js`, not part of the persisted project schema.
+The group/pair itself is completely unaffected by dismissing its
+background; a dismissed `groupId` that later drops out of
+`computeGroupBounds` entirely (group dissolved, pair broken) is cleaned out
+of the set automatically in `renderGroupBackgrounds`, keeping it from
+growing unbounded over a long session.
 
 ## Mobile/responsive layout (`css/responsive.css`)
 

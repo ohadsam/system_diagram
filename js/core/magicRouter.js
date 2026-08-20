@@ -1,7 +1,9 @@
-// Pure, DOM-free "Magic Arrow" router: finds an orthogonal path between two
-// node anchors that avoids every other node's bounding box, using as few
-// turns as possible. No DOM/store access, so it's trivially unit-testable
-// and reusable — see canvas/connector.js for where it's actually rendered.
+// Pure, DOM-free obstacle-avoiding router (the "magic" routing style):
+// finds an orthogonal path between two node anchors that avoids every
+// other node's bounding box, using as few turns as possible. No DOM/store
+// access, so it's trivially unit-testable and reusable — see
+// canvas/connector.js for where it's actually rendered, and for how the
+// default 'orthogonal' routing uses this exact same router.
 //
 // Approach: quantize the area between the two nodes (plus obstacles) into a
 // grid, then run a 0-1-weighted shortest-path search (Dijkstra via a bucket

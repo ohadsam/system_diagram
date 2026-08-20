@@ -6,6 +6,13 @@ import { loadScriptOnce, nextFrame } from '../utils/loadScript.js';
 import { downloadBlob, sanitizeFilename } from '../utils/download.js';
 
 const PADDING = 48;
+// Browsers cap a single <canvas>'s width/height (commonly ~16384px, lower
+// on some mobile browsers) — past that, html2canvas's own internal canvas
+// silently clips instead of erroring. Scale down from the default 2x for
+// a diagram whose target size would cross this well under every browser's
+// real limit, rather than exporting a cropped image with no indication
+// anything went wrong.
+const MAX_CANVAS_DIMENSION = 8000;
 
 async function ensureHtml2Canvas() {
   if (window.html2canvas) return window.html2canvas;
@@ -33,9 +40,11 @@ export async function captureDiagramCanvas() {
   viewportEl.classList.add('exporting');
   await nextFrame();
 
+  const scale = Math.min(2, MAX_CANVAS_DIMENSION / Math.max(targetW, targetH));
+
   let canvas;
   try {
-    canvas = await html2canvas(viewportEl, { backgroundColor: '#ffffff', scale: 2, useCORS: true, logging: false });
+    canvas = await html2canvas(viewportEl, { backgroundColor: '#ffffff', scale, useCORS: true, logging: false });
   } finally {
     viewportEl.classList.remove('exporting');
     viewportEl.style.width = prevStyle.width;

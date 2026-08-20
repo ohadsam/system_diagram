@@ -9,7 +9,7 @@ export const components = [
   c('shape-cloud', 'Cloud', '☁️', { shape: 'cloud', color: SH, defaultSize: { w: 180, h: 110 } }),
   c('shape-cylinder', 'Cylinder (Database)', '🛢️', { shape: 'cylinder', color: SH }),
   c('shape-diamond', 'Diamond (Decision)', '🔷', { shape: 'diamond', color: SH, defaultSize: { w: 140, h: 100 } }),
-  c('shape-group', 'Group / Container', '🔲', { shape: 'rect', color: SH, defaultSize: { w: 260, h: 180 } }),
+  c('shape-group', 'Group / Container', '🔲', { shape: 'rect', color: SH, defaultSize: { w: 320, h: 220 }, textPosition: 'top', iconVisible: false, description: 'A plain labeled boundary box — drop it behind other components (right-click → Send to back) to visually group them under one caption. Purely visual; components placed on top of it aren\'t actually attached to it.' }),
   c('shape-hexagon', 'Hexagon', '🔶', { shape: 'hexagon', color: SH } ),
   c('shape-note', 'Sticky Note', '🗒️', { shape: 'note', color: '#F5D90A', fill: '#FFF9C4', defaultSize: { w: 160, h: 120 } }),
   c('shape-rectangle', 'Rectangle', '▭', { shape: 'rect', color: SH }),

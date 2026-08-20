@@ -34,7 +34,17 @@ Rules:
 - A "container box" component (something other things get placed on top of, like `aws-vpc` or the
   AWS region boundaries) uses `shape: 'rect'` and a larger `defaultSize` (`w: 260-340, h: 180-240`
   is the established range) — there is no real parent/child nesting in this app, it's purely
-  visual: components placed over it aren't actually attached to it in the data model.
+  visual: components placed over it aren't actually attached to it in the data model. `opts.
+  textPosition: 'top'` (see below) is worth adding for one whose caption would otherwise sit
+  centered over the contents — `shape-group` ("Group / Container", `categories/shapes.js`) does
+  this; the existing region/VPC boxes don't, and there's no need to retrofit them just because the
+  option now exists.
+- `opts.textPosition`/`opts.iconVisible: false` pin a *structural* default for this specific shape
+  (e.g. "this container's caption always goes at the top", "this plain-frame shape has no icon"),
+  overriding the user's global Default Settings the same way `shape`/`color`/`defaultSize` already
+  do. Only reach for these when the default is inherent to the shape, not a style preference —
+  most components should just leave them unset and let the global default (or a per-node override
+  after placement) decide, exactly as before this option existed.
 
 ### Smart Suggestions (`related` / `relatedLayers`) — check this every time
 

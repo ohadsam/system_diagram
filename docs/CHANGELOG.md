@@ -152,6 +152,57 @@ user-facing fix or feature, alongside this changelog.
   value `'magic'`, also chooseable for any existing connector from its
   style editor.
 
+## v1.19.0 (2026-08-20)
+
+An 11-item batch: 5 bug fixes plus 6 UX improvements around replication, grouping, and the
+component library.
+
+**Fixes:**
+
+- Database cylinder shape: the ellipse "cap" ::before overlapped the body's own left/right border
+  above its equator, where an oval is narrower than the box — a straight vertical sliver of border
+  poked above the curve at both top corners. Rebuilt with two outline-only pseudo-elements (cap +
+  sides-and-bottom, meeting exactly at the cap's equator) instead of one filled ellipse plus a
+  bordered body.
+- Smart Suggestions banner: placing a component with no curated suggestions left whatever banner
+  was already up from a *previous* placement untouched instead of hiding it — looked like
+  suggestions had silently stopped working, since the banner never again reflected what was
+  actually just placed.
+- PNG export cropped a large or heavily-connected diagram: `getContentBounds()` only unioned node
+  `x/y/w/h`, missing obstacle-avoiding edge routing (which can jut out past every node's own box
+  while detouring) and `textPosition: 'above'/'below'` labels (which render entirely outside
+  `.node-body` by design). Now also unions in the edge layer's own `getBBox()` and every external
+  label's actual rect. Also added a canvas-size safety clamp — html2canvas silently clips past a
+  browser's real `<canvas>` dimension cap (commonly ~16384px), so the export scale now downshifts
+  from the default 2x if the target size would cross a conservative 8000px threshold, instead of
+  producing a cropped image with no indication anything went wrong.
+- Replication: adding a new component and joining it to an existing pair's side required knowing
+  to select it, open the "🔁 Replicate" modal, and use its "Add as side A/B" buttons — the
+  underlying mechanism already worked correctly (mirroring, moving/resizing a side together), the
+  gap was purely discoverability. A component not yet part of a pair now offers "🔁 Join
+  replication..." directly from its right-click context menu (only shown when it wouldn't silently
+  detach the node from some other regular group it's already in).
+- Removed the "🪄 Magic Arrow" toolbar toggle — obstacle-avoiding routing became the default for
+  every connector in v1.15.0, making the pre-arm-before-drawing step pure redundancy ever since.
+  The `'magic'` routing value/glow style itself is untouched, still choosable per-connector from
+  the arrow editor's Routing dropdown.
+
+**Improvements:**
+
+- New "★ Popular only" sidebar toggle, narrowing the built-in library to just `popular: true`
+  components (Favorites/My Components are unaffected — that's already a separate curation).
+- New dismissible background boundary behind any multi-component regular group or replication
+  side (purple for replication, gray for a plain group), so it reads as one visual unit at a
+  glance — hover it and click its ✕ to hide just the background, without touching the group/pair
+  itself. A replication side needs only 1 member to get one (the common case); a regular group
+  needs 2+ (a single ungrouped node has nothing to bound).
+- The "Group / Container" basic shape now captions its label at the top instead of centering it
+  over whatever gets placed inside it, hides its icon, and starts at a larger default size —
+  required extending `data/schema.js#c()`/`core/project.js#createNode` to let a component
+  definition pin its own `textPosition`/`iconVisible` default (previously only settable globally
+  via Default Settings or per-node after placement), for shapes where the default is structural
+  rather than a style preference.
+
 ## v1.18.1 (2026-08-20)
 
 Fixed the database cylinder shape — every DB/cache component set to `shape: 'cylinder'`

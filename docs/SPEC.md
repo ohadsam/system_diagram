@@ -60,6 +60,10 @@ owner; code/UI/comments are English only.
 - Categories sorted A→Z; components inside each category sorted A→Z.
 - Search box filters across all categories by name/tag/description, with
   live highlighting and auto-expanding matched categories.
+- "★ Popular only" toggle narrows the built-in categories to just their
+  `popular: true` components (see 4.2 below for the flag itself) —
+  Favorites and My Components are unaffected, since `popular` is a
+  curated library attribute neither of those sections carries.
 - Drag-and-drop (pointer-based, works with mouse & touch) from sidebar to
   canvas creates a node. Predefined sub-components (if any) are attached to
   the new node automatically.
@@ -307,7 +311,9 @@ full-backup export/import (4.7.3).
   selects/moves the whole group as a unit. The ✂️ "Ungroup" button (shown
   whenever the selection includes a grouped component) releases them back
   to independent components. Duplicating a grouped selection gives the
-  copies their own new group, independent of the original.
+  copies their own new group, independent of the original. A group of 2+
+  members shows the same dashed background boundary described in 4.14 for
+  a replication side.
 
 #### 4.3.2 Navigation tools
 - **Select tool** (default) and **Hand tool** are a mutually-exclusive
@@ -341,11 +347,10 @@ full-backup export/import (4.7.3).
   rather than always the point that was literally grabbed).
 - Style: color, thickness, dash pattern, routing (straight, orthogonal
   /elbow, curved/bezier, or **magic** — see 4.4.1), label text. The default
-  orthogonal routing also auto-avoids every other component in its path
-  (the same obstacle-avoiding routing described in 4.4.1), not only when
-  Magic Arrow mode is explicitly armed — Magic Arrow remains available
-  (and functionally distinct) for its shortest-least-bends-path guarantee
-  and its own visual style.
+  orthogonal routing auto-avoids every other component in its path (the
+  same obstacle-avoiding routing described in 4.4.1) with no extra step
+  needed — magic routing remains available as an explicit per-edge choice
+  for its own visual glow style.
 - Arrow-head per end independently: none, open, filled triangle, diamond,
   circle — and direction: source→target, target→source, bidirectional,
   none.
@@ -359,26 +364,28 @@ full-backup export/import (4.7.3).
   component in the toolbar's contextual row (4.5), just for arrow
   properties instead.
 
-#### 4.4.1 Magic Arrow
-The toolbar's "🪄" button arms Magic Arrow mode for the *next* connector
-you draw: drag from a component's connection point to another component as
-usual, and the resulting connector automatically routes itself around
-every other component in the way — an orthogonal path computed to avoid
+#### 4.4.1 Magic (auto-avoid) routing
+Every freshly-drawn connector already routes itself around every other
+component in the way by default — an orthogonal path computed to avoid
 overlapping any other node, using as few bends as possible
 (`js/core/magicRouter.js`, a grid-based least-turns search). If no clear
 route can be found (e.g. the target is fully boxed in), it falls back to a
-plain elbow connector rather than failing silently. Any existing
-connector can also be switched to (or off) magic routing afterward from
-its style editor's Routing dropdown — it isn't a one-time creation-only
-choice.
+plain elbow connector rather than failing silently. Any connector can also
+be explicitly switched to (or off) the **magic** routing style from its
+style editor's Routing dropdown, which computes the exact same
+obstacle-avoiding path but adds a distinct visual glow — a purely cosmetic
+choice, since the underlying path-finding is identical to the default. (An
+earlier version required arming a "🪄 Magic Arrow" toolbar toggle before
+drawing to get this behavior at all; that toggle was removed once the
+default routing started doing the same thing unconditionally.)
 
 ### 4.5 Toolbar
 - **Layout**: the always-visible row keeps only controls used continuously
   or needed at a moment's notice while actively working — undo/redo, the
-  Select/Hand navigation-tool toggle (4.3.2), zoom, "🔷 Add Shape", and "🪄
-  Magic Arrow" — plus four dropdown menus (**File**, **Create**, **Tools**,
-  **Help**) that group every occasional/setup action, so the row stays
-  short and findable instead of growing unbounded as features are added.
+  Select/Hand navigation-tool toggle (4.3.2), zoom, and "🔷 Add Shape" —
+  plus four dropdown menus (**File**, **Create**, **Tools**, **Help**) that
+  group every occasional/setup action, so the row stays short and findable
+  instead of growing unbounded as features are added.
   Every button, flat or inside a dropdown, has a clear descriptive tooltip
   (its only affordance beyond an icon — there's no custom tooltip system).
   A dropdown's panel is positioned in viewport-clamped screen coordinates
@@ -392,8 +399,6 @@ choice.
 - **Add Shape** (flat): instant basic shapes as custom components
   (rectangle, rounded rectangle, circle/ellipse, diamond, hexagon,
   cylinder, cloud, "server with rows", sticky note, group container).
-- **Magic Arrow** (flat, see 4.4.1): arms auto-routing for the next
-  connector drawn.
 - **File**: New diagram, Save (autosave to localStorage) / Save As (named
   project), Load (from localStorage list or a JSON file), Duplicate
   Project (see 4.7.4), Export/Import JSON, Export PNG, Export PDF, Backup
@@ -503,7 +508,10 @@ collides with the original):
 
 ### 4.8 Export
 - PNG: rasterize the current canvas (or just the diagram bounds) to an
-  image download.
+  image download. "Diagram bounds" accounts for connector routing and
+  above/below labels that extend past every component's own box, not just
+  node positions/sizes, and the export scale downshifts automatically for
+  an extremely large diagram rather than silently cropping it.
 - PDF: same content laid out on a PDF page (auto-orientation based on
   diagram aspect ratio).
 
@@ -640,14 +648,22 @@ groups of components.
   behavior as any other component group (clicking one member selects the
   whole side).
 - **Staying in sync, automatically**: from then on, adding a component to
-  either side (join it via "🔁 Replicate" → "Add to an existing pair") — or
-  a component already sitting in that side's group, e.g. right after a
-  JSON import — gets a mirror created on the other side on the very next
-  change. Moving, resizing, restyling, renaming or editing a mirrored
-  component's sub-components/notes/labels propagates the same change to
-  its peer, in either direction (whichever side actually changed drives
-  the update). Deleting a mirrored component deletes its peer too, so the
-  two sides can never silently drift into a stale, half-deleted state.
+  either side (join it via "🔁 Replicate" → "Add to an existing pair", or
+  right-click an unlinked component and choose "🔁 Join replication..." for
+  the same modal pre-focused on just that component) — or a component
+  already sitting in that side's group, e.g. right after a JSON import —
+  gets a mirror created on the other side on the very next change. Moving,
+  resizing, restyling, renaming or editing a mirrored component's
+  sub-components/notes/labels propagates the same change to its peer, in
+  either direction (whichever side actually changed drives the update).
+  Deleting a mirrored component deletes its peer too, so the two sides can
+  never silently drift into a stale, half-deleted state.
+- **Visual boundary**: each side of an active pair (and, separately, any
+  regular multi-component group from 4.3.x) shows a subtle dashed
+  background box behind its members so it reads as one unit at a glance —
+  hover it and click its ✕ to hide just that background (the group/side
+  itself is completely unaffected, and hiding it is session-only, not
+  saved with the project).
 - **Excluding a component**: any single component can be marked "Exclude
   from replication mirroring" from its details panel (shown whenever it's
   currently part of an active pair) — it keeps its content as-is and stops
