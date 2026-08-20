@@ -41,7 +41,7 @@ export const components = [
   c('aws-eks-node-group', 'EKS Node Group', '🖥️', { color: AWS, tags: ['containers', 'kubernetes', 'eks', 'node'], description: 'A pool of EC2/Fargate worker nodes joined to an EKS cluster.', related: ['aws-eks-pod'] }),
   c('aws-eks-pod', 'Pod (EKS)', '🫛', { color: AWS, tags: ['containers', 'kubernetes', 'eks', 'pod'], description: 'The smallest deployable unit — one or more containers scheduled onto a node.' }),
   c('aws-elastic-beanstalk', 'Elastic Beanstalk', '🌱', { color: AWS, tags: ['paas', 'compute'] }),
-  c('aws-elasticache', 'ElastiCache', '⚡', { color: AWS, tags: ['cache', 'redis', 'memcached'] }),
+  c('aws-elasticache', 'ElastiCache', '⚡', { shape: 'cylinder', color: AWS, tags: ['cache', 'redis', 'memcached'] }),
   c('aws-elb', 'Elastic Load Balancer', '⚖️', { color: AWS, tags: ['networking', 'load-balancer'] }),
   c('aws-eventbridge', 'EventBridge', '📡', { color: AWS, tags: ['events', 'integration'] }),
   c('aws-fargate', 'Fargate', '🎈', { color: AWS, tags: ['containers', 'serverless'] }),

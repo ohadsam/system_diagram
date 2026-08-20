@@ -73,7 +73,36 @@
   background: var(--node-fill);
   clip-path: inherit;
 }
-.node[data-shape="cylinder"] .node-body { border-radius: 50% 50% 6px 6px / 20% 20% 8% 8%; padding-top: 16px; }
+/* Database cylinder — classic "drum" icon (ellipse cap + straight sides +
+   curved bottom), the standard look for DB/cache components in most
+   system-design diagrams. Built from the body itself (sides + curved
+   bottom, its own top border/radius suppressed) plus a ::before that draws
+   a full ellipse "cap" clipped to the top band by the body's own
+   overflow:hidden — the cap's lower arc reads as the cylinder's front seam
+   line, the same technique classic CSS-only database icons use. No
+   clip-path here (unlike diamond/hexagon above), so none of that stacking-
+   context workaround is needed — just keep content clear of the cap band
+   via padding-top so paint order between ::before and the in-flow
+   icon/label never has to matter. */
+.node[data-shape="cylinder"] .node-body {
+  position: relative;
+  border-top: none;
+  border-radius: 0 0 45% 45% / 0 0 22% 22%;
+  padding: 22px 10px 12px;
+}
+
+.node[data-shape="cylinder"] .node-body::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  right: -1px;
+  top: 0;
+  height: clamp(14px, 28%, 24px);
+  border-radius: 50%;
+  background: var(--node-fill);
+  border: var(--node-border-width, 2px) solid var(--node-stroke);
+  box-sizing: border-box;
+}
 .node[data-shape="cloud"] .node-body { border-radius: 46% 54% 54% 46% / 60% 55% 45% 40%; }
 .node[data-shape="note"] .node-body { border-radius: 2px; transform: rotate(-1deg); box-shadow: var(--shadow-md); }
 .node[data-shape="rows"] .node-body { border-radius: 10px; justify-content: flex-start; padding: 0; }

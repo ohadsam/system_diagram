@@ -105,6 +105,46 @@ test('diamond and hexagon shapes render a border that hugs their clip-path outli
   }
 });
 
+test('the database cylinder shape renders an ellipse cap and a curved bottom, not a plain box', async ({ page }) => {
+  await addComponentByName(page, 'PostgreSQL');
+  const node = page.locator('.node[data-shape="cylinder"]');
+  await expect(node).toHaveCount(1);
+
+  const body = node.locator('.node-body');
+  const styles = await body.evaluate((el) => {
+    const before = getComputedStyle(el, '::before');
+    return {
+      bodyBorderTopWidth: getComputedStyle(el).borderTopWidth,
+      bodyBorderBottomWidth: getComputedStyle(el).borderBottomWidth,
+      bodyBorderBottomLeftRadius: getComputedStyle(el).borderBottomLeftRadius,
+      beforeContent: before.content,
+      beforeBorderRadius: before.borderRadius,
+      beforeHeight: before.height,
+    };
+  });
+  // The body's own top border is suppressed (the ellipse ::before cap
+  // covers that edge instead) while the bottom/sides keep their normal
+  // border and the bottom corners are rounded into a curve — see
+  // docs/ARCHITECTURE.md's "Database cylinder shape" section.
+  expect(styles.bodyBorderTopWidth).toBe('0px');
+  expect(parseFloat(styles.bodyBorderBottomWidth)).toBeGreaterThan(0);
+  expect(styles.bodyBorderBottomLeftRadius).not.toBe('0px');
+  expect(styles.beforeContent).not.toBe('none');
+  expect(styles.beforeBorderRadius).toBe('50%');
+  expect(parseFloat(styles.beforeHeight)).toBeGreaterThan(0);
+
+  // Regression: unlike diamond/hexagon, the ::before cap has no z-index, so
+  // correctness relies on it never overlapping the label — verify the
+  // label still hit-tests as the topmost element at its own center.
+  const label = node.locator('.node-label');
+  const hitTarget = await label.evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return top === el || el.contains(top);
+  });
+  expect(hitTarget).toBe(true);
+});
+
 test('selecting a connector reveals the arrow style editor and routing can be changed', async ({ page }) => {
   await addComponentByName(page, 'Load Balancer');
   await addComponentByName(page, 'Nginx Web Server');

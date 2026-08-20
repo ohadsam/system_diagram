@@ -2,9 +2,16 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.18.0';
+export const APP_VERSION = '1.18.1';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.18.1',
+    date: '2026-08-20',
+    highlights: [
+      'Database/cache components (PostgreSQL, Redis, MongoDB, and every other "Cylinder (DB)"-shaped component) now render as a proper cylinder — an elliptical top cap with a visible seam line, straight sides, and a curved bottom — matching the classic database icon used in most system-design diagrams, instead of the previous barely-rounded box. Also gave AWS ElastiCache the same cylinder shape as its sibling database services, since it\'s a managed Redis/Memcached store.',
+    ],
+  },
   {
     version: '1.18.0',
     date: '2026-08-18',

@@ -152,6 +152,23 @@ user-facing fix or feature, alongside this changelog.
   value `'magic'`, also chooseable for any existing connector from its
   style editor.
 
+## v1.18.1 (2026-08-20)
+
+Fixed the database cylinder shape — every DB/cache component set to `shape: 'cylinder'`
+(PostgreSQL, Redis, MongoDB, and the rest) previously rendered as a barely-rounded box (a single
+`border-radius` trick), not the classic drum/cylinder icon used across most system-design
+diagrams:
+
+- `css/node.css` now builds the shape from `.node-body`'s own curved bottom (top border/radius
+  suppressed) plus a `::before` full-ellipse "cap" clipped by the body's existing
+  `overflow: hidden` — no `clip-path` involved, so none of the diamond/hexagon stacking-context
+  workaround is needed. Documented the technique in `docs/ARCHITECTURE.md`.
+- Gave `aws-elasticache` (AWS's managed Redis/Memcached) the same `shape: 'cylinder'` its sibling
+  AWS database services already had — the one gap found while auditing DB/cache components for
+  the shape.
+- Verified at default, small (resized-down), and large (resized-up) node sizes, on mobile/tablet
+  viewports, and in the PNG export (html2canvas) path.
+
 ## v1.18.0 (2026-08-18)
 
 21 more curated `relatedLayers` pairings — same precision-first bar, but exercising a new part of

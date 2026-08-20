@@ -1246,6 +1246,27 @@ a regression check that hit-tests the label's own center point rather than
 just asserting it's present with non-zero size — the earlier version of
 that test only checked clip-path/color values and never caught this.
 
+### Database cylinder shape (`data-shape="cylinder"`)
+
+Unlike diamond/hexagon, this shape needs no `clip-path` (and so none of the
+`z-index` stacking-context workaround above) — it's built entirely from
+`border-radius`, an absolutely-positioned `::before`, and `.node-body`'s own
+`overflow: hidden`. `.node-body` supplies the sides and the curved bottom
+(`border-radius: 0 0 45% 45% / 0 0 22% 22%`, its own top border suppressed
+with `border-top: none`), and `::before` draws a full ellipse "cap"
+(`border-radius: 50%`) positioned at `top: 0`. Because the cap sits fully
+inside the body's own top band, `.node-body`'s `overflow: hidden` clips it
+identically to any other content — no separate clip-path/inset math needed
+the way diamond/hexagon's fill layer requires. The ellipse's *lower* arc,
+crossing through the middle of that top band, is what reads as the
+cylinder's front "seam" line; its upper arc blends into the body's own
+flat top edge since both use the same `--node-fill`/`--node-stroke`
+colors. `padding-top` on `.node-body` keeps icon/label content clear of the
+cap band — since `::before` here has no `z-index` (nothing forces it into
+its own stacking context), paint order relative to in-flow content is
+undefined by default, so correctness relies on the two never overlapping
+rather than on layering, unlike the diamond/hexagon fill layer above.
+
 ## Security notes
 
 - No `innerHTML` is ever fed unsanitized/user-provided strings; text
