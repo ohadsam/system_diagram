@@ -64,7 +64,8 @@ Or open `index.html` directly in a browser.
   connectors, via marquee, shift-click, or Ctrl/Cmd-click to toggle one
   item in/out of the current selection), duplicate, delete, rename
   inline, pan/zoom (buttons, Ctrl/Cmd+scroll, or keyboard Ctrl/Cmd +
-  "+"/"-"/"0"), right-click context menu, and Group/Ungroup for tying
+  "+"/"-"/"0"), right-click context menu (including "🧹 Clear canvas" to
+  wipe everything and start fresh, undoable), and Group/Ungroup for tying
   components together as one selectable/movable unit — a group of 2+ (and
   each side of a Live Replication pair) shows a dismissible dashed
   background so it reads as one unit at a glance.

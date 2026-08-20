@@ -21,6 +21,7 @@ import { showContextMenu, hideContextMenu } from './contextMenu.js';
 import { getToolMode, onToolModeChange } from './toolMode.js';
 import { showSuggestionsFor } from './suggestions.js';
 import { computeGroupBounds } from './groupBackgrounds.js';
+import { confirmAction } from '../modals/confirmModal.js';
 
 let viewportEl = null;
 let contentEl = null;
@@ -698,6 +699,37 @@ export function duplicateProjectAsNew() {
   showToast(`Duplicated into a new project — now editing "${copy.name}".`, 'success', 2400);
 }
 
+/** Empties every component, connector and replication pair from the
+ * *current* project (same id/name — unlike toolbar.js's "New", which
+ * switches to a brand-new project entity and is right to reset history
+ * along with it). Deliberately goes through `store.dispatch()` rather than
+ * `store.loadProject()`: the latter calls `history.init()`, which wipes
+ * undo/redo entirely — fine for switching to an unrelated new project, but
+ * it would make an "Undo brings it back" promise a lie for clearing the
+ * *same* project's content. A plain dispatch is committed to history like
+ * any other edit, so Ctrl/Cmd+Z genuinely restores everything afterward. */
+export async function clearCanvas() {
+  const state = store.getState();
+  if (!state.nodes.length && !state.edges.length && !state.replicationPairs.length) {
+    showToast('The canvas is already empty.', 'info', 1800);
+    return;
+  }
+  const ok = await confirmAction({
+    title: 'Clear the canvas?',
+    message: 'Deletes every component and connector on the canvas and starts fresh. Undo (Ctrl/Cmd+Z) brings it all back.',
+    confirmLabel: 'Clear canvas',
+    danger: true,
+  });
+  if (!ok) return;
+  store.dispatch((draft) => {
+    draft.nodes = [];
+    draft.edges = [];
+    draft.replicationPairs = [];
+  });
+  store.select([], []);
+  showToast('Canvas cleared.', 'success', 1800);
+}
+
 /** Ties 2+ selected nodes together so clicking or dragging any one of them
  * acts on the whole set — see selectNode(). */
 export function groupSelection() {
@@ -983,6 +1015,8 @@ function openCanvasContextMenu(evt) {
     'separator',
     { label: 'Duplicate entire canvas', icon: '⧉', onClick: duplicateEntireCanvas },
     { label: 'Duplicate as new project', icon: '📄', onClick: duplicateProjectAsNew },
+    'separator',
+    { label: 'Clear canvas', icon: '🧹', danger: true, onClick: clearCanvas },
   ];
   showContextMenu(evt.clientX, evt.clientY, items);
 }

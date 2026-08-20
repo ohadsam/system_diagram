@@ -152,6 +152,22 @@ user-facing fix or feature, alongside this changelog.
   value `'magic'`, also chooseable for any existing connector from its
   style editor.
 
+## v1.20.0 (2026-08-20)
+
+New "🧹 Clear canvas" action (canvas right-click) — deletes every component, connector and
+replication pair in one confirmed step and starts fresh. Distinct from "🆕 New" (which switches to
+a brand-new, separate project): Clear Canvas empties the *current* project in place, keeping its
+id/name so a later Save/autosave still writes to the same slot.
+
+Implemented via `store.dispatch()` rather than `store.loadProject()` specifically so Ctrl/Cmd+Z
+genuinely restores everything afterward — `loadProject()` calls `history.init()`, which replaces
+undo/redo entirely rather than adding to it (right for a real project switch, wrong for clearing
+the current one). Found while building this that the existing "New" button's confirm dialog already
+makes the same "undo brings it back" claim for its own (loadProject-based, and therefore not
+actually undoable) mechanism — left as-is since New's history reset is correct for a genuine
+project switch, but documented in `docs/ARCHITECTURE.md`'s "Undo/redo" section as a pitfall to
+avoid reproducing elsewhere.
+
 ## v1.19.0 (2026-08-20)
 
 An 11-item batch: 5 bug fixes plus 6 UX improvements around replication, grouping, and the

@@ -71,6 +71,7 @@ this repo" quick-start.
 | Change obstacle-avoiding connector routing (default + the per-edge "Magic" routing style) | `js/core/magicRouter.js` (pure grid router, DOM-free — unit-test it directly) + `js/canvas/connector.js#buildEdgePath` (rendering, falls back to `orthogonal` on failure) — no separate toolbar arming step exists any more, both `'orthogonal'` (default) and `'magic'` (explicit per-edge choice via the arrow editor's Routing dropdown, adds the `.edge-magic` glow) route through the same function |
 | Change the "What's New" modal / version highlights  | `js/version.js` (`APP_VERSION`, `VERSION_HISTORY`) + `js/io/whatsNew.js` (last-seen-version tracking) + `js/modals/whatsNewModal.js` (UI) |
 | Change "Duplicate Project" / "Duplicate entire canvas" | `js/core/project.js#duplicateProject` (pure id-remapping clone) + `js/canvas/canvas.js` (`duplicateProjectAsNew`/`duplicateEntireCanvas`) + toolbar/canvas-context-menu wiring in `toolbar.js`/`canvas.js#openCanvasContextMenu` |
+| Change "Clear canvas" (canvas right-click)          | `js/canvas/canvas.js#clearCanvas` — uses `store.dispatch()`, not `store.loadProject()`, so it stays undoable; see "Common pitfalls" below and docs/ARCHITECTURE.md's "Undo/redo" section before copying this pattern elsewhere |
 | Change the AI Design Review prompt/providers/panel  | `js/io/aiReview.js` (`buildReviewPrompt`, `AI_PROVIDERS`) + `js/panel/aiReviewPanel.js` (UI, paste-back). See "Common pitfalls" below before touching this — it's intentionally not an API integration. |
 | Change the Generate Design from Spec prompt/wizard   | `js/io/aiGenerateDesign.js` (`buildGenerateDesignPrompt`, `extractProjectJSON`, `autoArrangeIfNeeded`) + `js/modals/generateDesignModal.js` (the 3-step wizard UI). Same "not an API integration" constraint as AI Design Review applies. |
 | Change how missing node/edge ids are handled on import | `js/core/project.js#validateProject` — backfills a missing/invalid id via `core/id.js#nextId` rather than dropping the node/edge; covers file import, backup restore, and pasted AI results alike |
@@ -114,6 +115,14 @@ npm test
 - `history.js` snapshots the whole project; don't commit a history entry
   on every `pointermove` during drag — coalesce and commit once on
   `pointerup` (see existing drag code for the pattern).
+- `store.loadProject()` calls `history.init()`, which *replaces*
+  undo/redo entirely rather than adding to it — correct for genuinely
+  switching to a different project (New, Duplicate as new project, Load),
+  wrong for modifying the *current* project's content, which silently
+  becomes un-undoable if you reach for `loadProject()` there instead of a
+  normal `store.dispatch()`. See docs/ARCHITECTURE.md's "Undo/redo"
+  section (the `canvas.js#clearCanvas` gotcha) for the concrete case this
+  was found in.
 - The canvas has its own pan/zoom transform; always convert
   screen↔canvas coordinates via `canvas/canvas.js#screenToCanvas` rather
   than using raw client coordinates.

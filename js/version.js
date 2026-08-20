@@ -2,9 +2,16 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.19.0';
+export const APP_VERSION = '1.20.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.20.0',
+    date: '2026-08-20',
+    highlights: [
+      'New "🧹 Clear canvas" action (right-click empty canvas) — deletes every component and connector in one step and starts fresh, with a confirmation first. Unlike "🆕 New" (which switches to a brand-new project), this clears the current project in place, and Ctrl/Cmd+Z genuinely brings everything back afterward.',
+    ],
+  },
   {
     version: '1.19.0',
     date: '2026-08-20',

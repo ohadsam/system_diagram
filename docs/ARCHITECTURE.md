@@ -51,6 +51,28 @@ the redo stack. Drag/resize interactions call `store.dispatch(fn, {
 coalesce: true })` on every pointer-move frame but only commit one history
 entry on pointer-up, so undo of a drag is a single step.
 
+**`store.loadProject()` vs. `store.dispatch()` — not interchangeable for
+"replace the project's content".** `loadProject()` calls `history.init()`,
+which *replaces* `undoStack`/`redoStack` wholesale rather than pushing onto
+them — correct when genuinely switching to a different project (New,
+Duplicate as new project, Load), where the old project's edit history has
+nothing to do with the new one and undo shouldn't reach across the
+boundary. But it means anything that calls `loadProject()` to modify the
+*current* project's content (rather than switch identity) silently
+discards undo entirely — `canvas.js#clearCanvas()` deliberately calls
+`store.dispatch((draft) => { draft.nodes = []; draft.edges = [];
+draft.replicationPairs = []; })` instead, which — like any other
+non-coalesced dispatch — commits a normal history entry, so Ctrl/Cmd+Z
+genuinely restores everything. Found because the toolbar's "🆕 New" button
+already made (and still makes) an "Undo brings it back" claim in its
+confirm dialog that isn't actually true for *its* mechanism — accepted
+there since New is intentionally a project-switch (a fresh id, so there
+being no way back to the old project via undo is arguably correct — the
+old project is still separately autosaved/saved under its own id, just not
+reachable via Ctrl/Cmd+Z from the new one), but worth knowing before
+reaching for `loadProject()` as a shortcut for "clear the current
+project's content" anywhere else in the future.
+
 ## Canvas rendering (`canvas/`)
 
 - Nodes render as absolutely-positioned `<div class="node">` elements
@@ -987,6 +1009,14 @@ standalone, reusable pure function — both the new call sites below and
   saved-as separately). `canvas.js#duplicateEntireCanvas()` is the
   same-project variant: select every node+edge, then reuse
   `duplicateSelection()` as-is — no new duplication logic needed there.
+
+- `canvas.js#clearCanvas()` (canvas right-click → "🧹 Clear canvas") is in
+  a sense the opposite of `duplicateEntireCanvas()` above — same-project,
+  but *emptying* rather than doubling. A confirm dialog gates it (skipped
+  if the canvas is already empty), and it clears `nodes`/`edges`/
+  `replicationPairs` via a plain `store.dispatch()`, not
+  `store.loadProject()` — see the "Undo/redo" section above for why that
+  distinction matters here specifically.
 
 ## AI Design Review (`io/aiReview.js`, `panel/aiReviewPanel.js`)
 

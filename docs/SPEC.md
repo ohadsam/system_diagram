@@ -506,6 +506,17 @@ collides with the original):
   *within the same project* — the diagram, doubled. Internally this is
   "select all, then Duplicate" (see 4.3.1) done in one click.
 
+#### 4.7.5 Clear Canvas
+Canvas right-click → "🧹 Clear canvas" deletes every component, connector
+and replication pair, after a confirmation dialog (skipped entirely if the
+canvas is already empty). Distinct from "🆕 New" (File menu, 4.5 above):
+Clear Canvas empties the *current* project in place (same id/name — a
+later Save/autosave still writes to the same slot), while New switches to
+a brand-new, separate project. Ctrl/Cmd+Z immediately after undoes it,
+bringing everything back exactly as it was — this genuinely works (unlike
+if it were implemented as "load an empty project", which would reset undo
+history instead of adding to it).
+
 ### 4.8 Export
 - PNG: rasterize the current canvas (or just the diagram bounds) to an
   image download. "Diagram bounds" accounts for connector routing and

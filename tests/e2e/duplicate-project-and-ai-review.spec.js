@@ -42,6 +42,35 @@ test('"Duplicate entire canvas" (canvas right-click) copies every component and 
   await expect.poll(() => edgeCount(page)).toBe(2);
 });
 
+test('"Clear canvas" (canvas right-click) wipes everything after confirmation, and undo brings it all back', async ({ page }) => {
+  await addComponentByName(page, 'Load Balancer');
+  await addComponentByName(page, 'Nginx Web Server');
+  const nodes = page.locator('.node');
+  await connectNodes(page, nodes.nth(0), nodes.nth(1));
+  await expect.poll(() => nodeCount(page)).toBe(2);
+  await expect.poll(() => edgeCount(page)).toBe(1);
+
+  await page.locator('#canvas-viewport').click({ position: { x: 40, y: 40 } }); // deselect, land the context menu on empty canvas
+  await page.locator('#canvas-viewport').click({ button: 'right', position: { x: 40, y: 40 } });
+  await page.locator('.context-menu-item', { hasText: 'Clear canvas' }).click();
+  await expect(page.locator('.confirm-modal')).toBeVisible();
+  await page.locator('.confirm-modal button.btn-danger', { hasText: 'Clear canvas' }).click();
+
+  await expect.poll(() => nodeCount(page)).toBe(0);
+  await expect.poll(() => edgeCount(page)).toBe(0);
+
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect.poll(() => nodeCount(page)).toBe(2);
+  await expect.poll(() => edgeCount(page)).toBe(1);
+});
+
+test('"Clear canvas" on an already-empty canvas shows an info toast and skips the confirmation', async ({ page }) => {
+  await page.locator('#canvas-viewport').click({ button: 'right', position: { x: 40, y: 40 } });
+  await page.locator('.context-menu-item', { hasText: 'Clear canvas' }).click();
+  await expect(page.locator('.toast-info', { hasText: 'already empty' })).toBeVisible();
+  await expect(page.locator('.confirm-modal')).toHaveCount(0);
+});
+
 test('the AI Design Review panel opens, builds a prompt from the diagram, and accepts a spec attachment', async ({ page }) => {
   await addComponentByName(page, 'PostgreSQL');
   await openToolbarGroup(page, 'Tools');
