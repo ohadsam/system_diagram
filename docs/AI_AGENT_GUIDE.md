@@ -89,6 +89,8 @@ this repo" quick-start.
 | Change which side a connector anchors on (new connector, or after Auto-arrange) | `js/core/geometry.js#pickBestSides(fromRect, toRect)` — pure, symmetric, unit-testable. Called from `connectorInteractions.js#beginConnectFromNode` (pointerup) and `canvas.js#autoArrangeAll` |
 | Change Auto-arrange's layout algorithm | `js/core/autoLayout.js#computeAutoLayout(nodes, edges)` — pure, DOM-free (rank assignment, barycenter ordering, row-wrap constants at the top of the file) + `js/canvas/canvas.js#autoArrangeAll` (dispatch + re-pick edge sides + `fitToScreen`) |
 | Change which routing avoids obstacles by default | `js/canvas/connector.js#buildEdgePath` — `'orthogonal'` and `'magic'` both call `core/magicRouter.js#computeMagicWaypoints` now; `'straight'`/`'curved'` stay literal |
+| Change where along a side a connector actually anchors (not just which side) | `js/core/geometry.js#sideAnchor(rect, side, offset)` (0..1 along the side, default 0.5 = midpoint) / `#computeAnchorOffset(rect, side, point)` (the inverse) — see "Common pitfalls" below before reusing an offset across a `pickBestSides` side change |
+| Change the Sequence Diagram wizard/lifeline shape/message numbering | `js/modals/sequenceDiagramModal.js` (wizard UI) + `js/core/sequenceDiagram.js#layoutLifelines` (pure layout) + `js/canvas/canvas.js#createSequenceDiagram`/`#computeMessageSequenceNumbers` + `js/data/categories/shapes.js` (`shape-lifeline` def) + `css/node.css`'s `[data-shape="lifeline"]` rules (title box + dashed line + full-height conn-points). See docs/ARCHITECTURE.md's "Sequence diagrams" section. |
 | Mark a component as "popular" (sidebar highlight)   | `popular: true` in the `c(...)` call (`js/data/schema.js`) — same curation bar as `related`, see `add-library-item` skill |
 | Add/change Favorites (folders, CRUD, reorder)       | `js/io/favorites.js` (storage — folders/favorites as flat arrays with `parentId`/`folderId` + `order`) + `js/sidebar/sidebar.js` (`renderFavoritesCategory`/`renderFavoritesTree`/`renderFavoriteFolder`, the recursive tree UI) + `js/modals/promptModal.js` (folder-name text prompt) |
 
@@ -466,3 +468,19 @@ npm test
   never fails even when the feature is correctly absent, silently testing
   nothing. This one's easy to get wrong the first time and won't show up as
   a failure — it shows up as a test that can never catch a regression.
+- **An anchor offset computed against one side is meaningless against a
+  different one — recompute it against the side `pickBestSides` actually
+  settles on, not the side that was literally grabbed.**
+  `connectorInteractions.js#beginConnectFromNode`'s `onUp` handler grabs a
+  connector from one side (say `left`, a Y-fraction) but `pickBestSides`
+  can independently decide the edge should actually anchor on a different
+  side (say `top`, an X-fraction) based on the two nodes' relative
+  position. `fromOffset` is therefore (re-)computed in `onUp` against
+  `sides.fromSide` — the side that was actually settled on — from the
+  original grab point, not carried over from whatever was computed at
+  grab time against the originally-grabbed side. Getting this wrong
+  doesn't crash (the offset is clamped 0..1 either way) — it just silently
+  puts the connector at a nonsensical point along the wrong axis. Same
+  principle applies to any other offset-like value derived from a
+  drag gesture whose final "side"/"target" can differ from its starting
+  one.

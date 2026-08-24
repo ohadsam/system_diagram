@@ -1,12 +1,15 @@
 // Right slide-in details panel: notes, labels, sub-components and (for
-// "server with rows" nodes) rows — opened via a node's ⓘ button.
+// "server with rows" nodes) rows — opened via a node's ⓘ button. Also
+// (separately — see `openEdge` below) shows a message/connector's label and
+// notes when exactly one edge is selected, e.g. for annotating a
+// sequence-diagram message with extra context.
 import * as store from '../core/store.js';
 import { el, clear, rerenderPreservingUiState } from '../utils/dom.js';
 import { nextId } from '../core/id.js';
 import { textInput, field, selectInput, checkbox } from '../utils/formControls.js';
 import { LAYER_DATALIST_ID, ensureLayerDatalist, findLayerByName } from '../utils/layerDatalist.js';
 import { SUBCOMPONENTS_DISPLAY_MODES } from '../core/project.js';
-import { getReplicationInfoForNode } from '../canvas/canvas.js';
+import { getReplicationInfoForNode, computeMessageSequenceNumbers } from '../canvas/canvas.js';
 import { getUnattachedLayerSuggestions } from '../canvas/suggestions.js';
 import { readJSON, writeJSON } from '../io/storage.js';
 
@@ -16,6 +19,7 @@ const MAX_PANEL_WIDTH = 640;
 
 let rootEl = null;
 let currentNodeId = null;
+let currentEdgeId = null;
 let isCollapsed = false;
 let resizeHandleEl = null;
 // Which curated sub-component suggestions are currently checked, keyed by
@@ -32,16 +36,22 @@ export function initDetailsPanel(root) {
   initResizeHandle();
 
   window.addEventListener('sdb:open-details', (e) => open(e.detail.nodeId));
+  window.addEventListener('sdb:open-edge-details', (e) => openEdge(e.detail.edgeId));
 
   // Full rebuild on every store change (see render()'s clear()+rebuild) would
   // otherwise steal focus from a field the user is typing into and reset
   // .details-body's scroll position on every keystroke — see
   // utils/dom.js#rerenderPreservingUiState.
   store.subscribe('change', () => {
-    if (!currentNodeId) return;
-    const node = store.getState().nodes.find((n) => n.id === currentNodeId);
-    if (!node) close();
-    else rerenderPreservingUiState(rootEl, () => render(node), '.details-body');
+    if (currentNodeId) {
+      const node = store.getState().nodes.find((n) => n.id === currentNodeId);
+      if (!node) close();
+      else rerenderPreservingUiState(rootEl, () => render(node), '.details-body');
+    } else if (currentEdgeId) {
+      const edge = store.getState().edges.find((e) => e.id === currentEdgeId);
+      if (!edge) close();
+      else rerenderPreservingUiState(rootEl, () => renderEdgeDetails(edge), '.details-body');
+    }
   });
 
   // Keep the panel in sync with the canvas's own selection instead of only
@@ -50,12 +60,15 @@ export function initDetailsPanel(root) {
   // whatever was previously selected, and selecting a different single node
   // switches the panel straight to it instead of continuing to show the old
   // one — either was confusing before, since selection changes never
-  // reached this module at all. A multi/edge-only selection just closes the
-  // panel (nothing single-node-specific left to show).
+  // reached this module at all. A single-edge selection opens the edge
+  // (message) variant below; any other combination (multi-select, or a
+  // mixed node+edge selection) just closes the panel.
   store.subscribe('selection', (selection) => {
-    if (!currentNodeId) return;
+    if (!currentNodeId && !currentEdgeId) return;
     if (selection.nodeIds.length === 1 && !selection.edgeIds.length) {
       if (selection.nodeIds[0] !== currentNodeId) open(selection.nodeIds[0]);
+    } else if (selection.edgeIds.length === 1 && !selection.nodeIds.length) {
+      if (selection.edgeIds[0] !== currentEdgeId) openEdge(selection.edgeIds[0]);
     } else {
       close();
     }
@@ -112,6 +125,7 @@ function initResizeHandle() {
 
 function open(nodeId) {
   currentNodeId = nodeId;
+  currentEdgeId = null;
   const node = store.getState().nodes.find((n) => n.id === nodeId);
   if (!node) return;
   isCollapsed = false;
@@ -120,8 +134,19 @@ function open(nodeId) {
   rootEl.classList.add('open');
 }
 
+function openEdge(edgeId) {
+  currentEdgeId = edgeId;
+  currentNodeId = null;
+  const edge = store.getState().edges.find((e) => e.id === edgeId);
+  if (!edge) return;
+  isCollapsed = false;
+  renderEdgeDetails(edge);
+  rootEl.classList.add('open');
+}
+
 export function close() {
   currentNodeId = null;
+  currentEdgeId = null;
   isCollapsed = false;
   rootEl.classList.remove('open', 'collapsed');
 }
@@ -136,6 +161,64 @@ function updateNode(fn) {
     const n = draft.nodes.find((x) => x.id === currentNodeId);
     if (n) fn(n);
   });
+}
+
+function updateEdge(fn) {
+  store.dispatch((draft) => {
+    const e = draft.edges.find((x) => x.id === currentEdgeId);
+    if (e) fn(e);
+  });
+}
+
+/** Edge (message/connector) variant of render() above — deliberately a
+ * separate, independent path rather than folded into the node-centric
+ * render() (large, heavily tested, and every field there is node-only) —
+ * label, a free-text notes field (new — edges had no notes before this),
+ * and, when both endpoints are sequence-diagram lifelines, the message's
+ * auto-computed order (see canvas/canvas.js#computeMessageSequenceNumbers,
+ * the same numbering the small badge on the canvas itself shows). */
+function renderEdgeDetails(edge) {
+  clear(rootEl);
+  rootEl.classList.toggle('collapsed', isCollapsed);
+
+  const header = el('div', { class: 'details-header' });
+  header.appendChild(el('span', { class: 'details-icon', text: '↔️' }));
+  header.appendChild(textInput(edge.label, (v) => updateEdge((e) => { e.label = v; }), { class: 'details-title-input', placeholder: 'Message label', 'data-focus-key': 'edge-label' }));
+  header.appendChild(el('button', {
+    type: 'button',
+    class: 'details-collapse-toggle',
+    text: isCollapsed ? '‹' : '›',
+    title: isCollapsed ? 'Expand details' : 'Collapse details',
+    'aria-label': isCollapsed ? 'Expand details panel' : 'Collapse details panel',
+    onClick: toggleCollapsed,
+  }));
+  header.appendChild(el('button', { type: 'button', class: 'details-close', text: '✕', 'aria-label': 'Close details', onClick: close }));
+  rootEl.appendChild(header);
+
+  const body = el('div', { class: 'details-body' });
+
+  const state = store.getState();
+  const nodesById = new Map(state.nodes.map((n) => [n.id, n]));
+  const fromNode = nodesById.get(edge.from);
+  const toNode = nodesById.get(edge.to);
+  if (fromNode?.shape === 'lifeline' && toNode?.shape === 'lifeline') {
+    const seq = computeMessageSequenceNumbers(state.edges, nodesById).get(edge.id);
+    if (seq != null) body.appendChild(el('p', { class: 'modal-hint', text: `Message ${seq} in this sequence diagram (${fromNode.text} → ${toNode.text}).` }));
+  }
+
+  body.appendChild(el('h3', { text: 'Notes' }));
+  const notes = el('textarea', {
+    class: 'details-notes',
+    placeholder: 'Free-form notes about this message/connector…',
+    rows: 4,
+    'data-focus-key': 'edge-notes',
+    onInput: (e) => updateEdge((ed) => { ed.notes = e.target.value; }),
+  });
+  notes.value = edge.notes || '';
+  body.appendChild(notes);
+
+  rootEl.appendChild(body);
+  rootEl.appendChild(resizeHandleEl);
 }
 
 function render(node) {

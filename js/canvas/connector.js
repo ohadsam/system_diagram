@@ -55,9 +55,15 @@ export function createEdgeEl(edge) {
   const hit = svgEl('path', { class: 'edge-hit', fill: 'none', stroke: 'transparent', 'stroke-width': 16 });
   const line = svgEl('path', { class: 'edge-line', fill: 'none' });
   const label = svgEl('text', { class: 'edge-label' });
+  const seqBadge = svgEl('g', { class: 'edge-seq-badge' });
+  const seqCircle = svgEl('circle', { r: 9 });
+  const seqText = svgEl('text');
+  seqBadge.appendChild(seqCircle);
+  seqBadge.appendChild(seqText);
   g.appendChild(hit);
   g.appendChild(line);
   g.appendChild(label);
+  g.appendChild(seqBadge);
 
   const select = (e) => {
     e.stopPropagation();
@@ -73,16 +79,17 @@ export function createEdgeEl(edge) {
   return g;
 }
 
-export function updateEdgeEl(g, edge, fromNode, toNode, { selected = false, allNodes = [] } = {}) {
+export function updateEdgeEl(g, edge, fromNode, toNode, { selected = false, allNodes = [], sequenceNumber = null } = {}) {
   g.classList.toggle('selected', !!selected);
   g.classList.toggle('edge-magic', edge.routing === 'magic');
-  const a = sideAnchor(fromNode, edge.fromSide);
-  const b = sideAnchor(toNode, edge.toSide);
+  const a = sideAnchor(fromNode, edge.fromSide, edge.fromOffset ?? 0.5);
+  const b = sideAnchor(toNode, edge.toSide, edge.toOffset ?? 0.5);
   const d = buildEdgePath(edge, fromNode, toNode, a, b, allNodes);
 
   const hit = g.querySelector('.edge-hit');
   const line = g.querySelector('.edge-line');
   const label = g.querySelector('.edge-label');
+  const seqBadge = g.querySelector('.edge-seq-badge');
 
   hit.setAttribute('d', d);
   line.setAttribute('d', d);
@@ -105,6 +112,18 @@ export function updateEdgeEl(g, edge, fromNode, toNode, { selected = false, allN
   } else {
     label.style.display = 'none';
   }
+
+  if (sequenceNumber != null) {
+    seqBadge.querySelector('circle').setAttribute('cx', String(a.x));
+    seqBadge.querySelector('circle').setAttribute('cy', String(a.y));
+    const text = seqBadge.querySelector('text');
+    text.textContent = String(sequenceNumber);
+    text.setAttribute('x', String(a.x));
+    text.setAttribute('y', String(a.y));
+    seqBadge.style.display = '';
+  } else {
+    seqBadge.style.display = 'none';
+  }
 }
 
 /** Obstacle-avoiding routing computes a path fresh from current node
@@ -126,7 +145,7 @@ export function updateEdgeEl(g, edge, fromNode, toNode, { selected = false, allN
 function buildEdgePath(edge, fromNode, toNode, a, b, allNodes) {
   if (edge.routing === 'magic' || edge.routing === 'orthogonal') {
     const obstacles = allNodes.filter((n) => n.id !== fromNode.id && n.id !== toNode.id);
-    const waypoints = computeMagicWaypoints(fromNode, toNode, obstacles, edge.fromSide, edge.toSide);
+    const waypoints = computeMagicWaypoints(fromNode, toNode, obstacles, edge.fromSide, edge.toSide, edge.fromOffset ?? 0.5, edge.toOffset ?? 0.5);
     if (waypoints) return waypointsPath(waypoints);
     return buildPath('orthogonal', a, b, edge.fromSide, edge.toSide);
   }

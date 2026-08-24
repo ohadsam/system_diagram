@@ -124,7 +124,7 @@ Or open `index.html` directly in a browser.
 - **Custom components & shapes** — build and save your own styled
   components ("My Components", organizable into folders), or drop in
   basic shapes (rectangle, circle, diamond, cylinder, cloud, sticky note,
-  server-with-rows, ...).
+  server-with-rows, lifeline, ...).
 - **Persistence** — continuous autosave to `localStorage`, named
   "Save As" projects (with ⭐ favorites and a favorites filter), and JSON
   import/export for backup/sharing at every level: a single project, the
@@ -152,6 +152,13 @@ Or open `index.html` directly in a browser.
   automatically; delete one and its peer goes too. Mark any single
   component "Exclude from replication" to opt it out, or ❄️ freeze a whole
   pair to edit one side without touching the other.
+- **🔀 Sequence Diagrams** — name a set of participants and get a titled
+  vertical "lifeline" for each, evenly spaced; drag between two lifelines
+  to draw a message at whatever height represents when it happens (several
+  messages on the same lifeline land at their own distinct heights instead
+  of piling up), with messages between two lifelines auto-numbered in the
+  order they occur. Right-click any connector for a new "Open details"
+  notes panel — handy for annotating a message, but works on any connector.
 - **Export** — PNG and PDF snapshots of your diagram.
 - **Dismissible hints** — a short first-run guided tour, restartable any
   time, with a separate 🔔/🔕 toggle to turn hint bubbles on/off.

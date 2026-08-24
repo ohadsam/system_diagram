@@ -152,6 +152,30 @@ user-facing fix or feature, alongside this changelog.
   value `'magic'`, also chooseable for any existing connector from its
   style editor.
 
+## v1.21.0 (2026-08-24)
+
+New **"🔀 Sequence Diagram"** wizard (toolbar Create menu): name a set of participants (Client,
+Server, Database, ...) and get a titled vertical **lifeline** node for each, evenly spaced left to
+right. Messages are drawn with the existing drag-a-connector gesture, now generalized so a
+connector lands wherever it was actually grabbed/dropped along a side (`fromOffset`/`toOffset`,
+0..1, default 0.5 = the previous always-midpoint behavior — every existing diagram renders
+identically) rather than always the midpoint. A lifeline exposes a full-height connection strip
+instead of the usual small dot, so several messages on the same lifeline land at their own distinct
+heights instead of colliding on one point. A message between two lifelines defaults to straight
+routing and is automatically numbered (1, 2, 3, ...) top to bottom — purely computed for display, so
+it's always correct after undo/redo or editing.
+
+Also new: right-click any connector → **"Open details"** opens the right-side details panel (until
+now node-only) for that connector — its label plus a new free-text **notes** field — and, for a
+sequence-diagram message specifically, its auto-computed order. "🗺️ Auto-arrange" now skips (with
+an explanatory toast) instead of scrambling a sequence diagram's manual layout whenever a lifeline
+is on the canvas. The lifeline shape is also available on its own from the Basic Shapes sidebar
+category.
+
+Schema additions (`edges[]`): `fromOffset`/`toOffset` (default `0.5`) and `notes` (default `""`) —
+both backward compatible, an older saved project loads with the same defaults it always rendered
+with.
+
 ## v1.20.0 (2026-08-20)
 
 New "🧹 Clear canvas" action (canvas right-click) — deletes every component, connector and

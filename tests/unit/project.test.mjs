@@ -57,6 +57,22 @@ test('createEdge accepts "magic" as a routing override', () => {
   assert.equal(edge.routing, 'magic');
 });
 
+test('createEdge defaults fromOffset/toOffset to the midpoint and notes to empty, both overridable', () => {
+  const edge = createEdge('n1', 'n2');
+  assert.equal(edge.fromOffset, 0.5);
+  assert.equal(edge.toOffset, 0.5);
+  assert.equal(edge.notes, '');
+  const custom = createEdge('n1', 'n2', { fromOffset: 0.2, toOffset: 0.8, notes: 'the initial call' });
+  assert.equal(custom.fromOffset, 0.2);
+  assert.equal(custom.toOffset, 0.8);
+  assert.equal(custom.notes, 'the initial call');
+});
+
+test('createNode accepts "lifeline" as a valid shape', () => {
+  const node = createNode(null, 0, 0, { shape: 'lifeline' });
+  assert.equal(node.shape, 'lifeline');
+});
+
 test('removeNode cascades to connected edges', () => {
   const p = createEmptyProject();
   const n1 = createNode(null, 0, 0);
@@ -127,6 +143,32 @@ test('validateProject clamps unknown enum values to safe defaults instead of thr
   assert.equal(result.project.nodes[0].textAlign, 'center');
   assert.equal(result.project.nodes[0].textPosition, 'center');
   assert.equal(result.project.nodes[0].subComponentsDisplay, 'chips');
+});
+
+test('validateProject preserves "lifeline" as a valid shape', () => {
+  const raw = { nodes: [{ id: 'n1', x: 0, y: 0, shape: 'lifeline' }], edges: [] };
+  const result = validateProject(raw);
+  assert.equal(result.project.nodes[0].shape, 'lifeline');
+});
+
+test('validateProject preserves valid fromOffset/toOffset/notes, clamps an out-of-range offset, and defaults missing ones', () => {
+  const raw = {
+    nodes: [{ id: 'n1', x: 0, y: 0 }, { id: 'n2', x: 100, y: 0 }, { id: 'n3', x: 200, y: 0 }],
+    edges: [
+      { id: 'e1', from: 'n1', to: 'n2', fromOffset: 0.2, toOffset: 0.9, notes: 'a note' },
+      { id: 'e2', from: 'n2', to: 'n3', fromOffset: -5, toOffset: 50 },
+      { id: 'e3', from: 'n1', to: 'n3' },
+    ],
+  };
+  const result = validateProject(raw);
+  assert.equal(result.project.edges[0].fromOffset, 0.2);
+  assert.equal(result.project.edges[0].toOffset, 0.9);
+  assert.equal(result.project.edges[0].notes, 'a note');
+  assert.equal(result.project.edges[1].fromOffset, 0, 'clamped to 0');
+  assert.equal(result.project.edges[1].toOffset, 1, 'clamped to 1');
+  assert.equal(result.project.edges[2].fromOffset, 0.5, 'defaults to the midpoint when missing');
+  assert.equal(result.project.edges[2].toOffset, 0.5);
+  assert.equal(result.project.edges[2].notes, '', 'defaults to empty when missing');
 });
 
 test('validateProject preserves valid textPosition/iconVisible/subComponentsDisplay values', () => {

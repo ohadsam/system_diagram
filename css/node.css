@@ -132,6 +132,74 @@
 .node[data-shape="note"] .node-body { border-radius: 2px; transform: rotate(-1deg); box-shadow: var(--shadow-md); }
 .node[data-shape="rows"] .node-body { border-radius: 10px; justify-content: flex-start; padding: 0; }
 
+/* Sequence-diagram lifeline — a titled box (::before, same "fill layer
+   needs a stacking context to paint behind normal-flow content" reasoning
+   as diamond/hexagon above, established here via an explicit z-index:0
+   rather than clip-path since there's no clip-path on this shape) pinned
+   at the top, with a thin dashed vertical line (::after, outline-only like
+   the cylinder's pseudo-elements — no stacking-context trick needed since
+   it never paints a fill) spanning the rest of the node's full height. See
+   docs/ARCHITECTURE.md "Sequence diagrams" for why messages connect at
+   arbitrary heights along this line instead of a single fixed point. */
+.node[data-shape="lifeline"] .node-body {
+  --lifeline-box-h: 44px;
+  position: relative;
+  z-index: 0;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none;
+  border-radius: 0;
+  justify-content: flex-start;
+}
+
+.node[data-shape="lifeline"] .node-body::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: var(--lifeline-box-h);
+  background: var(--node-fill);
+  border: var(--node-border-width, 2px) solid var(--node-stroke);
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+.node[data-shape="lifeline"] .node-body::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: var(--lifeline-box-h);
+  bottom: 0;
+  width: 0;
+  border-left: 2px dashed var(--node-stroke);
+  transform: translateX(-1px);
+  pointer-events: none;
+}
+
+/* The left/right connect-points become full-height hit-strips instead of
+   the small centered dot every other shape uses, so a message can be
+   grabbed/dropped at whatever height (time) it actually represents — see
+   canvas/connectorInteractions.js. */
+.node[data-shape="lifeline"] .conn-left,
+.node[data-shape="lifeline"] .conn-right {
+  top: 0;
+  height: 100%;
+  width: 14px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+}
+.node[data-shape="lifeline"] .conn-left { left: -7px; }
+.node[data-shape="lifeline"] .conn-right { right: -7px; }
+.node[data-shape="lifeline"]:hover .conn-left,
+.node[data-shape="lifeline"]:hover .conn-right,
+.node[data-shape="lifeline"].selected .conn-left,
+.node[data-shape="lifeline"].selected .conn-right {
+  background: rgba(79, 70, 229, 0.12);
+}
+
 .node:hover .node-body {
   box-shadow: var(--shadow-md);
 }

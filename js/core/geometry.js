@@ -9,19 +9,42 @@ export function rectCenter(rect) {
   return { x: rect.x + rect.w / 2, y: rect.y + rect.h / 2 };
 }
 
-/** Anchor point on a node's border for a given side ('top'|'right'|'bottom'|'left'). */
-export function sideAnchor(rect, side) {
+/**
+ * Anchor point on a node's border for a given side
+ * ('top'|'right'|'bottom'|'left'), at `offset` (0..1) along that side —
+ * defaults to 0.5, the midpoint every call site used exclusively before a
+ * connector could land anywhere else. A tall node with several connectors
+ * on the same side (e.g. a sequence-diagram lifeline) needs those spread
+ * out at different heights instead of stacking on the one midpoint — see
+ * `computeAnchorOffset` below for the inverse (point → offset) used when a
+ * connector is actually dragged from/to a specific spot.
+ */
+export function sideAnchor(rect, side, offset = 0.5) {
   switch (side) {
     case 'top':
-      return { x: rect.x + rect.w / 2, y: rect.y };
+      return { x: rect.x + rect.w * offset, y: rect.y };
     case 'bottom':
-      return { x: rect.x + rect.w / 2, y: rect.y + rect.h };
+      return { x: rect.x + rect.w * offset, y: rect.y + rect.h };
     case 'left':
-      return { x: rect.x, y: rect.y + rect.h / 2 };
+      return { x: rect.x, y: rect.y + rect.h * offset };
     case 'right':
     default:
-      return { x: rect.x + rect.w, y: rect.y + rect.h / 2 };
+      return { x: rect.x + rect.w, y: rect.y + rect.h * offset };
   }
+}
+
+/**
+ * Inverse of `sideAnchor`: given the side a connector anchors on and the
+ * canvas-space point it was actually grabbed/dropped at, returns the
+ * clamped 0..1 fraction along that side. `top`/`bottom` vary along x,
+ * `left`/`right` along y — an anchor's own axis-perpendicular coordinate is
+ * irrelevant here (e.g. for `left`/`right`, x is ignored).
+ */
+export function computeAnchorOffset(rect, side, point) {
+  if (side === 'top' || side === 'bottom') {
+    return rect.w ? clamp((point.x - rect.x) / rect.w, 0, 1) : 0.5;
+  }
+  return rect.h ? clamp((point.y - rect.y) / rect.h, 0, 1) : 0.5;
 }
 
 /** Pick the side of `rect` closest to `point` (used to auto-pick a connector anchor). */

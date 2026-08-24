@@ -53,11 +53,13 @@ function clampInt(v, min, max) {
  * @param {{x:number,y:number,w:number,h:number}[]} obstacles other node rects to avoid (must already exclude fromRect/toRect)
  * @param {'top'|'right'|'bottom'|'left'} fromSide
  * @param {'top'|'right'|'bottom'|'left'} toSide
+ * @param {number} [fromOffset] 0..1 along fromSide, default 0.5 (midpoint)
+ * @param {number} [toOffset] 0..1 along toSide, default 0.5 (midpoint)
  * @returns {{x:number,y:number}[]|null} ordered waypoints from the `from` anchor to the `to` anchor, or null if no route was found
  */
-export function computeMagicWaypoints(fromRect, toRect, obstacles, fromSide, toSide) {
-  const a = sideAnchor(fromRect, fromSide);
-  const b = sideAnchor(toRect, toSide);
+export function computeMagicWaypoints(fromRect, toRect, obstacles, fromSide, toSide, fromOffset = 0.5, toOffset = 0.5) {
+  const a = sideAnchor(fromRect, fromSide, fromOffset);
+  const b = sideAnchor(toRect, toSide, toOffset);
   const aNormal = sideNormal(fromSide);
   const bNormal = sideNormal(toSide);
   const aStub = { x: a.x + aNormal.dx * EXIT_STUB, y: a.y + aNormal.dy * EXIT_STUB };

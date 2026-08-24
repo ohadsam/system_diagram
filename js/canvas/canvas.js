@@ -5,11 +5,12 @@ import * as store from '../core/store.js';
 import { createEdge, nextZIndex, removeNode as removeNodeFromProject, removeEdge as removeEdgeFromProject, createNode, duplicateProject } from '../core/project.js';
 import { buildReplicationPair } from '../core/replication.js';
 import { computeAutoLayout } from '../core/autoLayout.js';
+import { layoutLifelines } from '../core/sequenceDiagram.js';
 import { getComponentById } from '../data/index.js';
 import { getCustomComponents } from '../io/customComponents.js';
 import { buildCreationOverrides } from '../io/nodeDefaults.js';
 import { el, svgEl } from '../utils/dom.js';
-import { rectsIntersect, pickBestSides } from '../core/geometry.js';
+import { rectsIntersect, pickBestSides, sideAnchor } from '../core/geometry.js';
 import { nextId } from '../core/id.js';
 import { showToast } from '../utils/toast.js';
 import * as viewport from './viewport.js';
@@ -271,6 +272,7 @@ function render(state) {
     }
   }
   const nodesById = new Map(state.nodes.map((n) => [n.id, n]));
+  const sequenceNumbers = computeMessageSequenceNumbers(state.edges, nodesById);
   for (const edge of state.edges) {
     const fromNode = nodesById.get(edge.from);
     const toNode = nodesById.get(edge.to);
@@ -281,8 +283,31 @@ function render(state) {
       edgeElements.set(edge.id, elRef);
       edgeLayer.appendChild(elRef);
     }
-    updateEdgeEl(elRef, edge, fromNode, toNode, { selected: store.getSelection().edgeIds.includes(edge.id), allNodes: state.nodes });
+    updateEdgeEl(elRef, edge, fromNode, toNode, {
+      selected: store.getSelection().edgeIds.includes(edge.id),
+      allNodes: state.nodes,
+      sequenceNumber: sequenceNumbers.get(edge.id) ?? null,
+    });
   }
+}
+
+/** Auto-numbers "messages" — edges between two lifeline nodes — in
+ * top-to-bottom order (their vertical anchor position, i.e. when in the
+ * flow they happen), purely for display: nothing is persisted, so it can
+ * never go stale and is naturally correct after undo/redo, adding a new
+ * message, or deleting one. Every other edge (ordinary component
+ * connectors) gets no number at all. */
+export function computeMessageSequenceNumbers(edges, nodesById) {
+  const messages = [];
+  for (const edge of edges) {
+    const fromNode = nodesById.get(edge.from);
+    const toNode = nodesById.get(edge.to);
+    if (fromNode?.shape !== 'lifeline' || toNode?.shape !== 'lifeline') continue;
+    const y = sideAnchor(fromNode, edge.fromSide, edge.fromOffset ?? 0.5).y;
+    messages.push({ id: edge.id, y });
+  }
+  messages.sort((a, b) => a.y - b.y);
+  return new Map(messages.map((m, i) => [m.id, i + 1]));
 }
 
 /** One subtle bounding box behind every multi-member group — a regular
@@ -561,6 +586,29 @@ export function instantiatePattern(defId, clientX, clientY) {
 
 export function instantiatePatternAtCenter(defId) {
   instantiatePattern(defId, null, null);
+}
+
+/** Creates a fresh set of titled "lifeline" nodes for a sequence/
+ * communication-flow diagram (see modals/sequenceDiagramModal.js) — evenly
+ * spaced, centered on the current view. Only the lifelines themselves are
+ * created here; messages between them are drawn afterward with the
+ * ordinary node-to-node connect gesture (now offset-aware specifically so
+ * several messages can land on the same lifeline at different heights —
+ * see connectorInteractions.js and core/geometry.js#sideAnchor). */
+export function createSequenceDiagram(names) {
+  const def = resolveComponentDef('shape-lifeline');
+  if (!def || !names.length) return;
+  const point = screenCenterCanvasPoint();
+  const state = store.getState();
+  let z = nextZIndex(state);
+  const layout = layoutLifelines(names, point.x, point.y - def.defaultSize.h / 2, def.defaultSize);
+  const newNodes = layout.map((spec) => createNode(def, spec.x, spec.y, { zIndex: z++, text: spec.text }));
+
+  store.dispatch((draft) => {
+    draft.nodes.push(...newNodes);
+  });
+  store.select(newNodes.map((n) => n.id), []);
+  showToast(`Created a sequence diagram with ${newNodes.length} lifelines — drag between two lifelines to draw a message.`, 'success', 3200);
 }
 
 export function addCustomShapeNode(shapeDef, centerPoint) {
@@ -941,6 +989,13 @@ export function fitToScreen() {
 export function autoArrangeAll() {
   const state = store.getState();
   if (!state.nodes.length) return;
+  // A sequence diagram's horizontal lifeline layout is manual and
+  // meaningful (x position = which participant, not "flows into") —
+  // running the connector-direction layout over it would scramble it.
+  if (state.nodes.some((n) => n.shape === 'lifeline')) {
+    showToast('Auto-arrange isn\'t available with a sequence diagram on the canvas — its layout is manual.', 'info', 3200);
+    return;
+  }
   const positions = computeAutoLayout(state.nodes, state.edges);
   store.dispatch((draft) => {
     for (const n of draft.nodes) {
@@ -1000,6 +1055,8 @@ function openNodeContextMenu(nodeId, evt) {
 
 function openEdgeContextMenu(edgeId, evt) {
   const items = [
+    { label: 'Open details', icon: 'ⓘ', onClick: () => window.dispatchEvent(new CustomEvent('sdb:open-edge-details', { detail: { edgeId } })) },
+    'separator',
     { label: 'Duplicate', icon: '⧉', onClick: () => { store.select([], [edgeId]); duplicateSelection(); } },
     'separator',
     { label: 'Delete connector', icon: '🗑️', danger: true, onClick: () => { store.select([], [edgeId]); deleteSelection(); } },

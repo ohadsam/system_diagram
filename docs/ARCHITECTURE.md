@@ -19,7 +19,7 @@ index.html ──► js/main.js
                  ├─ toolbar/toolbar.js   (reads store selection, writes via store)
                  ├─ panel/detailsPanel.js
                  ├─ panel/aiReviewPanel.js
-                 ├─ modals/*.js          (incl. modals/generateDesignModal.js, modals/replicationModal.js)
+                 ├─ modals/*.js          (incl. modals/generateDesignModal.js, modals/replicationModal.js, modals/sequenceDiagramModal.js)
                  ├─ io/*.js              (localStorage, file, image/pdf export)
                  └─ hints/hints.js
 ```
@@ -148,6 +148,108 @@ user happened to drag from/to. Used both when drawing a brand-new connector
 when `autoArrangeAll()` (below) repositions every node and needs to re-pick
 every edge's sides to match.
 
+**Anchor-point offset** (`core/geometry.js#sideAnchor(rect, side, offset =
+0.5)` / `#computeAnchorOffset(rect, side, point)`): `sideAnchor` used to
+always return a side's exact midpoint; it now takes a third `offset`
+argument (0..1 along the side) so an edge can land anywhere along its
+anchored side, not just dead center — every call site
+(`magicRouter.js#computeMagicWaypoints`, `connector.js#updateEdgeEl`,
+`connectorInteractions.js`) defaults it to `0.5`, so this is additive and
+every pre-existing diagram renders identically. `computeAnchorOffset` is
+the inverse — given a side and a canvas-space point, the clamped 0..1
+fraction along it — used by `beginConnectFromNode` to turn the actual
+grab/drop point into a real, non-default offset instead of discarding it.
+For an ordinary small connection-point dot (which *is* positioned at the
+midpoint) this comes out to `~0.5` regardless, so normal diagrams are
+unaffected in practice; a tall shape can expose a full-height connection
+strip instead (see "Database cylinder shape"'s sibling section below,
+`data-shape="lifeline"`), letting several connectors land at different,
+deliberate heights on the same node instead of colliding at the midpoint —
+the mechanism the Sequence Diagram feature (below) is built on.
+
+One correctness subtlety `beginConnectFromNode`'s `onUp` handler has to get
+right: `pickBestSides` (above) can choose a *different* final `fromSide`
+than whichever side was actually grabbed (e.g. the user grabbed `left` but
+the two nodes' relative position means `top` reads better) — so the
+edge's `fromOffset` is *not* computed once at grab time against the grabbed
+side and reused; it's (re-)computed in `onUp`, against `sides.fromSide`
+(the side pickBestSides actually settled on), from the original grab point.
+Reusing an offset computed for one axis (e.g. "40% of the way down a
+left/right edge") against a different final axis (top/bottom, "40% of the
+way down" makes no sense there) would silently misapply a Y-fraction as an
+X-fraction or vice versa — clamped so it can't go out of bounds, but
+visually wrong. `toOffset` has no equivalent issue since `sides.toSide` is
+already known by the time the drop point is available.
+
+## Sequence diagrams (`core/sequenceDiagram.js`, `modals/sequenceDiagramModal.js`, `canvas.js#createSequenceDiagram`)
+
+A UML-style sequence/communication-flow diagram, built almost entirely out
+of existing mechanisms rather than a parallel diagram type:
+
+- **Lifeline** is just another node `shape` (`data-shape="lifeline"` in
+  `css/node.css`) — a titled box pinned at the top (`::before`, needs its
+  own small stacking context via an explicit `z-index: 0` on `.node-body`
+  since there's no `clip-path` here to establish one implicitly the way
+  diamond/hexagon get for free) and a thin dashed vertical line spanning
+  the rest of the height (`::after`, outline-only like the cylinder shape's
+  pseudo-elements, so no stacking-context trick needed for it). Its
+  `data/categories/shapes.js` entry sets `textPosition: 'top', iconVisible:
+  false` — the exact same "a shape def's own textPosition/iconVisible wins
+  over the user's global default" mechanism the "Group / Container" frame
+  shape already established (see "A component's own textPosition/
+  iconVisible default" below) — plus a tall `defaultSize`.
+- Its left/right `.conn-point` connect-handles are CSS-overridden to be
+  full-height strips (`height: 100%`) instead of every other shape's small
+  centered dot — this is *what* lets a user grab/drop a message at an
+  arbitrary height, feeding a real offset into `computeAnchorOffset` above
+  instead of a dot that's always at the midpoint anyway. Top/bottom
+  connect-points are left as ordinary small dots (unused in practice for a
+  horizontal sequence diagram, but harmless).
+- **Messages are ordinary edges** — nothing new in the schema for "this
+  edge is a message" as a concept. `beginConnectFromNode`'s `onUp` handler
+  special-cases exactly one thing when both endpoints turn out to be
+  `shape === 'lifeline'`: it defaults the new edge's `routing` to
+  `'straight'` (an elbow jog would look wrong for a direct message) — the
+  offset-based anchoring itself is the shape-agnostic mechanism above, not
+  lifeline-specific code.
+- **Auto-numbering** (`canvas.js#computeMessageSequenceNumbers(edges,
+  nodesById)`): computed fresh in the `render()` pass, not stored — filters
+  edges to lifeline-to-lifeline ones, sorts by each edge's real anchor Y
+  position (`sideAnchor(fromNode, edge.fromSide, edge.fromOffset)`), and
+  hands each `updateEdgeEl` a 1-based `sequenceNumber` that
+  `connector.js#createEdgeEl` renders as a small numbered circle
+  (`.edge-seq-badge`) at the message's start point. Being purely derived
+  means it can never go stale and needs no migration — it's automatically
+  correct after undo/redo, adding/deleting a message, or loading an older
+  project that predates this feature. It's also exported and reused as-is
+  by `panel/detailsPanel.js`'s edge-details variant (below) to show "Message
+  N" there, rather than duplicating the ordering logic.
+- **The wizard** (`modals/sequenceDiagramModal.js`) is a self-contained,
+  non-store-backed dynamic form — a local `names` array mutated in place
+  by each row's `textInput` `onChange` (no re-render per keystroke, so
+  nothing needs `rerenderPreservingUiState`'s focus-preservation dance;
+  only add/remove-row buttons trigger a full `rerender()`, and losing focus
+  on a button click is a non-issue). "Create" validates (2+ non-empty
+  names) at click time, rather than keeping a live-disabled state in sync
+  with typing — the simpler design, given the form never needs to react to
+  a name edit itself. Follows `replicationModal.js`'s established
+  `sdb:open-sequence-diagram` window-event pattern for consistency with
+  the rest of this dropdown's wizards.
+- `core/sequenceDiagram.js#layoutLifelines(names, centerX, centerY, size)`
+  is the pure, DOM-free layout math (even spacing, centered on a point) —
+  same "pull the pure math into its own tested module" precedent as
+  `canvas/groupBackgrounds.js#computeGroupBounds`.
+  `canvas.js#createSequenceDiagram(names)` is the thin dispatch wrapper —
+  resolves the `shape-lifeline` def, calls `layoutLifelines`, builds nodes
+  via `createNode`, one `store.dispatch`, `store.select(...)` — the exact
+  same shape as `instantiatePattern`/`instantiatePatternAtCenter`. It
+  creates *only* the lifelines; messages are drawn afterward by the user
+  with the ordinary connect gesture.
+- `autoArrangeAll()` (below) bails out early (with a toast) if any node on
+  the canvas is `shape === 'lifeline'`, rather than letting
+  `computeAutoLayout` scramble a sequence diagram's meaningful horizontal
+  layout — see that section for where the guard sits.
+
 ## Auto-arrange (`core/autoLayout.js`, `canvas.js#autoArrangeAll`)
 
 `computeAutoLayout(nodes, edges)` is a pure function (no DOM, no store) that
@@ -179,6 +281,13 @@ this second step, edges keep whatever anchor sides they had before the
 nodes moved, which can leave an unnecessary loop-out even once the nodes
 themselves are cleanly stacked — then calls `fitToScreen()`. Wired to the
 Tools dropdown's "🗺️ Auto-arrange" button (`toolbar.js#buildToolsGroupButtons`).
+
+`autoArrangeAll()` bails out immediately (with an explanatory toast,
+before touching `computeAutoLayout` at all) if any node's `shape ===
+'lifeline'` — see "Sequence diagrams" above. A sequence diagram's x
+position is meaningful (which participant) and its layout is manual by
+design; this connector-direction layout has no concept of that and would
+just scramble it.
 
 ## Navigation tools (`canvas/toolMode.js`)
 
@@ -502,10 +611,34 @@ Opened via a node's ⓘ button or right-click "Open details" (both fire a
 subscribes to `store.subscribe('selection', ...)` directly: if the panel
 is already open and the selection changes to a different single node it
 switches straight to it (`open(newNodeId)`); any other selection change
-(deselect, multi-select, an edge) closes it. Before this the panel had no
+(deselect, multi-select) closes it. Before this the panel had no
 `'selection'` subscription at all — only `'change'` (data mutations),
 which has no way to represent "the user clicked something else" — so it
 silently kept showing stale content for whatever was open before.
+
+**Connector (edge) variant** — `currentEdgeId`, `openEdge(edgeId)`,
+`renderEdgeDetails(edge)`, opened via right-click "Open details" on a
+connector (`canvas.js#openEdgeContextMenu`, a new `sdb:open-edge-details`
+event mirroring `sdb:open-details`'s pattern). Deliberately a *parallel*
+code path rather than folded into the node-centric `render()`/`open()`
+above: that function is large, heavily tested, and every field in it is
+node-only (sub-components, rows, replication...), so extending it to
+branch on "is this actually an edge?" throughout would have real
+regression risk for no benefit — a small sibling function reusing the same
+`<div class="details-panel">` shell (header, notes textarea, resize
+handle) is lower-risk and just as discoverable. Selecting a single
+connector while the panel is already open switches it to this variant the
+same way selecting a different node does (`store.subscribe('selection',
+...)` now also checks `selection.edgeIds.length === 1`); selecting a node
+while it's showing an edge (or vice versa) switches the other way. Shows
+the connector's `label` (mirroring the arrow editor's own label field, for
+convenience — editing it here or there is the same field) and a new
+`notes` textarea (edges had nowhere to note extra context before this),
+plus — only when both endpoints are `shape === 'lifeline'` — a read-only
+"Message N" line computed via the exact same
+`canvas.js#computeMessageSequenceNumbers` the on-canvas numbered badge
+uses (exported for this reuse rather than reimplemented), so the two
+never disagree.
 
 **Resize handle** (`initResizeHandle`, `css/panel.css`): a persistent
 `<div class="details-resize-handle">` is created once and re-appended to

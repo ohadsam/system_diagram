@@ -56,6 +56,22 @@ export async function connectNodes(page, nodeALocator, nodeBLocator) {
   await page.mouse.up();
 }
 
+/** Drags a connector from a specific height (0..1 fraction of node A's own
+ * height, from its right edge) to a specific height on node B's left edge —
+ * unlike connectNodes (which always grabs/drops at the vertical center),
+ * this exercises offset-aware anchoring (core/geometry.js#sideAnchor/
+ * computeAnchorOffset), e.g. drawing two sequence-diagram messages between
+ * the same pair of lifelines at different points in time. */
+export async function connectAtHeight(page, nodeALocator, nodeBLocator, yFractionA, yFractionB) {
+  const a = await nodeALocator.boundingBox();
+  const b = await nodeBLocator.boundingBox();
+  await nodeALocator.hover();
+  await page.mouse.move(a.x + a.width, a.y + a.height * yFractionA);
+  await page.mouse.down();
+  await page.mouse.move(b.x, b.y + b.height * yFractionB, { steps: 10 });
+  await page.mouse.up();
+}
+
 /** Screen-space point along a connector's *rendered* path (via SVG
  * getPointAtLength + getScreenCTM) — not its bounding-box center, which is
  * often empty space inside an elbow route's bend, and not a fixed offset

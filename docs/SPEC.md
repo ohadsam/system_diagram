@@ -345,6 +345,13 @@ full-backup export/import (4.7.3).
   from any point on the source still produces a geometrically sensible
   connector (e.g. exiting the bottom of a node stacked above another,
   rather than always the point that was literally grabbed).
+- Where along that side the connector actually lands is likewise wherever
+  it was actually grabbed/dropped (`fromOffset`/`toOffset`, 0..1 along the
+  side, default 0.5 = the midpoint) rather than always the midpoint — for
+  a normal small connection-point dot this comes out to the midpoint
+  either way, but a tall shape (see 4.15 Sequence Diagrams) exposes a
+  full-height strip so several connectors can land on the same node at
+  different heights instead of stacking on one point.
 - Style: color, thickness, dash pattern, routing (straight, orthogonal
   /elbow, curved/bezier, or **magic** — see 4.4.1), label text. The default
   orthogonal routing auto-avoids every other component in its path (the
@@ -359,10 +366,14 @@ full-backup export/import (4.7.3).
   recomputed fresh from current node positions on every render rather than
   stored, so it never goes stale.
 - Deleting either endpoint component deletes the connector too (see 4.3).
-- Right-click a connector for its own context menu: Duplicate, Delete.
-  Selecting it (click, or right-click) shows the same style editor as a
-  component in the toolbar's contextual row (4.5), just for arrow
-  properties instead.
+- Right-click a connector for its own context menu: Open details,
+  Duplicate, Delete. Selecting it (click, or right-click) shows the same
+  style editor as a component in the toolbar's contextual row (4.5), just
+  for arrow properties instead. "Open details" opens the right-side
+  details panel (4.6) for this connector specifically — its label plus a
+  free-form notes field (new; a connector previously had nowhere to note
+  extra context), and — when both endpoints are sequence-diagram lifelines
+  (4.15) — its auto-computed message order.
 
 #### 4.4.1 Magic (auto-avoid) routing
 Every freshly-drawn connector already routes itself around every other
@@ -441,9 +452,15 @@ default routing started doing the same thing unconditionally.)
 - **Resizable**: drag the panel's left edge to widen or narrow it (260–640px);
   the chosen width is remembered across reloads.
 - **Tracks canvas selection**: while open, selecting a different single
-  component switches the panel straight to it; deselecting (clicking empty
-  canvas, Escape) or selecting a multi/edge selection closes the panel
-  rather than leaving it open on stale content.
+  component switches the panel straight to it, and selecting a single
+  connector switches it to that connector's own details variant (see
+  below); deselecting (clicking empty canvas, Escape) or selecting a
+  multi-selection closes the panel rather than leaving it open on stale
+  content.
+- **Connector (message) variant**: right-click a connector → "Open
+  details" (4.4) opens the same right-side panel showing the connector's
+  label and a free-text notes field instead of a component's fields — see
+  4.4 and, for a sequence diagram specifically, 4.15.
 
 ### 4.7 Persistence
 - Autosave current project to `localStorage` on every change (debounced).
@@ -704,6 +721,42 @@ runs inside `core/store.js#dispatch()`/`loadProject()` so every mutation
 path gets mirroring for free) and `js/modals/replicationModal.js` (the
 create/join/break UI).
 
+### 4.15 Sequence Diagrams
+A UML-style "communication flow" diagram — vertical **lifelines**, one per
+participant, with horizontal **messages** between them showing a call
+followed by a response (or any back-and-forth), read top to bottom as time.
+
+- **"🔀 Sequence Diagram" wizard** (toolbar Create menu) — enter 2+
+  participant names (add/remove rows; e.g. Client, Server, Database) and
+  click Create. One titled **lifeline** node per participant appears,
+  evenly spaced left to right, centered on the current view. This only
+  creates the lifelines — messages are drawn afterward.
+- **Lifeline**: a `lifeline`-shaped node — a titled box pinned at the top
+  with a thin dashed vertical line spanning the rest of its height. It's an
+  ordinary node otherwise: draggable, restylable (color/border), resizable,
+  renameable — and also available on its own from the Basic Shapes sidebar
+  category (as "Lifeline"), for adding one more to an existing diagram
+  without re-running the wizard.
+- **Messages**: drawn with the same drag-from-a-connection-point gesture as
+  any other connector (4.4), except a lifeline's left/right connection
+  points span its *full height* instead of a small dot at the midpoint —
+  grab/drop at whatever height represents when the message happens, and
+  several messages on the same lifeline land at their own distinct heights
+  instead of stacking on one point (see 4.4's `fromOffset`/`toOffset`).
+  A message between two lifelines defaults to straight routing (no elbow
+  jog) and is automatically numbered (1, 2, 3, ...) in top-to-bottom order —
+  a small numbered badge at its start — purely computed for display, not
+  stored, so it's always correct after adding/deleting/undoing a message.
+  Every other connector feature already applies: solid vs. dashed (a
+  natural call-vs-response convention), arrow direction, color, label, and
+  the right-click "Open details" notes panel (4.4, 4.6).
+- **Auto-arrange** (4.3.2) is skipped, with an explanatory toast, whenever a
+  lifeline is on the canvas — a sequence diagram's horizontal layout is
+  manual and meaningful (x position = which participant), not something a
+  connector-direction layout should rearrange.
+- A UML "note" attached to a lifeline needs no special support — drop a
+  Sticky Note (Basic Shapes) next to it like on any other diagram.
+
 ## 5. Non-functional requirements
 
 - **Security**: no `eval`/`innerHTML` with unsanitized input, no inline
@@ -755,10 +808,11 @@ create/join/break UI).
       "id": "edge_...",
       "from": "node_a", "to": "node_b",
       "fromSide": "right", "toSide": "left",
+      "fromOffset": 0.5, "toOffset": 0.5,
       "routing": "orthogonal",
       "color": "#334155", "width": 2, "dash": "solid",
       "startArrow": "none", "endArrow": "filled",
-      "label": "HTTPS"
+      "label": "HTTPS", "notes": ""
     }
   ],
   "replicationPairs": [
@@ -776,8 +830,12 @@ create/join/break UI).
 `routing` is one of `straight` / `orthogonal` / `curved` / `magic` (see
 4.4.1) — a magic-routed edge's actual path is never stored (it's
 recomputed live from current node positions), so no extra field is needed
-for it. `groupId` (default `null`) ties 2+ nodes into a Group/Ungroup unit
-— see 4.3.1. `replicationExcluded` (default `false`) and
+for it. `fromOffset`/`toOffset` (default `0.5`, each 0..1) are how far
+along `fromSide`/`toSide` the edge actually anchors — see 4.4 and 4.15.
+`notes` (default `""`) is free-form text shown/edited in the connector's
+own details-panel variant (4.6). `groupId` (default `null`) ties 2+ nodes
+into a Group/Ungroup unit — see 4.3.1. `replicationExcluded` (default
+`false`) and
 `replicationPairs` (default `[]`) drive Live Replication — see 4.14;
 `mode` is one of `active-active` / `active-passive` / `primary-replica`,
 purely descriptive, and `members` maps each side-A node id to its side-B

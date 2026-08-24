@@ -5,7 +5,7 @@ import * as store from '../core/store.js';
 import { createEdge } from '../core/project.js';
 import { svgEl } from '../utils/dom.js';
 import { screenToCanvas } from './viewport.js';
-import { sideAnchor, pickBestSides, straightPath } from '../core/geometry.js';
+import { sideAnchor, pickBestSides, straightPath, computeAnchorOffset } from '../core/geometry.js';
 import { focusEdge } from './canvas.js';
 
 let draftLayer = null;
@@ -18,7 +18,14 @@ export function beginConnectFromNode(nodeId, side, e) {
   const fromNode = store.getState().nodes.find((n) => n.id === nodeId);
   if (!fromNode || !draftLayer) return;
   e.currentTarget.setPointerCapture?.(e.pointerId);
-  const a = sideAnchor(fromNode, side);
+  // Where on the side the user actually grabbed, not always the midpoint —
+  // for most shapes the dot handle *is* the midpoint so this comes out to
+  // ~0.5 either way, but a tall shape (e.g. a sequence-diagram lifeline)
+  // exposes a full-height strip instead of a small dot (see css/node.css),
+  // letting several connectors land at different heights on the same node
+  // instead of stacking on one point. See core/geometry.js#sideAnchor.
+  const grabPoint = screenToCanvas(e.clientX, e.clientY);
+  const a = sideAnchor(fromNode, side, computeAnchorOffset(fromNode, side, grabPoint));
 
   const draft = svgEl('path', { class: 'edge-draft', fill: 'none' });
   draftLayer.appendChild(draft);
@@ -59,7 +66,21 @@ export function beginConnectFromNode(nodeId, side, e) {
       // right) whenever the grabbed handle didn't happen to face the other
       // node. See docs/ARCHITECTURE.md's connector routing section.
       const sides = toNode ? pickBestSides(fromNode, toNode) : { fromSide: side, toSide: 'left' };
-      const edge = createEdge(nodeId, targetNodeId, sides);
+      // Re-derive against `sides.fromSide` (which can differ from the side
+      // actually grabbed — see the comment on pickBestSides above) rather
+      // than reusing an offset computed for the grabbed side: a fraction
+      // meant for one axis (say, how far down a left/right edge) would be
+      // silently misapplied to the other axis (how far across a top/bottom
+      // edge) if pickBestSides ends up choosing a different side.
+      const fromOffset = computeAnchorOffset(fromNode, sides.fromSide, grabPoint);
+      const toOffset = toNode ? computeAnchorOffset(toNode, sides.toSide, screenToCanvas(ev.clientX, ev.clientY)) : 0.5;
+      const isMessage = toNode && fromNode.shape === 'lifeline' && toNode.shape === 'lifeline';
+      const edge = createEdge(nodeId, targetNodeId, {
+        ...sides,
+        fromOffset,
+        toOffset,
+        ...(isMessage ? { routing: 'straight' } : {}),
+      });
       store.dispatch((d) => {
         d.edges.push(edge);
       });

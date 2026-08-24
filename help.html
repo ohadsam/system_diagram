@@ -213,6 +213,7 @@
       <li><a href="#ai-review">AI Design Review</a></li>
       <li><a href="#generate-design">Generate Design from Spec</a></li>
       <li><a href="#replication">Live Replication</a></li>
+      <li><a href="#sequence-diagram">Sequence Diagrams</a></li>
       <li><a href="#shortcuts">Keyboard shortcuts</a></li>
       <li><a href="#faq">FAQ</a></li>
     </ul>
@@ -324,8 +325,9 @@
 
     <section id="connectors">
       <h2><span class="icon-badge">➡️</span> Connectors &amp; arrows</h2>
-      <p>Hover or select a component to reveal four small connection points on its edges. Drag from one to another component to draw a connector — it stays attached and re-routes live as you move things. Which point it actually starts/ends on is picked automatically from where the two components sit relative to each other, not fixed to whichever point you happened to grab — so a connector always exits/enters on the geometrically sensible side, whichever exact point you dragged from.</p>
+      <p>Hover or select a component to reveal four small connection points on its edges. Drag from one to another component to draw a connector — it stays attached and re-routes live as you move things. Which point it actually starts/ends on is picked automatically from where the two components sit relative to each other, not fixed to whichever point you happened to grab — so a connector always exits/enters on the geometrically sensible side, whichever exact point you dragged from. Where along that side it lands, though, <em>is</em> wherever you actually grabbed/dropped it — most shapes' connection points are a small dot right at the midpoint so this rarely matters, but a tall shape like a <a href="#sequence-diagram">sequence-diagram lifeline</a> exposes a full-height strip so several connectors can land on it at different heights instead of piling up on one point.</p>
       <p>Select a connector to style it: color, thickness, dash pattern, routing (straight / elbow / curved / 🪄 magic — see below), an independent arrow-head style for each end (none, open, filled, diamond, circle — so you can build one-way, two-way, or plain lines), and an optional label. The default (elbow) routing automatically avoids every other component in its path, using as few bends as possible — no extra step needed, every connector you draw does this out of the box.</p>
+      <p>Right-click a connector for its own menu: <strong>Open details</strong> (a right-side panel with the same label field plus a free-text notes field — see <a href="#details">Notes &amp; sub-components</a>), Duplicate, Delete.</p>
       <h3>🪄 Magic routing</h3>
       <p>Every connector already auto-avoids obstacles by default (see above). "🪄 Magic" is that same routing offered as an explicit choice in a connector's Routing dropdown, for when you want its distinct glowing style on purpose. If no clear path exists it falls back to a normal elbow connector rather than failing.</p>
       <div class="tip">💡 A magic connector keeps re-routing itself live as you move components around, exactly like every other routing style.</div>
@@ -334,6 +336,7 @@
     <section id="details">
       <h2><span class="icon-badge">ℹ️</span> Notes &amp; sub-components</h2>
       <p>Click the small ⓘ button on a component — or its 💡 badge, if it has one — to open the details panel on the right. There you can add:</p>
+      <div class="tip">💡 A connector has its own smaller variant of this same panel — right-click it and choose "Open details" (see <a href="#connectors">Connectors &amp; arrows</a>) for its label and a free-text notes field.</div>
       <ul>
         <li><strong>Notes</strong> — free-form text about that component.</li>
         <li><strong>Labels</strong> — short tags shown as chips (e.g. "prod", "critical").</li>
@@ -351,7 +354,7 @@
       <h3>New Component</h3>
       <p>Click "✨ New Component" in the toolbar to design your own reusable component (icon, colors, shape, default sub-components) and save it to <strong>My Components</strong> in the sidebar. Select an existing component first and it's used as a starting point. Give it an optional <strong>folder</strong> (with autocomplete of folders you've already used) to group related components together — folders show up as collapsible 📁 sub-groups under "My Components" in the sidebar; components with no folder stay listed directly, same as before. Your library can be exported/imported as its own JSON file — handy for sharing a house style across a team — either from this modal, the 📤/📥 icons on the "My Components" sidebar header, or the "Backup &amp; Restore" toolbar button.</p>
       <h3>Add Shape</h3>
-      <p>Click "🔷 Add Shape" for instant basic shapes: rectangle, rounded rectangle, circle, diamond, hexagon, cylinder (database), cloud, sticky note, "server with rows", and "Group / Container" (a plain labeled boundary box, captioned at the top so the label doesn't sit over whatever you place inside it — right-click → Send to back if you drop it after the components it should visually contain). Style it afterwards like any other component.</p>
+      <p>Click "🔷 Add Shape" for instant basic shapes: rectangle, rounded rectangle, circle, diamond, hexagon, cylinder (database), cloud, sticky note, "server with rows", "Group / Container" (a plain labeled boundary box, captioned at the top so the label doesn't sit over whatever you place inside it — right-click → Send to back if you drop it after the components it should visually contain), and "Lifeline" (see <a href="#sequence-diagram">Sequence Diagrams</a>). Style it afterwards like any other component.</p>
       <h3>⭐ Save a selection as a component</h3>
       <p>Select 2 or more components — with or without grouping them first — and click the "⭐" button in the toolbar's contextual row to save the whole selection (including any connectors between them) as one item in <strong>My Components</strong>. Unlike a Design Pattern, it keeps each component's exact styling, so placing it again reproduces exactly what you selected, re-grouped together as one unit. Selecting just a single component instead opens the full "New Component" form above, so you can still tweak its fields before saving.</p>
     </section>
@@ -424,6 +427,20 @@
       <div class="tip">🚫 Don't want a specific component mirrored? Open its details panel (ⓘ) and check "Exclude this component from replication mirroring" — it keeps its own content and stops syncing, without affecting the rest of its side. If it already had a peer, that peer is frozen in place rather than deleted.</div>
       <div class="tip">❄️ Need to change just one side temporarily — testing something on the standby, say — without it reaching the other? Open "🔁" and click ❄️ next to that pair to freeze it; both sides can then be edited independently. Click ▶️ to resume syncing whenever you're ready (this doesn't retroactively merge whatever changed while frozen, only changes from that point on).</div>
       <div class="tip">✂️ To stop two sides from syncing altogether (without touching either one), open "🔁" with nothing conflicting selected and click the 🗑️ next to that pair under "All replication pairs in this project".</div>
+    </section>
+
+    <section id="sequence-diagram">
+      <h2><span class="icon-badge">🔀</span> Sequence Diagrams</h2>
+      <p>A UML-style "communication flow" diagram — vertical <strong>lifelines</strong>, one per participant, with horizontal <strong>messages</strong> between them showing a call followed by a response (or any back-and-forth), read top to bottom as time.</p>
+      <ol>
+        <li><strong>Open the wizard</strong> — toolbar's "✨ Create" menu → "🔀 Sequence Diagram". Enter 2 or more participant names (Client, Server, Database, ...) — add or remove rows as needed — and click "🔀 Create". One titled lifeline appears for each name, evenly spaced left to right.</li>
+        <li><strong>Draw messages</strong> — drag from one lifeline's edge to another, same as any connector (see <a href="#connectors">Connectors &amp; arrows</a>). A lifeline's connection points span its <em>full height</em> instead of a small dot, so you can grab/drop at whatever height represents when the message happens — several messages on the same lifeline land at their own distinct heights instead of piling up on one point. A message between two lifelines starts out straight (no elbow) and is automatically numbered (1, 2, 3, ...) in the order they occur, top to bottom — a small numbered badge at each message's start, always kept correct even after adding, deleting, or undoing one.</li>
+        <li><strong>Style and annotate</strong> — every ordinary connector feature applies: color, thickness, solid vs. dashed (handy as a call-vs-response convention), arrow direction, and a label. Right-click a message and choose "Open details" for a right-side panel with its label and a free-text notes field.</li>
+      </ol>
+      <p><span class="mock-node">Client <small style="opacity:.7">┊</small></span> &nbsp;&nbsp;&nbsp; <span class="mock-node">Server <small style="opacity:.7">┊</small></span></p>
+      <div class="tip">💡 One more lifeline needed later? It's also its own entry in "🔷 Add Shape" → Lifeline, so you don't have to re-run the wizard just to add one to an existing diagram.</div>
+      <div class="tip">🗺️ "Auto-arrange" is skipped (with an explanation) while a sequence diagram is on the canvas — its left-to-right layout is meaningful and manual, not something a connector-direction layout should rearrange.</div>
+      <div class="tip">🗒️ Need a UML-style note attached to a lifeline? Drop a Sticky Note (🔷 Add Shape) next to it — no special support needed, it's just another shape.</div>
     </section>
 
     <section id="shortcuts">

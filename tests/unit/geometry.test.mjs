@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   clamp, sideAnchor, closestSide, rectsIntersect, pointInRect, snap,
   straightPath, orthogonalPath, curvedPath, buildPath, distance, pickBestSides,
+  computeAnchorOffset,
 } from '../../js/core/geometry.js';
 
 test('clamp keeps values within range', () => {
@@ -17,6 +18,27 @@ test('sideAnchor returns the midpoint of the requested side', () => {
   assert.deepEqual(sideAnchor(rect, 'bottom'), { x: 50, y: 50 });
   assert.deepEqual(sideAnchor(rect, 'left'), { x: 0, y: 25 });
   assert.deepEqual(sideAnchor(rect, 'right'), { x: 100, y: 25 });
+});
+
+test('sideAnchor honors a non-default offset along the side', () => {
+  const rect = { x: 0, y: 0, w: 100, h: 200 };
+  assert.deepEqual(sideAnchor(rect, 'left', 0.25), { x: 0, y: 50 });
+  assert.deepEqual(sideAnchor(rect, 'right', 0.75), { x: 100, y: 150 });
+  assert.deepEqual(sideAnchor(rect, 'top', 0.1), { x: 10, y: 0 });
+  assert.deepEqual(sideAnchor(rect, 'bottom', 0.9), { x: 90, y: 200 });
+});
+
+test('computeAnchorOffset is the inverse of sideAnchor, clamped to 0..1', () => {
+  const rect = { x: 0, y: 0, w: 100, h: 200 };
+  for (const [side, offset] of [['left', 0.25], ['right', 0.75], ['top', 0.1], ['bottom', 0.9]]) {
+    const point = sideAnchor(rect, side, offset);
+    assert.ok(Math.abs(computeAnchorOffset(rect, side, point) - offset) < 1e-9, `${side} round-trips`);
+  }
+  // Points beyond the rect's bounds clamp to 0/1 instead of going negative/over 1.
+  assert.equal(computeAnchorOffset(rect, 'left', { x: 0, y: -500 }), 0);
+  assert.equal(computeAnchorOffset(rect, 'left', { x: 0, y: 5000 }), 1);
+  assert.equal(computeAnchorOffset(rect, 'top', { x: -500, y: 0 }), 0);
+  assert.equal(computeAnchorOffset(rect, 'top', { x: 5000, y: 0 }), 1);
 });
 
 test('closestSide picks the side nearest a point', () => {

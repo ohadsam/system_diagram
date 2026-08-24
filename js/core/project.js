@@ -4,7 +4,7 @@ import { nextId } from './id.js';
 
 export const FORMAT_VERSION = 1;
 
-export const SHAPES = ['rect', 'rounded', 'circle', 'diamond', 'cylinder', 'hexagon', 'cloud', 'note', 'rows'];
+export const SHAPES = ['rect', 'rounded', 'circle', 'diamond', 'cylinder', 'hexagon', 'cloud', 'note', 'rows', 'lifeline'];
 export const ROUTINGS = ['straight', 'orthogonal', 'curved', 'magic'];
 export const ARROW_HEADS = ['none', 'open', 'filled', 'diamond', 'circle'];
 export const DASH_STYLES = ['solid', 'dashed', 'dotted'];
@@ -86,6 +86,14 @@ export function createEdge(fromNodeId, toNodeId, overrides = {}) {
     to: toNodeId,
     fromSide: 'right',
     toSide: 'left',
+    // Fraction (0..1) along the anchored side — 0.5 is the midpoint every
+    // edge used exclusively before this field existed, so it's a safe
+    // default for any diagram that never sets it. A non-default value lets
+    // several edges land on the same tall node at different heights instead
+    // of stacking on one point — see core/geometry.js#sideAnchor, and
+    // canvas/connectorInteractions.js for where a real drag computes one.
+    fromOffset: 0.5,
+    toOffset: 0.5,
     routing: 'orthogonal',
     color: '#334155',
     width: 2,
@@ -93,6 +101,7 @@ export function createEdge(fromNodeId, toNodeId, overrides = {}) {
     startArrow: 'none',
     endArrow: 'filled',
     label: '',
+    notes: '',
     ...overrides,
   };
 }
@@ -233,6 +242,8 @@ export function validateProject(input) {
         to: e.to,
         fromSide: ['top', 'right', 'bottom', 'left'].includes(e.fromSide) ? e.fromSide : 'right',
         toSide: ['top', 'right', 'bottom', 'left'].includes(e.toSide) ? e.toSide : 'left',
+        fromOffset: Number.isFinite(e.fromOffset) ? Math.min(1, Math.max(0, e.fromOffset)) : 0.5,
+        toOffset: Number.isFinite(e.toOffset) ? Math.min(1, Math.max(0, e.toOffset)) : 0.5,
         routing: ROUTINGS.includes(e.routing) ? e.routing : 'orthogonal',
         color: typeof e.color === 'string' ? e.color : '#334155',
         width: Number.isFinite(e.width) ? e.width : 2,
@@ -240,6 +251,7 @@ export function validateProject(input) {
         startArrow: ARROW_HEADS.includes(e.startArrow) ? e.startArrow : 'none',
         endArrow: ARROW_HEADS.includes(e.endArrow) ? e.endArrow : 'filled',
         label: typeof e.label === 'string' ? e.label : '',
+        notes: typeof e.notes === 'string' ? e.notes : '',
       }));
 
     const replicationPairs = Array.isArray(input.replicationPairs)

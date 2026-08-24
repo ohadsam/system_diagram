@@ -34,3 +34,23 @@
   filter: drop-shadow(0 0 2px #A855F766);
 }
 
+/* Auto-numbered "message N" badge on a sequence-diagram connector (only set
+   when both endpoints are lifelines — see canvas/canvas.js
+   #computeMessageSequenceNumbers). Purely visual/derived, not interactive —
+   pointer-events stay on the edge underneath it. */
+.edge-seq-badge {
+  pointer-events: none;
+}
+.edge-seq-badge circle {
+  fill: var(--color-primary);
+  stroke: var(--color-surface);
+  stroke-width: 2px;
+}
+.edge-seq-badge text {
+  font-size: 10px;
+  font-weight: 700;
+  fill: #fff;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+

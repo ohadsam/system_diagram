@@ -2,9 +2,18 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.20.0';
+export const APP_VERSION = '1.21.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.21.0',
+    date: '2026-08-24',
+    highlights: [
+      'New "🔀 Sequence Diagram" wizard (Create menu) — name a set of participants (Client, Server, Database, ...) and get a titled vertical "lifeline" for each, evenly spaced. Drag between two lifelines to draw a message at whatever height represents when it happens — several messages on the same lifeline no longer land on top of each other, and messages between two lifelines are automatically numbered (1, 2, 3...) in the order they occur.',
+      'Right-click a connector and choose "Open details" for a new right-side panel with an editable label and free-form notes — handy for annotating a sequence-diagram message, but works on any connector.',
+      '"🗺️ Auto-arrange" now leaves a sequence diagram alone (with an explanatory toast) instead of scrambling its manual left-to-right layout.',
+    ],
+  },
   {
     version: '1.20.0',
     date: '2026-08-20',
