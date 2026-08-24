@@ -839,6 +839,49 @@ followed by a response (or any back-and-forth), read top to bottom as time.
   supports it (see 4.7/4.8's own callouts).
 - A UML "note" attached to a lifeline needs no special support — drop a
   Sticky Note (Basic Shapes) next to it like on any other diagram.
+- **Message style presets**: selecting a single lifeline-to-lifeline message
+  adds a "Message preset" dropdown to the arrow style editor — Sync call
+  (solid, filled arrowhead), Async call (solid, open arrowhead), or Return
+  (dashed, open arrowhead) sets `dash`+`startArrow`+`endArrow` together
+  instead of two separate fields.
+- **Destroy marker**: right-click a lifeline → "Mark destroyed here" sets
+  `node.destroyOffset` (0..1 down the lifeline, computed from the click
+  height) — renders an X at that point and stops the dashed line there;
+  "Clear destroy marker" (shown instead once set) removes it.
+- **Activation bars**: right-click a lifeline → "Add activation bar" appends
+  `{id, startOffset, endOffset}` (0..1 span) to `node.activations` — a
+  narrow rectangle centered on the lifeline, draggable by its body (moves
+  both offsets together, preserving length) or by either end (resizes that
+  end); right-click an existing bar for "Remove activation bar".
+- **Combined fragments**: four "Fragment" shapes (Alt/Opt/Loop/Par) in the
+  Sequence Diagram Templates sidebar category — a plain resizable/movable
+  labeled box (same mechanism as the Group/Container shape, 4.3.x) with a
+  `fragmentType` baked into its definition, rendered as a small UML
+  pentagon operator tag at its top-left corner plus the condition text
+  (its own label). One condition per box — no alt/else divider line.
+  Drop one behind the messages it encloses (right-click → Send to back).
+- **Ready-made sequence-diagram templates**: the "Sequence Diagram
+  Templates" sidebar category also offers whole ready-made flows (Login
+  Flow, OAuth Handshake, Checkout Flow, Retry with Backoff, PKCE
+  Authorization Flow, SCIM User Provisioning, MFA Challenge, RBAC/ABAC
+  Authorization Checks, SSO (SAML/OIDC), SPA Silent Token Refresh, API Key
+  Authentication, TCP 3-Way Handshake, UDP Request/Response) — clicking or
+  dropping one instantiates the whole lifeline+message cluster at once,
+  already grouped (4.15's drill-down zoom-in works immediately). A relevant
+  template is also offered as a Smart Suggestion (4.12) when placing a
+  component like OAuth/OIDC, SSO, Identity Provider, API Gateway, JWT, API
+  Key, Cognito, React, or Router — accepting it instantiates the template
+  positioned next to that component (not attached onto it, unlike a layer
+  suggestion) — and a template can be dragged from the sidebar directly onto
+  an existing node for the same effect.
+- **Export as Mermaid**: a sequence diagram's drill-down modal (above) has a
+  "📋 Copy as Mermaid" button — converts its lifelines, messages (mapped to
+  Mermaid's `->>`/`-)`/`-->>` arrow syntax by dash+arrowhead), activation
+  bars (`activate`/`deactivate`), destroy markers (`destroy`), and any
+  fragment box whose bounds overlap the group (`alt`/`opt`/`loop`/`par` ...
+  `end`) into Mermaid `sequenceDiagram` text on the clipboard. Best-effort,
+  not a lossless round-trip — Mermaid has no offset-anchored messages or
+  freely-positioned fragments of its own.
 
 ## 5. Non-functional requirements
 
@@ -883,7 +926,10 @@ followed by a response (or any back-and-forth), read top to bottom as time.
       "rows": [],
       "zIndex": 3,
       "groupId": null,
-      "replicationExcluded": false
+      "replicationExcluded": false,
+      "destroyOffset": null,
+      "activations": [],
+      "fragmentType": null
     }
   ],
   "edges": [
@@ -918,6 +964,11 @@ for it. `fromOffset`/`toOffset` (default `0.5`, each 0..1) are how far
 along `fromSide`/`toSide` the edge actually anchors — see 4.4 and 4.15.
 `labelPosition` (default `"middle"`, one of `start`/`middle`/`end`) is
 where along the edge's own rendered path its label sits — see 4.4.
+`destroyOffset` (default `null`, 0..1) and `activations` (default `[]`, each
+`{id, startOffset, endOffset}`) are lifeline-only UML sequence-diagram
+fields — see 4.15. `fragmentType` (default `null`, one of
+`alt`/`opt`/`loop`/`par`/`ref`) marks a node as a combined-fragment box —
+see 4.15.
 `notes` (default `""`) is free-form text shown/edited in the connector's
 own details-panel variant (4.6), and also surfaced as a hover tooltip on
 the connector itself — see 4.4. `groupId` (default `null`) ties 2+ nodes

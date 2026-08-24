@@ -178,6 +178,91 @@
   pointer-events: none;
 }
 
+/* UML "destroy" marker — an X where the lifeline terminates (node.js sets
+   --destroy-y, the fraction*height point, on the root .node so it reaches
+   both this X and the ::after line below). The dashed line itself is
+   shortened to stop there instead of running to the node's full height,
+   since nothing "happens" on a destroyed lifeline past that point. */
+.node[data-shape="lifeline"].has-destroy-marker .node-body::after {
+  bottom: auto;
+  height: max(0px, calc(var(--destroy-y) - var(--lifeline-box-h)));
+}
+.lifeline-destroy-marker {
+  display: none;
+  position: absolute;
+  left: 50%;
+  top: var(--destroy-y);
+  transform: translate(-50%, -50%);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--node-stroke, #dc2626);
+  pointer-events: none;
+  z-index: 1;
+}
+.node.has-destroy-marker .lifeline-destroy-marker {
+  display: block;
+}
+
+/* UML activation bars (execution occurrences) — a narrow rectangle centered
+   on the lifeline's own dashed line, drag-to-move/-resize via
+   nodeInteractions.js (delegated, since the count/positions are rebuilt on
+   every render — see node.js#updateNodeEl). */
+.lifeline-activations {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.lifeline-activation {
+  position: absolute;
+  left: 50%;
+  width: 14px;
+  min-height: 10px;
+  transform: translateX(-50%);
+  background: var(--node-fill, #F0FDFA);
+  border: 2px solid var(--node-stroke, #0F766E);
+  border-radius: 2px;
+  box-sizing: border-box;
+  pointer-events: auto;
+  cursor: grab;
+  z-index: 1;
+}
+.lifeline-activation:active {
+  cursor: grabbing;
+}
+.activation-handle {
+  position: absolute;
+  left: -4px;
+  right: -4px;
+  height: 10px;
+  cursor: ns-resize;
+}
+.activation-handle[data-edge="start"] { top: -5px; }
+.activation-handle[data-edge="end"] { bottom: -5px; }
+
+/* UML combined-fragment operator tag — a small pentagon ribbon at the box's
+   top-left corner (data/categories/sequence-templates.js's Fragment shapes,
+   which build on the same plain "rect" box as Group/Container). */
+.fragment-tag {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 3px 12px 3px 8px;
+  background: var(--node-stroke, #7C3AED);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  clip-path: polygon(0 0, 100% 0, 100% 55%, 82% 100%, 0 100%);
+  z-index: 2;
+  pointer-events: none;
+}
+.node.has-fragment-tag .fragment-tag {
+  display: block;
+}
+
 /* The left/right connect-points become full-height hit-strips instead of
    the small centered dot every other shape uses, so a message can be
    grabbed/dropped at whatever height (time) it actually represents — see

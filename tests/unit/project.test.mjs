@@ -93,6 +93,51 @@ test('createNode accepts "lifeline" as a valid shape', () => {
   assert.equal(node.shape, 'lifeline');
 });
 
+test('createNode defaults destroyOffset to null, and validateProject clamps it to [0,1] or nulls it out', () => {
+  const node = createNode(null, 0, 0, { shape: 'lifeline' });
+  assert.equal(node.destroyOffset, null);
+
+  const p = createEmptyProject();
+  p.nodes.push(
+    createNode(null, 0, 0, { shape: 'lifeline', destroyOffset: 0.7 }),
+    createNode(null, 100, 0, { shape: 'lifeline', destroyOffset: 5 }),
+    createNode(null, 200, 0, { shape: 'lifeline', destroyOffset: -3 }),
+    createNode(null, 300, 0, { shape: 'lifeline', destroyOffset: 'nope' }),
+  );
+  const { ok, project } = validateProject(p);
+  assert.ok(ok);
+  assert.equal(project.nodes[0].destroyOffset, 0.7);
+  assert.equal(project.nodes[1].destroyOffset, 1);
+  assert.equal(project.nodes[2].destroyOffset, 0);
+  assert.equal(project.nodes[3].destroyOffset, null);
+});
+
+test('createNode defaults activations to [], and validateProject clamps/normalizes/id-backfills each entry', () => {
+  const node = createNode(null, 0, 0, { shape: 'lifeline' });
+  assert.deepEqual(node.activations, []);
+
+  const p = createEmptyProject();
+  p.nodes.push(createNode(null, 0, 0, {
+    shape: 'lifeline',
+    activations: [
+      { id: 'act_1', startOffset: 0.2, endOffset: 0.5 },
+      { id: 'act_2', startOffset: 0.9, endOffset: 0.1 }, // swapped -> normalized
+      { startOffset: 5, endOffset: -3 }, // out of range + missing id
+      { startOffset: 'nope', endOffset: 0.5 }, // invalid -> dropped
+      null, // garbage -> dropped
+    ],
+  }));
+  const { ok, project } = validateProject(p);
+  assert.ok(ok);
+  const acts = project.nodes[0].activations;
+  assert.equal(acts.length, 3);
+  assert.deepEqual(acts[0], { id: 'act_1', startOffset: 0.2, endOffset: 0.5 });
+  assert.deepEqual(acts[1], { id: 'act_2', startOffset: 0.1, endOffset: 0.9 });
+  assert.equal(acts[2].startOffset, 0);
+  assert.equal(acts[2].endOffset, 1);
+  assert.ok(acts[2].id);
+});
+
 test('removeNode cascades to connected edges', () => {
   const p = createEmptyProject();
   const n1 = createNode(null, 0, 0);

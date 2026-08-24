@@ -49,6 +49,11 @@ test('two messages between the same pair of lifelines at different heights rende
   const nodes = page.locator('.node[data-shape="lifeline"]');
 
   await connectAtHeight(page, nodes.nth(0), nodes.nth(1), 0.2, 0.2);
+  // Deselect the first message before drawing the second — otherwise the
+  // floating contextual style row (toolbar.js#positionFloatingRow), which
+  // grows downward from the first message's anchor, can itself overlap the
+  // second drag's target point on a short lifeline.
+  await page.keyboard.press('Escape');
   await connectAtHeight(page, nodes.nth(0), nodes.nth(1), 0.6, 0.6);
   await expect.poll(() => edgeCount(page)).toBe(2);
 
@@ -127,6 +132,52 @@ test('a sequence diagram can be saved as a reusable component and re-instantiate
   await expect(page.locator('.node[data-shape="lifeline"]')).toHaveCount(4);
 });
 
+// Task #192: an instantiated *built-in* template, edited, must be saveable
+// as a reusable custom component and favoritable through the exact same
+// generic flows every other component/group already has — not a new
+// mechanism, so this only verifies the existing save-as-component
+// (task #96) and favorites (task #135) machinery also covers this case.
+test('an instantiated sequence-diagram template can be edited, saved as a reusable custom component, favorited, and re-instantiated with the edit intact', async ({ page }) => {
+  await addComponentByName(page, 'Login Flow');
+  await expect.poll(() => nodeCount(page)).toBe(4);
+
+  // Edit: rename the "Client" lifeline before saving.
+  const clientLifeline = page.locator('.node[data-shape="lifeline"]', { hasText: 'Client' });
+  const clientLabel = clientLifeline.locator('.node-label, .node-external-label');
+  await clientLabel.dblclick();
+  await page.keyboard.type('Mobile Client');
+  await page.keyboard.press('Enter');
+  await expect(clientLifeline).toContainText('Mobile Client');
+
+  // Clicking any one grouped lifeline selects the whole group (see
+  // canvas.js#selectNode) — groupOnInstantiate already made this a real
+  // group the moment it was instantiated.
+  await page.locator('.node[data-shape="lifeline"]').first().click({ force: true });
+  await expect(page.locator('.node.selected')).toHaveCount(4);
+
+  await page.locator('.toolbar-row-context button[title="Save selection as a reusable custom component"]').click();
+  await expect(page.locator('.custom-component-modal')).toBeVisible();
+  await page.locator('.custom-component-modal input[type="text"]').nth(1).fill('My Login Flow');
+  await page.locator('.custom-component-modal button', { hasText: 'Save to My Components' }).click();
+  await expect(page.locator('.toast-success', { hasText: 'My Login Flow' })).toBeVisible();
+
+  const search = page.locator('.sidebar-search input');
+  await search.fill('My Login Flow');
+  await page.waitForTimeout(150);
+  const savedItem = page.locator('.sidebar-item', { hasText: 'My Login Flow' });
+  await savedItem.click({ button: 'right' });
+  await page.locator('.context-menu-item', { hasText: 'Add to Favorites' }).click();
+
+  await search.fill('');
+  const favSection = page.locator('.sidebar-category', { hasText: 'Favorites' }).first();
+  await expect(favSection.locator('.sidebar-item', { hasText: 'My Login Flow' })).toBeVisible();
+  await expect(favSection.locator('.sidebar-item', { hasText: 'My Login Flow' }).locator('.item-favorite-badge')).toBeVisible();
+
+  await favSection.locator('.sidebar-item', { hasText: 'My Login Flow' }).click();
+  await expect.poll(() => nodeCount(page)).toBe(8); // original 4 + the re-instantiated copy's 4
+  await expect(page.locator('.node[data-shape="lifeline"]', { hasText: 'Mobile Client' })).toHaveCount(2);
+});
+
 test('a message\'s label position (start/middle/end) can be changed from the connector style editor', async ({ page }) => {
   await createSequenceDiagram(page, ['Client', 'Server']);
   const nodes = page.locator('.node[data-shape="lifeline"]');
@@ -148,6 +199,31 @@ test('a message\'s label position (start/middle/end) can be changed from the con
   const endX = await page.locator('.edge-label').getAttribute('x');
   expect(endX).not.toBe(startX);
   expect(endX).not.toBe(middleX);
+});
+
+test('sync/async/return message presets are offered only for lifeline-to-lifeline messages and set dash+arrowhead together', async ({ page }) => {
+  await createSequenceDiagram(page, ['Client', 'Server']);
+  const nodes = page.locator('.node[data-shape="lifeline"]');
+  await connectAtHeight(page, nodes.nth(0), nodes.nth(1), 0.3, 0.3);
+  await expect.poll(() => edgeCount(page)).toBe(1);
+
+  await clickEdgeNearNode(page);
+  const presetSelect = page.locator('.toolbar-row-context select', { has: page.locator('option', { hasText: 'Async call' }) });
+  await expect(presetSelect).toBeVisible();
+
+  await presetSelect.selectOption('async');
+  await expect(page.locator('.edge-line')).toHaveAttribute('stroke-dasharray', 'none');
+  const asyncMarker = await page.locator('.edge-line').getAttribute('marker-end');
+  expect(asyncMarker).toContain('open');
+
+  await presetSelect.selectOption('return');
+  const dash = await page.locator('.edge-line').getAttribute('stroke-dasharray');
+  expect(dash).not.toBe('none');
+
+  await presetSelect.selectOption('sync');
+  await expect(page.locator('.edge-line')).toHaveAttribute('stroke-dasharray', 'none');
+  const syncMarker = await page.locator('.edge-line').getAttribute('marker-end');
+  expect(syncMarker).toContain('filled');
 });
 
 test('"Distribute Evenly" re-spaces lifeline columns and message heights while keeping message order', async ({ page }) => {
@@ -230,6 +306,188 @@ test('a lifeline can send a message to itself (self-call), rendered as a loop, w
   await expect(page.locator('.details-panel.open')).toBeVisible();
   await page.locator('.details-panel .details-title-input').fill('Validate input');
   await expect(page.locator('.edge-label')).toHaveText('Validate input');
+});
+
+test('right-click a lifeline for "Add lifeline to the right" — a quick way to add one more participant', async ({ page }) => {
+  await createSequenceDiagram(page, ['Client', 'Server']);
+  const nodes = page.locator('.node[data-shape="lifeline"]');
+  await expect(nodes).toHaveCount(2);
+  const before = await nodes.nth(1).boundingBox();
+
+  await nodes.nth(1).click({ button: 'right', force: true });
+  await page.locator('.context-menu-item', { hasText: 'Add lifeline to the right' }).click();
+
+  await expect(nodes).toHaveCount(3);
+  const after = await nodes.nth(2).boundingBox();
+  expect(after.x).toBeGreaterThan(before.x);
+  await expect(page.locator('.node', { hasText: 'New Participant' })).toBeVisible();
+});
+
+test('right-click a lifeline for "Mark destroyed here" renders an X and can be cleared again', async ({ page }) => {
+  await createSequenceDiagram(page, ['Client', 'Server']);
+  const lifeline = page.locator('.node[data-shape="lifeline"]').nth(1);
+  const box = await lifeline.boundingBox();
+
+  await lifeline.click({ button: 'right', force: true, position: { x: box.width / 2, y: box.height * 0.6 } });
+  await page.locator('.context-menu-item', { hasText: 'Mark destroyed here' }).click();
+
+  const marker = lifeline.locator('.lifeline-destroy-marker');
+  await expect(lifeline).toHaveClass(/has-destroy-marker/);
+  await expect(marker).toBeVisible();
+
+  await lifeline.click({ button: 'right', force: true });
+  await page.locator('.context-menu-item', { hasText: 'Clear destroy marker' }).click();
+  await expect(lifeline).not.toHaveClass(/has-destroy-marker/);
+});
+
+test('right-click a lifeline for "Add activation bar", drag it to move, drag an end to resize, then remove it', async ({ page }) => {
+  await createSequenceDiagram(page, ['Client', 'Server']);
+  const lifeline = page.locator('.node[data-shape="lifeline"]').nth(1);
+  const box = await lifeline.boundingBox();
+
+  await lifeline.click({ button: 'right', force: true, position: { x: box.width / 2, y: box.height * 0.4 } });
+  await page.locator('.context-menu-item', { hasText: 'Add activation bar' }).click();
+
+  const bar = lifeline.locator('.lifeline-activation');
+  await expect(bar).toHaveCount(1);
+  const beforeMove = await bar.boundingBox();
+
+  // Drag the bar body down to move it (both offsets shift together).
+  await page.mouse.move(beforeMove.x + beforeMove.width / 2, beforeMove.y + beforeMove.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(beforeMove.x + beforeMove.width / 2, beforeMove.y + beforeMove.height / 2 + 60, { steps: 5 });
+  await page.mouse.up();
+  const afterMove = await bar.boundingBox();
+  expect(afterMove.y).toBeGreaterThan(beforeMove.y + 30);
+  expect(afterMove.height).toBeCloseTo(beforeMove.height, 0);
+
+  // Drag the bottom handle down to resize (grow) it.
+  const handle = bar.locator('.activation-handle[data-edge="end"]');
+  const handleBox = await handle.boundingBox();
+  await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2 + 40, { steps: 5 });
+  await page.mouse.up();
+  const afterResize = await bar.boundingBox();
+  expect(afterResize.height).toBeGreaterThan(afterMove.height + 20);
+
+  // Right-click the bar itself removes just that bar.
+  await bar.click({ button: 'right', force: true });
+  await page.locator('.context-menu-item', { hasText: 'Remove activation bar' }).click();
+  await expect(lifeline.locator('.lifeline-activation')).toHaveCount(0);
+});
+
+test('"Copy as Mermaid" in the drill-down modal copies valid sequenceDiagram text with the message and participant names', async ({ page }) => {
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await createSequenceDiagram(page, ['Client', 'Server']);
+  const nodes = page.locator('.node[data-shape="lifeline"]');
+  await connectAtHeight(page, nodes.nth(0), nodes.nth(1), 0.3, 0.3);
+  await expect.poll(() => edgeCount(page)).toBe(1);
+  await clickEdgeNearNode(page);
+  const labelInput = page.locator('.toolbar-row-context input[data-focus-key="edge-label"]');
+  await labelInput.fill('Ping');
+  await page.keyboard.press('Escape');
+
+  await nodes.nth(0).click({ force: true });
+  await nodes.nth(1).click({ force: true, modifiers: ['Shift'] });
+  await page.locator('.toolbar-row-context button[title="Group selection"]').click();
+  await page.keyboard.press('Escape');
+  await page.locator('button[title="Fit to screen"]').click();
+  await page.locator('.group-bg-zoom').click({ force: true });
+  await expect(page.locator('.subdiagram-modal')).toBeVisible();
+
+  await page.locator('.subdiagram-modal button', { hasText: '📋 Copy as Mermaid' }).click();
+  const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
+  expect(clipboardText).toContain('sequenceDiagram');
+  expect(clipboardText).toContain('participant P1 as Client');
+  expect(clipboardText).toContain('participant P2 as Server');
+  expect(clipboardText).toContain(': Ping');
+});
+
+test('an "Alt Fragment" box renders its UML pentagon operator tag and is renamable like any other node', async ({ page }) => {
+  await addComponentByName(page, 'Alt Fragment');
+  await expect.poll(() => nodeCount(page)).toBe(1);
+
+  const node = page.locator('.node').first();
+  await expect(node).toHaveClass(/has-fragment-tag/);
+  await expect(node.locator('.fragment-tag')).toHaveText('alt');
+
+  const label = node.locator('.node-label, .node-external-label');
+  await label.dblclick();
+  await page.keyboard.type('user is premium');
+  await page.keyboard.press('Enter');
+  await expect(node).toContainText('user is premium');
+  // Renaming the condition never touches the operator tag itself.
+  await expect(node.locator('.fragment-tag')).toHaveText('alt');
+});
+
+test('a "Sequence Diagram Templates" pattern instantiates as a real, grouped sequence diagram with correctly-timed messages', async ({ page }) => {
+  await addComponentByName(page, 'Login Flow');
+  await expect.poll(() => nodeCount(page)).toBe(4);
+  await expect(page.locator('.node[data-shape="lifeline"]')).toHaveCount(4);
+  await expect.poll(() => edgeCount(page)).toBe(7);
+
+  // groupOnInstantiate: true means it's a real group already — the 🔍
+  // zoom-in icon should be available without the user grouping it manually.
+  await expect(page.locator('.group-bg')).toHaveCount(1);
+  await expect(page.locator('.group-bg-zoom')).toHaveCount(1);
+
+  // Every message landed at a distinct height (not all stacked on the
+  // schema's 0.5 default) — 7 messages means 7 distinct sequence badges.
+  const badgeTexts = await page.locator('.edge-seq-badge text').allTextContents();
+  expect(new Set(badgeTexts).size).toBe(7);
+});
+
+test('the new auth/identity/networking templates (PKCE, MFA, RBAC, ABAC, SSO, SCIM, SPA refresh, API key, TCP, UDP) all instantiate as grouped sequence diagrams', async ({ page }) => {
+  const templates = [
+    ['PKCE Authorization Flow', 3, 8],
+    ['SCIM User Provisioning', 3, 9],
+    ['MFA Challenge', 3, 8],
+    ['RBAC Authorization Check', 3, 6],
+    ['ABAC Authorization Check', 4, 7],
+    ['SSO (SAML / OIDC)', 3, 8],
+    ['SPA Silent Token Refresh', 3, 10],
+    ['API Key Authentication', 4, 7],
+    ['TCP 3-Way Handshake', 2, 7],
+    ['UDP Request/Response', 2, 5],
+  ];
+  let expectedNodes = 0;
+  let expectedEdges = 0;
+  for (const [name, lifelineCount, messageCount] of templates) {
+    await addComponentByName(page, name);
+    expectedNodes += lifelineCount;
+    expectedEdges += messageCount;
+    await expect.poll(() => nodeCount(page)).toBe(expectedNodes);
+    await expect.poll(() => edgeCount(page)).toBe(expectedEdges);
+  }
+  await expect(page.locator('.group-bg')).toHaveCount(templates.length);
+});
+
+test('dragging a "Sequence Diagram Templates" pattern onto an existing node instantiates it positioned next to that node', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await expect.poll(() => nodeCount(page)).toBe(1);
+  const gatewayNode = page.locator('.node').first();
+  const gatewayBox = await gatewayNode.boundingBox();
+
+  await page.locator('.sidebar-search input').fill('PKCE Authorization Flow');
+  await page.waitForTimeout(150);
+  const templateItem = page.locator('.sidebar-item[data-name="PKCE Authorization Flow"]');
+  await templateItem.scrollIntoViewIfNeeded();
+  const itemBox = await templateItem.boundingBox();
+
+  await page.mouse.move(itemBox.x + 10, itemBox.y + 10);
+  await page.mouse.down();
+  await page.mouse.move(gatewayBox.x + gatewayBox.width / 2, gatewayBox.y + gatewayBox.height / 2, { steps: 10 });
+  await expect(gatewayNode).toHaveClass(/pattern-drop-target/);
+  await page.mouse.up();
+
+  // The 1 API Gateway node plus PKCE's 3 lifelines, grouped as a real
+  // sequence diagram, positioned to the right of (not overlapping) the node.
+  await expect.poll(() => nodeCount(page)).toBe(4);
+  await expect(page.locator('.node[data-shape="lifeline"]')).toHaveCount(3);
+  await expect(page.locator('.group-bg-zoom')).toHaveCount(1);
+  const lifelineBox = await page.locator('.node[data-shape="lifeline"]').first().boundingBox();
+  expect(lifelineBox.x).toBeGreaterThan(gatewayBox.x + gatewayBox.width);
 });
 
 test('grouping a sequence diagram shows a zoom-in icon that opens a read-only preview, with an Edit flow that saves changes back', async ({ page }) => {

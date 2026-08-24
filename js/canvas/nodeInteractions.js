@@ -3,14 +3,32 @@
 // canvas.js wiring order) — this module reads the resulting selection to
 // decide whether to move just one node or the whole multi-selection.
 import * as store from '../core/store.js';
+import { clamp } from '../core/geometry.js';
 import { screenToCanvas } from './viewport.js';
 import { beginConnectFromNode } from './connectorInteractions.js';
 
 const MIN_SIZE = 40;
-const IGNORE_SELECTOR = '.conn-point, .resize-handle, .node-info-btn, .node-menu-btn, .row-item, .node-add-row, .inline-edit-input';
+const IGNORE_SELECTOR = '.conn-point, .resize-handle, .node-info-btn, .node-menu-btn, .row-item, .node-add-row, .inline-edit-input, .lifeline-activation';
 
 export function attachNodeInteractions(rootEl, nodeId) {
   rootEl.addEventListener('pointerdown', (e) => {
+    // Activation bars are rebuilt on every render (variable count — see
+    // node.js#updateNodeEl), so they're handled here via delegation rather
+    // than their own addEventListener, which a rebuild would silently drop.
+    const handle = e.target.closest('.activation-handle');
+    const bar = e.target.closest('.lifeline-activation');
+    if (e.button === 0 && handle && bar) {
+      e.stopPropagation();
+      e.preventDefault();
+      beginActivationResize(nodeId, bar.dataset.activationId, handle.dataset.edge, e);
+      return;
+    }
+    if (e.button === 0 && bar) {
+      e.stopPropagation();
+      e.preventDefault();
+      beginActivationMove(nodeId, bar.dataset.activationId, e);
+      return;
+    }
     if (e.button !== 0 || e.target.closest(IGNORE_SELECTOR)) return;
     beginMove(nodeId, e);
   });
@@ -147,6 +165,96 @@ function beginResize(nodeId, handle, e) {
   const onMove = (ev) => {
     const cur = screenToCanvas(ev.clientX, ev.clientY);
     dx = cur.x - startCanvas.x;
+    dy = cur.y - startCanvas.y;
+    if (!raf) raf = requestAnimationFrame(apply);
+  };
+  const onUp = () => {
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+    if (raf) cancelAnimationFrame(raf);
+    apply();
+    store.commitHistory();
+  };
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', onUp);
+}
+
+// UML activation bar (execution occurrence) drag-to-move/-resize — see
+// node.js#updateNodeEl for how {id, startOffset, endOffset} renders, and
+// canvas.js#addActivationBar/removeActivationBar for how one is added/
+// removed. Both gestures convert a screen-space pointer delta to a
+// fraction of the *lifeline's own height* (not a fixed pixel span), so they
+// stay correct at any zoom level, mirroring beginResize's dx/dy above.
+const MIN_ACTIVATION_SPAN = 0.03;
+
+function beginActivationMove(nodeId, activationId, e) {
+  e.currentTarget.setPointerCapture?.(e.pointerId);
+  const startCanvas = screenToCanvas(e.clientX, e.clientY);
+  const state = store.getState();
+  const node = state.nodes.find((n) => n.id === nodeId);
+  const act = node?.activations?.find((a) => a.id === activationId);
+  if (!node || !act) return;
+  const start = { startOffset: act.startOffset, endOffset: act.endOffset };
+  const span = start.endOffset - start.startOffset;
+  let raf = null;
+  let dy = 0;
+
+  const apply = () => {
+    raf = null;
+    store.dispatch((draft) => {
+      const n = draft.nodes.find((x) => x.id === nodeId);
+      const a = n?.activations?.find((x) => x.id === activationId);
+      if (!a || !n.h) return;
+      const s = clamp(start.startOffset + dy / n.h, 0, 1 - span);
+      a.startOffset = s;
+      a.endOffset = s + span;
+    }, { coalesce: true });
+  };
+
+  const onMove = (ev) => {
+    const cur = screenToCanvas(ev.clientX, ev.clientY);
+    dy = cur.y - startCanvas.y;
+    if (!raf) raf = requestAnimationFrame(apply);
+  };
+  const onUp = () => {
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+    if (raf) cancelAnimationFrame(raf);
+    apply();
+    store.commitHistory();
+  };
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', onUp);
+}
+
+function beginActivationResize(nodeId, activationId, edge, e) {
+  e.currentTarget.setPointerCapture?.(e.pointerId);
+  const startCanvas = screenToCanvas(e.clientX, e.clientY);
+  const state = store.getState();
+  const node = state.nodes.find((n) => n.id === nodeId);
+  const act = node?.activations?.find((a) => a.id === activationId);
+  if (!node || !act) return;
+  const start = { startOffset: act.startOffset, endOffset: act.endOffset };
+  let raf = null;
+  let dy = 0;
+
+  const apply = () => {
+    raf = null;
+    store.dispatch((draft) => {
+      const n = draft.nodes.find((x) => x.id === nodeId);
+      const a = n?.activations?.find((x) => x.id === activationId);
+      if (!a || !n.h) return;
+      const deltaOffset = dy / n.h;
+      if (edge === 'start') {
+        a.startOffset = clamp(start.startOffset + deltaOffset, 0, start.endOffset - MIN_ACTIVATION_SPAN);
+      } else {
+        a.endOffset = clamp(start.endOffset + deltaOffset, start.startOffset + MIN_ACTIVATION_SPAN, 1);
+      }
+    }, { coalesce: true });
+  };
+
+  const onMove = (ev) => {
+    const cur = screenToCanvas(ev.clientX, ev.clientY);
     dy = cur.y - startCanvas.y;
     if (!raf) raf = requestAnimationFrame(apply);
   };

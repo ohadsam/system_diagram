@@ -20,6 +20,7 @@ import * as misc from './categories/misc.js';
 import * as monitoring from './categories/monitoring.js';
 import * as networking from './categories/networking.js';
 import * as security from './categories/security.js';
+import * as sequenceTemplates from './categories/sequence-templates.js';
 import * as servers from './categories/servers.js';
 import * as shapes from './categories/shapes.js';
 import * as stateMachines from './categories/state-machines.js';
@@ -28,7 +29,7 @@ import * as storage from './categories/storage.js';
 const MODULES = [
   aiMl, aiProvidersAgents, aws, backendFrameworks, cache, client, cloudProviders,
   containers, databases, designPatterns, devops, frontendFrameworks, layers, logging,
-  messaging, misc, monitoring, networking, security, servers, shapes, stateMachines, storage,
+  messaging, misc, monitoring, networking, security, sequenceTemplates, servers, shapes, stateMachines, storage,
 ];
 
 function build() {
@@ -95,4 +96,16 @@ export function getRelatedLayers(id) {
   const def = getComponentById(id);
   if (!def?.relatedLayers?.length) return [];
   return def.relatedLayers.map((relId) => getComponentById(relId)).filter((d) => d?.kind === 'layer');
+}
+
+/** Resolves a component's curated `relatedPatterns` ids (see schema.js#c) to
+ * their actual `kind: 'pattern'` definitions, for the "Smart Suggestions"
+ * banner's "instantiate this sequence diagram nearby" row (see
+ * canvas/suggestions.js) — e.g. placing an "Auth Server" suggests the
+ * "PKCE Authorization Flow" template. Same defensive drop-unresolvable
+ * spirit as getRelatedComponents/getRelatedLayers. */
+export function getRelatedPatterns(id) {
+  const def = getComponentById(id);
+  if (!def?.relatedPatterns?.length) return [];
+  return def.relatedPatterns.map((relId) => getComponentById(relId)).filter((d) => d?.kind === 'pattern');
 }

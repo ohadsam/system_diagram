@@ -16,4 +16,5 @@ export const HINTS = [
   { id: 'hint-auto-arrange', target: '.toolbar-row-main', placement: 'bottom', text: '🗺️ Tools → Auto-arrange tidies every component into a clean top-to-bottom layout that follows your connectors\' direction.' },
   { id: 'hint-favorites', target: '.sidebar-categories', placement: 'right', text: '⭐ Right-click any component and choose "Add to Favorites" to pin it to the Favorites section at the top — organize favorites into folders from there too.' },
   { id: 'hint-sequence-zoom', target: '.canvas-viewport', placement: 'top', text: '🔍 Group 2+ sequence-diagram lifelines and hover the group\'s background for a zoom-in icon — a read-only preview (or pinned side panel) with its own "Edit" button for the real thing.' },
+  { id: 'hint-sequence-uml', target: '.canvas-viewport', placement: 'top', text: '↪️ Right-click a lifeline for more UML options — "Mark destroyed here" (an X where it terminates) and "Add activation bar" (a draggable execution-occurrence rectangle). Selecting a lifeline-to-lifeline message also offers sync/async/return style presets.' },
 ];

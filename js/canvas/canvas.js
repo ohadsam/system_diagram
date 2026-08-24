@@ -5,13 +5,13 @@ import * as store from '../core/store.js';
 import { createEdge, nextZIndex, removeNode as removeNodeFromProject, removeEdge as removeEdgeFromProject, createNode, duplicateProject } from '../core/project.js';
 import { buildReplicationPair } from '../core/replication.js';
 import { computeAutoLayout } from '../core/autoLayout.js';
-import { layoutLifelines, distributeLifelineColumns, distributeMessages } from '../core/sequenceDiagram.js';
+import { layoutLifelines, distributeLifelineColumns, distributeMessages, GAP as LIFELINE_GAP } from '../core/sequenceDiagram.js';
 import { scaleNodes } from '../core/scaleDiagram.js';
 import { getComponentById } from '../data/index.js';
 import { getCustomComponents } from '../io/customComponents.js';
 import { buildCreationOverrides } from '../io/nodeDefaults.js';
 import { el, svgEl } from '../utils/dom.js';
-import { rectsIntersect, pickBestSides, sideAnchor } from '../core/geometry.js';
+import { rectsIntersect, pickBestSides, sideAnchor, computeAnchorOffset } from '../core/geometry.js';
 import { nextId } from '../core/id.js';
 import { showToast } from '../utils/toast.js';
 import * as viewport from './viewport.js';
@@ -482,6 +482,7 @@ export function createNodeFromDrop(defId, clientX, clientY) {
   showSuggestionsFor(def, node, {
     onAddComponent: (relDefId, offsetIndex) => addRelatedComponent(relDefId, node.id, offsetIndex),
     onAddLayer: (layerDefId) => addLayerToNode(layerDefId, node.id),
+    onAddPattern: (patternDefId) => instantiatePatternNearNode(patternDefId, node.id),
   });
 }
 
@@ -553,11 +554,19 @@ export function addLayerToNode(defId, nodeId) {
  * (or the current view's center if omitted). Every generated node reuses a
  * real component/layer def for consistent styling. */
 export function instantiatePattern(defId, clientX, clientY) {
-  const patternDef = resolveComponentDef(defId);
-  if (!patternDef?.pattern) return;
   const point = clientX != null && clientY != null
     ? viewport.screenToCanvas(clientX, clientY)
     : screenCenterCanvasPoint();
+  instantiatePatternAtPoint(defId, point);
+}
+
+/** Core of instantiatePattern, taking an already-canvas-space center point
+ * instead of screen coordinates — shared by instantiatePattern (drop/click,
+ * screen-space) and instantiatePatternNearNode (Smart Suggestions "Add this
+ * sequence diagram" button, canvas-space relative to an existing node). */
+function instantiatePatternAtPoint(defId, point) {
+  const patternDef = resolveComponentDef(defId);
+  if (!patternDef?.pattern) return;
 
   const state = store.getState();
   let z = nextZIndex(state);
@@ -609,6 +618,31 @@ export function instantiatePatternAtCenter(defId) {
   instantiatePattern(defId, null, null);
 }
 
+/** Smart Suggestions' "Add this sequence diagram" row (canvas/suggestions.js)
+ * and dragging a pattern sidebar item onto a node (sidebar/dragSource.js) —
+ * instantiates a pattern positioned just to the right of `nodeId` instead of
+ * the screen center, so it lands visibly next to (never overlapping) the
+ * component that suggested/received it rather than wherever the viewport
+ * happens to be centered. */
+export function instantiatePatternNearNode(defId, nodeId) {
+  const node = store.getState().nodes.find((n) => n.id === nodeId);
+  const patternDef = resolveComponentDef(defId);
+  if (!node || !patternDef?.pattern) { instantiatePatternAtCenter(defId); return; }
+  const MARGIN = 60;
+  // The pattern's own nodes are placed at `center.x + spec.dx - w/2`
+  // (instantiatePatternAtPoint below) — so its leftmost real edge relative
+  // to its own center point is however far left of dx=0 its own left-most
+  // node's own left edge reaches, not just its dx=0 origin. Clearing that
+  // (rather than a flat guess) is what actually guarantees no overlap
+  // regardless of which template this is or how many lifelines it has.
+  const leftmostEdge = Math.min(...patternDef.pattern.nodes.map((spec) => {
+    const def = resolveComponentDef(spec.defId);
+    const w = spec.overrides?.w ?? def?.defaultSize.w ?? 160;
+    return spec.dx - w / 2;
+  }));
+  instantiatePatternAtPoint(defId, { x: node.x + node.w + MARGIN - leftmostEdge, y: node.y + node.h / 2 });
+}
+
 /** Creates a fresh set of titled "lifeline" nodes for a sequence/
  * communication-flow diagram (see modals/sequenceDiagramModal.js) — evenly
  * spaced, centered on the current view. Only the lifelines themselves are
@@ -630,6 +664,87 @@ export function createSequenceDiagram(names) {
   });
   store.select(newNodes.map((n) => n.id), []);
   showToast(`Created a sequence diagram with ${newNodes.length} lifelines — drag between two lifelines to draw a message.`, 'success', 3200);
+}
+
+/** Quick "add one more participant" for an existing sequence diagram (right-
+ * click a lifeline → "➕ Add lifeline to the right") — faster than re-running
+ * the wizard or dragging a fresh one in from Add Shape when you just need
+ * one more. Lines up with the wizard's own spacing (`LIFELINE_GAP`),
+ * nudging further right if that spot is already occupied by another
+ * lifeline (e.g. clicking this twice in a row on the same source without
+ * moving anything in between). */
+export function addLifelineToRight(nodeId) {
+  const state = store.getState();
+  const source = state.nodes.find((n) => n.id === nodeId);
+  if (!source || source.shape !== 'lifeline') return;
+  const def = resolveComponentDef('shape-lifeline');
+  if (!def) return;
+
+  let x = source.x + LIFELINE_GAP;
+  while (state.nodes.some((n) => n.shape === 'lifeline' && Math.abs(n.x - x) < 40)) x += LIFELINE_GAP;
+
+  const existingNames = new Set(state.nodes.map((n) => n.text));
+  let text = 'New Participant';
+  let i = 1;
+  while (existingNames.has(text)) { i += 1; text = `New Participant ${i}`; }
+
+  const node = createNode(def, x, source.y, { text, zIndex: nextZIndex(state) });
+  store.dispatch((draft) => { draft.nodes.push(node); });
+  store.select([node.id], []);
+  focusNode(node.id);
+}
+
+/** Right-click on a lifeline -> "Mark destroyed here" (UML destroy marker):
+ * computes destroyOffset from the actual click height via the same
+ * point->offset inverse (`computeAnchorOffset`) a dragged connector uses,
+ * so the X lands exactly where the user clicked rather than a fixed spot. */
+export function setLifelineDestroyOffset(nodeId, evt) {
+  const node = store.getState().nodes.find((n) => n.id === nodeId);
+  if (!node || node.shape !== 'lifeline') return;
+  const point = viewport.screenToCanvas(evt.clientX, evt.clientY);
+  const offset = computeAnchorOffset({ x: node.x, y: node.y, w: node.w, h: node.h }, 'left', point);
+  store.dispatch((draft) => {
+    const n = draft.nodes.find((x) => x.id === nodeId);
+    if (n) n.destroyOffset = offset;
+  });
+}
+
+export function clearLifelineDestroyOffset(nodeId) {
+  store.dispatch((draft) => {
+    const n = draft.nodes.find((x) => x.id === nodeId);
+    if (n) n.destroyOffset = null;
+  });
+}
+
+// UML activation bar (execution occurrence) width, split evenly around the
+// click point that spawned it — see addActivationBar below.
+const ACTIVATION_SPAN = 0.12;
+
+/** Right-click on a lifeline -> "Add activation bar": drops a default-length
+ * span centered on the click height (same computeAnchorOffset inverse as
+ * the destroy marker), which the user then drags to move/resize — see
+ * nodeInteractions.js#beginActivationMove/beginActivationResize. */
+export function addActivationBar(nodeId, evt) {
+  const node = store.getState().nodes.find((n) => n.id === nodeId);
+  if (!node || node.shape !== 'lifeline') return;
+  const point = viewport.screenToCanvas(evt.clientX, evt.clientY);
+  const center = computeAnchorOffset({ x: node.x, y: node.y, w: node.w, h: node.h }, 'left', point);
+  let startOffset = center - ACTIVATION_SPAN / 2;
+  let endOffset = center + ACTIVATION_SPAN / 2;
+  if (startOffset < 0) { endOffset -= startOffset; startOffset = 0; }
+  if (endOffset > 1) { startOffset -= endOffset - 1; endOffset = 1; }
+  startOffset = Math.max(0, startOffset);
+  store.dispatch((draft) => {
+    const n = draft.nodes.find((x) => x.id === nodeId);
+    if (n) n.activations.push({ id: nextId('act'), startOffset, endOffset });
+  });
+}
+
+export function removeActivationBar(nodeId, activationId) {
+  store.dispatch((draft) => {
+    const n = draft.nodes.find((x) => x.id === nodeId);
+    if (n) n.activations = n.activations.filter((a) => a.id !== activationId);
+  });
 }
 
 export function addCustomShapeNode(shapeDef, centerPoint) {
@@ -1172,13 +1287,30 @@ export function hideExcept(nodeIds) {
 // ---- context menus ----
 
 function openNodeContextMenu(nodeId, evt) {
+  const node = store.getState().nodes.find((n) => n.id === nodeId);
   const items = [
     { label: 'Open details', icon: 'ⓘ', onClick: () => window.dispatchEvent(new CustomEvent('sdb:open-details', { detail: { nodeId } })) },
     { label: 'Duplicate', icon: '⧉', onClick: () => { store.select([nodeId], []); duplicateSelection(); } },
+  ];
+  if (node?.shape === 'lifeline') {
+    items.push({ label: 'Add lifeline to the right', icon: '➕', onClick: () => addLifelineToRight(nodeId) });
+    items.push(Number.isFinite(node.destroyOffset)
+      ? { label: 'Clear destroy marker', icon: '✕', onClick: () => clearLifelineDestroyOffset(nodeId) }
+      : { label: 'Mark destroyed here', icon: '✕', onClick: () => setLifelineDestroyOffset(nodeId, evt) });
+    // Right-clicking directly on an existing activation bar offers removing
+    // *that* bar instead of adding a new (likely overlapping) one.
+    const activationBarEl = evt.target.closest?.('.lifeline-activation');
+    if (activationBarEl) {
+      items.push({ label: 'Remove activation bar', icon: '▯', onClick: () => removeActivationBar(nodeId, activationBarEl.dataset.activationId) });
+    } else {
+      items.push({ label: 'Add activation bar', icon: '▯', onClick: () => addActivationBar(nodeId, evt) });
+    }
+  }
+  items.push(
     'separator',
     { label: 'Bring to front', icon: '⬆️', onClick: () => reorderZ(nodeId, true) },
     { label: 'Send to back', icon: '⬇️', onClick: () => reorderZ(nodeId, false) },
-  ];
+  );
   // Only offered once ≥1 replication pair already exists in the project,
   // this specific node isn't already part of one, and it isn't already a
   // member of some *other* multi-node group — addSelectionToReplicationSide
@@ -1189,7 +1321,6 @@ function openNodeContextMenu(nodeId, evt) {
   // selected, so this menu item is specifically the shortcut for the
   // *join an existing pair* case, which otherwise required knowing to
   // select the node and open that same modal yourself.
-  const node = store.getState().nodes.find((n) => n.id === nodeId);
   const inOtherGroup = node?.groupId && store.getState().nodes.some((n) => n.id !== nodeId && n.groupId === node.groupId);
   if (getReplicationPairs().length && !getReplicationInfoForNode(nodeId) && !inOtherGroup) {
     items.push('separator', {

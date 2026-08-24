@@ -152,6 +152,53 @@ user-facing fix or feature, alongside this changelog.
   value `'magic'`, also chooseable for any existing connector from its
   style editor.
 
+## v1.23.0 (2026-08-24)
+
+A UML-completeness batch for sequence diagrams (destroy markers, activation bars, combined
+fragments, sync/async/return presets, Mermaid export) plus a large expansion of ready-made
+templates for common auth/identity/networking flows and their Smart Suggestions integration.
+
+**Sync/async/return message presets**: selecting a single lifeline-to-lifeline message adds a
+"Message preset" dropdown to the arrow style editor — Sync call, Async call, or Return sets
+dash+arrowhead together instead of two separate fields.
+
+**UML destroy marker**: right-click a lifeline → "Mark destroyed here" drops an X where it
+terminates (computed from the click height), and shortens its dashed line to stop there.
+"Clear destroy marker" removes it. Schema addition: `nodes[].destroyOffset` (default `null`).
+
+**UML activation bars**: right-click a lifeline → "Add activation bar" for a draggable
+execution-occurrence rectangle — drag its body to move it (both ends shift together), drag either
+end to resize it, right-click it to remove it. Schema addition: `nodes[].activations` (default
+`[]`, each `{id, startOffset, endOffset}`).
+
+**UML combined fragments**: four new shapes (Alt/Opt/Loop/Par Fragment) in Sequence Diagram
+Templates — a resizable, movable labeled box (reusing the plain rect/Group-Container mechanism)
+with a small UML pentagon operator tag. One condition per box; drop it behind the messages it
+encloses. Schema addition: `nodes[].fragmentType` (default `null`, one of `alt`/`opt`/`loop`/
+`par`/`ref`).
+
+**"📋 Copy as Mermaid"** in a sequence diagram's drill-down view — converts the diagram (including
+activation bars, destroy markers, and any overlapping fragment box) into Mermaid `sequenceDiagram`
+text on the clipboard. Best-effort, not a lossless round-trip.
+
+**10 new sequence-diagram templates**: PKCE Authorization Flow, SCIM User Provisioning, MFA
+Challenge, RBAC Authorization Check, ABAC Authorization Check, SSO (SAML/OIDC), SPA Silent Token
+Refresh, API Key Authentication, TCP 3-Way Handshake, UDP Request/Response.
+
+**Smart Suggestions now offers sequence-diagram templates**: placing a component like OAuth/OIDC,
+SSO, Identity Provider, API Gateway, JWT, API Key, Cognito, React, or Router suggests a relevant
+template in the suggestions banner — accepting it instantiates the whole template positioned next
+to that component (not attached onto it, unlike a sub-component suggestion). Schema addition:
+component defs gained a curated `relatedPatterns` field, parallel to `related`/`relatedLayers`.
+A template can also now be dragged from the sidebar directly onto an existing node for the same
+effect (previously dropping a pattern anywhere on the canvas always centered it on the drop point).
+
+**Fixed during this batch's own review**: `core/replication.js`'s field-mirroring allowlist didn't
+carry the three schema additions above (`destroyOffset`/`activations`/`fragmentType`) to a live
+replication peer after the initial mirror was created — a value set on one side's lifeline
+wouldn't propagate to its mirror. Fixed before merge; see `docs/ARCHITECTURE.md`'s "Activation
+bars" gotcha.
+
 ## v1.22.0 (2026-08-24)
 
 A follow-up batch rounding out sequence diagrams, plus two general connector/canvas features

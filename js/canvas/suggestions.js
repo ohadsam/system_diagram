@@ -15,7 +15,7 @@
 // import.
 import { el, clear } from '../utils/dom.js';
 import * as store from '../core/store.js';
-import { getRelatedComponents, getRelatedLayers } from '../data/index.js';
+import { getRelatedComponents, getRelatedLayers, getRelatedPatterns } from '../data/index.js';
 import { getLibrarySettings } from '../io/librarySettings.js';
 
 const AUTO_HIDE_MS = 9000;
@@ -96,14 +96,20 @@ function buildRow(label, items, buildButton) {
  *   the companions shown, for layout) when its button is clicked
  * @param {(layerDefId: string) => void} callbacks.onAddLayer called with the
  *   chosen layer's id when its "attach" button is clicked
+ * @param {(patternDefId: string) => void} callbacks.onAddPattern called with
+ *   the chosen sequence-diagram template's id when its button is clicked —
+ *   instantiates the whole template next to this node (canvas.js
+ *   #instantiatePatternNearNode), not attached as a sub-component the way
+ *   a layer is.
  */
-export function showSuggestionsFor(def, node, { onAddComponent, onAddLayer }) {
+export function showSuggestionsFor(def, node, { onAddComponent, onAddLayer, onAddPattern }) {
   if (!getLibrarySettings().suggestionsEnabled) return;
 
   const existingDefIds = new Set(store.getState().nodes.map((n) => n.defId).filter(Boolean));
   const componentSuggestions = getRelatedComponents(def.id).filter((rel) => !existingDefIds.has(rel.id));
 
   const layerSuggestions = getUnattachedLayerSuggestions(node);
+  const patternSuggestions = getRelatedPatterns(def.id);
 
   // A component with nothing curated to suggest must still hide whatever
   // banner is already up — otherwise placing e.g. Express (which has
@@ -111,7 +117,7 @@ export function showSuggestionsFor(def, node, { onAddComponent, onAddLayer }) {
   // sitting on screen, stale and mislabeled for the wrong node, which reads
   // as "Smart Suggestions stopped working" since it never again reflects
   // whatever was actually just placed.
-  if (!componentSuggestions.length && !layerSuggestions.length) {
+  if (!componentSuggestions.length && !layerSuggestions.length && !patternSuggestions.length) {
     hide();
     return;
   }
@@ -141,6 +147,19 @@ export function showSuggestionsFor(def, node, { onAddComponent, onAddLayer }) {
       title: `Attach ${rel.name} as a sub-component of ${def.name}`,
       onClick: () => {
         onAddLayer(rel.id);
+        hide();
+      },
+    })));
+  }
+
+  if (patternSuggestions.length) {
+    banner.appendChild(buildRow(`🔀 Sequence diagrams for ${def.name}:`, patternSuggestions, (rel) => el('button', {
+      type: 'button',
+      class: 'btn btn-sm suggestion-banner-btn suggestion-banner-btn-pattern',
+      text: `${rel.icon} ${rel.name}`,
+      title: `Add the "${rel.name}" sequence diagram next to ${def.name}`,
+      onClick: () => {
+        onAddPattern(rel.id);
         hide();
       },
     })));

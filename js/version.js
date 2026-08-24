@@ -2,9 +2,22 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.22.0';
+export const APP_VERSION = '1.23.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.23.0',
+    date: '2026-08-24',
+    highlights: [
+      'Sync/async/return message presets in the arrow style editor for a lifeline-to-lifeline message — one dropdown sets dash + arrowhead together instead of two separate fields.',
+      'UML "destroy" marker for a lifeline — right-click it and choose "Mark destroyed here" to drop an X where it terminates (its dashed line stops there too); "Clear destroy marker" removes it.',
+      'UML activation bars — right-click a lifeline and choose "Add activation bar" for a draggable execution-occurrence rectangle: drag its body to move it, drag either end to resize it, right-click it to remove it.',
+      'UML combined fragments — four new "Fragment" shapes (Alt/Opt/Loop/Par) in Sequence Diagram Templates: a resizable labeled box with a pentagon operator tag, for enclosing a group of messages under a condition.',
+      '"📋 Copy as Mermaid" in a sequence diagram\'s drill-down view — copies the diagram (including activation bars, destroy markers, and any overlapping fragment boxes) as Mermaid `sequenceDiagram` text.',
+      '10 new Sequence Diagram Templates: PKCE Authorization Flow, SCIM User Provisioning, MFA Challenge, RBAC/ABAC Authorization Checks, SSO (SAML/OIDC), SPA Silent Token Refresh, API Key Authentication, TCP 3-Way Handshake, and UDP Request/Response.',
+      'Components like OAuth/OIDC, SSO, Identity Provider, API Gateway, JWT, API Key, Cognito, React, and Router now suggest a relevant sequence-diagram template in the Smart Suggestions banner when placed, and a template can be dragged from the sidebar directly onto an existing node to instantiate it positioned next to that node.',
+    ],
+  },
   {
     version: '1.22.0',
     date: '2026-08-24',

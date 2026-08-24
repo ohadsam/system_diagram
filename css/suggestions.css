@@ -59,6 +59,14 @@
   border-color: #0ea472;
 }
 
+/* A pattern suggestion adds a whole separate grouped diagram, not something
+   attached onto this node — a solid purple border (matching the Sequence
+   Diagram Templates category color) instead of the layer row's dashed
+   "attaches onto this node" treatment keeps the two visually distinct. */
+.suggestion-banner-btn-pattern {
+  border-color: #7C3AED;
+}
+
 .suggestion-banner-close {
   position: absolute;
   top: var(--space-2);

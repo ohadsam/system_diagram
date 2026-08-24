@@ -69,9 +69,14 @@ export function c(id, name, icon, opts = {}) {
     defaultSize: opts.defaultSize || { w: 160, h: 84 },
     related: opts.related || [],
     relatedLayers: opts.relatedLayers || [],
+    // Curated `pattern`-kind ids (e.g. a sequence-diagram template) this
+    // component suggests instantiating nearby — see
+    // data/index.js#getRelatedPatterns and canvas/suggestions.js.
+    relatedPatterns: opts.relatedPatterns || [],
     popular: !!opts.popular,
     ...(opts.textPosition ? { textPosition: opts.textPosition } : {}),
     ...(opts.iconVisible === false ? { iconVisible: false } : {}),
+    ...(opts.fragmentType ? { fragmentType: opts.fragmentType } : {}),
   };
 }
 
@@ -85,7 +90,7 @@ export function c(id, name, icon, opts = {}) {
  * @param {{key:string, defId:string, dx:number, dy:number, label?:string}[]} nodes
  * @param {{from:string, to:string, label?:string, dash?:string, startArrow?:string, endArrow?:string, routing?:string}[]} edges
  */
-export function definePattern(id, name, icon, { description = '', tags = [], nodes, edges } = {}) {
+export function definePattern(id, name, icon, { description = '', tags = [], nodes, edges, groupOnInstantiate = false } = {}) {
   return {
     id,
     name,
@@ -99,6 +104,13 @@ export function definePattern(id, name, icon, { description = '', tags = [], nod
     subComponents: [],
     defaultSize: { w: 1, h: 1 }, // patterns never render as a single node — see instantiatePattern
     pattern: { nodes, edges: edges || [] },
+    // Same field a saved multi-component custom component uses (see
+    // io/customComponents.js/saveComponentGroupModal.js) — canvas.js#instantiatePattern
+    // reads it identically regardless of source. Off by default (most
+    // patterns are a loose cluster, not a unit); a sequence-diagram
+    // template sets it so the result is immediately a real "sequence
+    // diagram group" (background box, 🔍 zoom-in — see docs/SPEC.md 4.15).
+    groupOnInstantiate,
   };
 }
 

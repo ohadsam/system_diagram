@@ -25,7 +25,7 @@ Or open `index.html` directly in a browser.
 
 ## Features
 
-- **Huge component library** — 500+ predefined components across 23
+- **Huge component library** — 540+ predefined components across 24
   categories (AWS, Databases, Cache, Messaging, Monitoring, DevOps,
   Containers, Networking, Security, Servers, Client/Frontend, Frontend &
   Backend frameworks, Storage, Logging, AI/ML, Cloud providers, Basic
@@ -168,6 +168,16 @@ Or open `index.html` directly in a browser.
   connector for a new "Open details" notes panel — handy for annotating a
   message, but works on any connector; a connector's notes also show as a
   hover tooltip, and its label can be positioned near the start/middle/end.
+  Selecting a message offers sync/async/return style presets; right-click a
+  lifeline for a UML "destroy" marker (an X where it terminates) or a
+  draggable activation bar (execution occurrence); four "Fragment" shapes
+  (Alt/Opt/Loop/Par) add UML combined-fragment boxes; "📋 Copy as Mermaid"
+  in the drill-down view exports the diagram as Mermaid `sequenceDiagram`
+  text. 13 ready-made templates (Login Flow, OAuth Handshake, PKCE, SCIM,
+  MFA, RBAC/ABAC, SSO, SPA Silent Refresh, API Key Auth, TCP/UDP, and more)
+  are also offered as a Smart Suggestion for relevant components (OAuth,
+  SSO, API Gateway, JWT, ...) and can be dragged from the sidebar directly
+  onto an existing node.
 - **📐 Scale Diagram** — permanently resize every component and its text
   together by a chosen percentage, distinct from zooming the view.
 - **Export** — PNG and PDF snapshots of your diagram.

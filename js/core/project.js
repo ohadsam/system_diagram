@@ -22,6 +22,11 @@ export const SUBCOMPONENTS_DISPLAY_MODES = ['chips', 'full'];
 // exact same live-mirroring engine (core/replication.js); see docs/SPEC.md
 // "Live Replication" for why one mechanism covers all of them.
 export const REPLICATION_MODES = ['active-active', 'active-passive', 'primary-replica'];
+// UML "combined fragment" operator a labeled box represents — see
+// docs/SPEC.md "Sequence diagrams" and canvas/node.js's pentagon tag
+// rendering. Deliberately just one condition per box (no alt/else divider
+// line) — see data/categories/sequence-templates.js's fragment shapes.
+export const FRAGMENT_TYPES = ['alt', 'opt', 'loop', 'par', 'ref'];
 
 export function createEmptyProject(name = 'Untitled Diagram') {
   const now = new Date().toISOString();
@@ -67,6 +72,23 @@ export function createNode(def, x, y, overrides = {}) {
     // its groupId belongs to an active replication pair's side — see
     // docs/SPEC.md "Live Replication".
     replicationExcluded: false,
+    // UML "destroy" marker (lifeline shape only): fraction 0..1 down the
+    // lifeline's own dashed line where it terminates (an X mark), or null
+    // for a lifeline that's never destroyed (every non-lifeline node also
+    // leaves this null — harmless, unused). See
+    // canvas.js#setLifelineDestroyOffset for how a right-click sets it.
+    destroyOffset: null,
+    // UML "activation bar" execution occurrences (lifeline shape only): each
+    // {id, startOffset, endOffset} is a 0..1 span down the lifeline where
+    // that participant is "busy". See canvas.js#addActivationBar and
+    // nodeInteractions.js's drag-to-move/-resize handling.
+    activations: [],
+    // UML combined-fragment operator (alt/opt/loop/par/ref) or null for an
+    // ordinary node — see FRAGMENT_TYPES above. Structural like
+    // textPosition/iconVisible below: a def carrying its own fragmentType
+    // (the four Fragment shapes in sequence-templates.js) always wins over
+    // `overrides`.
+    fragmentType: null,
     ...overrides,
     // A def's own textPosition/iconVisible (data/schema.js#c) describes
     // something structural about that specific shape (e.g. a container/
@@ -80,6 +102,7 @@ export function createNode(def, x, y, overrides = {}) {
     // later per-node override) decides as before.
     ...(def?.textPosition ? { textPosition: def.textPosition } : {}),
     ...(def?.iconVisible === false ? { iconVisible: false } : {}),
+    ...(def?.fragmentType ? { fragmentType: def.fragmentType } : {}),
   };
 }
 
@@ -245,6 +268,17 @@ export function validateProject(input) {
           zIndex: Number.isFinite(n.zIndex) ? n.zIndex : 1,
           groupId: typeof n.groupId === 'string' ? n.groupId : null,
           replicationExcluded: n.replicationExcluded === true,
+          destroyOffset: Number.isFinite(n.destroyOffset) ? Math.min(1, Math.max(0, n.destroyOffset)) : null,
+          activations: Array.isArray(n.activations)
+            ? n.activations
+                .filter((a) => a && Number.isFinite(a.startOffset) && Number.isFinite(a.endOffset))
+                .map((a) => {
+                  const s = Math.min(1, Math.max(0, a.startOffset));
+                  const eo = Math.min(1, Math.max(0, a.endOffset));
+                  return { id: typeof a.id === 'string' ? a.id : nextId('act'), startOffset: Math.min(s, eo), endOffset: Math.max(s, eo) };
+                })
+            : [],
+          fragmentType: FRAGMENT_TYPES.includes(n.fragmentType) ? n.fragmentType : null,
         };
       });
     const edgeIds = new Set();

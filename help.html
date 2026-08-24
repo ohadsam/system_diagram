@@ -444,6 +444,9 @@
         <li><strong>A lifeline can message itself</strong> — drag from a lifeline's connection strip back onto that same lifeline at a different height (e.g. "validate input" before a real call out). It renders as a small loop instead of a flat line through the lifeline, and still gets a sequence number and every normal connector feature.</li>
         <li><strong>Reconnect a message</strong> — select it and drag either of its two small round endpoint handles to a different height or a different lifeline, instead of deleting and redrawing it. Dropping on empty canvas cancels the reconnect.</li>
         <li><strong>Tidy up the spacing</strong> — "🛠️ Tools" menu → "↔️ Distribute Evenly" re-spaces every lifeline column and message height evenly, keeping both the lifelines' left-to-right order and the messages' top-to-bottom order exactly as they were.</li>
+        <li><strong>Message style presets</strong> — select a single message between two lifelines and a "Message preset" dropdown appears in the arrow style editor: Sync call, Async call, or Return sets its dash + arrowhead together instead of two separate fields.</li>
+        <li><strong>UML destroy marker</strong> — right-click a lifeline and choose "Mark destroyed here" for an X where it terminates (dropped exactly where you clicked); its dashed line stops there too. "Clear destroy marker" (shown instead once set) removes it.</li>
+        <li><strong>UML activation bars</strong> — right-click a lifeline and choose "Add activation bar" for a small draggable rectangle marking when that participant is busy. Drag its body to move it, drag either end to resize it, right-click it to remove it.</li>
       </ol>
       <p><span class="mock-node">Client <small style="opacity:.7">┊</small></span> &nbsp;&nbsp;&nbsp; <span class="mock-node">Server <small style="opacity:.7">┊</small></span></p>
       <div class="tip">💡 One more lifeline needed later? It's also its own entry in "🔷 Add Shape" → Lifeline, so you don't have to re-run the wizard just to add one to an existing diagram.</div>
@@ -453,6 +456,16 @@
       <h3>Zoom in on a sequence diagram</h3>
       <p>Group 2 or more lifelines together (select them, then "Group selection" in the style row) and a 🔍 icon appears on the group's background box — click it for a read-only zoomed-in preview of just that sequence diagram, in a modal, or "📌 Pin to side panel" to dock the same live-updating preview instead of a popup. The preview itself is view-only; click its "✏️ Edit" button (also available directly from a pinned panel) to open the real canvas scoped to just that group's lifelines and messages for actual editing — a banner marks this state, and its "✅ Done editing" button saves your changes back into the main diagram.</p>
       <div class="tip">📤 A sequence-diagram group exports as its own extra PNG file (alongside the main diagram's PNG) or extra PDF page automatically — see <a href="#saving">Saving, loading &amp; export</a>.</div>
+
+      <h3>Combined fragments (Alt/Opt/Loop/Par)</h3>
+      <p>Search "🔷 Add Shape" or the sidebar's "Sequence Diagram Templates" category for "Alt Fragment", "Opt Fragment", "Loop Fragment", or "Par Fragment" — a resizable, movable labeled box with a small UML pentagon tag showing its operator, for enclosing a group of messages under a condition (e.g. "user is premium"). Drop it behind the messages it should enclose (right-click → Send to back), and set the condition by renaming the box like any other component. One condition per box — no alt/else divider line.</p>
+
+      <h3>Ready-made sequence-diagram templates</h3>
+      <p>The sidebar's "Sequence Diagram Templates" category also has whole ready-made flows you can drop in at once, already grouped: Login Flow, OAuth Handshake, Checkout Flow, Retry with Backoff, PKCE Authorization Flow, SCIM User Provisioning, MFA Challenge, RBAC Authorization Check, ABAC Authorization Check, SSO (SAML/OIDC), SPA Silent Token Refresh, API Key Authentication, TCP 3-Way Handshake, and UDP Request/Response.</p>
+      <div class="tip">💡 A relevant template is also offered as a Smart Suggestion (see "✨ Smart Suggestions") right after placing a component like OAuth/OIDC, SSO, Identity Provider, API Gateway, JWT, API Key, Cognito, React, or Router — accepting it instantiates the template positioned next to that component. You can also drag a template from the sidebar directly onto an existing node for the same effect.</div>
+
+      <h3>Export as Mermaid</h3>
+      <p>Open a sequence diagram's 🔍 zoom-in preview (above) and click "📋 Copy as Mermaid" to copy it as Mermaid <code>sequenceDiagram</code> text — including activation bars, destroy markers, and any overlapping fragment box. Best-effort, not a guaranteed lossless round-trip.</p>
     </section>
 
     <section id="shortcuts">

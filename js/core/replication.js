@@ -16,7 +16,7 @@ const REPLICATION_GAP = 120; // px between side A's bounding box and side B, whe
 const MIRROR_FIELDS = [
   'defId', 'w', 'h', 'shape', 'fill', 'stroke', 'strokeWidth', 'text', 'fontSize',
   'textAlign', 'textPosition', 'icon', 'iconVisible', 'notes', 'labels',
-  'subComponentsDisplay', 'rows',
+  'subComponentsDisplay', 'rows', 'destroyOffset', 'fragmentType',
 ];
 
 function signature(node) {
@@ -28,9 +28,19 @@ function signature(node) {
   return JSON.stringify(rest);
 }
 
+// Like subComponents, an activation bar carries its own id (used to look up
+// which entry a drag is resizing/moving — see nodeInteractions.js) — copied
+// with a fresh one per side rather than through MIRROR_FIELDS' plain
+// verbatim-value fields, same "the copy never shares identity with the
+// original" reasoning as subComponents' own id.
+function mirrorActivations(source) {
+  return (source.activations || []).map((a) => ({ ...a, id: nextId('act') }));
+}
+
 function cloneAsMirror(source, groupId, x, y) {
   const clone = { ...source, id: nextId('node'), groupId, x, y, replicationExcluded: false };
   clone.subComponents = (source.subComponents || []).map((sc) => ({ ...sc, id: nextId('sc') }));
+  clone.activations = mirrorActivations(source);
   return clone;
 }
 
@@ -38,6 +48,7 @@ function applyMirroredContent(target, source, x, y) {
   const next = { ...target, x, y };
   for (const field of MIRROR_FIELDS) next[field] = source[field];
   next.subComponents = (source.subComponents || []).map((sc) => ({ ...sc, id: nextId('sc') }));
+  next.activations = mirrorActivations(source);
   return next;
 }
 

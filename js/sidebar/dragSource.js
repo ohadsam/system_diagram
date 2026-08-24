@@ -4,7 +4,7 @@ import { el } from '../utils/dom.js';
 import * as store from '../core/store.js';
 import {
   createNodeFromDrop, addComponentAtCenter, addLayerToNode, instantiatePattern,
-  instantiatePatternAtCenter, resolveComponentDef,
+  instantiatePatternAtCenter, instantiatePatternNearNode, resolveComponentDef,
 } from '../canvas/canvas.js';
 
 const DRAG_THRESHOLD = 5;
@@ -38,9 +38,16 @@ export function makeDraggable(itemEl, defId) {
         ghost.style.left = `${ev.clientX + 12}px`;
         ghost.style.top = `${ev.clientY + 12}px`;
         const elAtPoint = document.elementFromPoint(ev.clientX, ev.clientY);
-        const nodeElUnder = def?.kind === 'layer' ? elAtPoint?.closest('.node') : null;
-        if (hoveredNodeEl && hoveredNodeEl !== nodeElUnder) hoveredNodeEl.classList.remove('layer-drop-target');
-        if (nodeElUnder) nodeElUnder.classList.add('layer-drop-target');
+        // A pattern dropped onto an existing node instantiates positioned
+        // next to it (instantiatePatternNearNode below) rather than
+        // centered wherever the cursor happens to be — same "drop onto a
+        // node changes behavior" affordance the layer flow already has,
+        // just a different resulting action (nearby, not attached onto).
+        const dropTargetKind = def?.kind === 'layer' || def?.kind === 'pattern' ? def.kind : null;
+        const nodeElUnder = dropTargetKind ? elAtPoint?.closest('.node') : null;
+        const dropClass = dropTargetKind === 'pattern' ? 'pattern-drop-target' : 'layer-drop-target';
+        if (hoveredNodeEl && hoveredNodeEl !== nodeElUnder) hoveredNodeEl.classList.remove('layer-drop-target', 'pattern-drop-target');
+        if (nodeElUnder) nodeElUnder.classList.add(dropClass);
         hoveredNodeEl = nodeElUnder || null;
         ghost.classList.toggle('drop-ready', !!(nodeElUnder || elAtPoint?.closest('.canvas-viewport')));
       }
@@ -50,7 +57,7 @@ export function makeDraggable(itemEl, defId) {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       itemEl.classList.remove('dragging-source');
-      hoveredNodeEl?.classList.remove('layer-drop-target');
+      hoveredNodeEl?.classList.remove('layer-drop-target', 'pattern-drop-target');
 
       if (dragging) {
         const elAtPoint = document.elementFromPoint(ev.clientX, ev.clientY);
@@ -58,6 +65,9 @@ export function makeDraggable(itemEl, defId) {
         const overCanvas = elAtPoint?.closest('.canvas-viewport');
         if (def?.kind === 'layer' && targetNodeId) {
           addLayerToNode(defId, targetNodeId);
+          closeMobileSidebarDrawer();
+        } else if (def?.kind === 'pattern' && targetNodeId) {
+          instantiatePatternNearNode(defId, targetNodeId);
           closeMobileSidebarDrawer();
         } else if (def?.kind === 'pattern' && overCanvas) {
           instantiatePattern(defId, ev.clientX, ev.clientY);

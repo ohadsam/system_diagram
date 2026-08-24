@@ -192,6 +192,17 @@
   background: rgba(14, 164, 114, 0.06);
 }
 
+/* Dragging a "pattern" sidebar item (e.g. a sequence-diagram template) over
+   a node — dropping instantiates the whole pattern positioned next to this
+   node (canvas.js#instantiatePatternNearNode), not attached onto it, so a
+   solid purple outline instead of the layer row's dashed "attaches onto
+   this node" treatment. */
+.pattern-drop-target {
+  outline: 2px solid #7C3AED !important;
+  outline-offset: 3px;
+  background: rgba(124, 58, 237, 0.06);
+}
+
 /* ---- Sequence-diagram drill-down (modals/subDiagramModal.js) ---- */
 
 .subdiagram-preview {

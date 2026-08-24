@@ -111,3 +111,22 @@ test('a component with both companion and sub-component suggestions shows both r
   await expect(page.locator('.suggestion-banner')).toBeHidden();
   await expect.poll(() => nodeCount(page)).toBe(1);
 });
+
+// Task #190: `relatedPatterns` — a curated sequence-diagram template
+// suggestion, instantiated as a whole grouped diagram next to the node
+// rather than attached onto it the way a `relatedLayers` layer is.
+test('placing a component with curated sequence-diagram suggestions shows a "Sequence diagrams" row, and accepting one instantiates the full grouped template next to it', async ({ page }) => {
+  await addExactComponent(page, 'OAuth / OIDC'); // sec-oauth: relatedPatterns = seq-oauth-handshake, seq-pkce-flow
+  await expect(page.locator('.suggestion-banner')).toBeVisible();
+  await expect(page.locator('.suggestion-banner')).toContainText('Sequence diagrams for OAuth / OIDC');
+  await expect(page.locator('.suggestion-banner-btn-pattern')).toHaveCount(2);
+
+  await page.locator('.suggestion-banner-btn-pattern', { hasText: 'PKCE Authorization Flow' }).click();
+  await expect(page.locator('.suggestion-banner')).toBeHidden();
+
+  // The 1 OAuth node plus PKCE's 3 lifelines, grouped as a real sequence
+  // diagram (zoom-in icon available) right away.
+  await expect.poll(() => nodeCount(page)).toBe(4);
+  await expect(page.locator('.node[data-shape="lifeline"]')).toHaveCount(3);
+  await expect(page.locator('.group-bg-zoom')).toHaveCount(1);
+});

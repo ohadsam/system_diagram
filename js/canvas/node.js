@@ -67,6 +67,25 @@ export function createNodeEl(node) {
   const replicationBadge = el('span', { class: 'node-replication-badge', title: 'Part of a live replication pair', 'aria-hidden': 'true' }, '🔁');
   root.appendChild(replicationBadge);
 
+  // UML "destroy" marker (lifeline shape only) — an X at node.destroyOffset,
+  // hidden via CSS unless .has-destroy-marker is set (updateNodeEl below).
+  const destroyMarker = el('div', { class: 'lifeline-destroy-marker', 'aria-hidden': 'true' }, '✕');
+  root.appendChild(destroyMarker);
+
+  // UML activation bars (lifeline shape only) — rebuilt on every update
+  // since the count varies (updateNodeEl below); wired for drag-to-move/
+  // -resize via delegation in nodeInteractions.js rather than per-bar
+  // listeners, so a rebuild never leaves a bar's handlers stale.
+  const activationsLayer = el('div', { class: 'lifeline-activations' });
+  root.appendChild(activationsLayer);
+
+  // UML combined-fragment operator tag (alt/opt/loop/par/ref) — a small
+  // pentagon label at the box's top-left corner, hidden via CSS unless
+  // .has-fragment-tag is set (updateNodeEl below). Only the four Fragment
+  // shapes (data/categories/sequence-templates.js) ever set node.fragmentType.
+  const fragmentTag = el('div', { class: 'fragment-tag', 'aria-hidden': 'true' });
+  root.appendChild(fragmentTag);
+
   const points = el('div', { class: 'node-connection-points' });
   for (const side of SIDES) {
     const point = el('button', {
@@ -169,6 +188,42 @@ export function updateNodeEl(rootEl, node, { selected = false, replicated = fals
   body.style.setProperty('--node-fill', node.fill);
   body.style.setProperty('--node-stroke', node.stroke);
   body.style.setProperty('--node-border-width', `${node.strokeWidth}px`);
+
+  const hasDestroyMarker = node.shape === 'lifeline' && Number.isFinite(node.destroyOffset);
+  rootEl.classList.toggle('has-destroy-marker', hasDestroyMarker);
+  if (hasDestroyMarker) {
+    // Set on rootEl (not body) so it also cascades to .lifeline-destroy-marker,
+    // a sibling of .node-body under root — see createNodeEl above.
+    rootEl.style.setProperty('--destroy-y', `${node.h * node.destroyOffset}px`);
+  }
+
+  const hasFragmentTag = !!node.fragmentType;
+  rootEl.classList.toggle('has-fragment-tag', hasFragmentTag);
+  if (hasFragmentTag) {
+    const tag = rootEl.querySelector('.fragment-tag');
+    tag.textContent = node.fragmentType;
+    // Set directly rather than via the --node-stroke CSS var (only defined
+    // on .node-body, not this element — see the fixed --destroy-y bug
+    // above for the same pitfall) — simpler than duplicating the var here.
+    tag.style.background = node.stroke;
+  }
+
+  const activationsLayer = rootEl.querySelector('.lifeline-activations');
+  clear(activationsLayer);
+  if (node.shape === 'lifeline') {
+    for (const act of node.activations || []) {
+      const bar = el('div', {
+        class: 'lifeline-activation',
+        'data-activation-id': act.id,
+        title: 'Drag to move, drag an end to resize, right-click to remove',
+      });
+      bar.style.top = `${node.h * act.startOffset}px`;
+      bar.style.height = `${Math.max(0, node.h * (act.endOffset - act.startOffset))}px`;
+      bar.appendChild(el('div', { class: 'activation-handle', 'data-edge': 'start' }));
+      bar.appendChild(el('div', { class: 'activation-handle', 'data-edge': 'end' }));
+      activationsLayer.appendChild(bar);
+    }
+  }
 
   // Skip rebuilding whichever part currently has a live inline rename
   // (startInlineEdit) in it — this whole function runs on every store

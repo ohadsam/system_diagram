@@ -16,7 +16,7 @@ export const components = [
   c('fe-nuxt', 'Nuxt', '💚', { color: '#00DC82', related: ['fe-vue'], relatedLayers: ['layer-vue-component', 'layer-vue-store'] }),
   c('fe-preact', 'Preact', '💠', { color: '#673AB8', relatedLayers: ['layer-react-hook', 'layer-react-component'] }),
   c('fe-qwik', 'Qwik', '⚡', { color: '#AC7EF4' }),
-  c('fe-react', 'React', '⚛️', { popular: true, color: '#61DAFB', related: ['fe-nextjs'], relatedLayers: ['layer-react-hook', 'layer-react-component'] }),
+  c('fe-react', 'React', '⚛️', { popular: true, color: '#61DAFB', related: ['fe-nextjs'], relatedLayers: ['layer-react-hook', 'layer-react-component'], relatedPatterns: ['seq-spa-silent-refresh'] }),
   c('fe-remix', 'Remix', '💿', { color: FE, related: ['fe-react'], relatedLayers: ['layer-react-hook', 'layer-react-component'] }),
   c('fe-solidjs', 'SolidJS', '🔷', { color: '#2C4F7C' }),
   c('fe-svelte', 'Svelte', '🔥', { color: '#FF3E00' }),

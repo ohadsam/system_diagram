@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  CATEGORIES, ALL_COMPONENTS, COMPONENTS_BY_CATEGORY, getComponentById, getComponentsForCategory, getLayerComponents, getRelatedComponents, getRelatedLayers,
+  CATEGORIES, ALL_COMPONENTS, COMPONENTS_BY_CATEGORY, getComponentById, getComponentsForCategory, getLayerComponents, getRelatedComponents, getRelatedLayers, getRelatedPatterns,
 } from '../../js/data/index.js';
 
 test('the library loads with a large, rich set of categories and components', () => {
@@ -91,6 +91,36 @@ test('pattern node keys are unique within each pattern (no ambiguous edge target
   }
 });
 
+test('every "Sequence Diagram Templates" pattern is all-lifeline, groups on instantiate, and every message has a distinct, non-midpoint fromOffset down its lifeline', () => {
+  const all = getComponentsForCategory('sequence-templates');
+  const templates = all.filter((c) => c.kind === 'pattern');
+  assert.ok(templates.length >= 4, `expected at least 4 sequence-diagram templates, got ${templates.length}`);
+  for (const t of templates) {
+    assert.equal(t.groupOnInstantiate, true, `"${t.id}" should group on instantiate`);
+    for (const node of t.pattern.nodes) {
+      assert.equal(getComponentById(node.defId).shape, 'lifeline', `"${t.id}" node "${node.key}" is not a lifeline`);
+    }
+    const offsets = t.pattern.edges.map((e) => e.overrides.fromOffset);
+    assert.equal(new Set(offsets).size, offsets.length, `"${t.id}" has two messages sharing a fromOffset — they'd stack`);
+    for (const e of t.pattern.edges) {
+      assert.equal(e.overrides.routing, 'straight', `"${t.id}" message should route straight`);
+    }
+  }
+});
+
+test('the "Sequence Diagram Templates" category also offers four UML combined-fragment box shapes (alt/opt/loop/par)', () => {
+  const all = getComponentsForCategory('sequence-templates');
+  const fragments = all.filter((c) => c.kind === 'component' && c.fragmentType);
+  assert.equal(fragments.length, 4);
+  const types = fragments.map((f) => f.fragmentType).sort();
+  assert.deepEqual(types, ['alt', 'loop', 'opt', 'par']);
+  for (const f of fragments) {
+    assert.equal(f.shape, 'rect');
+    assert.equal(f.textPosition, 'top');
+    assert.equal(f.iconVisible, false);
+  }
+});
+
 test('the "AI Providers & Agents" category is rich and covers providers, models, MCP, agents and skills', () => {
   const aiAgents = getComponentsForCategory('ai-agents');
   assert.ok(aiAgents.length >= 40, `expected at least 40 AI Providers & Agents items, got ${aiAgents.length}`);
@@ -131,6 +161,30 @@ test('every component\'s "relatedLayers" (Smart Suggestions sub-components) ids 
     }
     assert.equal(new Set(comp.relatedLayers).size, comp.relatedLayers.length, `"${comp.id}" has duplicate entries in its relatedLayers array`);
   }
+});
+
+test('every component\'s "relatedPatterns" (Smart Suggestions sequence-diagram templates) ids resolve to real kind:"pattern" components', () => {
+  const withRelatedPatterns = ALL_COMPONENTS.filter((c) => c.relatedPatterns?.length);
+  assert.ok(withRelatedPatterns.length >= 6, `expected at least 6 components with curated relatedPatterns, got ${withRelatedPatterns.length}`);
+  for (const comp of withRelatedPatterns) {
+    for (const relId of comp.relatedPatterns) {
+      const rel = getComponentById(relId);
+      assert.ok(rel, `"${comp.id}".relatedPatterns references unknown id "${relId}"`);
+      assert.equal(rel.kind, 'pattern', `"${comp.id}".relatedPatterns references "${relId}", which isn't a pattern (kind: "${rel.kind}")`);
+    }
+    assert.equal(new Set(comp.relatedPatterns).size, comp.relatedPatterns.length, `"${comp.id}" has duplicate entries in its relatedPatterns array`);
+  }
+});
+
+test('getRelatedPatterns resolves ids to real pattern defs and is empty/safe for components with none', () => {
+  const oauthPatterns = getRelatedPatterns('sec-oauth').map((c) => c.id);
+  assert.ok(oauthPatterns.includes('seq-oauth-handshake'));
+  assert.ok(oauthPatterns.includes('seq-pkce-flow'));
+  for (const pattern of getRelatedPatterns('net-router')) {
+    assert.equal(pattern.kind, 'pattern');
+  }
+  assert.deepEqual(getRelatedPatterns('does-not-exist'), []);
+  assert.deepEqual(getRelatedPatterns('net-dns'), []);
 });
 
 test('getRelatedLayers resolves ids to real layer defs and is empty/safe for components with none', () => {

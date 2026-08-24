@@ -424,6 +424,189 @@ it immediately, try to click its icon before scrolling/fitting to screen —
 "Fit to screen" (already a toolbar button) is the natural way out of it,
 same as for any other content that starts outside the current view.
 
+### Message style presets (`toolbar/arrowEditor.js#renderMessagePresets`)
+
+A `<select>` (not buttons — see the gotcha below) added to the single-edge
+arrow style editor only when both endpoints are `shape === 'lifeline'`,
+mapping one choice to a `dash`+`startArrow`+`endArrow` combo applied via the
+existing `updateAll` dispatcher: Sync call (`solid`/`none`/`filled`), Async
+call (`solid`/`none`/`open`), Return (`dashed`/`none`/`open`). Deliberately
+not bound to the edge's current values — a fresh "Apply a preset..."
+placeholder every render, since it's a one-shot action not a stored field of
+its own.
+
+**Gotcha — three buttons, not a dropdown, broke an unrelated existing e2e
+test by making the floating contextual row taller.** The first
+implementation used three `<button>`s. That grew the floating style row
+(`toolbar.js#positionFloatingRow`, biased to render *below* the selected
+edge's own anchor rect) by one field's worth of height — enough that on a
+short two-lifeline test fixture, the row's own bottom edge now reached down
+into the second drag target's drop point, silently swallowing the second of
+two scripted message-draw gestures. Switching to a single compact
+`<select>` fixed the immediate collision, but the row's height is
+inherently a moving target as more fields get added over time — the test
+was also hardened to `Escape` (deselect) between the two drags rather than
+relying on there being enough clearance, so it can't regress the same way
+again from some *other* future addition.
+
+### Destroy marker (`canvas.js#setLifelineDestroyOffset`/`#clearLifelineDestroyOffset`, `canvas/node.js`)
+
+`node.destroyOffset` (0..1, `null` when unset) — set via right-click →
+"Mark destroyed here", computed from the actual click height through
+`core/geometry.js#computeAnchorOffset` (the same point→offset inverse a
+dragged connector endpoint uses), so the X lands exactly where clicked
+rather than a fixed spot. Rendered as a real DOM element
+(`.lifeline-destroy-marker`, always present but `display: none` unless
+`.has-destroy-marker` is set) rather than a third pseudo-element on
+`.node-body`, since that element already uses `::before` (the title box)
+and `::after` (the dashed line) — no third pseudo-element slot left. Its
+position (and the dashed line's shortened `height`) both read a
+`--destroy-y` CSS custom property set on the *root* `.node` element, not
+`.node-body` — `--node-fill`/`--node-stroke` are only ever defined on
+`.node-body` itself, and the marker is a `.node-body` *sibling*, not a
+descendant, so a variable scoped there wouldn't reach it.
+
+### Activation bars (`canvas.js#addActivationBar`/`#removeActivationBar`, `canvas/nodeInteractions.js`, `canvas/node.js`)
+
+`node.activations: [{id, startOffset, endOffset}]` — added via right-click
+→ "Add activation bar" (a default-length span centered on the click
+height, clamped into `[0,1]`), removed via right-click *on an existing bar*
+→ "Remove activation bar" (`canvas.js#openNodeContextMenu` checks
+`evt.target.closest('.lifeline-activation')` to tell the two cases apart).
+
+Rendered into a `.lifeline-activations` container that's fully **rebuilt on
+every `updateNodeEl` call** rather than created once like the resize
+handles/conn-points, since the *count* varies (unlike those, which are
+always exactly 4/4). That has one real consequence: **drag handlers are
+wired via delegation on the root `.node` element, not per-bar
+`addEventListener`** (`nodeInteractions.js#attachNodeInteractions`'s single
+`pointerdown` listener inspects `e.target.closest('.activation-handle')` /
+`.lifeline-activation`) — a per-element listener would go stale (silently
+stop firing) the moment a re-render swapped in fresh DOM nodes mid-drag,
+which a rebuild-every-render container makes an ongoing risk, not a
+one-time setup concern. `IGNORE_SELECTOR` (the same constant that already
+excludes `.resize-handle`/`.conn-point` from triggering whole-node
+drag-to-move) also excludes `.lifeline-activation`, so grabbing a bar never
+also starts moving the whole lifeline underneath it.
+
+Both gestures (`beginActivationMove`/`beginActivationResize`) convert a
+screen-space pointer delta to a fraction of *that lifeline's own height*
+(`dy / n.h`), not a fixed pixel span — the same `screenToCanvas`-then-divide
+pattern `beginResize` already uses for ordinary resize handles, so dragging
+stays correct at any zoom level. Move preserves the bar's length (both
+offsets shift by the same delta, clamped so the span never runs off either
+end); resize clamps each end independently with a small `MIN_ACTIVATION_SPAN`
+floor so a bar can never be dragged down to zero height.
+
+### Combined fragments (`data/categories/sequence-templates.js`'s `fragment()` helper, `core/project.js#FRAGMENT_TYPES`)
+
+Deliberately **not** a new node `shape` — a fragment box reuses the plain
+`rect` shape (same mechanism the "Group / Container" shape already uses,
+including "drop it behind the messages it encloses, right-click → Send to
+back") plus one new node field, `fragmentType` (`alt`/`opt`/`loop`/`par`/
+`ref`, `null` for every ordinary node). Four sidebar items (Alt/Opt/Loop/Par
+Fragment) each carry their own `fragmentType` baked into their component
+def; `createNode`/`schema.js#c()` propagate `def.fragmentType` the same way
+they already special-case `def.textPosition`/`def.iconVisible` — a
+structural property of *that specific shape def* that should always win
+over whatever global new-component defaults the user has configured,
+unlike an ordinary per-node style field.
+
+Rendered as a small pentagon-shaped tag (`clip-path: polygon(...)`) pinned
+to the box's top-left corner, `node.js` toggling `.has-fragment-tag` the
+same on/off pattern as the destroy marker above. One condition per box
+(`node.text`, renamed the same way as any node) — no alt/else divider
+line, a deliberate simplification (see `docs/SPEC.md` 4.15).
+
+**Which messages a fragment "contains" is never stored** — a fragment box
+isn't structurally linked to the messages it visually overlaps (no
+`groupId`, no edge references); "what's inside it" is entirely a geometric
+question, answered fresh each time something needs to know (currently just
+the Mermaid exporter below, via `core/geometry.js#rectsIntersect` against
+each candidate message's two endpoint anchor points). This mirrors the same
+"purely derived, computed at render/use time" convention `getSequenceDiagramGroups`/`computeMessageSequenceNumbers` already established — nothing to keep in sync, nothing that can go stale after a fragment or a message gets dragged.
+
+### Ready-made templates + Smart Suggestions for patterns (`data/categories/sequence-templates.js`, `data/index.js#getRelatedPatterns`, `canvas/suggestions.js`, `canvas.js#instantiatePatternNearNode`)
+
+The 13 sequence-diagram templates (Login Flow, OAuth Handshake, ..., UDP
+Request/Response) are ordinary `definePattern(...)` entries — the exact
+same "instantiate a whole blueprint at once" mechanism `design-patterns.js`
+already uses for e.g. the API Gateway pattern, with `groupOnInstantiate:
+true` (schema.js) so the result lands as a real group immediately (🔍
+zoom-in works right away, no separate "now go group these" step). Their
+`nodes`/`edges` use the raw `{key, defId, dx, dy}` / `{from, to,
+overrides}` spec shapes directly rather than the `n()`/`e()` convenience
+helpers `design-patterns.js` mostly uses — those helpers don't forward
+`fromOffset`/`toOffset`, and every message in a sequence-diagram template
+needs a distinct one (see `sequence-templates.js`'s own header comment) or
+they'd all stack on the lifeline's midpoint.
+
+**Smart Suggestions gained a third row.** `data/schema.js#c()`'s
+`relatedPatterns` (parallel to the existing `related`/`relatedLayers`) is a
+curated list of pattern ids a component suggests — e.g. placing "OAuth /
+OIDC" offers "OAuth Handshake" and "PKCE Authorization Flow".
+`canvas/suggestions.js#showSuggestionsFor` reads it via
+`data/index.js#getRelatedPatterns` and renders a "🔀 Sequence diagrams for
+X" row alongside the existing companion-component and attach-a-layer rows;
+accepting one calls `canvas.js#instantiatePatternNearNode(patternDefId,
+nodeId)` — **not** `onAddLayer`, since a pattern isn't attached onto the
+node the way a layer is, it's instantiated as its own separate grouped
+diagram beside it.
+
+`instantiatePatternNearNode` is also what a pattern sidebar item dropped
+directly onto an existing node now does (`sidebar/dragSource.js` — same
+hover-highlight affordance the drag-a-layer-onto-a-node flow already has,
+`.pattern-drop-target` instead of `.layer-drop-target`, a solid purple
+outline instead of the layer row's dashed green to read as a visually
+distinct kind of drop). Positioning it correctly needs more than a flat
+pixel offset from the target node's right edge: `instantiatePatternAtPoint`
+(the refactored-out core of `instantiatePattern`, now shared by both the
+screen-space and canvas-space-point call paths) places each pattern node at
+`center.x + spec.dx - w/2`, so the template's own *leftmost real edge*
+relative to its own center can be well left of `dx = 0` depending on how
+many lifelines it has and how wide they are — a fixed margin computed
+without accounting for that undershoots for a wider template and
+overshoots for a narrower one. `instantiatePatternNearNode` instead computes
+each pattern's actual leftmost edge (`min(spec.dx - w/2)` over its own
+nodes) and solves for the center point that clears the target node's right
+edge by a fixed margin regardless of the template's shape.
+
+### Export as Mermaid (`io/exportSequenceMermaid.js`, `modals/subDiagramModal.js`)
+
+`buildSequenceMermaid({nodes, edges, allNodes})` is pure/DOM-free (mirrors
+`core/sequenceDiagram.js`'s own layout helpers) — the modal just writes its
+return value to the clipboard. Every event (a message, an activation
+start/end, a destroy, a fragment start/end) gets a `y` and is sorted
+together into one timeline, the same "compute order from vertical anchor
+position" approach `canvas.js#computeMessageSequenceNumbers` already uses
+for message badges — reusing `core/geometry.js#sideAnchor` for messages so
+the ordering is consistent with what the badges themselves show.
+Overlapping-but-not-properly-nested fragments (a layout Mermaid's own
+strict nesting can't represent) fall back to a simple stack — pop whichever
+open fragment id an `end` event names, wherever it sits in the stack,
+rather than requiring strict LIFO — a best-effort textual export, not a
+guaranteed-valid-Mermaid guarantee for adversarial layouts. Dash+arrowhead
+maps onto Mermaid's three most common arrow forms using the exact same
+three combinations the message-preset dropdown above offers (`solid`+
+`filled` → `->>`, `solid`+`open` → `-)`, anything else → `-->>`), so a
+template built from those presets round-trips predictably.
+
+**Gotcha — this batch's four new node-only fields (`destroyOffset`,
+`activations`, `fragmentType`) weren't reaching a replicated peer.**
+`core/replication.js`'s `MIRROR_FIELDS` is an *allowlist* (unlike
+`signature()`'s change-detection, which spreads the whole node and so
+already "saw" these fields fine) — adding a field to a node's schema
+doesn't automatically propagate it to a live-mirrored peer just because
+`validateProject`/`createNode` know about it. `destroyOffset`/`fragmentType`
+were added straight to `MIRROR_FIELDS`; `activations` needed the same
+fresh-id-per-side treatment `subComponents` already gets (`mirrorActivations`
+helper, since an activation carries its own `id` used to look up which one
+a drag is resizing) rather than a plain verbatim copy. Caught in this
+batch's own review pass, not by a user report — worth specifically
+rechecking `MIRROR_FIELDS`/`EDGE_MIRROR_FIELDS` any time a future batch adds
+a new node or edge field, since nothing enforces the allowlist staying in
+sync with the schema.
+
 ## Auto-arrange (`core/autoLayout.js`, `canvas.js#autoArrangeAll`)
 
 `computeAutoLayout(nodes, edges)` is a pure function (no DOM, no store) that

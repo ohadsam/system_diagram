@@ -22,7 +22,7 @@ export const components = [
   c('aws-codebuild', 'CodeBuild', '🛠️', { color: AWS, tags: ['cicd', 'devops'] }),
   c('aws-codedeploy', 'CodeDeploy', '🚀', { color: AWS, tags: ['cicd', 'devops'] }),
   c('aws-codepipeline', 'CodePipeline', '🔁', { color: AWS, tags: ['cicd', 'devops'] }),
-  c('aws-cognito', 'Cognito', '🪪', { color: AWS, tags: ['auth', 'identity', 'security'], related: ['aws-api-gateway'] }),
+  c('aws-cognito', 'Cognito', '🪪', { color: AWS, tags: ['auth', 'identity', 'security'], related: ['aws-api-gateway'], relatedPatterns: ['seq-pkce-flow', 'seq-mfa-challenge'] }),
   c('aws-config', 'Config', '⚙️', { color: AWS, tags: ['compliance', 'governance'] }),
   c('aws-control-tower', 'Control Tower', '🗼', { color: AWS, tags: ['governance', 'multi-account'] }),
   c('aws-direct-connect', 'Direct Connect', '🔌', { color: AWS, tags: ['networking', 'hybrid'] }),

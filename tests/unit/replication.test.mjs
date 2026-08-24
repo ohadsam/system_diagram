@@ -140,6 +140,31 @@ test('syncReplication propagates a content change from the side that actually ch
   assert.equal(mirror.fill, '#FF0000');
 });
 
+test('syncReplication propagates destroyOffset, fragmentType, and a fresh-id copy of activations to the mirror', () => {
+  const { project } = setupPair([{ id: 'n1', overrides: { shape: 'lifeline' } }]);
+  const edited = {
+    ...project,
+    nodes: project.nodes.map((n) => (n.id === 'n1' ? {
+      ...n,
+      destroyOffset: 0.75,
+      fragmentType: 'alt',
+      activations: [{ id: 'act_source', startOffset: 0.2, endOffset: 0.5 }],
+    } : n)),
+  };
+  const synced = syncReplication(project, edited);
+
+  const mirrorId = synced.replicationPairs[0].members[0].b;
+  const mirror = synced.nodes.find((n) => n.id === mirrorId);
+  assert.equal(mirror.destroyOffset, 0.75);
+  assert.equal(mirror.fragmentType, 'alt');
+  assert.equal(mirror.activations.length, 1);
+  assert.equal(mirror.activations[0].startOffset, 0.2);
+  assert.equal(mirror.activations[0].endOffset, 0.5);
+  // A fresh id per side, same "copy never shares identity" precedent as
+  // subComponents — not the literal source id.
+  assert.notEqual(mirror.activations[0].id, 'act_source');
+});
+
 test('syncReplication propagates a position change via the pair\'s constant offset, in either direction', () => {
   const { project, built } = setupPair([{ id: 'n1', x: 0, y: 0 }]);
   const moved = { ...project, nodes: project.nodes.map((n) => (n.id === 'n1' ? { ...n, x: 300, y: 40 } : n)) };

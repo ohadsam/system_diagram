@@ -74,10 +74,21 @@ kind of companion it is:
     points at `layer-adaptee`, never the reverse), the same "container → what it holds" direction
     every other `relatedLayers` entry already follows.
 
-Both power the same "Smart Suggestions" banner (`canvas/suggestions.js`) offered right after a
-component is placed — `related` companions show as one row of "+ Add X" buttons that create a new
-node beside the placed one; `relatedLayers` show as a second row of "↳ X" buttons that attach
-directly onto the node just placed instead (same effect as dragging that layer onto it).
+- `relatedPatterns: ['pattern-id', ...]` — a `kind: 'pattern'` id (typically one of the
+  `data/categories/sequence-templates.js` templates) this component's placement should suggest
+  instantiating nearby — e.g. `sec-oauth` → `seq-oauth-handshake`/`seq-pkce-flow`, `net-router` →
+  `seq-tcp-handshake`/`seq-udp-exchange`. Only for a component genuinely central to that flow (an
+  identity/auth component and an OAuth/SSO/MFA template; a networking component and a TCP/UDP
+  template) — most components have no natural sequence-diagram pairing and should leave this
+  unset.
+
+Each powers its own row in the same "Smart Suggestions" banner (`canvas/suggestions.js`) offered
+right after a component is placed — `related` companions show as one row of "+ Add X" buttons that
+create a new node beside the placed one; `relatedLayers` show as a second row of "↳ X" buttons that
+attach directly onto the node just placed instead (same effect as dragging that layer onto it);
+`relatedPatterns` shows a third "🔀 Sequence diagrams for X" row whose buttons instantiate the whole
+template positioned next to the placed node (`canvas.js#instantiatePatternNearNode`) — not attached
+onto it, unlike a `relatedLayers` suggestion.
 
 Bar to clear — skip it rather than force a weak pairing, for either list:
 - The pairing should be something most engineers would nod at immediately (Load Balancer → a web
@@ -105,8 +116,9 @@ Bar to clear — skip it rather than force a weak pairing, for either list:
   categoryLabel?)` helper instead.
 
 `componentData.test.mjs` enforces that every `related` id resolves to a real component (no
-self-references, no duplicates) and every `relatedLayers` id resolves to an actual `kind: 'layer'`
-component — run it (see "Always finish with" below) after adding either.
+self-references, no duplicates), every `relatedLayers` id resolves to an actual `kind: 'layer'`
+component, and every `relatedPatterns` id resolves to an actual `kind: 'pattern'` component — run
+it (see "Always finish with" below) after adding any of the three.
 
 ### `popular` — optional, and almost never for a brand-new component
 
@@ -154,6 +166,18 @@ Rules:
   out left-to-right or top-to-bottom, roughly 150-250px apart so nothing overlaps at default size.
 - Reuse the `twoWay`/`dashed` edge-style const helpers already defined at the top of
   `design-patterns.js` for bidirectional/dashed edges instead of repeating the raw options object.
+- `groupOnInstantiate: true` makes a multi-node pattern land as a real group immediately (its
+  members share a fresh `groupId` the moment it's instantiated) instead of a loose cluster the user
+  would have to manually select-and-group — use it for anything meant to behave as one unit
+  (e.g. every `sequence-templates.js` template, so its 🔍 zoom-in drill-down works right away).
+- **A sequence-diagram template is a special case of this same mechanism** —
+  `data/categories/sequence-templates.js`'s `lifelines()`/`msg()` local helpers build `nodes`/
+  `edges` in the *raw* `{key, defId, dx, dy}` / `{from, to, overrides: {...}}` shapes directly,
+  **not** via the `n()`/`e()` convenience helpers above — those don't forward `fromOffset`/
+  `toOffset`, and every message in a sequence diagram needs a distinct one (0..1 down the
+  lifeline) or they'd all land on the shared midpoint and stack on top of each other. Copy
+  `sequence-templates.js`'s own pattern (and its `componentData.test.mjs` coverage asserting
+  distinct offsets) rather than the `n()`/`e()` one when adding another sequence-diagram template.
 
 ## A whole new category
 

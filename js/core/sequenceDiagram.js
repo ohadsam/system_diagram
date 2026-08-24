@@ -5,7 +5,10 @@
 // actually becomes real nodes.
 import { sideAnchor } from './geometry.js';
 
-const GAP = 220;
+// Also reused by canvas.js#addLifelineToRight (the quick "add lifeline"
+// context-menu action) so a manually-added participant lines up with the
+// wizard's own spacing.
+export const GAP = 220;
 // Keeps a redistributed message's offset clear of a lifeline's own title
 // box at the top and its very bottom end, same margin on both sides.
 const OFFSET_MARGIN = 0.08;

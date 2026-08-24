@@ -34,7 +34,36 @@ export function renderEdgeStyleEditor(container, edgeIds) {
   if (edgeIds.length === 1) {
     container.appendChild(field('Label', textInput(first.label, (v) => updateAll((e) => { e.label = v; }), { placeholder: 'e.g. HTTPS', 'data-focus-key': 'edge-label' })));
     container.appendChild(field('Label position', selectInput(EDGE_LABEL_POSITIONS, first.labelPosition || 'middle', (v) => updateAll((e) => { e.labelPosition = v; }), LABEL_POSITION_LABELS)));
+
+    const fromNode = state.nodes.find((n) => n.id === first.from);
+    const toNode = state.nodes.find((n) => n.id === first.to);
+    if (fromNode?.shape === 'lifeline' && toNode?.shape === 'lifeline') {
+      container.appendChild(renderMessagePresets(updateAll));
+    }
   }
 
   container.appendChild(el('span', { class: 'toolbar-selection-count', text: edgeIds.length > 1 ? `${edgeIds.length} selected` : '' }));
+}
+
+// One-click UML message conventions (only offered when both endpoints are
+// lifelines, see above) — sets dash+arrowhead together instead of two
+// separate dropdown changes. A compact <select> rather than three buttons:
+// three full-width buttons made the floating contextual row tall enough to
+// cover part of the canvas below it (found drawing a second message right
+// after the first — see tests/e2e/sequence-diagram.spec.js).
+const MESSAGE_PRESETS = {
+  sync: { dash: 'solid', startArrow: 'none', endArrow: 'filled' },
+  async: { dash: 'solid', startArrow: 'none', endArrow: 'open' },
+  return: { dash: 'dashed', startArrow: 'none', endArrow: 'open' },
+};
+const MESSAGE_PRESET_LABELS = { '': 'Apply a preset...', sync: '📞 Sync call', async: '⚡ Async call', return: '↩️ Return' };
+
+function renderMessagePresets(updateAll) {
+  const select = selectInput(['', 'sync', 'async', 'return'], '', (v) => {
+    if (!v) return;
+    const preset = MESSAGE_PRESETS[v];
+    updateAll((e) => Object.assign(e, preset));
+  }, MESSAGE_PRESET_LABELS);
+  select.title = 'Apply a standard UML message style (sets dash + arrowhead together)';
+  return field('Message preset', select);
 }

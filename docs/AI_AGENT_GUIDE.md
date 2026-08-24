@@ -102,6 +102,14 @@ this repo" quick-start.
 | Change the sequence-diagram zoom-in/drill-down (🔍 icon, preview, pin, edit) | `js/canvas/canvas.js#getSequenceDiagramGroups`/`getNodesBounds`/`hideExcept` (derivation + export support) + `js/modals/subDiagramModal.js` (read-only preview + pin) + `js/canvas/subDiagramEdit.js` (the store-swap edit flow) — **read** docs/ARCHITECTURE.md's section on this before touching it; it documents a real gotcha about group-background icons rendering behind the toolbar |
 | Change what gets an extra PNG/PDF page for a sequence diagram | `js/io/exportImage.js` (`captureDiagramCanvas({nodeIds})`, `captureSequenceDiagramCanvases`) + `js/io/exportPdf.js` (`addCanvasPage`) — both call `canvas.js#getSequenceDiagramGroups` |
 | Change AI Design Review/Generate Design's sequence-diagram-specific prompt wording | `js/io/aiReview.js#buildReviewPrompt`'s `hasSequenceDiagram` param + `js/io/aiGenerateDesign.js`'s `SEQUENCE_EXAMPLE_JSON`/its rules block + `autoArrangeIfNeeded`'s lifeline skip |
+| Change a lifeline-to-lifeline message's sync/async/return style presets | `js/toolbar/arrowEditor.js#renderMessagePresets` — see "Common pitfalls" below (a buttons-vs-dropdown gotcha that broke an unrelated test by growing the floating style row) |
+| Change a lifeline's destroy marker (X where it terminates) | `js/core/project.js` (`destroyOffset` field) + `js/canvas/canvas.js` (`setLifelineDestroyOffset`/`clearLifelineDestroyOffset`, the context-menu wiring) + `js/canvas/node.js`/`css/node.css` (`.lifeline-destroy-marker`, `--destroy-y`) |
+| Change UML activation bars (add/remove/drag-to-move/-resize) | `js/core/project.js` (`activations` field) + `js/canvas/canvas.js` (`addActivationBar`/`removeActivationBar`) + `js/canvas/nodeInteractions.js` (`beginActivationMove`/`beginActivationResize`, delegated pointerdown — see docs/ARCHITECTURE.md's "Activation bars" section before adding a per-bar listener, it'll go stale) + `js/canvas/node.js`/`css/node.css` (`.lifeline-activation`, `.activation-handle`) |
+| Add/change a UML combined-fragment shape (Alt/Opt/Loop/Par) | `js/core/project.js` (`fragmentType` field, `FRAGMENT_TYPES`) + `js/data/categories/sequence-templates.js#fragment()` (the four sidebar shapes) + `js/canvas/node.js`/`css/node.css` (`.fragment-tag` pentagon) — reuses the plain `rect` shape, **not** a new node shape |
+| Add/change a ready-made sequence-diagram template | `js/data/categories/sequence-templates.js` — `definePattern(id, name, icon, { groupOnInstantiate: true, nodes: lifelines(...), edges: [msg(...), ...] })`; use the raw edge-spec shape via `msg()`, not `e()` — see docs/ARCHITECTURE.md's "Ready-made templates" section for why |
+| Add/change a "Smart Suggestions" sequence-diagram pairing | `relatedPatterns: ['seq-...']` in the `c(...)` call (ids must be `kind: 'pattern'`) — same curation bar as `related`/`relatedLayers`, see `add-library-item` skill |
+| Change dragging a pattern sidebar item onto an existing node | `js/canvas/canvas.js#instantiatePatternNearNode` (positions the pattern clearing the target node's actual leftmost edge, not a flat offset) + `js/sidebar/dragSource.js` (`.pattern-drop-target` hover affordance) |
+| Change the sequence-diagram "Copy as Mermaid" export | `js/io/exportSequenceMermaid.js#buildSequenceMermaid` (pure) + `js/modals/subDiagramModal.js` (the button, clipboard write) |
 
 ## Running things locally
 
@@ -156,6 +164,15 @@ npm test
   hasn't customized it, defeating the point.
 - Sidebar drag uses pointer events, not HTML5 DnD — don't mix the two
   paradigms when extending it.
+- Adding a new node/edge field does **not** automatically make Live
+  Replication mirror it — `core/replication.js#MIRROR_FIELDS`/
+  `EDGE_MIRROR_FIELDS` are explicit allowlists, unlike `signature()`'s
+  change-detection (which spreads the whole object and so "sees" a new
+  field for free). Add the field name to the relevant list, and if it
+  carries its own `id` per entry (like `subComponents` or `activations`),
+  regenerate a fresh one per side in `cloneAsMirror`/`applyMirroredContent`
+  rather than copying it verbatim — see docs/ARCHITECTURE.md's "Activation
+  bars" gotcha for a real case this was missed in.
 - Every `components` array entry (including `layer`/`pattern` kinds) still
   needs `defaultSize`/`shape`/`color`/`fill` even if a pattern never
   renders as a single node — `componentData.test.mjs` checks every
