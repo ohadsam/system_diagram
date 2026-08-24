@@ -54,3 +54,44 @@
   dominant-baseline: central;
 }
 
+/* Drag-to-reconnect handles (canvas/edgeReconnect.js) — rendered in their
+   own overlay layer stacked *above* .node-layer (see canvas/canvas.js),
+   not as children of the edge's own <g> in .edge-layer: a handle sits
+   exactly at the edge's anchor point, which for a node/lifeline is also
+   exactly where that node's own connection-point hit-strip lives (css/
+   node.css) — since .node-layer paints after .edge-layer, a handle living
+   in the edge layer would silently lose every pointer hit-test to the node
+   underneath it. The overlay layer only ever contains handles for the
+   *currently selected* edge(s), so this never affects normal edge
+   rendering/click-through. */
+.edge-handle-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4000px;
+  height: 4000px;
+  overflow: visible;
+  pointer-events: none;
+  /* Every .node carries an explicit numeric z-index (js/canvas/node.js —
+     "bring to front"/"send to back" can push it arbitrarily high), and a
+     positioned descendant with an explicit z-index paints above any
+     sibling left at the default z-index:auto *regardless of DOM order*
+     (CSS2.1 Appendix E) — .node-layer itself sets no z-index, so without
+     this the DOM-order fix above is silently defeated the moment a node
+     under a handle has been brought to front. A very high fixed value
+     keeps this layer on top no matter how high a node's own z-index climbs. */
+  z-index: 100000;
+}
+
+.edge-endpoint-handle {
+  fill: #fff;
+  stroke: var(--color-primary);
+  stroke-width: 2px;
+  cursor: grab;
+  pointer-events: auto;
+}
+
+.edge-endpoint-handle:hover {
+  r: 8;
+}
+

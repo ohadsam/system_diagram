@@ -334,6 +334,15 @@ full-backup export/import (4.7.3).
   each rank to reduce crossings, wrapping an overly-wide rank onto
   additional rows) — then re-picks every edge's anchor sides (4.4) to match
   the new positions and fits the view to the result. One undo step.
+- **Scale Diagram** (Tools menu): permanently resizes every component's
+  position, size, *and* font size together by a chosen percentage —
+  distinct from zooming the view (which is purely visual and never touches
+  the underlying data): scaling to 150% and then viewing at 100% zoom looks
+  identical to viewing the original at 150% zoom, but the diagram's actual
+  data changed. Centered on the diagram's own current bounding-box center
+  so it stays roughly in place rather than drifting toward the canvas
+  origin. Connector routing needs no adjustment (its anchor offsets are
+  already resolution-independent fractions, 4.4).
 
 ### 4.4 Arrows / connectors
 - Draw by dragging from a node's connection point to another node. Both
@@ -374,6 +383,22 @@ full-backup export/import (4.7.3).
   free-form notes field (new; a connector previously had nowhere to note
   extra context), and — when both endpoints are sequence-diagram lifelines
   (4.15) — its auto-computed message order.
+- A label's position along the connector's own path is a separate choice
+  from the label text itself — "Label position" in the style editor (Start
+  / Middle / End, default Middle) — useful for keeping several labels on
+  crowded or overlapping connectors legible, or (in a sequence diagram) for
+  reading a message's label right where the call actually starts.
+- A connector's free-form notes (the field above) also shows as a native
+  hover tooltip on the connector itself, not just inside the details
+  panel — a quick way to leave/read extra context on a connector/message
+  without opening anything.
+- **Reconnecting an existing connector**: once selected, two small round
+  handles appear at its exact start/end points — drag either one to a
+  different component (or, on a sequence-diagram lifeline, a different
+  height on the very same lifeline) to move just that end, live, without
+  deleting and redrawing the whole connector. Dropping on empty canvas
+  cancels the reconnect and leaves the connector exactly as it was; the
+  *other* end's side/height is never touched by dragging one handle.
 
 #### 4.4.1 Magic (auto-avoid) routing
 Every freshly-drawn connector already routes itself around every other
@@ -542,6 +567,11 @@ history instead of adding to it).
   an extremely large diagram rather than silently cropping it.
 - PDF: same content laid out on a PDF page (auto-orientation based on
   diagram aspect ratio).
+- If the project has one or more sequence-diagram groups (4.15), each one
+  additionally exports as its own separate PNG file (suffixed with its
+  participant names) alongside the main diagram's PNG, and as its own extra
+  page appended to the main PDF — cropped tightly to just that group's own
+  content, everything else on the canvas hidden for that one capture.
 
 ### 4.9 Hints
 - Short contextual hint bubbles near key UI (sidebar, canvas, toolbar).
@@ -619,6 +649,13 @@ deliberate, transparent design choice, not a shortcut:
   a backup) while the panel is open resets its scratch state (attached
   spec, prompt edits, saved replies) — a review prepared for one project
   shouldn't silently look like it belongs to another.
+- **Sequence-diagram-aware**: when the canvas holds a sequence diagram (any
+  lifeline node present, 4.15), the generated prompt swaps its whole
+  checklist for one suited to reviewing an interaction/call flow — call
+  order, missing responses, unhandled error/timeout/retry paths, race
+  conditions, and whether a call should be async vs. blocking — instead of
+  the generic architecture checklist (scalability/reliability/security/
+  cost/maintainability), which doesn't fit a flow diagram well.
 
 See `js/io/aiReview.js` (prompt builder, provider list) and
 `js/panel/aiReviewPanel.js` (the panel itself).
@@ -640,7 +677,14 @@ changes that.
   compliant AI reply can be pasted straight back in. "📋 Copy prompt"
   copies it manually; the same provider grid as 4.12 (Claude / ChatGPT /
   Gemini / Copilot) copies the prompt and opens that provider's site in
-  one click.
+  one click. The prompt also offers a *second* few-shot example and its own
+  rules for a sequence diagram (4.15) — lifeline nodes and time-ordered
+  messages instead of a component graph — with explicit guidance on when
+  to use it (the spec is fundamentally about a step-by-step interaction/
+  call order, not a static architecture) so the AI only reaches for it when
+  that's actually the better fit; a pasted lifeline-shaped reply skips the
+  grid-layout safety net below entirely (see that bullet) since a generic
+  grid would scramble a sequence diagram's meaningful left-to-right order.
 - **Step 3 — Paste the AI's result**: paste the AI's whole reply (prose
   and all — the JSON is extracted automatically: a direct parse first,
   then a fenced ```json block, then a first-`{`-to-last-`}` fallback).
@@ -648,7 +692,11 @@ changes that.
   every other import path, so malformed or partial output degrades
   gracefully instead of crashing; if the AI ignored the layout
   instructions and stacked components on top of each other, a safety net
-  re-arranges them on a simple grid rather than leaving an unusable pile.
+  re-arranges them on a simple grid rather than leaving an unusable pile —
+  skipped entirely for a sequence diagram (any lifeline node), since a
+  square grid would scramble its meaningful left-to-right participant
+  order and squash its tall vertical shape; even an imperfect AI layout
+  there reads better than that.
   A failed paste shows an inline error and keeps your text in place for a
   retry, without losing it.
 - If the canvas already has content, generating asks for confirmation
@@ -686,6 +734,16 @@ groups of components.
   either direction (whichever side actually changed drives the update).
   Deleting a mirrored component deletes its peer too, so the two sides can
   never silently drift into a stale, half-deleted state.
+- **Internal connectors mirror too**: a connector drawn between two
+  components that are both already mirrored members of the same side (e.g.
+  a message between two sequence-diagram lifelines, 4.15) gets its own
+  mirror created on the other side automatically, on the same pass as the
+  node it connects to — same live "whichever side changed drives the
+  update" propagation, and cascade-delete: removing one such connector (or
+  a node it depends on) removes its mirror too, rather than leaving a
+  dangling one-sided connector behind. A connector that merely stops
+  touching two live members (one endpoint excluded/regrouped away) drops
+  its mirror mapping without deleting either connector.
 - **Visual boundary**: each side of an active pair (and, separately, any
   regular multi-component group from 4.3.x) shows a subtle dashed
   background box behind its members so it reads as one unit at a glance —
@@ -754,6 +812,31 @@ followed by a response (or any back-and-forth), read top to bottom as time.
   lifeline is on the canvas — a sequence diagram's horizontal layout is
   manual and meaningful (x position = which participant), not something a
   connector-direction layout should rearrange.
+- **Self-messages**: a lifeline can message itself (e.g. "validate input
+  locally" before calling out) — drag from a lifeline's connection strip
+  back onto that same lifeline at a different height; it renders as a
+  small loop out and back rather than a flat line through the lifeline, and
+  still gets a sequence number and every normal connector feature (label,
+  notes/tooltip, style).
+- **"↔️ Distribute Evenly"** (toolbar Tools menu) tidies up a sequence
+  diagram that's drifted uneven from manual dragging/reconnecting: re-spaces
+  every lifeline column to the wizard's own even gap and every message's
+  height along its lifeline(s) — preserving both the lifelines'
+  left-to-right order and the messages' top-to-bottom order, so nothing
+  reorders, only the spacing evens out.
+- **Zoom in / drill-down on a sequence diagram**: grouping 2+ lifelines
+  (Group, 4.3.x) adds a 🔍 icon on the group's own background — click it
+  for a read-only zoomed-in preview of just that sequence diagram in a
+  modal (or "📌 Pin to side panel" to dock the same live-updating preview
+  instead). The preview is view-only; its own "✏️ Edit" button (also
+  reachable straight from a pinned panel) opens the *real* canvas scoped to
+  just that group's lifelines/messages for actual editing — a banner marks
+  this state and its own "✅ Done editing" button merges the changes back
+  into the main diagram, restoring everything else exactly as it was set
+  aside. Nothing new is persisted for this — a "sequence diagram group" is
+  simply any group whose members are all lifelines, so it needs no schema
+  changes and every existing JSON/PDF/PNG import-export path already
+  supports it (see 4.7/4.8's own callouts).
 - A UML "note" attached to a lifeline needs no special support — drop a
   Sticky Note (Basic Shapes) next to it like on any other diagram.
 
@@ -812,7 +895,7 @@ followed by a response (or any back-and-forth), read top to bottom as time.
       "routing": "orthogonal",
       "color": "#334155", "width": 2, "dash": "solid",
       "startArrow": "none", "endArrow": "filled",
-      "label": "HTTPS", "notes": ""
+      "label": "HTTPS", "labelPosition": "middle", "notes": ""
     }
   ],
   "replicationPairs": [
@@ -821,7 +904,8 @@ followed by a response (or any back-and-forth), read top to bottom as time.
       "mode": "active-active",
       "groupA": "group_...", "groupB": "group_...",
       "offsetX": 280, "offsetY": 0,
-      "members": [{ "a": "node_a", "b": "node_b" }]
+      "members": [{ "a": "node_a", "b": "node_b" }],
+      "edgeMembers": [{ "a": "edge_a", "b": "edge_b" }]
     }
   ]
 }
@@ -832,11 +916,15 @@ followed by a response (or any back-and-forth), read top to bottom as time.
 recomputed live from current node positions), so no extra field is needed
 for it. `fromOffset`/`toOffset` (default `0.5`, each 0..1) are how far
 along `fromSide`/`toSide` the edge actually anchors — see 4.4 and 4.15.
+`labelPosition` (default `"middle"`, one of `start`/`middle`/`end`) is
+where along the edge's own rendered path its label sits — see 4.4.
 `notes` (default `""`) is free-form text shown/edited in the connector's
-own details-panel variant (4.6). `groupId` (default `null`) ties 2+ nodes
+own details-panel variant (4.6), and also surfaced as a hover tooltip on
+the connector itself — see 4.4. `groupId` (default `null`) ties 2+ nodes
 into a Group/Ungroup unit — see 4.3.1. `replicationExcluded` (default
 `false`) and
-`replicationPairs` (default `[]`) drive Live Replication — see 4.14;
+`replicationPairs` (default `[]`, `edgeMembers` within it defaulting to
+`[]`) drive Live Replication — see 4.14;
 `mode` is one of `active-active` / `active-passive` / `primary-replica`,
 purely descriptive, and `members` maps each side-A node id to its side-B
 mirror's id.

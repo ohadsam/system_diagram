@@ -3,11 +3,12 @@
 import * as store from '../core/store.js';
 import { el, clear } from '../utils/dom.js';
 import { field, colorInput, numberInput, selectInput, textInput } from '../utils/formControls.js';
-import { ROUTINGS, ARROW_HEADS, DASH_STYLES } from '../core/project.js';
+import { ROUTINGS, ARROW_HEADS, DASH_STYLES, EDGE_LABEL_POSITIONS } from '../core/project.js';
 
 const ROUTING_LABELS = { straight: 'Straight', orthogonal: 'Elbow', curved: 'Curved', magic: '🪄 Magic (auto-avoid)' };
 const ARROW_LABELS = { none: 'None', open: 'Open', filled: 'Filled', diamond: 'Diamond', circle: 'Circle' };
 const DASH_LABELS = { solid: 'Solid', dashed: 'Dashed', dotted: 'Dotted' };
+const LABEL_POSITION_LABELS = { start: 'Near start', middle: 'Middle', end: 'Near end' };
 
 export function renderEdgeStyleEditor(container, edgeIds) {
   clear(container);
@@ -32,6 +33,7 @@ export function renderEdgeStyleEditor(container, edgeIds) {
 
   if (edgeIds.length === 1) {
     container.appendChild(field('Label', textInput(first.label, (v) => updateAll((e) => { e.label = v; }), { placeholder: 'e.g. HTTPS', 'data-focus-key': 'edge-label' })));
+    container.appendChild(field('Label position', selectInput(EDGE_LABEL_POSITIONS, first.labelPosition || 'middle', (v) => updateAll((e) => { e.labelPosition = v; }), LABEL_POSITION_LABELS)));
   }
 
   container.appendChild(el('span', { class: 'toolbar-selection-count', text: edgeIds.length > 1 ? `${edgeIds.length} selected` : '' }));

@@ -8,6 +8,10 @@ export const SHAPES = ['rect', 'rounded', 'circle', 'diamond', 'cylinder', 'hexa
 export const ROUTINGS = ['straight', 'orthogonal', 'curved', 'magic'];
 export const ARROW_HEADS = ['none', 'open', 'filled', 'diamond', 'circle'];
 export const DASH_STYLES = ['solid', 'dashed', 'dotted'];
+// Where an edge's label sits along its own rendered path — see
+// canvas/connector.js#labelPointForPosition. 'middle' is the position every
+// edge used exclusively before this field existed.
+export const EDGE_LABEL_POSITIONS = ['start', 'middle', 'end'];
 // Where a node's label renders: inside the shape (center/top/bottom) or
 // outside it, floating above/below — see docs/SPEC.md 4.2.5.
 export const TEXT_POSITIONS = ['center', 'top', 'bottom', 'above', 'below'];
@@ -101,6 +105,7 @@ export function createEdge(fromNodeId, toNodeId, overrides = {}) {
     startArrow: 'none',
     endArrow: 'filled',
     label: '',
+    labelPosition: 'middle',
     notes: '',
     ...overrides,
   };
@@ -132,9 +137,14 @@ export function duplicateProject(project) {
       subComponents: (n.subComponents || []).map((sc) => ({ ...sc, id: nextId('sc') })),
     };
   });
+  const edgeIdMap = new Map();
   const edges = project.edges
     .filter((e) => nodeIdMap.has(e.from) && nodeIdMap.has(e.to))
-    .map((e) => ({ ...e, id: nextId('edge'), from: nodeIdMap.get(e.from), to: nodeIdMap.get(e.to) }));
+    .map((e) => {
+      const newId = nextId('edge');
+      edgeIdMap.set(e.id, newId);
+      return { ...e, id: newId, from: nodeIdMap.get(e.from), to: nodeIdMap.get(e.to) };
+    });
   // A pair only survives the copy if both of its groups still have at least
   // one member among the duplicated nodes (i.e. groupIdMap actually has an
   // entry for them) — an orphaned pair (every member since deleted) carries
@@ -149,6 +159,9 @@ export function duplicateProject(project) {
       members: pair.members
         .filter((m) => nodeIdMap.has(m.a) && nodeIdMap.has(m.b))
         .map((m) => ({ a: nodeIdMap.get(m.a), b: nodeIdMap.get(m.b) })),
+      edgeMembers: (pair.edgeMembers || [])
+        .filter((m) => edgeIdMap.has(m.a) && edgeIdMap.has(m.b))
+        .map((m) => ({ a: edgeIdMap.get(m.a), b: edgeIdMap.get(m.b) })),
     }));
   const now = new Date().toISOString();
   return {
@@ -234,25 +247,31 @@ export function validateProject(input) {
           replicationExcluded: n.replicationExcluded === true,
         };
       });
+    const edgeIds = new Set();
     const edges = input.edges
       .filter((e) => e && typeof e === 'object' && nodeIds.has(e.from) && nodeIds.has(e.to))
-      .map((e) => ({
-        id: typeof e.id === 'string' && e.id ? e.id : nextId('edge'),
-        from: e.from,
-        to: e.to,
-        fromSide: ['top', 'right', 'bottom', 'left'].includes(e.fromSide) ? e.fromSide : 'right',
-        toSide: ['top', 'right', 'bottom', 'left'].includes(e.toSide) ? e.toSide : 'left',
-        fromOffset: Number.isFinite(e.fromOffset) ? Math.min(1, Math.max(0, e.fromOffset)) : 0.5,
-        toOffset: Number.isFinite(e.toOffset) ? Math.min(1, Math.max(0, e.toOffset)) : 0.5,
-        routing: ROUTINGS.includes(e.routing) ? e.routing : 'orthogonal',
-        color: typeof e.color === 'string' ? e.color : '#334155',
-        width: Number.isFinite(e.width) ? e.width : 2,
-        dash: DASH_STYLES.includes(e.dash) ? e.dash : 'solid',
-        startArrow: ARROW_HEADS.includes(e.startArrow) ? e.startArrow : 'none',
-        endArrow: ARROW_HEADS.includes(e.endArrow) ? e.endArrow : 'filled',
-        label: typeof e.label === 'string' ? e.label : '',
-        notes: typeof e.notes === 'string' ? e.notes : '',
-      }));
+      .map((e) => {
+        const id = typeof e.id === 'string' && e.id ? e.id : nextId('edge');
+        edgeIds.add(id);
+        return {
+          id,
+          from: e.from,
+          to: e.to,
+          fromSide: ['top', 'right', 'bottom', 'left'].includes(e.fromSide) ? e.fromSide : 'right',
+          toSide: ['top', 'right', 'bottom', 'left'].includes(e.toSide) ? e.toSide : 'left',
+          fromOffset: Number.isFinite(e.fromOffset) ? Math.min(1, Math.max(0, e.fromOffset)) : 0.5,
+          toOffset: Number.isFinite(e.toOffset) ? Math.min(1, Math.max(0, e.toOffset)) : 0.5,
+          routing: ROUTINGS.includes(e.routing) ? e.routing : 'orthogonal',
+          color: typeof e.color === 'string' ? e.color : '#334155',
+          width: Number.isFinite(e.width) ? e.width : 2,
+          dash: DASH_STYLES.includes(e.dash) ? e.dash : 'solid',
+          startArrow: ARROW_HEADS.includes(e.startArrow) ? e.startArrow : 'none',
+          endArrow: ARROW_HEADS.includes(e.endArrow) ? e.endArrow : 'filled',
+          label: typeof e.label === 'string' ? e.label : '',
+          labelPosition: EDGE_LABEL_POSITIONS.includes(e.labelPosition) ? e.labelPosition : 'middle',
+          notes: typeof e.notes === 'string' ? e.notes : '',
+        };
+      });
 
     const replicationPairs = Array.isArray(input.replicationPairs)
       ? input.replicationPairs
@@ -267,6 +286,11 @@ export function validateProject(input) {
             members: Array.isArray(p.members)
               ? p.members
                   .filter((m) => m && typeof m.a === 'string' && nodeIds.has(m.a) && typeof m.b === 'string' && nodeIds.has(m.b))
+                  .map((m) => ({ a: m.a, b: m.b }))
+              : [],
+            edgeMembers: Array.isArray(p.edgeMembers)
+              ? p.edgeMembers
+                  .filter((m) => m && typeof m.a === 'string' && edgeIds.has(m.a) && typeof m.b === 'string' && edgeIds.has(m.b))
                   .map((m) => ({ a: m.a, b: m.b }))
               : [],
             frozen: p.frozen === true,

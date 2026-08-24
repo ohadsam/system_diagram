@@ -16,7 +16,7 @@ import { createEmptyProject } from '../core/project.js';
 import { el, clear, rerenderPreservingUiState } from '../utils/dom.js';
 import {
   deleteSelection, duplicateSelection, groupSelection, ungroupSelection, selectionHasGroup, duplicateProjectAsNew,
-  getSelectionScreenRect, autoArrangeAll,
+  getSelectionScreenRect, autoArrangeAll, distributeSequenceDiagram,
 } from '../canvas/canvas.js';
 import { getBaseToolMode, setToolMode, onToolModeChange } from '../canvas/toolMode.js';
 import { onViewportChange, centerOn } from '../canvas/viewport.js';
@@ -37,6 +37,12 @@ import { openBackupModal } from '../modals/backupModal.js';
 import { openWhatsNewModal } from '../modals/whatsNewModal.js';
 import { openReplicationModal } from '../modals/replicationModal.js';
 import { openSequenceDiagramModal } from '../modals/sequenceDiagramModal.js';
+import { openScaleDiagramModal } from '../modals/scaleDiagramModal.js';
+// Registers this modal's `sdb:open-subdiagram` window listener (see
+// modals/subDiagramModal.js) — reached from the 🔍 icon on a sequence-
+// diagram group's canvas background, not from a toolbar button of its own,
+// so nothing else here calls it directly; the import alone is what's needed.
+import '../modals/subDiagramModal.js';
 import { toggleAiReviewPanel } from '../panel/aiReviewPanel.js';
 import { openGenerateDesignModal } from '../modals/generateDesignModal.js';
 import { confirmAction } from '../modals/confirmModal.js';
@@ -410,7 +416,21 @@ function buildToolsGroupButtons() {
       showToast('Rearranged the diagram.', 'success', 1800);
     },
   });
-  return [gridBtn, aiReviewBtn, autoArrangeBtn];
+  const distributeBtn = el('button', {
+    type: 'button',
+    class: 'btn',
+    title: 'Distribute evenly: re-space a sequence diagram\'s lifeline columns and message heights evenly, keeping their current order',
+    text: '↔️ Distribute Evenly',
+    onClick: distributeSequenceDiagram,
+  });
+  const scaleBtn = el('button', {
+    type: 'button',
+    class: 'btn',
+    title: 'Scale Diagram: permanently resize every component (and its text) by a percentage — unlike zoom, this changes the actual data',
+    text: '📐 Scale Diagram',
+    onClick: openScaleDiagramModal,
+  });
+  return [gridBtn, aiReviewBtn, autoArrangeBtn, distributeBtn, scaleBtn];
 }
 
 function buildHelpGroupButtons() {
@@ -540,7 +560,30 @@ function positionFloatingRow() {
   contextRow.style.maxHeight = `${Math.max(120, available - EDGE_MARGIN * 2)}px`;
   const rowRect = contextRow.getBoundingClientRect();
 
-  const top = below ? anchor.bottom + EDGE_MARGIN : anchor.top - rowRect.height - EDGE_MARGIN;
+  let top = below ? anchor.bottom + EDGE_MARGIN : anchor.top - rowRect.height - EDGE_MARGIN;
+  // `top` is deliberately never clamped back toward the anchor (see
+  // docs/ARCHITECTURE.md gotcha #4 item 2) — sliding it back risks landing
+  // on top of the very node/edge the row is for, silently swallowing clicks
+  // meant for it. The one case that actually needs a fallback is when the
+  // *anchor itself* — not just `available` room, which the Smart
+  // Suggestions banner trim above can also push negative for a perfectly
+  // normal, comfortably-fitting anchor — doesn't fit inside `bounds` at all
+  // (e.g. two sequence-diagram lifelines, ~640px each, on a ~720px-tall
+  // screen): the `Math.max(120, ...)` height floor still renders the row at
+  // a real, clickable size regardless, and with no anchor edge inside
+  // `bounds` to stay clear of in the first place, placing it right off the
+  // (already out-of-bounds) `anchor.bottom`/`anchor.top` pushes it straight
+  // off the opposite edge of the actual browser window instead,
+  // unreachable. Checking the anchor directly (not `available`) is what
+  // keeps this from misfiring on the banner-trim case — an earlier version
+  // gated on `available < 0` instead and caused exactly that regression:
+  // a comfortably-fitting anchor near a visible suggestions banner got
+  // pulled back on top of itself, breaking the connect-a-new-edge gesture
+  // that needs to click *through* the node underneath.
+  const anchorOutOfBounds = below ? anchor.bottom > bounds.bottom : anchor.top < bounds.top;
+  if (anchorOutOfBounds) {
+    top = Math.max(bounds.top + EDGE_MARGIN, Math.min(top, bounds.bottom - rowRect.height - EDGE_MARGIN));
+  }
   const maxLeft = bounds.right - rowRect.width - EDGE_MARGIN;
   const left = Math.max(bounds.left + EDGE_MARGIN, Math.min(anchor.left, maxLeft));
   contextRow.style.left = `${left}px`;

@@ -152,6 +152,55 @@ user-facing fix or feature, alongside this changelog.
   value `'magic'`, also chooseable for any existing connector from its
   style editor.
 
+## v1.22.0 (2026-08-24)
+
+A follow-up batch rounding out sequence diagrams, plus two general connector/canvas features
+that fell out of the same work.
+
+**Self-messages**: a lifeline can now message itself (e.g. "validate locally" before a real call
+out) — drag from its connection strip back onto itself at a different height; renders as a small
+loop rather than a flat line through the lifeline. No schema change (`from === to`, distinct
+`fromOffset`/`toOffset`, matching `fromSide`/`toSide`).
+
+**Drag-to-reconnect**: a selected connector now shows two small handles at its exact endpoints —
+drag either one to a different node (or a different height on the same lifeline) to move just that
+end, live, without deleting and redrawing the connector. Dropping on empty canvas cancels rather
+than deleting anything.
+
+**"↔️ Distribute Evenly"** (Tools menu): re-spaces a sequence diagram's lifeline columns and
+message heights evenly, preserving both the lifelines' left-to-right order and the messages'
+top-to-bottom order — a tidy-up for a diagram that's drifted uneven from manual dragging.
+
+**Live Replication mirrors connectors too**, not just components: a connector drawn between two
+already-mirrored components on the same side (e.g. a message between two paired sequence-diagram
+lifelines) automatically mirrors to the other side, with the same live sync/cascade-delete
+semantics as node mirroring. Schema addition: `replicationPairs[].edgeMembers` (default `[]`,
+same shape as `.members`).
+
+**Zoom-in / drill-down on a sequence diagram**: grouping 2+ lifelines adds a 🔍 icon on the
+group's background — a read-only zoomed preview (modal, or "📌 Pin to side panel" to dock it
+instead) with an "✏️ Edit" button that opens the real canvas scoped to just that group for actual
+editing, saving back into the main diagram when done. Nothing new persisted — a "sequence diagram
+group" is simply any group whose members are all lifelines, so every existing JSON/PDF/PNG path
+already supports it; a sequence-diagram group now also exports as its own separate PNG file /
+extra PDF page alongside the main diagram.
+
+**Connector label position & tooltip**: a connector's label can now sit near the start, middle
+(default), or end of its own rendered path (`labelPosition`, new `edges[]` field, default
+`"middle"`), and its free-text notes field now also shows as a native hover tooltip on the
+connector itself.
+
+**"📐 Scale Diagram"** (Tools menu): permanently resizes every component's position, size, *and*
+font size together by a chosen percentage — distinct from zooming the view, which is purely
+visual and never touches the underlying data.
+
+**AI Design Review / Generate Design from Spec are sequence-diagram-aware**: reviewing a diagram
+that contains a sequence diagram asks flow-specific questions (call order, missing responses,
+race conditions, async-vs-blocking) instead of the generic architecture checklist; generating a
+design now offers a second few-shot example and rule set for producing a proper sequence diagram
+(lifelines + correctly time-ordered messages) when the spec calls for a step-by-step interaction
+flow rather than a static architecture.
+
 ## v1.21.0 (2026-08-24)
 
 New **"🔀 Sequence Diagram"** wizard (toolbar Create menu): name a set of participants (Client,

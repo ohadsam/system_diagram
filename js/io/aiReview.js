@@ -18,19 +18,31 @@ export const AI_PROVIDERS = [
 
 const SPEC_TEXT_LIMIT = 12000;
 
-export function buildReviewPrompt({ projectName, nodeCount, edgeCount, componentNames = [], specText = '' }) {
+export function buildReviewPrompt({ projectName, nodeCount, edgeCount, componentNames = [], specText = '', hasSequenceDiagram = false }) {
   const lines = [];
-  lines.push(`Please review this system design / architecture diagram (attached as an image), titled "${projectName || 'Untitled Diagram'}".`);
+  if (hasSequenceDiagram) {
+    lines.push(`Please review this sequence/communication-flow diagram (attached as an image), titled "${projectName || 'Untitled Diagram'}" — vertical lifelines per participant, with numbered messages between them in top-to-bottom time order.`);
+  } else {
+    lines.push(`Please review this system design / architecture diagram (attached as an image), titled "${projectName || 'Untitled Diagram'}".`);
+  }
   lines.push(`It has ${nodeCount} component${nodeCount === 1 ? '' : 's'} and ${edgeCount} connector${edgeCount === 1 ? '' : 's'}.`);
   if (componentNames.length) {
     lines.push(`Components: ${componentNames.join(', ')}.`);
   }
   lines.push('');
-  lines.push('Act as a senior system design reviewer. Please:');
-  lines.push('1. Summarize what you understand the system does.');
-  lines.push('2. Call out strengths of this design.');
-  lines.push('3. Call out risks, gaps or anti-patterns — scalability, reliability, security, cost, maintainability.');
-  lines.push('4. Suggest concrete, prioritized improvements or alternative approaches.');
+  if (hasSequenceDiagram) {
+    lines.push('Act as a senior engineer reviewing this interaction flow. Please:');
+    lines.push('1. Summarize the flow in your own words, in call order.');
+    lines.push('2. Call out anything missing or out of order — a response with no matching call, an unhandled error/timeout/retry path, an obvious race condition, or a step that seems to happen before its precondition is met.');
+    lines.push('3. Flag any participant taking on too much responsibility, or a call that should be async/fire-and-forget but is drawn as a blocking round-trip (or vice versa).');
+    lines.push('4. Suggest concrete improvements — missing steps to add, calls to reorder or parallelize, or a cleaner way to structure the interaction.');
+  } else {
+    lines.push('Act as a senior system design reviewer. Please:');
+    lines.push('1. Summarize what you understand the system does.');
+    lines.push('2. Call out strengths of this design.');
+    lines.push('3. Call out risks, gaps or anti-patterns — scalability, reliability, security, cost, maintainability.');
+    lines.push('4. Suggest concrete, prioritized improvements or alternative approaches.');
+  }
   if (specText.trim()) {
     lines.push('');
     lines.push("Also compare the diagram against this product/requirements spec below — point out anything the diagram doesn't cover, and anything in the diagram not called for by the spec:");

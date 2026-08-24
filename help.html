@@ -301,6 +301,8 @@
       <p>The search box in the toolbar finds components and connectors <strong>already placed in your diagram</strong> by name/label — different from the sidebar's search, which searches the component library to add something new. Type a few letters and the first match is selected and centered in the view (without changing your zoom level); press <kbd>Enter</kbd> (or <kbd>Shift</kbd>+<kbd>Enter</kbd> to go backward) to cycle through the rest, wrapping back around once you reach the end.</p>
       <h3>🗺️ Auto-arrange</h3>
       <p>Click "🗺️ Auto-arrange" in the Tools menu to rearrange <em>every</em> component on the canvas into a clean top-to-bottom layout that follows your connectors' direction — everything a component points to ends up on a row below it — and reconnects every arrow to match the new positions. One click, one undo step.</p>
+      <h3>📐 Scale Diagram</h3>
+      <p>Click "📐 Scale Diagram" in the Tools menu to permanently resize <em>every</em> component's position, size, and text together by a percentage you choose — different from zooming the view, which is purely visual and never touches the diagram itself: scaling to 150% and then viewing at 100% zoom looks identical to viewing the original at 150% zoom, but the underlying data actually changed. The diagram stays roughly centered where it was.</p>
       <h3>✨ Smart Suggestions</h3>
       <p>Placing a component that has a well-known real-world companion — a Load Balancer with a web server, Kafka with Elasticsearch, an API Gateway with Lambda, and more — shows a small banner with one-click "+ Add X" buttons for each one, positioned right next to the component you just placed. Accepting one draws the connecting arrow between the two automatically (in the right direction) and places the new component in a sensible spot relative to the one you just placed, instead of dropping it unconnected.</p>
       <p>Some components also suggest ready-made <strong>sub-components</strong> for that exact box — e.g. placing Express (Node.js) offers a Controller and a Middleware, React offers a Hook and a Component. These show in a second row with a dashed "↳" button; clicking one attaches it directly onto the node you just placed (same as dragging it in from "Layers &amp; Roles"), instead of adding a new box next to it.</p>
@@ -366,7 +368,7 @@
         <li><strong>Save As</strong> — save a named version you can reopen later from <strong>Load</strong>.</li>
         <li><strong>Load</strong> — reopen a saved diagram, or load one from a <code>.json</code> file. Click the ☆ next to any saved project to favorite it — favorites sort first and the "⭐ Favorites only" checkbox filters down to just them.</li>
         <li><strong>Export JSON</strong> — download the full diagram as a portable file (also how you back it up or move it to another browser/computer).</li>
-        <li><strong>Export PNG / PDF</strong> — a rendered image of your diagram, ready to paste into docs or slides.</li>
+        <li><strong>Export PNG / PDF</strong> — a rendered image of your diagram, ready to paste into docs or slides. If your project has one or more <a href="#sequence-diagram">sequence-diagram</a> groups, each one also exports as its own extra PNG file (alongside the main diagram's) or extra PDF page, cropped tightly to just that group's own content.</li>
       </ul>
       <h3>Bulk export/import &amp; full backup</h3>
       <p>Beyond single-project/single-library files, you can export/import in bulk:</p>
@@ -400,6 +402,7 @@
       </ol>
       <p><span class="mock-node">🤖 AI Design Review <small style="opacity:.7">prompt + image ready → opens Claude/ChatGPT/Gemini/Copilot</small></span></p>
       <div class="tip">💡 Opening a different project (New / Load / Duplicate / restoring a backup) while the panel is open clears its attached spec, prompt edits and saved replies — a review prepared for one diagram shouldn't silently attach itself to another.</div>
+      <div class="tip">🔀 If your canvas has a <a href="#sequence-diagram">sequence diagram</a> on it, the prompt automatically asks flow-specific questions instead — call order, missing responses, race conditions — rather than the generic architecture checklist.</div>
     </section>
 
     <section id="generate-design">
@@ -412,6 +415,7 @@
       </ol>
       <p><span class="mock-node">🧠 Generate Design <small style="opacity:.7">spec → tailored prompt → paste AI reply → diagram</small></span></p>
       <div class="tip">🛡️ A reply that isn't quite right doesn't lose your work: an unusable paste shows an inline error and keeps your text so you can fix and retry, and if the AI ignores the layout instructions its components get automatically spread out on a grid instead of landing in an unreadable pile.</div>
+      <div class="tip">🔀 If your spec is fundamentally about a step-by-step interaction (e.g. "walk through the login handshake"), the prompt also offers the AI a <a href="#sequence-diagram">sequence diagram</a> as an alternative to a component graph — lifelines and time-ordered messages instead of boxes and arrows.</div>
     </section>
 
     <section id="replication">
@@ -421,6 +425,7 @@
         <li><strong>Create a pair</strong> — select one or more components, click "🔁", pick a mode (Active-Active, Active-Passive/Primary-Standby, or Primary-Replica — just a label, they all work the same way) and confirm. Your selection becomes "side A"; an exact copy is placed to the right as "side B".</li>
         <li><strong>Add to either side, any time</strong> — select a component (new or existing) and, from "🔁", choose "Add as side A" or "Add as side B" on the pair you want. A mirror appears on the other side automatically. Or, for a single component not yet in a pair, right-click it and choose "🔁 Join replication..." to jump straight to the same options.</li>
         <li><strong>Everything stays in sync</strong> — move, resize, restyle, rename, or edit a mirrored component's notes/sub-components, and its peer follows, in either direction. Delete one and its peer is deleted too, so the two sides can never quietly drift apart.</li>
+        <li><strong>Connectors mirror too</strong> — draw a connector between two components that are already mirrored members of the same side (e.g. a message between two <a href="#sequence-diagram">sequence-diagram</a> lifelines) and it gets its own mirror on the other side automatically, kept in sync the same way.</li>
       </ol>
       <p><span class="mock-node">🔁 Primary DB <small style="opacity:.7">↔ auto-mirrored ↔</small> Standby DB</span></p>
       <div class="tip">📦 Each side shows a dashed background boundary (same as a regular group's, but purple) so it reads as one mirrored unit at a glance — hover it and click its ✕ to hide just the background, without touching the pair itself.</div>
@@ -435,12 +440,19 @@
       <ol>
         <li><strong>Open the wizard</strong> — toolbar's "✨ Create" menu → "🔀 Sequence Diagram". Enter 2 or more participant names (Client, Server, Database, ...) — add or remove rows as needed — and click "🔀 Create". One titled lifeline appears for each name, evenly spaced left to right.</li>
         <li><strong>Draw messages</strong> — drag from one lifeline's edge to another, same as any connector (see <a href="#connectors">Connectors &amp; arrows</a>). A lifeline's connection points span its <em>full height</em> instead of a small dot, so you can grab/drop at whatever height represents when the message happens — several messages on the same lifeline land at their own distinct heights instead of piling up on one point. A message between two lifelines starts out straight (no elbow) and is automatically numbered (1, 2, 3, ...) in the order they occur, top to bottom — a small numbered badge at each message's start, always kept correct even after adding, deleting, or undoing one.</li>
-        <li><strong>Style and annotate</strong> — every ordinary connector feature applies: color, thickness, solid vs. dashed (handy as a call-vs-response convention), arrow direction, and a label. Right-click a message and choose "Open details" for a right-side panel with its label and a free-text notes field.</li>
+        <li><strong>Style and annotate</strong> — every ordinary connector feature applies: color, thickness, solid vs. dashed (handy as a call-vs-response convention), arrow direction, and a label (positioned near its start, middle, or end from the arrow style editor). Right-click a message and choose "Open details" for a right-side panel with its label and a free-text notes field — the notes also show as a hover tooltip on the message itself.</li>
+        <li><strong>A lifeline can message itself</strong> — drag from a lifeline's connection strip back onto that same lifeline at a different height (e.g. "validate input" before a real call out). It renders as a small loop instead of a flat line through the lifeline, and still gets a sequence number and every normal connector feature.</li>
+        <li><strong>Reconnect a message</strong> — select it and drag either of its two small round endpoint handles to a different height or a different lifeline, instead of deleting and redrawing it. Dropping on empty canvas cancels the reconnect.</li>
+        <li><strong>Tidy up the spacing</strong> — "🛠️ Tools" menu → "↔️ Distribute Evenly" re-spaces every lifeline column and message height evenly, keeping both the lifelines' left-to-right order and the messages' top-to-bottom order exactly as they were.</li>
       </ol>
       <p><span class="mock-node">Client <small style="opacity:.7">┊</small></span> &nbsp;&nbsp;&nbsp; <span class="mock-node">Server <small style="opacity:.7">┊</small></span></p>
       <div class="tip">💡 One more lifeline needed later? It's also its own entry in "🔷 Add Shape" → Lifeline, so you don't have to re-run the wizard just to add one to an existing diagram.</div>
       <div class="tip">🗺️ "Auto-arrange" is skipped (with an explanation) while a sequence diagram is on the canvas — its left-to-right layout is meaningful and manual, not something a connector-direction layout should rearrange.</div>
       <div class="tip">🗒️ Need a UML-style note attached to a lifeline? Drop a Sticky Note (🔷 Add Shape) next to it — no special support needed, it's just another shape.</div>
+
+      <h3>Zoom in on a sequence diagram</h3>
+      <p>Group 2 or more lifelines together (select them, then "Group selection" in the style row) and a 🔍 icon appears on the group's background box — click it for a read-only zoomed-in preview of just that sequence diagram, in a modal, or "📌 Pin to side panel" to dock the same live-updating preview instead of a popup. The preview itself is view-only; click its "✏️ Edit" button (also available directly from a pinned panel) to open the real canvas scoped to just that group's lifelines and messages for actual editing — a banner marks this state, and its "✅ Done editing" button saves your changes back into the main diagram.</p>
+      <div class="tip">📤 A sequence-diagram group exports as its own extra PNG file (alongside the main diagram's PNG) or extra PDF page automatically — see <a href="#saving">Saving, loading &amp; export</a>.</div>
     </section>
 
     <section id="shortcuts">

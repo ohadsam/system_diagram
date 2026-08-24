@@ -41,6 +41,33 @@ function applyMirroredContent(target, source, x, y) {
   return next;
 }
 
+// Every edge field except id/from/to (inherently per-side, like a node's
+// id/groupId) is mirrored verbatim — unlike a node's x/y, an edge has no
+// position of its own (its rendered path is derived live from its two
+// endpoint nodes, see canvas/connector.js#sideAnchor), and side B is always
+// a rigid translation of side A, so the same fromSide/toSide/fromOffset/
+// toOffset already describes the correct anchor point on the mirrored pair
+// with no adjustment needed.
+const EDGE_MIRROR_FIELDS = [
+  'fromSide', 'toSide', 'fromOffset', 'toOffset', 'routing',
+  'color', 'width', 'dash', 'startArrow', 'endArrow', 'label', 'labelPosition', 'notes',
+];
+
+function edgeSignature(edge) {
+  const { id: _id, from: _f, to: _t, ...rest } = edge;
+  return JSON.stringify(rest);
+}
+
+function cloneAsMirrorEdge(source, fromId, toId) {
+  return { ...source, id: nextId('edge'), from: fromId, to: toId };
+}
+
+function applyMirroredEdgeContent(target, source) {
+  const next = { ...target };
+  for (const field of EDGE_MIRROR_FIELDS) next[field] = source[field];
+  return next;
+}
+
 /**
  * One full sync pass over every replication pair in `nextProject`, given
  * the project as it was just before this mutation (`prevProject`). Returns
@@ -57,6 +84,16 @@ function applyMirroredContent(target, source, x, y) {
  *   import that carries matching groupIds — "detects the existing state"
  *   for free) gets a mirror created on the other side, unless it's
  *   replicationExcluded;
+ * - an **internal edge** — one connecting two nodes that are *both*
+ *   currently-mapped members of the same side (e.g. a sequence diagram's
+ *   messages between its lifelines) — is mirrored to the other side the
+ *   same way a node is: newly drawn → a mirror is created; content
+ *   (label/color/routing/notes/...) changed on one side → propagated to
+ *   the other; deleted on one side → the mirror is cascade-deleted too. An
+ *   edge that only touches one member and something outside the pair
+ *   (or one whose endpoint later stopped being a live member — excluded,
+ *   moved to another group) is left alone — it's not part of the
+ *   replicated unit;
  * - a pair with `frozen: true` is skipped entirely (see `syncPair`) — lets
  *   a user temporarily edit one side without touching the other, then
  *   resume live syncing later.
@@ -66,14 +103,17 @@ export function syncReplication(prevProject, nextProject) {
   if (!pairs || !pairs.length) return nextProject;
 
   const prevById = new Map(prevProject.nodes.map((n) => [n.id, n]));
+  const prevEdgeById = new Map(prevProject.edges.map((e) => [e.id, e]));
   let nodes = nextProject.nodes;
+  let edges = nextProject.edges;
   const nextPairs = [];
   const allDeletedIds = new Set();
   let anyChange = false;
 
   for (const pair of pairs) {
-    const result = syncPair(pair, nodes, prevById);
+    const result = syncPair(pair, nodes, edges, prevById, prevEdgeById);
     nodes = result.nodes;
+    edges = result.edges;
     if (result.changed) anyChange = true;
     if (result.pair) nextPairs.push(result.pair);
     for (const id of result.deletedNodeIds) allDeletedIds.add(id);
@@ -83,19 +123,21 @@ export function syncReplication(prevProject, nextProject) {
   // A cascade-deleted mirror can have its own edges (the user may have
   // connected it to something else) — clean those up the same way
   // core/project.js#removeNode does for an ordinary delete, or they'd be
-  // left dangling.
-  const edges = allDeletedIds.size
-    ? nextProject.edges.filter((e) => !allDeletedIds.has(e.from) && !allDeletedIds.has(e.to))
-    : nextProject.edges;
-  return { ...nextProject, nodes, edges, replicationPairs: nextPairs };
+  // left dangling. (A cascade-deleted *edge* mirror, by contrast, is
+  // already removed by syncPair itself above — this pass only needs to
+  // catch edges left dangling by a *node* deletion.)
+  const finalEdges = allDeletedIds.size
+    ? edges.filter((e) => !allDeletedIds.has(e.from) && !allDeletedIds.has(e.to))
+    : edges;
+  return { ...nextProject, nodes, edges: finalEdges, replicationPairs: nextPairs };
 }
 
-function syncPair(pair, nodes, prevById) {
+function syncPair(pair, nodes, edges, prevById, prevEdgeById) {
   // A frozen pair is completely inert: no propagation, no new-member
   // discovery, no cascade-delete. This is what lets a user make changes to
   // one side that deliberately do NOT reach the other, for as long as the
   // pair stays frozen — see docs/SPEC.md "Live Replication".
-  if (pair.frozen) return { nodes, pair, changed: false, deletedNodeIds: [] };
+  if (pair.frozen) return { nodes, edges, pair, changed: false, deletedNodeIds: [] };
 
   const byId = new Map(nodes.map((n) => [n.id, n]));
   let changed = false;
@@ -175,14 +217,88 @@ function syncPair(pair, nodes, prevById) {
     }
   }
 
-  if (!changed) return { nodes, pair, changed: false, deletedNodeIds: [] };
+  // 3. Reconcile existing internal-edge members, exactly the same shape as
+  //    step 1 for nodes: a still-internal edge (both endpoints still live
+  //    members, on both sides) propagates a content change; an edge that
+  //    genuinely no longer exists on one side cascade-deletes its mirror;
+  //    an edge whose endpoint quietly stopped being a live member (excluded,
+  //    regrouped, or cascade-deleted above) just has its mapping dropped —
+  //    the edge itself, if it still exists, is left alone, same as an
+  //    excluded node's own content is.
+  const aToB = new Map(survivingMembers.map((m) => [m.a, m.b]));
+  const bToA = new Map(survivingMembers.map((m) => [m.b, m.a]));
+  const edgeById = new Map(edges.map((e) => [e.id, e]));
+  const toDeleteEdges = new Set();
+  const survivingEdgeMembers = [];
+  const edgeUpdates = new Map();
+
+  for (const em of pair.edgeMembers || []) {
+    const ea = edgeById.get(em.a);
+    const eb = edgeById.get(em.b);
+    if (!ea && !eb) { changed = true; continue; }
+    if (ea && !eb) { toDeleteEdges.add(ea.id); changed = true; continue; }
+    if (!ea && eb) { toDeleteEdges.add(eb.id); changed = true; continue; }
+
+    const aStillInternal = aToB.has(ea.from) && aToB.has(ea.to);
+    const bStillInternal = bToA.has(eb.from) && bToA.has(eb.to);
+    if (!aStillInternal || !bStillInternal) { changed = true; continue; }
+
+    const prevA = prevEdgeById.get(ea.id);
+    const prevB = prevEdgeById.get(eb.id);
+    const aChanged = prevA ? edgeSignature(prevA) !== edgeSignature(ea) : false;
+    const bChanged = prevB ? edgeSignature(prevB) !== edgeSignature(eb) : false;
+    if (aChanged && !bChanged) {
+      edgeUpdates.set(eb.id, applyMirroredEdgeContent(eb, ea));
+      changed = true;
+    } else if (bChanged && !aChanged) {
+      edgeUpdates.set(ea.id, applyMirroredEdgeContent(ea, eb));
+      changed = true;
+    }
+    survivingEdgeMembers.push(em);
+  }
+
+  // 4. Discover new internal edges — connecting two nodes that are both
+  //    live members of the same side, with no mapping yet (whether just
+  //    drawn, or already there right after an import that carries matching
+  //    edge structure — same "detect the existing state" behavior step 2
+  //    gives nodes).
+  const mappedEdgeA = new Set(survivingEdgeMembers.map((em) => em.a));
+  const mappedEdgeB = new Set(survivingEdgeMembers.map((em) => em.b));
+  const newEdges = [];
+  for (const edge of edges) {
+    if (toDeleteEdges.has(edge.id) || mappedEdgeA.has(edge.id) || mappedEdgeB.has(edge.id)) continue;
+    if (aToB.has(edge.from) && aToB.has(edge.to)) {
+      const mirror = cloneAsMirrorEdge(edge, aToB.get(edge.from), aToB.get(edge.to));
+      newEdges.push(mirror);
+      survivingEdgeMembers.push({ a: edge.id, b: mirror.id });
+      changed = true;
+    } else if (bToA.has(edge.from) && bToA.has(edge.to)) {
+      const mirror = cloneAsMirrorEdge(edge, bToA.get(edge.from), bToA.get(edge.to));
+      newEdges.push(mirror);
+      survivingEdgeMembers.push({ a: mirror.id, b: edge.id });
+      changed = true;
+    }
+  }
+
+  if (!changed) return { nodes, edges, pair, changed: false, deletedNodeIds: [] };
 
   const resultNodes = nodes
     .filter((n) => !toDelete.has(n.id))
     .map((n) => updates.get(n.id) || n)
     .concat(newNodes);
 
-  return { nodes: resultNodes, pair: { ...pair, members: survivingMembers }, changed: true, deletedNodeIds: toDelete };
+  const resultEdges = edges
+    .filter((e) => !toDeleteEdges.has(e.id))
+    .map((e) => edgeUpdates.get(e.id) || e)
+    .concat(newEdges);
+
+  return {
+    nodes: resultNodes,
+    edges: resultEdges,
+    pair: { ...pair, members: survivingMembers, edgeMembers: survivingEdgeMembers },
+    changed: true,
+    deletedNodeIds: toDelete,
+  };
 }
 
 /**
@@ -192,8 +308,19 @@ function syncPair(pair, nodes, prevById) {
  * every non-excluded selected node as side B offset to the right of side
  * A's bounding box, and returns everything the caller needs to fold into
  * one atomic dispatch. Returns null for an empty selection.
+ *
+ * `edges` (all of the project's edges — optional, defaults to none) is
+ * scanned for **internal** ones — both endpoints among the selected,
+ * non-excluded nodes — which get mirrored onto side B too, exactly like
+ * `buildGroupSnapshotFromSelection`'s "Save as Component" does for the
+ * same reason: a selection with edges between its own members (e.g. a
+ * sequence diagram's lifelines and messages) needs those edges to survive
+ * the trip, or side B is just a set of disconnected, message-less
+ * lifelines. An edge to something *outside* the selection is left alone —
+ * it's not part of the replicated unit. `syncReplication` takes over from
+ * here for anything drawn *after* this initial pair is created.
  */
-export function buildReplicationPair(nodes, selectedNodeIds, mode) {
+export function buildReplicationPair(nodes, selectedNodeIds, mode, edges = []) {
   const selected = selectedNodeIds.map((id) => nodes.find((n) => n.id === id)).filter(Boolean);
   if (!selected.length) return null;
 
@@ -208,13 +335,24 @@ export function buildReplicationPair(nodes, selectedNodeIds, mode) {
 
   const mirrorNodes = [];
   const members = [];
+  const nodeIdMap = new Map();
   for (const node of selected) {
     if (node.replicationExcluded) continue;
     const mirror = cloneAsMirror(node, groupB, node.x + offsetX, node.y + offsetY);
     mirrorNodes.push(mirror);
     members.push({ a: node.id, b: mirror.id });
+    nodeIdMap.set(node.id, mirror.id);
   }
 
-  const pair = { id: nextId('repl'), mode, groupA, groupB, offsetX, offsetY, members, frozen: false };
-  return { pair, groupA, regroupNodeIds: commonGroupId ? [] : selectedNodeIds, mirrorNodes };
+  const edgeMirrors = [];
+  const edgeMembers = [];
+  for (const edge of edges) {
+    if (!nodeIdMap.has(edge.from) || !nodeIdMap.has(edge.to)) continue;
+    const mirror = cloneAsMirrorEdge(edge, nodeIdMap.get(edge.from), nodeIdMap.get(edge.to));
+    edgeMirrors.push(mirror);
+    edgeMembers.push({ a: edge.id, b: mirror.id });
+  }
+
+  const pair = { id: nextId('repl'), mode, groupA, groupB, offsetX, offsetY, members, edgeMembers, frozen: false };
+  return { pair, groupA, regroupNodeIds: commonGroupId ? [] : selectedNodeIds, mirrorNodes, edgeMirrors };
 }

@@ -246,3 +246,102 @@ test('syncReplication running twice on an already-synced project is a true no-op
   const synced = syncReplication(project, project);
   assert.equal(synced, project, 'a self-diff on an already-consistent project should return the same reference, not a new object');
 });
+
+// ---- Internal edges (e.g. a sequence diagram's lifelines + messages) ----
+
+test('buildReplicationPair mirrors an internal edge (both endpoints selected) onto side B, preserving content', () => {
+  const project = createEmptyProject();
+  project.nodes = [mkNode('n1', null, 0, 0), mkNode('n2', null, 200, 0)];
+  const edge = createEdge('n1', 'n2', { id: 'e1', label: 'call', dash: 'dashed', fromOffset: 0.3, toOffset: 0.7 });
+  const built = buildReplicationPair(project.nodes, ['n1', 'n2'], 'active-active', [edge]);
+
+  assert.equal(built.edgeMirrors.length, 1);
+  assert.equal(built.pair.edgeMembers.length, 1);
+  assert.equal(built.pair.edgeMembers[0].a, 'e1');
+  const mirror = built.edgeMirrors[0];
+  assert.equal(mirror.id, built.pair.edgeMembers[0].b);
+  assert.notEqual(mirror.id, 'e1');
+  assert.equal(mirror.label, 'call');
+  assert.equal(mirror.dash, 'dashed');
+  assert.equal(mirror.fromOffset, 0.3);
+  assert.equal(mirror.toOffset, 0.7);
+  const nodeIdMap = new Map(built.pair.members.map((m) => [m.a, m.b]));
+  assert.equal(mirror.from, nodeIdMap.get('n1'));
+  assert.equal(mirror.to, nodeIdMap.get('n2'));
+});
+
+test('buildReplicationPair does not mirror an edge that touches a node outside the selection', () => {
+  const project = createEmptyProject();
+  project.nodes = [mkNode('n1', null, 0, 0), mkNode('n2', null, 200, 0), mkNode('other', null, 400, 0)];
+  const edge = createEdge('n1', 'other', { id: 'e1' });
+  const built = buildReplicationPair(project.nodes, ['n1', 'n2'], 'active-active', [edge]);
+  assert.equal(built.edgeMirrors.length, 0);
+  assert.equal(built.pair.edgeMembers.length, 0);
+});
+
+test('syncReplication discovers a new internal edge drawn between two already-paired members and mirrors it', () => {
+  const { project, built } = setupPair([{ id: 'n1' }, { id: 'n2' }]);
+  const n1MirrorId = built.pair.members.find((m) => m.a === 'n1').b;
+  const n2MirrorId = built.pair.members.find((m) => m.a === 'n2').b;
+  const withEdge = { ...project, edges: [createEdge('n1', 'n2', { id: 'e1', label: 'req' })] };
+  const synced = syncReplication(project, withEdge);
+
+  assert.equal(synced.edges.length, 2, 'the new edge plus its freshly-mirrored counterpart on side B');
+  assert.equal(synced.replicationPairs[0].edgeMembers.length, 1);
+  const mirrorEdge = synced.edges.find((e) => e.id !== 'e1');
+  assert.equal(mirrorEdge.from, n1MirrorId);
+  assert.equal(mirrorEdge.to, n2MirrorId);
+  assert.equal(mirrorEdge.label, 'req');
+});
+
+test('syncReplication propagates an internal edge content change from the side that actually changed', () => {
+  const { project, built } = setupPair([{ id: 'n1' }, { id: 'n2' }]);
+  const withEdge = { ...project, edges: [createEdge('n1', 'n2', { id: 'e1', label: 'req' })] };
+  const afterDiscovery = syncReplication(project, withEdge);
+  const mirrorId = afterDiscovery.replicationPairs[0].edgeMembers[0].b;
+
+  const relabeled = { ...afterDiscovery, edges: afterDiscovery.edges.map((e) => (e.id === 'e1' ? { ...e, label: 'response' } : e)) };
+  const synced = syncReplication(afterDiscovery, relabeled);
+  const mirror = synced.edges.find((e) => e.id === mirrorId);
+  assert.equal(mirror.label, 'response');
+});
+
+test('syncReplication cascade-deletes an internal edge\'s mirror when the original is deleted', () => {
+  const { project, built } = setupPair([{ id: 'n1' }, { id: 'n2' }]);
+  const withEdge = { ...project, edges: [createEdge('n1', 'n2', { id: 'e1' })] };
+  const afterDiscovery = syncReplication(project, withEdge);
+  assert.equal(afterDiscovery.edges.length, 2);
+
+  const afterDelete = { ...afterDiscovery, edges: afterDiscovery.edges.filter((e) => e.id !== 'e1') };
+  const synced = syncReplication(afterDiscovery, afterDelete);
+  assert.equal(synced.edges.length, 0, 'the mirrored message must be cascade-deleted too');
+  assert.equal(synced.replicationPairs[0].edgeMembers.length, 0);
+});
+
+test('syncReplication drops (without deleting) an internal edge\'s mapping once an endpoint stops being a live member', () => {
+  const { project, built } = setupPair([{ id: 'n1' }, { id: 'n2' }]);
+  const withEdge = { ...project, edges: [createEdge('n1', 'n2', { id: 'e1' })] };
+  const afterDiscovery = syncReplication(project, withEdge);
+  assert.equal(afterDiscovery.edges.length, 2);
+
+  const excluded = { ...afterDiscovery, nodes: afterDiscovery.nodes.map((n) => (n.id === 'n1' ? { ...n, replicationExcluded: true } : n)) };
+  const synced = syncReplication(afterDiscovery, excluded);
+  assert.equal(synced.edges.length, 2, 'both the original and its now-unsynced mirror remain untouched');
+  assert.equal(synced.replicationPairs[0].edgeMembers.length, 0, 'the mapping is dropped, not left dangling');
+});
+
+test('syncReplication does not mirror an edge from a member to a node outside the pair', () => {
+  const { project, built } = setupPair([{ id: 'n1' }]);
+  const withOutsider = { ...project, nodes: [...project.nodes, mkNode('outsider', null, 500, 0)], edges: [createEdge('n1', 'outsider', { id: 'e1' })] };
+  const synced = syncReplication(project, withOutsider);
+  assert.equal(synced.edges.length, 1, 'the outside edge is left exactly as it is, not mirrored');
+  assert.equal(synced.replicationPairs[0].edgeMembers.length, 0);
+});
+
+test('syncReplication with internal edges is idempotent on a stable pass', () => {
+  const { project, built } = setupPair([{ id: 'n1' }, { id: 'n2' }]);
+  const withEdge = { ...project, edges: [createEdge('n1', 'n2', { id: 'e1' })] };
+  const afterDiscovery = syncReplication(project, withEdge);
+  const stable = syncReplication(afterDiscovery, afterDiscovery);
+  assert.equal(stable, afterDiscovery, 'a self-diff once everything (nodes and internal edges) is already synced should return the same reference');
+});

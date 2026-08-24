@@ -62,3 +62,28 @@ test('autoArrangeIfNeeded does not crash on an empty or single-node project', ()
   assert.doesNotThrow(() => autoArrangeIfNeeded({ nodes: [] }));
   assert.doesNotThrow(() => autoArrangeIfNeeded({ nodes: [{ x: 0, y: 0 }] }));
 });
+
+test('autoArrangeIfNeeded skips the grid safety net entirely for a sequence diagram (lifeline nodes), even when stacked', () => {
+  const project = {
+    nodes: [
+      { x: 0, y: 0, shape: 'lifeline', text: 'A' },
+      { x: 0, y: 0, shape: 'lifeline', text: 'B' },
+    ],
+  };
+  const result = autoArrangeIfNeeded(project);
+  assert.deepEqual(result.nodes, project.nodes, 'left untouched rather than grid-scrambled');
+});
+
+test('buildGenerateDesignPrompt also includes a valid sequence-diagram (lifeline) few-shot example with its own rules', () => {
+  const prompt = buildGenerateDesignPrompt({ specText: 'Show the login handshake step by step.' });
+  assert.match(prompt, /sequence diagram/i);
+  assert.match(prompt, /"shape":\s*"lifeline"/);
+  const fencedBlocks = [...prompt.matchAll(/```json\s*([\s\S]*?)```/g)];
+  assert.ok(fencedBlocks.length >= 2, 'should contain both the component-graph and the sequence-diagram examples');
+  const sequenceExample = JSON.parse(fencedBlocks[1][1]);
+  assert.ok(sequenceExample.nodes.every((n) => n.shape === 'lifeline'));
+  // Every message must have a distinct fromOffset so it doesn't stack on
+  // another one at the same point in time.
+  const offsets = sequenceExample.edges.map((e) => e.fromOffset);
+  assert.equal(new Set(offsets).size, offsets.length);
+});

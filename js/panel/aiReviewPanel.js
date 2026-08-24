@@ -66,6 +66,7 @@ function currentPrompt() {
     edgeCount: state.edges.length,
     componentNames,
     specText,
+    hasSequenceDiagram: state.nodes.some((n) => n.shape === 'lifeline'),
   });
 }
 

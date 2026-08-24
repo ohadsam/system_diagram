@@ -240,3 +240,23 @@ test('a returning visitor whose last-seen version differs sees "What\'s New" aut
   await dismissHints(page);
   await expect(page.locator('.whats-new-modal')).toBeVisible();
 });
+
+test('"Scale Diagram" resizes a component and its text together, unlike view-only zoom', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  const node = page.locator('.node').first();
+  const before = await node.boundingBox();
+  const fontBefore = await node.locator('.node-body').evaluate((el) => getComputedStyle(el).fontSize);
+
+  await openToolbarGroup(page, 'Tools');
+  await page.locator('#toolbar button', { hasText: 'Scale Diagram' }).click();
+  await expect(page.locator('.scale-diagram-modal')).toBeVisible();
+  await page.locator('.scale-diagram-modal button', { hasText: '200%' }).click();
+  await page.locator('.scale-diagram-modal button', { hasText: '📐 Scale' }).click();
+  await expect(page.locator('.toast-success', { hasText: 'Scaled the diagram to 200%' })).toBeVisible();
+
+  const after = await node.boundingBox();
+  const fontAfter = await node.locator('.node-body').evaluate((el) => getComputedStyle(el).fontSize);
+  expect(after.width).toBeCloseTo(before.width * 2, 0);
+  expect(after.height).toBeCloseTo(before.height * 2, 0);
+  expect(parseFloat(fontAfter)).toBeCloseTo(parseFloat(fontBefore) * 2, 0);
+});

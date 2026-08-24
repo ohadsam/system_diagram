@@ -93,6 +93,15 @@ this repo" quick-start.
 | Change the Sequence Diagram wizard/lifeline shape/message numbering | `js/modals/sequenceDiagramModal.js` (wizard UI) + `js/core/sequenceDiagram.js#layoutLifelines` (pure layout) + `js/canvas/canvas.js#createSequenceDiagram`/`#computeMessageSequenceNumbers` + `js/data/categories/shapes.js` (`shape-lifeline` def) + `css/node.css`'s `[data-shape="lifeline"]` rules (title box + dashed line + full-height conn-points). See docs/ARCHITECTURE.md's "Sequence diagrams" section. |
 | Mark a component as "popular" (sidebar highlight)   | `popular: true` in the `c(...)` call (`js/data/schema.js`) — same curation bar as `related`, see `add-library-item` skill |
 | Add/change Favorites (folders, CRUD, reorder)       | `js/io/favorites.js` (storage — folders/favorites as flat arrays with `parentId`/`folderId` + `order`) + `js/sidebar/sidebar.js` (`renderFavoritesCategory`/`renderFavoritesTree`/`renderFavoriteFolder`, the recursive tree UI) + `js/modals/promptModal.js` (folder-name text prompt) |
+| Change Live Replication's internal-edge mirroring (a connector between two already-mirrored members) | `js/core/replication.js` (`EDGE_MIRROR_FIELDS`, `edgeSignature`, `cloneAsMirrorEdge`, `syncPair`'s steps 4-5) + `pair.edgeMembers` (same `{a,b}` shape as `pair.members`, just for edges) — see docs/ARCHITECTURE.md's "Live Replication" section |
+| Change a lifeline's self-message (calling itself) rendering/creation | `js/canvas/connector.js#selfLoopPath`/`buildEdgePath` (the loop shape) + `js/canvas/connectorInteractions.js#beginConnectFromNode` (`allowSelf`, gated to `shape === 'lifeline'`) — see docs/ARCHITECTURE.md's "Self-messages" section |
+| Change drag-to-reconnect an existing connector's endpoint | `js/canvas/edgeReconnect.js` (the whole feature — handle overlay, drag gesture) — **read** docs/ARCHITECTURE.md's "Drag-to-reconnect" section first if the handles ever stop being clickable; it documents a real z-index gotcha with a specific, non-obvious fix |
+| Change "Distribute Evenly" for a sequence diagram | `js/core/sequenceDiagram.js#distributeLifelineColumns`/`#distributeMessages` (pure, order-preserving) + `js/canvas/canvas.js#distributeSequenceDiagram` (dispatch) |
+| Change "Scale Diagram" (permanent resize, not view zoom) | `js/core/scaleDiagram.js#scaleNodes` (pure) + `js/canvas/canvas.js#scaleDiagram` (dispatch, computes the origin) + `js/modals/scaleDiagramModal.js` (UI) |
+| Change an edge's label position (start/middle/end) or its hover tooltip | `js/core/project.js` (`labelPosition` field, `EDGE_LABEL_POSITIONS`) + `js/canvas/connector.js` (`pathPointForLabel`, the `<title>` child element for the tooltip) + `js/toolbar/arrowEditor.js` (the style-editor control) |
+| Change the sequence-diagram zoom-in/drill-down (🔍 icon, preview, pin, edit) | `js/canvas/canvas.js#getSequenceDiagramGroups`/`getNodesBounds`/`hideExcept` (derivation + export support) + `js/modals/subDiagramModal.js` (read-only preview + pin) + `js/canvas/subDiagramEdit.js` (the store-swap edit flow) — **read** docs/ARCHITECTURE.md's section on this before touching it; it documents a real gotcha about group-background icons rendering behind the toolbar |
+| Change what gets an extra PNG/PDF page for a sequence diagram | `js/io/exportImage.js` (`captureDiagramCanvas({nodeIds})`, `captureSequenceDiagramCanvases`) + `js/io/exportPdf.js` (`addCanvasPage`) — both call `canvas.js#getSequenceDiagramGroups` |
+| Change AI Design Review/Generate Design's sequence-diagram-specific prompt wording | `js/io/aiReview.js#buildReviewPrompt`'s `hasSequenceDiagram` param + `js/io/aiGenerateDesign.js`'s `SEQUENCE_EXAMPLE_JSON`/its rules block + `autoArrangeIfNeeded`'s lifeline skip |
 
 ## Running things locally
 
@@ -484,3 +493,26 @@ npm test
   principle applies to any other offset-like value derived from a
   drag gesture whose final "side"/"target" can differ from its starting
   one.
+- **A new overlay meant to sit above arbitrary canvas content needs to
+  out-*z-index* everything, not just out-DOM-order it.** Every `.node`
+  carries an explicit numeric `z-index` (bring-to-front/send-to-back), and
+  a positioned element with an explicit z-index paints above a sibling
+  left at the default `z-index: auto` regardless of DOM order, once their
+  shared ancestor (`.node-layer`) doesn't itself establish a stacking
+  context. `js/canvas/edgeReconnect.js`'s handle-overlay layer hit exactly
+  this: appending it after `.node-layer` in the DOM fixed the *common*
+  case but a node that had ever been brought to front could still float
+  above it. Fixed with a very high fixed `z-index` on the overlay layer
+  itself (see `css/connector.css`'s `.edge-handle-layer` comment) — DOM
+  order alone is not a reliable "stays on top" guarantee here.
+- **A group's own on-canvas UI (background box, its 🔍/✕ corner buttons)
+  can end up genuinely off-screen for a *freshly created* sequence
+  diagram**, not just visually awkward — lifelines are 640px tall and
+  vertically centered on the current view, which routinely puts their top
+  (and anything anchored to the group's own top edge) above
+  `.canvas-viewport`'s visible area before the user has panned/scrolled at
+  all. See docs/ARCHITECTURE.md's "Zoom-in / drill-down" section for the
+  concrete gotcha and fix (keep any such icon *inside* the box's bounds,
+  never overhanging past its edge) — the same class of bug as the
+  `positionFloatingRow` anchor-off-screen fix elsewhere in this file, worth
+  checking for on any new UI anchored to a sequence-diagram element.

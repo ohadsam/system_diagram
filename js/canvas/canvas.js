@@ -5,7 +5,8 @@ import * as store from '../core/store.js';
 import { createEdge, nextZIndex, removeNode as removeNodeFromProject, removeEdge as removeEdgeFromProject, createNode, duplicateProject } from '../core/project.js';
 import { buildReplicationPair } from '../core/replication.js';
 import { computeAutoLayout } from '../core/autoLayout.js';
-import { layoutLifelines } from '../core/sequenceDiagram.js';
+import { layoutLifelines, distributeLifelineColumns, distributeMessages } from '../core/sequenceDiagram.js';
+import { scaleNodes } from '../core/scaleDiagram.js';
 import { getComponentById } from '../data/index.js';
 import { getCustomComponents } from '../io/customComponents.js';
 import { buildCreationOverrides } from '../io/nodeDefaults.js';
@@ -18,6 +19,7 @@ import { createNodeEl, updateNodeEl, configureNodeHandlers } from './node.js';
 import { attachNodeInteractions } from './nodeInteractions.js';
 import { createEdgeEl, updateEdgeEl, configureEdgeHandlers, initConnectorDefs } from './connector.js';
 import { initConnectorInteractions } from './connectorInteractions.js';
+import { initEdgeReconnect, syncEdgeHandles } from './edgeReconnect.js';
 import { showContextMenu, hideContextMenu } from './contextMenu.js';
 import { getToolMode, onToolModeChange } from './toolMode.js';
 import { showSuggestionsFor } from './suggestions.js';
@@ -28,6 +30,7 @@ let viewportEl = null;
 let contentEl = null;
 let nodeLayer = null;
 let edgeLayer = null;
+let edgeHandleLayer = null;
 let groupBgLayer = null;
 let marqueeEl = null;
 
@@ -48,9 +51,15 @@ export function initCanvas(root) {
   groupBgLayer = el('div', { class: 'group-bg-layer' });
   edgeLayer = svgEl('svg', { class: 'edge-layer' });
   nodeLayer = el('div', { class: 'node-layer' });
+  edgeHandleLayer = svgEl('svg', { class: 'edge-handle-layer' });
   contentEl.appendChild(groupBgLayer);
   contentEl.appendChild(edgeLayer);
   contentEl.appendChild(nodeLayer);
+  // Stacked after .node-layer so a selected edge's reconnect handles always
+  // win the pointer hit-test even where they visually coincide with a
+  // node's own connection-point strip — see edgeReconnect.js's header
+  // comment for why this can't just live inside .edge-layer.
+  contentEl.appendChild(edgeHandleLayer);
   viewportEl.appendChild(contentEl);
 
   marqueeEl = el('div', { class: 'marquee', hidden: true });
@@ -59,6 +68,7 @@ export function initCanvas(root) {
   viewport.initViewport(viewportEl, contentEl);
   initConnectorDefs(edgeLayer);
   initConnectorInteractions(edgeLayer);
+  initEdgeReconnect(edgeHandleLayer);
 
   configureNodeHandlers({
     onSelect: (nodeId, additive) => selectNode(nodeId, additive),
@@ -289,6 +299,7 @@ function render(state) {
       sequenceNumber: sequenceNumbers.get(edge.id) ?? null,
     });
   }
+  syncEdgeHandles(state, store.getSelection());
 }
 
 /** Auto-numbers "messages" — edges between two lifeline nodes — in
@@ -320,6 +331,7 @@ export function computeMessageSequenceNumbers(edges, nodesById) {
  * project) — the group itself is untouched, just its background. */
 function renderGroupBackgrounds(nodes, replicatedGroupIds) {
   const bounds = computeGroupBounds(nodes, replicatedGroupIds).filter((b) => !hiddenGroupBackgrounds.has(b.groupId));
+  const seqGroupIds = new Set(getSequenceDiagramGroups().map((g) => g.groupId));
   const seen = new Set();
   for (const b of bounds) {
     seen.add(b.groupId);
@@ -328,12 +340,20 @@ function renderGroupBackgrounds(nodes, replicatedGroupIds) {
       elRef = el('div', { class: 'group-bg' });
       elRef.appendChild(el('span', { class: 'group-bg-label' }));
       elRef.appendChild(el('button', {
+        type: 'button', class: 'group-bg-zoom', text: '🔍', title: 'View this sequence diagram zoomed in',
+        onClick: (e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('sdb:open-subdiagram', { detail: { groupId: b.groupId } })); },
+      }));
+      elRef.appendChild(el('button', {
         type: 'button', class: 'group-bg-dismiss', text: '✕', title: 'Hide this group\'s background (the group itself is unaffected)',
         onClick: () => { hiddenGroupBackgrounds.add(b.groupId); render(store.getState()); },
       }));
       groupBgElements.set(b.groupId, elRef);
       groupBgLayer.appendChild(elRef);
     }
+    // A group only qualifies for the zoom-in/drill-down view while every one
+    // of its members is a lifeline (see getSequenceDiagramGroups) — hidden
+    // rather than removed so the toggle is instant if that ever flips.
+    elRef.querySelector('.group-bg-zoom').hidden = !seqGroupIds.has(b.groupId);
     const isReplicated = replicatedGroupIds.has(b.groupId);
     elRef.classList.toggle('group-bg-replicated', isReplicated);
     // A replication side is commonly just 1 component (the mirror is on
@@ -361,6 +381,7 @@ function renderGroupBackgrounds(nodes, replicatedGroupIds) {
 function renderSelectionOnly(selection) {
   for (const [id, elRef] of nodeElements) elRef.classList.toggle('selected', selection.nodeIds.includes(id));
   for (const [id, elRef] of edgeElements) elRef.classList.toggle('selected', selection.edgeIds.includes(id));
+  syncEdgeHandles(store.getState(), selection);
 }
 
 // ---- node/edge creation & mutation helpers ----
@@ -832,7 +853,7 @@ export function createReplicationPairFromSelection(mode) {
     return;
   }
 
-  const built = buildReplicationPair(state.nodes, selection.nodeIds, mode);
+  const built = buildReplicationPair(state.nodes, selection.nodeIds, mode, state.edges);
   if (!built || !built.mirrorNodes.length) {
     showToast('Every selected component is excluded from replication — nothing to mirror.', 'error');
     return;
@@ -843,10 +864,12 @@ export function createReplicationPairFromSelection(mode) {
       if (n) n.groupId = built.groupA;
     }
     draft.nodes.push(...built.mirrorNodes);
+    draft.edges.push(...built.edgeMirrors);
     draft.replicationPairs.push(built.pair);
   });
   store.select([...selection.nodeIds, ...built.mirrorNodes.map((n) => n.id)], []);
-  showToast(`Created a replication pair — ${built.mirrorNodes.length} component${built.mirrorNodes.length === 1 ? '' : 's'} mirrored.`, 'success', 2600);
+  const edgeNote = built.edgeMirrors.length ? `, ${built.edgeMirrors.length} connector${built.edgeMirrors.length === 1 ? '' : 's'} between them` : '';
+  showToast(`Created a replication pair — ${built.mirrorNodes.length} component${built.mirrorNodes.length === 1 ? '' : 's'} mirrored${edgeNote}.`, 'success', 2600);
 }
 
 /** Adds the current selection to an existing pair's side ('a'|'b') by
@@ -1019,6 +1042,131 @@ export function autoArrangeAll() {
     }
   });
   fitToScreen();
+}
+
+/** "Distribute evenly" (Tools dropdown) — re-spaces every lifeline column to
+ * the wizard's own gap and every message's height along its lifeline(s),
+ * preserving both the lifelines' left-to-right order and the messages'
+ * top-to-bottom order (see core/sequenceDiagram.js). A tidy-up action for a
+ * sequence diagram that's drifted uneven from manual dragging/reconnecting,
+ * not a replacement for Auto-arrange (which sequence diagrams opt out of
+ * entirely — their layout is manual/meaningful, see autoArrangeAll above). */
+export function distributeSequenceDiagram() {
+  const state = store.getState();
+  if (state.nodes.filter((n) => n.shape === 'lifeline').length < 2) {
+    showToast('Add at least 2 lifelines to distribute a sequence diagram.', 'info', 2400);
+    return;
+  }
+  const xUpdates = distributeLifelineColumns(state.nodes);
+  const offsetUpdates = distributeMessages(state.nodes, state.edges);
+  store.dispatch((draft) => {
+    for (const [id, x] of xUpdates) {
+      const n = draft.nodes.find((nd) => nd.id === id);
+      if (n) n.x = x;
+    }
+    for (const [id, upd] of offsetUpdates) {
+      const e = draft.edges.find((ed) => ed.id === id);
+      if (!e) continue;
+      if (upd.fromOffset != null) e.fromOffset = upd.fromOffset;
+      if (upd.toOffset != null) e.toOffset = upd.toOffset;
+    }
+  });
+  showToast('Distributed lifelines and messages evenly.', 'success', 2200);
+}
+
+/** "Scale Diagram" (Tools dropdown → modals/scaleDiagramModal.js) —
+ * permanently resizes every node's own position/size *and* font size by
+ * `factor`, unlike the view-only pan/zoom (canvas/viewport.js) which never
+ * touches the underlying data. Centered on the diagram's own current
+ * bounding-box center so it stays roughly in place instead of drifting
+ * toward the canvas origin. Edge fromOffset/toOffset are fractions (0..1
+ * along a node's own side), already scale-invariant, so edges need no
+ * changes at all. */
+export function scaleDiagram(factor) {
+  const state = store.getState();
+  if (!state.nodes.length) {
+    showToast('Nothing to scale yet — add some components first.', 'info', 2200);
+    return;
+  }
+  const bounds = getContentBounds();
+  const origin = { x: bounds.x + bounds.w / 2, y: bounds.y + bounds.h / 2 };
+  store.dispatch((draft) => {
+    draft.nodes = scaleNodes(draft.nodes, factor, origin);
+  });
+  showToast(`Scaled the diagram to ${Math.round(factor * 100)}%.`, 'success', 2200);
+}
+
+/** Every group whose members are ALL lifeline nodes (2+) — a "sequence
+ * diagram group" that qualifies for the drill-down/zoom-in view (see
+ * modals/subDiagramModal.js) and gets its own extra page/image in PDF/PNG
+ * export (see io/exportPdf.js, io/exportImage.js). Purely derived from the
+ * existing groupId+shape fields already round-tripped through JSON export/
+ * import — nothing new is persisted, so no schema changes were needed for
+ * this feature, the same "computed at render time" convention as
+ * computeMessageSequenceNumbers above. */
+export function getSequenceDiagramGroups() {
+  const state = store.getState();
+  const byGroup = new Map();
+  for (const n of state.nodes) {
+    if (!n.groupId) continue;
+    if (!byGroup.has(n.groupId)) byGroup.set(n.groupId, []);
+    byGroup.get(n.groupId).push(n);
+  }
+  const groups = [];
+  for (const [groupId, nodes] of byGroup) {
+    if (nodes.length < 2 || !nodes.every((n) => n.shape === 'lifeline')) continue;
+    const nodeIds = new Set(nodes.map((n) => n.id));
+    const edges = state.edges.filter((e) => nodeIds.has(e.from) && nodeIds.has(e.to));
+    groups.push({ groupId, nodes, edges, label: nodes.map((n) => n.text).filter(Boolean).join(' / ') });
+  }
+  return groups;
+}
+
+/** Bounding box of just the given node ids (ignoring every other node/edge
+ * on the canvas) — used by io/exportImage.js to capture one sequence
+ * diagram group on its own, cropped tightly around only its own content.
+ * Simpler than getContentBounds() above (no edge-overflow/external-label
+ * correction): a sequence diagram's messages never route outside their own
+ * lifelines' horizontal span, so the extra correction that function exists
+ * for doesn't apply here. */
+export function getNodesBounds(nodeIds) {
+  const idSet = new Set(nodeIds);
+  const nodes = store.getState().nodes.filter((n) => idSet.has(n.id));
+  if (!nodes.length) return null;
+  const minX = Math.min(...nodes.map((n) => n.x));
+  const minY = Math.min(...nodes.map((n) => n.y));
+  const maxX = Math.max(...nodes.map((n) => n.x + n.w));
+  const maxY = Math.max(...nodes.map((n) => n.y + n.h));
+  return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+}
+
+/** Hides every node/edge element NOT in `nodeIds` (and the group-background
+ * layer entirely) so io/exportImage.js's html2canvas capture shows only one
+ * sequence diagram group in isolation. Returns a restore function that
+ * undoes exactly this — call it in a `finally` block, same pattern
+ * captureDiagramCanvas() itself already uses for its own viewport/style
+ * save-and-restore. */
+export function hideExcept(nodeIds) {
+  const idSet = new Set(nodeIds);
+  const state = store.getState();
+  const edgesById = new Map(state.edges.map((e) => [e.id, e]));
+  const hidden = [];
+  for (const [id, elRef] of nodeElements) {
+    if (!idSet.has(id)) { hidden.push(elRef); elRef.style.display = 'none'; }
+  }
+  for (const [id, elRef] of edgeElements) {
+    const edge = edgesById.get(id);
+    if (!edge || !idSet.has(edge.from) || !idSet.has(edge.to)) { hidden.push(elRef); elRef.style.display = 'none'; }
+  }
+  const prevGroupBgDisplay = groupBgLayer.style.display;
+  groupBgLayer.style.display = 'none';
+  const prevHandleDisplay = edgeHandleLayer.style.display;
+  edgeHandleLayer.style.display = 'none';
+  return () => {
+    for (const elRef of hidden) elRef.style.display = '';
+    groupBgLayer.style.display = prevGroupBgDisplay;
+    edgeHandleLayer.style.display = prevHandleDisplay;
+  };
 }
 
 // ---- context menus ----

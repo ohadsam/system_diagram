@@ -68,6 +68,26 @@ test('createEdge defaults fromOffset/toOffset to the midpoint and notes to empty
   assert.equal(custom.notes, 'the initial call');
 });
 
+test('createEdge defaults labelPosition to "middle" and it is overridable', () => {
+  const edge = createEdge('n1', 'n2');
+  assert.equal(edge.labelPosition, 'middle');
+  const custom = createEdge('n1', 'n2', { labelPosition: 'start' });
+  assert.equal(custom.labelPosition, 'start');
+});
+
+test('validateProject defaults an invalid/missing labelPosition to "middle" and preserves a valid one', () => {
+  const p = createEmptyProject();
+  const n1 = createNode(null, 0, 0);
+  const n2 = createNode(null, 200, 0);
+  p.nodes.push(n1, n2);
+  p.edges.push(createEdge(n1.id, n2.id, { labelPosition: 'end' }));
+  p.edges.push({ ...createEdge(n1.id, n2.id), labelPosition: 'bogus' });
+  const { ok, project } = validateProject(p);
+  assert.ok(ok);
+  assert.equal(project.edges[0].labelPosition, 'end');
+  assert.equal(project.edges[1].labelPosition, 'middle');
+});
+
 test('createNode accepts "lifeline" as a valid shape', () => {
   const node = createNode(null, 0, 0, { shape: 'lifeline' });
   assert.equal(node.shape, 'lifeline');
@@ -247,6 +267,32 @@ test('duplicateProject regenerates sub-component ids and remaps groupId so the c
   assert.equal(copy.nodes[0].subComponents[0].name, 'Auth');
 });
 
+test('duplicateProject remaps a replication pair\'s edgeMembers to the newly-regenerated edge ids', () => {
+  const p = createEmptyProject();
+  const n1 = createNode(null, 0, 0, { groupId: 'gA' });
+  const n2 = createNode(null, 300, 0, { groupId: 'gA' });
+  const n3 = createNode(null, 0, 200, { groupId: 'gB' });
+  const n4 = createNode(null, 300, 200, { groupId: 'gB' });
+  p.nodes.push(n1, n2, n3, n4);
+  const eA = createEdge(n1.id, n2.id, { label: 'call' });
+  const eB = createEdge(n3.id, n4.id, { label: 'call' });
+  p.edges.push(eA, eB);
+  p.replicationPairs.push({
+    id: 'repl_1', mode: 'active-active', groupA: 'gA', groupB: 'gB', offsetX: 300, offsetY: 0,
+    members: [{ a: n1.id, b: n3.id }, { a: n2.id, b: n4.id }],
+    edgeMembers: [{ a: eA.id, b: eB.id }],
+    frozen: false,
+  });
+
+  const copy = duplicateProject(p);
+  const pair = copy.replicationPairs[0];
+  assert.equal(pair.edgeMembers.length, 1);
+  assert.notEqual(pair.edgeMembers[0].a, eA.id, 'edge ids should be regenerated, not reused');
+  assert.notEqual(pair.edgeMembers[0].b, eB.id);
+  assert.ok(copy.edges.some((e) => e.id === pair.edgeMembers[0].a));
+  assert.ok(copy.edges.some((e) => e.id === pair.edgeMembers[0].b));
+});
+
 test('duplicateProject leaves the original project completely untouched', () => {
   const p = createEmptyProject('Original');
   const n1 = createNode(null, 0, 0);
@@ -305,6 +351,31 @@ test('validateProject keeps a well-formed replicationPairs entry, backfilling a 
   assert.equal(pair.mode, 'active-passive');
   assert.equal(pair.members.length, 1);
   assert.equal(pair.frozen, false, 'missing frozen should default to false');
+});
+
+test('validateProject preserves a well-formed edgeMembers entry and drops one referencing an unknown edge id', () => {
+  const raw = {
+    nodes: [{ id: 'n1', x: 0, y: 0, groupId: 'gA' }, { id: 'n2', x: 300, y: 0, groupId: 'gB' }],
+    edges: [{ id: 'e1', from: 'n1', to: 'n2' }],
+    replicationPairs: [{
+      groupA: 'gA', groupB: 'gB', members: [{ a: 'n1', b: 'n2' }],
+      edgeMembers: [{ a: 'e1', b: 'e1' }, { a: 'e1', b: 'no-such-edge' }],
+    }],
+  };
+  const result = validateProject(raw);
+  const pair = result.project.replicationPairs[0];
+  assert.equal(pair.edgeMembers.length, 1, 'only the entry whose both ids resolve to real edges survives');
+  assert.deepEqual(pair.edgeMembers[0], { a: 'e1', b: 'e1' });
+});
+
+test('validateProject defaults edgeMembers to an empty array when missing', () => {
+  const raw = {
+    nodes: [{ id: 'n1', x: 0, y: 0, groupId: 'gA' }, { id: 'n2', x: 300, y: 0, groupId: 'gB' }],
+    edges: [],
+    replicationPairs: [{ groupA: 'gA', groupB: 'gB', members: [] }],
+  };
+  const result = validateProject(raw);
+  assert.deepEqual(result.project.replicationPairs[0].edgeMembers, []);
 });
 
 test('validateProject preserves an explicit frozen:true on a replication pair', () => {

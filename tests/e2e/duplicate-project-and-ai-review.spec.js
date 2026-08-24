@@ -90,6 +90,21 @@ test('the AI Design Review panel opens, builds a prompt from the diagram, and ac
   await expect(page.locator('#ai-review-panel')).not.toHaveClass(/open/);
 });
 
+test('the AI Design Review prompt asks sequence-diagram-specific questions when the canvas holds a sequence diagram', async ({ page }) => {
+  await openToolbarGroup(page, 'Create');
+  await page.locator('#toolbar button', { hasText: 'Sequence Diagram' }).click();
+  await page.locator('.sequence-participant-list .field-row input').nth(0).fill('Client');
+  await page.locator('.sequence-participant-list .field-row input').nth(1).fill('Server');
+  await page.locator('.sequence-diagram-modal button', { hasText: '🔀 Create' }).click();
+  await expect.poll(() => nodeCount(page)).toBe(2);
+
+  await openToolbarGroup(page, 'Tools');
+  await page.locator('#toolbar button[title="AI Design Review"]').click();
+  const prompt = page.locator('.ai-review-prompt');
+  await expect(prompt).toHaveValue(/sequence\/communication-flow diagram/);
+  await expect(prompt).toHaveValue(/call order/);
+});
+
 test('pasting an AI response back into the panel saves it for the session with copy/remove controls', async ({ page }) => {
   await addComponentByName(page, 'Kafka');
   await openToolbarGroup(page, 'Tools');

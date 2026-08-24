@@ -149,16 +149,27 @@ Or open `index.html` directly in a browser.
 - **🔁 Replicate** — link a selection to a live-mirrored second side
   (Active-Active / Active-Passive / Primary-Replica). Add, move, resize,
   restyle or rename a component on either side and its peer follows
-  automatically; delete one and its peer goes too. Mark any single
-  component "Exclude from replication" to opt it out, or ❄️ freeze a whole
-  pair to edit one side without touching the other.
+  automatically — connectors between mirrored components mirror too, not
+  just the components themselves; delete one and its peer goes too. Mark
+  any single component "Exclude from replication" to opt it out, or
+  ❄️ freeze a whole pair to edit one side without touching the other.
 - **🔀 Sequence Diagrams** — name a set of participants and get a titled
   vertical "lifeline" for each, evenly spaced; drag between two lifelines
   to draw a message at whatever height represents when it happens (several
   messages on the same lifeline land at their own distinct heights instead
   of piling up), with messages between two lifelines auto-numbered in the
-  order they occur. Right-click any connector for a new "Open details"
-  notes panel — handy for annotating a message, but works on any connector.
+  order they occur — a lifeline can even message itself (renders as a small
+  loop). Drag a message's endpoint handle to reconnect it to a different
+  height/lifeline, or use "↔️ Distribute Evenly" to re-space a diagram
+  that's drifted uneven. Group 2+ lifelines for a 🔍 zoom-in icon on the
+  group: a read-only preview (or pinned side panel) with an "✏️ Edit"
+  button for real editing that saves back into the main diagram — each such
+  group also exports as its own extra PNG/PDF page. Right-click any
+  connector for a new "Open details" notes panel — handy for annotating a
+  message, but works on any connector; a connector's notes also show as a
+  hover tooltip, and its label can be positioned near the start/middle/end.
+- **📐 Scale Diagram** — permanently resize every component and its text
+  together by a chosen percentage, distinct from zooming the view.
 - **Export** — PNG and PDF snapshots of your diagram.
 - **Dismissible hints** — a short first-run guided tour, restartable any
   time, with a separate 🔔/🔕 toggle to turn hint bubbles on/off.

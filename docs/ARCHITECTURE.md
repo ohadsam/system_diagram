@@ -250,6 +250,180 @@ of existing mechanisms rather than a parallel diagram type:
   `computeAutoLayout` scramble a sequence diagram's meaningful horizontal
   layout — see that section for where the guard sits.
 
+### Self-messages (`connector.js#selfLoopPath`, `connectorInteractions.js`, `edgeReconnect.js`)
+
+A lifeline calling itself (e.g. internal validation before a real call
+out) — `edge.from === edge.to`. Nothing new in the schema: the loop shape
+comes entirely from `fromOffset`/`toOffset` differing (two distinct heights
+on the same lifeline) with `fromSide === toSide` (both ends exit the same
+side, which is what makes the "out, across, back in" loop shape correct —
+`pickBestSides` would instead see two identical, fully-overlapping rects
+and default to right/left, drawing a flat line straight *through* the
+lifeline). `connector.js#buildEdgePath` special-cases `fromNode.id ===
+toNode.id` before reaching any routing-specific branch (self-loops ignore
+`routing` entirely — magic/orthogonal have no gap between two different
+nodes to route around here).
+
+`connectorInteractions.js#beginConnectFromNode`'s target-detection normally
+excludes the source node itself (`nodeElUnder.dataset.nodeId !== nodeId`);
+self-connect is allowed only when the source is a lifeline (`allowSelf =
+fromNode.shape === 'lifeline'`) — every other shape's single connect-point
+dot would make a self-drop a same-point no-op anyway, so there's no reason
+to allow it there. `edgeReconnect.js#beginReconnect` (below) applies the
+identical `fromSide` used for both ends when the target of a reconnect
+drag turns out to be the connector's own fixed endpoint.
+
+### Drag-to-reconnect an edge endpoint (`canvas/edgeReconnect.js`)
+
+A selected edge grows two small round handles at its exact `sideAnchor`
+points; dragging one moves *only* that end (to a different node, or a
+different height on the same lifeline) — the other end's side/offset is
+never touched. Mirrors `connectorInteractions.js`'s draft-line-while-
+dragging approach but starts from an existing edge's fixed endpoint instead
+of a node's connection point, and (unlike drawing a fresh connector)
+dropping on empty canvas cancels rather than deleting anything.
+
+**Gotcha — the handles need their own DOM layer, not the edge's own `<g>`.**
+The first version put the two handle `<circle>`s inside `connector.js`'s
+per-edge `<g>` (`.edge-layer`). A handle sits *exactly* at the edge's
+anchor point, which for a node/lifeline is also exactly where that node's
+own `.conn-point` full-height hit-strip lives (css/node.css) — and since
+`.node-layer` is appended *after* `.edge-layer` in `canvas.js#initCanvas`,
+the node's connection point always won the pointer hit-test, so "dragging
+the handle" actually grabbed the node underneath and drew a brand-new
+connector instead (confirmed live: edge count went from 1 to 2 on every
+attempted reconnect). Moving the handles into their own overlay SVG
+(`edgeHandleLayer`) appended *after* `.node-layer` fixed the DOM-order part
+of this — but wasn't sufficient on its own: every `.node` carries an
+**explicit numeric `z-index`** via inline style (`node.js#updateNodeEl`,
+used for "bring to front"/"send to back"), and per CSS2.1 Appendix E, a
+positioned descendant with an explicit z-index paints above *any* sibling
+left at the default `z-index: auto` — regardless of DOM order — once that
+descendant's ancestor (`.node-layer`) doesn't itself establish a stacking
+context (it doesn't; no z-index of its own). So a node's z-index could
+still float above the handle overlay if it had ever been brought to front.
+Fixed by giving `.edge-handle-layer` a very high fixed `z-index` (100000)
+so it wins regardless of how high any node's own z-index climbs — see
+`css/connector.css`'s comment on `.edge-handle-layer` for the full
+reasoning. Worth remembering for *any* future overlay meant to sit above
+arbitrary canvas content: DOM order alone is not enough once z-indexed
+siblings are in play.
+
+`syncEdgeHandles(state, selection)` rebuilds the overlay's contents (cheap
+— a couple of DOM nodes per selected edge) and is called from both
+`canvas.js#render()` (data changed) and `renderSelectionOnly()` (only the
+selection changed) — same "handle both change and selection updates
+separately" split every other selection-reactive piece of `canvas.js`
+already follows.
+
+### "Distribute Evenly" (`core/sequenceDiagram.js#distributeLifelineColumns`/`#distributeMessages`, `canvas.js#distributeSequenceDiagram`)
+
+A tidy-up action (Tools menu), not a replacement for auto-arrange (which
+sequence diagrams opt out of entirely, above). Two independent pure
+functions, both order-preserving:
+
+- `distributeLifelineColumns(nodes)` re-spaces every lifeline to the
+  wizard's own `GAP`, anchored on the leftmost lifeline's current `x` (so
+  the diagram doesn't visibly jump), sorted by current `x` — never touches
+  `y`.
+- `distributeMessages(nodes, edges)` re-spaces every message's height,
+  preserving the same top-to-bottom order `computeMessageSequenceNumbers`
+  already derives (built from the same `sideAnchor(...).y` sort). A
+  non-self message contributes one shared point (both ends land at the
+  same height — real messages are drawn horizontal); a self-message (above)
+  contributes *two* independent points, since its start and end genuinely
+  need to differ for the loop shape to survive redistribution.
+
+### Zoom-in / drill-down on a sequence diagram (`modals/subDiagramModal.js`, `canvas/subDiagramEdit.js`)
+
+Reachable via a 🔍 icon on a *sequence-diagram group*'s background box
+(`canvas.js#getSequenceDiagramGroups()` — any `groupId` whose members are
+2+ nodes, all `shape === 'lifeline'`; purely derived from existing
+`groupId`+`shape` fields the same way `computeMessageSequenceNumbers` is,
+so nothing new needed persisting or round-tripping through JSON import/
+export for this to work).
+
+- **Read-only preview** (`subDiagramModal.js#renderGroupSnapshot`): reuses
+  `node.js`/`connector.js`'s own `createNodeEl`/`updateNodeEl`/
+  `createEdgeEl`/`updateEdgeEl` directly — they're plain functions that
+  build/update one element from a node/edge object, no store coupling in
+  the render path itself — rather than a second hand-rolled renderer. Those
+  builders *do* wire up their own click/dblclick/select handlers
+  internally though (shared module-level `handlers` in each file, the same
+  ones the real canvas configured), so the whole preview sits under
+  `pointer-events: none` (`css/canvas.css`) to keep it genuinely read-only;
+  disabling pointer events is what neutralizes them, not a parallel inert
+  copy of every handler. The group's nodes are shifted (not the real ones —
+  plain object copies) so its own top-left corner becomes the preview's
+  origin, and the whole thing is CSS-`transform: scale()`d to fit a fixed
+  preview box.
+- **"✏️ Edit"** (`subDiagramEdit.js#enterSubDiagramEdit`): reuses the
+  *entire* existing canvas/store/undo machinery instead of a second
+  parallel mini-editor — the group's own nodes+edges are temporarily
+  swapped in as the whole active project via `store.loadProject()`
+  (everything else stashed in a closure variable), the real canvas renders
+  and edits them completely normally, and a fixed banner overlay
+  (`.subdiagram-edit-banner`) is the only thing marking "you're editing a
+  sub-diagram, not the main one." "✅ Done editing" merges the (possibly
+  edited/added/deleted) subset back into the stashed parent project — a
+  brand-new node created during the edit has no `groupId` at all
+  (`createNode`'s default), so it's assigned the group's `groupId` on
+  merge so it doesn't silently fall out of the sequence diagram.
+  `replicationPairs` are excluded from the swapped-in project (nothing
+  useful to reconcile scoped to just one group) and restored verbatim from
+  the stashed snapshot on exit, untouched by whatever happened during the
+  edit.
+  **Known, accepted limitation** (not engineered around, given how narrow
+  it is): using New/Load/Import while a sub-diagram edit is in progress
+  abandons the stashed parent project when "Done" is later clicked, since
+  by then `store.getState()` no longer holds the group's content at all.
+  The banner's wording steers away from this rather than specially
+  disabling those toolbar buttons for the session, which would need
+  touching many more call sites for a case a user is unlikely to hit by
+  accident.
+- **Pin** (`subDiagramModal.js#pinGroup`): docks the same read-only
+  snapshot renderer in a small fixed-position panel
+  (`.subdiagram-pin-host`, lazily created once, appended to `document.body`
+  rather than wired into `index.html`/`main.js` — self-contained, no new
+  mount point needed) instead of a modal, live-updating on every store
+  change via its own `store.subscribe('change', ...)` until unpinned.
+- **Export** (`io/exportImage.js`, `io/exportPdf.js`): reuses the *real*
+  canvas capture technique, not the preview renderer above, for pixel-
+  perfect fidelity with the main export. `captureDiagramCanvas({nodeIds})`
+  is `captureDiagramCanvas()`'s general-purpose "capture just this subset"
+  variant — `canvas.js#hideExcept(nodeIds)` temporarily hides every node/
+  edge element not in the subset (plus the group-background and edge-
+  handle layers entirely) for the duration of one `html2canvas` capture,
+  restored in a `finally` block, same save-and-restore shape
+  `captureDiagramCanvas` already used for the viewport/pan-zoom state.
+  `exportPNG` downloads the main PNG then one more per sequence-diagram
+  group; `exportPDF` appends one more PDF page per group the same way.
+
+**Gotcha — a group's background icons can render *behind* the toolbar.**
+`.group-bg-dismiss`/`.group-bg-zoom` originally sat at `top: -10px`,
+poking slightly above the group-background box's own top edge (a small,
+deliberate overhang so they read as corner badges). A freshly-created
+sequence diagram's lifelines are 640px tall and vertically centered on the
+current view by `layoutLifelines` — on an ordinary desktop viewport that
+routinely puts a chunk of the lifeline's top *above* `.canvas-viewport`'s
+own visible area (`overflow: hidden` there, so it's simply clipped/
+invisible, same as scrolling past it). The group-background box inherits
+that same off-screen top from `computeGroupBounds`, so grouping a
+just-created sequence diagram and immediately reaching for its 🔍/✕ icons
+(before panning/fitting to screen) could find them clipped away entirely —
+not mis-positioned, genuinely invisible, since `.canvas-viewport` starts in
+normal page flow right below the toolbar rather than being overlaid by it
+(confirmed via `getBoundingClientRect()`: the toolbar occupies real page
+space, `.canvas-viewport` begins right after it — the icon's calculated
+position was simply *above* that visible region). Fixed by moving both
+icons to sit a few pixels *inside* the box's own top-right corner (`top:
+4px`) instead of overhanging above it, so they can never end up outside
+whatever region of the box is actually visible/clipped. A real user hits
+this the same way the automated test did: create a sequence diagram, group
+it immediately, try to click its icon before scrolling/fitting to screen —
+"Fit to screen" (already a toolbar button) is the natural way out of it,
+same as for any other content that starts outside the current view.
+
 ## Auto-arrange (`core/autoLayout.js`, `canvas.js#autoArrangeAll`)
 
 `computeAutoLayout(nodes, edges)` is a pure function (no DOM, no store) that
@@ -1176,6 +1350,14 @@ file's text, truncated to a sane length). The panel:
    (resets on reload) and **is** reset whenever the active project itself
    changes.
 
+`buildReviewPrompt()` also takes `hasSequenceDiagram` (the panel passes
+`state.nodes.some((n) => n.shape === 'lifeline')`) and swaps its entire
+"Act as a senior..." checklist based on it — a sequence diagram calls for
+call-order/missing-response/race-condition questions, not the generic
+scalability/reliability/security checklist, which doesn't fit a flow
+diagram at all. Purely a prompt-text branch — no other part of the panel
+changes.
+
 That last point is a subscription pattern worth calling out:
 `initAiReviewPanel()` subscribes to `store`'s `'change'` event but only
 acts when `store.getState().id` differs from the last-seen id — i.e. only
@@ -1207,7 +1389,26 @@ functions:
 3. `autoArrangeIfNeeded(project)` — a safety net: if fewer than half the
    nodes have distinct `(x, y)`, they're re-laid-out on a simple grid
    (order/content preserved, only position changes). A project with
-   genuinely distinct positions passes through untouched.
+   genuinely distinct positions passes through untouched. Skipped
+   entirely (before even checking positions) when any node is
+   `shape === 'lifeline'` — a square grid would scramble a sequence
+   diagram's meaningful left-to-right order and squash its tall vertical
+   shape, which is strictly worse than leaving an imperfect AI-chosen
+   layout alone; a dedicated lifeline-specific fallback wasn't judged
+   worth the complexity given how rarely the AI actually mis-lays out just
+   2-5 participants.
+
+`buildGenerateDesignPrompt()`'s few-shot section also includes a *second*,
+smaller example for the sequence-diagram (lifeline) shape, with its own
+short rule list (straight routing, strictly increasing `fromOffset`/
+`toOffset` per message so nothing stacks, a self-message's matching
+`fromSide`/`toSide` — see the self-messages section above) and explicit
+guidance on *when* to reach for it: only when the spec is fundamentally
+about a step-by-step call order, not a static architecture. Two fenced
+` ```json ` blocks now appear in the prompt rather than one;
+`tests/unit/aiGenerateDesign.test.mjs` asserts on the *second* one
+specifically to keep the two examples' tests from silently drifting onto
+each other if their order ever changes.
 
 `modals/generateDesignModal.js` is a single `openModal()` call with a
 closure-scoped `step` variable and a `renderStep()` function that
@@ -1238,7 +1439,9 @@ itself) and doesn't depend on rect timing at all.
 Two "sides" (each an ordinary node group — `node.groupId`, the same
 mechanism `groupSelection()` already uses) linked by a `replicationPairs`
 entry on the project: `{ id, mode, groupA, groupB, offsetX, offsetY,
-members: [{a, b}] }`. `mode` is purely a descriptive label — every mode
+members: [{a, b}], edgeMembers: [{a, b}] }` (`edgeMembers` — see below —
+is the exact same `{a, b}` id-mapping shape as `members`, just for edges
+instead of nodes). `mode` is purely a descriptive label — every mode
 runs through the exact same engine. No new spatial-containment concept was
 introduced (the app has no parent/child node nesting); "side A" and "side
 B" are just two `groupId`s, and `offsetX/offsetY` is the constant delta
@@ -1290,6 +1493,35 @@ Per pair, each sync pass:
    side and isn't already in `members` (and isn't excluded) gets a mirror
    created on the other side.
 
+**Internal connectors mirror too** — steps 4-5, run after 1-3 above using
+the *final* `survivingMembers` list so a connector drawn between two
+already-paired nodes in the same dispatch is caught in the same sync pass:
+4. **Reconciles existing `edgeMembers`**: for each mapping, checks both
+   edges still exist and both endpoints are still live-mapped members
+   (`aToB`/`bToA`, built from `survivingMembers`) — cascade-deletes the
+   surviving edge if the other side's is genuinely gone, drops the mapping
+   (deleting neither edge) if an endpoint merely stopped being a live
+   member (excluded/regrouped away), otherwise propagates content changes
+   via a `edgeSignature()` comparison (same shape as node `signature()`,
+   minus `id`/`from`/`to`).
+5. **Discovers new internal edges**: any edge in the project whose `from`
+   and `to` are both currently-mapped members of the *same* side, with no
+   existing `edgeMembers` entry yet, gets mirrored to the other side
+   (`cloneAsMirrorEdge` — fresh id, `from`/`to` swapped to that side's
+   mapped node ids, every other field — routing/color/width/dash/arrows/
+   label/labelPosition/notes — copied verbatim from `EDGE_MIRROR_FIELDS`).
+
+This is what makes drawing a message between two paired sequence-diagram
+lifelines (docs/SPEC.md 4.15) mirror to the other side live, same as
+everything else about replication — no special-casing for "this edge
+happens to be a message," it's just an edge between two members of the
+same side. `buildReplicationPair(nodes, selectedNodeIds, mode, edges)`
+mirrors this at pair-creation time too: after building node mirrors, any
+edge whose `from`/`to` are both in the newly-selected set gets its own
+mirror + `edgeMembers` entry in the same pass, so a sequence diagram
+selected with its messages already drawn arrives at the new pair fully
+wired, not needing a follow-up sync to catch up.
+
 `buildReplicationPair(nodes, selectedNodeIds, mode)` is the pure builder
 behind "create a pair from the current selection" — reuses one common
 existing `groupId` for side A if the whole selection already shares one
@@ -1328,11 +1560,14 @@ pairs is a state the UI should simply never let a user create.
 `core/project.js#validateProject()` validates `replicationPairs` the same
 "coerce to safe defaults, never throw" way as everything else (drops a
 pair with an equal/missing `groupA`/`groupB`, clamps an unknown `mode`,
-filters `members` entries to ids that survived node validation) and
-`duplicateProject()` remaps a pair's `groupA`/`groupB`/`members` through
-the same id maps it already builds for nodes/edges/groups, dropping a pair
-outright if neither of its groups survived the clone (nothing left to
-duplicate).
+filters `members` entries to ids that survived node validation, and
+likewise filters `edgeMembers` entries to ids that survived edge
+validation — defaulting to `[]` if missing entirely, so an older saved
+project or hand-written JSON from before this field existed loads exactly
+as before) and `duplicateProject()` remaps a pair's `groupA`/`groupB`/
+`members`/`edgeMembers` through the same id maps it already builds for
+nodes/edges/groups, dropping a pair outright if neither of its groups
+survived the clone (nothing left to duplicate).
 
 **Freeze/resume** is a single `pair.frozen` boolean, checked first thing in
 `syncPair()` — a frozen pair short-circuits to a no-op before any of the

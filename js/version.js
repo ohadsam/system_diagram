@@ -2,9 +2,21 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.21.0';
+export const APP_VERSION = '1.22.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.22.0',
+    date: '2026-08-24',
+    highlights: [
+      'Sequence diagrams: a lifeline can now message itself (renders as a small loop), an existing message can be reconnected to a different height or lifeline by dragging its endpoint handles instead of deleting and redrawing it, and "↔️ Distribute Evenly" (Tools menu) re-spaces a diagram\'s lifelines and messages evenly while keeping their order.',
+      'New "🔍" zoom-in on a grouped sequence diagram — click the icon on its background for a read-only zoomed preview (or "📌 Pin to side panel" to dock it), with an "✏️ Edit" button to open it for real editing that saves back into the main diagram.',
+      'Live Replication now mirrors connectors too, not just components — a message drawn between two already-mirrored components (e.g. two paired sequence-diagram lifelines) automatically mirrors to the other side.',
+      'New "📐 Scale Diagram" (Tools menu) — permanently resizes every component and its text together by a chosen percentage, unlike zooming the view which never touches the underlying data.',
+      'Connector labels can now be positioned near the start, middle, or end of the connector (arrow style editor), and a connector\'s notes now show as a hover tooltip on the connector itself.',
+      'AI Design Review and Generate Design from Spec are now sequence-diagram-aware: reviewing one asks flow-specific questions (call order, missing responses, race conditions) instead of the generic architecture checklist, and generating one can produce a proper sequence diagram (lifelines + timed messages) when the request calls for it.',
+    ],
+  },
   {
     version: '1.21.0',
     date: '2026-08-24',

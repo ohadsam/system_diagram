@@ -24,6 +24,29 @@ const EXAMPLE_JSON = `{
   ]
 }`;
 
+// A second, shorter example for the alternative "sequence diagram" shape
+// (see the "lifeline" note in buildGenerateDesignPrompt below) — participant
+// lifelines with time-ordered messages between them, not a component graph.
+// fromOffset/toOffset (0..1, top-to-bottom along each lifeline) are what
+// place a message at a specific point in time; omitting them defaults to
+// the midpoint, which stacks every message on one spot — always give each
+// message its own distinct, increasing offset down both lifelines involved.
+const SEQUENCE_EXAMPLE_JSON = `{
+  "name": "Example Login Flow",
+  "nodes": [
+    { "id": "n1", "x": 40, "y": 40, "w": 140, "h": 640, "shape": "lifeline", "text": "Client" },
+    { "id": "n2", "x": 320, "y": 40, "w": 140, "h": 640, "shape": "lifeline", "text": "Auth Service" },
+    { "id": "n3", "x": 600, "y": 40, "w": 140, "h": 640, "shape": "lifeline", "text": "Users DB" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "n1", "to": "n2", "label": "POST /login", "routing": "straight", "fromOffset": 0.12, "toOffset": 0.12 },
+    { "id": "e2", "from": "n2", "to": "n3", "label": "find user by email", "routing": "straight", "fromOffset": 0.3, "toOffset": 0.3 },
+    { "id": "e3", "from": "n3", "to": "n2", "label": "user record", "routing": "straight", "fromOffset": 0.45, "toOffset": 0.45, "dash": "dashed" },
+    { "id": "e4", "from": "n2", "to": "n2", "label": "verify password hash", "routing": "straight", "fromOffset": 0.6, "toOffset": 0.72, "fromSide": "right", "toSide": "right" },
+    { "id": "e5", "from": "n2", "to": "n1", "label": "200 OK + session token", "routing": "straight", "fromOffset": 0.85, "toOffset": 0.85, "dash": "dashed" }
+  ]
+}`;
+
 export function buildGenerateDesignPrompt({ specText = '' } = {}) {
   const lines = [];
   lines.push('Based on the product/requirements spec below, propose a system design / software architecture for it.');
@@ -40,6 +63,16 @@ export function buildGenerateDesignPrompt({ specText = '' } = {}) {
   lines.push('- Lay nodes out left-to-right or top-to-bottom by data flow, at least 220px apart horizontally and 140px apart vertically, so nothing overlaps.');
   lines.push(`- Edge "routing" must be one of: ${ROUTING_CHOICES.join(', ')}. Give each edge a short "label" describing the interaction (e.g. "reads", "publishes", "HTTPS").`);
   lines.push('- Include every major component implied by the spec — don\'t skip databases, caches, queues, or external services — but don\'t over-fragment trivial ones either. Aim for roughly 6-20 components depending on complexity.');
+  lines.push('');
+  lines.push('If — and only if — the spec is fundamentally about a step-by-step interaction/flow between a handful of participants over time (e.g. "walk through the login handshake", "show the request lifecycle", "explain the checkout call sequence"), produce a SEQUENCE DIAGRAM instead of a component graph: one tall "lifeline" node per participant, and "messages" as edges between them timed by height. Most specs are NOT this — only switch to this shape when the ask is explicitly about the order of calls/responses, not the static architecture.');
+  lines.push('```json');
+  lines.push(SEQUENCE_EXAMPLE_JSON);
+  lines.push('```');
+  lines.push('Sequence diagram rules (only apply these when you chose this shape instead of the component graph above):');
+  lines.push('- Every participant is `"shape": "lifeline"`, sized ~140x640, evenly spaced left to right (~280px apart) in the order they first appear in the flow. No other shape mixes into a sequence diagram.');
+  lines.push('- Every message is a plain edge between two lifelines with `"routing": "straight"`. Give each one a strictly increasing `fromOffset`/`toOffset` (0..1, top of the lifeline to bottom) in call order — reusing the same offset stacks messages on top of each other, which is the one mistake that ruins this shape. A request/call is normally solid; a response/return reads better `"dash": "dashed"`.');
+  lines.push('- A participant messaging itself (e.g. internal validation) uses `"from"` equal to `"to"`, with `"fromOffset"` less than `"toOffset"` (it loops out and back) and matching `"fromSide"`/`"toSide"` (both "right", or both "left").');
+  lines.push('- Leave `"icon"`/`"fill"`/`"stroke"` off lifeline nodes — they render with their own fixed style, not a component\'s.');
   lines.push('');
   lines.push('--- SPEC START ---');
   lines.push(specText.trim().slice(0, SPEC_TEXT_LIMIT) || '(no spec text provided — use your best judgement for a generic, reasonable example system)');
@@ -87,8 +120,16 @@ function needsAutoLayout(nodes) {
  * nodes on top of each other (or close enough to make the diagram
  * unreadable): re-lays them out on a simple grid, preserving order.
  * Leaves a project with genuinely distinct positions untouched.
+ *
+ * Skipped entirely for a sequence diagram (any "lifeline" node present) —
+ * a generic square grid would scramble its left-to-right participant order
+ * and squash its tall vertical shape into something unrecognizable; even a
+ * botched-but-still-horizontal AI layout reads better than that. A
+ * dedicated lifeline-specific fallback isn't worth the complexity here
+ * given how rarely the AI actually mis-lays out just 2-5 participants.
  */
 export function autoArrangeIfNeeded(project) {
+  if (project.nodes.some((n) => n.shape === 'lifeline')) return project;
   if (!needsAutoLayout(project.nodes)) return project;
   const cols = Math.max(1, Math.ceil(Math.sqrt(project.nodes.length)));
   const COL_W = 220;

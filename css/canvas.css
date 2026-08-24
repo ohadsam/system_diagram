@@ -98,8 +98,16 @@
 
 .group-bg-dismiss {
   position: absolute;
-  top: -10px;
-  right: -10px;
+  /* Sits just *inside* the box's own top-right corner rather than poking
+     -10px above it: a sequence diagram's lifelines are tall and commonly
+     get vertically centered close to the canvas's very top edge, and a
+     box whose top lands within the toolbar's own height (~90px) had this
+     button rendering *behind* the toolbar — invisible and unclickable,
+     since the toolbar sits later in the DOM with its own stacking. Staying
+     inside the box's bounds makes that impossible regardless of where the
+     box sits. */
+  top: 4px;
+  right: 4px;
   width: 18px;
   height: 18px;
   border-radius: 50%;
@@ -115,6 +123,31 @@
 }
 
 .group-bg:hover .group-bg-dismiss {
+  opacity: 1;
+}
+
+/* Only shown for a sequence-diagram group (all-lifeline members — see
+   canvas.js#getSequenceDiagramGroups); sits just left of the dismiss "✕"
+   so the two never overlap. */
+.group-bg-zoom {
+  position: absolute;
+  /* See .group-bg-dismiss's comment just above — same fix, same reason. */
+  top: 4px;
+  right: 26px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  font-size: 10px;
+  line-height: 1;
+  opacity: 0;
+  pointer-events: auto;
+  box-shadow: var(--shadow-sm);
+  transition: opacity 0.1s;
+}
+
+.group-bg:hover .group-bg-zoom {
   opacity: 1;
 }
 
@@ -157,4 +190,110 @@
   outline: 2px dashed #0EA472 !important;
   outline-offset: 3px;
   background: rgba(14, 164, 114, 0.06);
+}
+
+/* ---- Sequence-diagram drill-down (modals/subDiagramModal.js) ---- */
+
+.subdiagram-preview {
+  margin: 8px 0 16px;
+}
+
+.subdiagram-snapshot-viewport {
+  overflow: hidden;
+  position: relative;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+}
+
+.subdiagram-snapshot-scaled {
+  position: relative;
+  transform-origin: top left;
+}
+
+.subdiagram-snapshot-scaled .node-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.subdiagram-snapshot-scaled .edge-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: visible;
+}
+
+/* Genuinely read-only: node.js/connector.js's own click/dblclick handlers
+   are still technically wired (see subDiagramModal.js's header comment for
+   why), this is what actually keeps them inert here. */
+.subdiagram-snapshot-viewport,
+.subdiagram-snapshot-viewport * {
+  pointer-events: none;
+}
+
+.subdiagram-edit-banner {
+  position: fixed;
+  left: 50%;
+  top: 12px;
+  transform: translateX(-50%);
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-md);
+  font-size: 13px;
+}
+
+.subdiagram-pin-host {
+  position: fixed;
+  right: 12px;
+  top: 64px;
+  bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-end;
+  pointer-events: none;
+  z-index: 60;
+  overflow-y: auto;
+}
+
+.subdiagram-pin-panel {
+  pointer-events: auto;
+  width: min(420px, 90vw);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  flex: none;
+}
+
+.subdiagram-pin-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.subdiagram-pin-title {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.subdiagram-pin-body {
+  padding: 8px;
+  max-height: 50vh;
+  overflow: auto;
+}
+
+.subdiagram-pin-body .subdiagram-snapshot-viewport {
+  border: none;
 }

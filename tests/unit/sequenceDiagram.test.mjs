@@ -1,8 +1,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { layoutLifelines } from '../../js/core/sequenceDiagram.js';
+import { layoutLifelines, distributeLifelineColumns, distributeMessages } from '../../js/core/sequenceDiagram.js';
 
 const SIZE = { w: 140, h: 640 };
+
+function lifeline(id, x, y = 0) {
+  return { id, shape: 'lifeline', x, y, w: SIZE.w, h: SIZE.h };
+}
+
+function message(id, from, to, fromOffset, toOffset, fromSide = 'right', toSide = 'left') {
+  return { id, from, to, fromSide, toSide, fromOffset, toOffset };
+}
 
 test('layoutLifelines places one rect per name, each with the given size', () => {
   const result = layoutLifelines(['Client', 'Server'], 0, 0, SIZE);
@@ -47,4 +55,63 @@ test('layoutLifelines handles a larger group (6 participants)', () => {
 
 test('layoutLifelines returns an empty array for no names', () => {
   assert.deepEqual(layoutLifelines([], 0, 0, SIZE), []);
+});
+
+test('distributeLifelineColumns re-spaces lifelines to a uniform gap, preserving left-to-right order and anchoring the leftmost one', () => {
+  const nodes = [lifeline('c', 900, 10), lifeline('a', 0, 20), lifeline('b', 50, 30)];
+  const updates = distributeLifelineColumns(nodes);
+  assert.equal(updates.get('a'), 0, 'leftmost node keeps its own x as the anchor');
+  const gap1 = updates.get('b') - updates.get('a');
+  const gap2 = updates.get('c') - updates.get('b');
+  assert.equal(gap1, gap2);
+  assert.ok(gap1 > SIZE.w);
+});
+
+test('distributeLifelineColumns returns nothing for fewer than 2 lifelines', () => {
+  assert.equal(distributeLifelineColumns([lifeline('solo', 0)]).size, 0);
+  assert.equal(distributeLifelineColumns([]).size, 0);
+});
+
+test('distributeLifelineColumns ignores non-lifeline nodes', () => {
+  const nodes = [lifeline('a', 0), lifeline('b', 500), { id: 'rect', shape: 'rect', x: 250, y: 0, w: 160, h: 84 }];
+  const updates = distributeLifelineColumns(nodes);
+  assert.equal(updates.size, 2);
+  assert.ok(!updates.has('rect'));
+});
+
+test('distributeMessages evenly spaces messages between the same pair of lifelines, preserving their current top-to-bottom order', () => {
+  const nodes = [lifeline('a', 0), lifeline('b', 300)];
+  // Deliberately out of order and unevenly spaced (0.9 comes first in the
+  // array but should still end up *last* since it's lowest on the canvas).
+  const edges = [
+    message('e-low', 'a', 'b', 0.9, 0.9),
+    message('e-high', 'a', 'b', 0.1, 0.1),
+    message('e-mid', 'a', 'b', 0.5, 0.5),
+  ];
+  const updates = distributeMessages(nodes, edges);
+  assert.ok(updates.get('e-high').fromOffset < updates.get('e-mid').fromOffset);
+  assert.ok(updates.get('e-mid').fromOffset < updates.get('e-low').fromOffset);
+  // Non-self messages stay horizontal — both ends land on the same height.
+  for (const id of ['e-low', 'e-high', 'e-mid']) {
+    assert.equal(updates.get(id).fromOffset, updates.get(id).toOffset);
+  }
+});
+
+test('distributeMessages gives a self-message two distinct, ordered offsets (start and end of its loop)', () => {
+  const nodes = [lifeline('a', 0)];
+  const edges = [message('self', 'a', 'a', 0.2, 0.8, 'right', 'right')];
+  const updates = distributeMessages(nodes, edges);
+  const { fromOffset, toOffset } = updates.get('self');
+  assert.ok(fromOffset < toOffset);
+});
+
+test('distributeMessages ignores edges that are not lifeline-to-lifeline messages', () => {
+  const nodes = [lifeline('a', 0), { id: 'rect', shape: 'rect', x: 300, y: 0, w: 160, h: 84 }];
+  const edges = [message('e', 'a', 'rect', 0.5, 0.5)];
+  assert.equal(distributeMessages(nodes, edges).size, 0);
+});
+
+test('distributeMessages is a no-op (empty map) when there are no messages', () => {
+  const nodes = [lifeline('a', 0), lifeline('b', 300)];
+  assert.equal(distributeMessages(nodes, []).size, 0);
 });

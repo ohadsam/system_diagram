@@ -52,6 +52,14 @@ function ensureMarker(type, color) {
 
 export function createEdgeEl(edge) {
   const g = svgEl('g', { class: 'edge', 'data-edge-id': edge.id, tabIndex: 0, role: 'group', 'aria-label': 'connector' });
+  // SVG's native hover-tooltip mechanism (unlike HTML, a `title` *attribute*
+  // on an SVG element is not reliably honored — a `<title>` child element
+  // is the one that actually works across browsers) — surfaces the edge's
+  // existing `notes` field (previously only visible by opening the details
+  // panel) as a plain hover tooltip, same free-text field used for a
+  // sequence-diagram message's extra context.
+  const tooltip = svgEl('title');
+  g.appendChild(tooltip);
   const hit = svgEl('path', { class: 'edge-hit', fill: 'none', stroke: 'transparent', 'stroke-width': 16 });
   const line = svgEl('path', { class: 'edge-line', fill: 'none' });
   const label = svgEl('text', { class: 'edge-label' });
@@ -91,6 +99,8 @@ export function updateEdgeEl(g, edge, fromNode, toNode, { selected = false, allN
   const label = g.querySelector('.edge-label');
   const seqBadge = g.querySelector('.edge-seq-badge');
 
+  g.querySelector('title').textContent = edge.notes || '';
+
   hit.setAttribute('d', d);
   line.setAttribute('d', d);
   line.setAttribute('stroke', edge.color);
@@ -104,10 +114,10 @@ export function updateEdgeEl(g, edge, fromNode, toNode, { selected = false, allN
   else line.removeAttribute('marker-end');
 
   if (edge.label) {
-    const mid = pathMidpoint(line);
+    const pos = pathPointForLabel(line, edge.labelPosition);
     label.textContent = edge.label;
-    label.setAttribute('x', String(mid.x));
-    label.setAttribute('y', String(mid.y - 6));
+    label.setAttribute('x', String(pos.x));
+    label.setAttribute('y', String(pos.y - 6));
     label.style.display = '';
   } else {
     label.style.display = 'none';
@@ -142,7 +152,30 @@ export function updateEdgeEl(g, edge, fromNode, toNode, { selected = false, allN
  * hand-edited after drawing); 'straight'/'curved' are deliberately
  * literal, simple styles and stay untouched by this — that's the whole
  * point of choosing them over an elbow. */
+// How far a self-message (a lifeline calling itself — see
+// connectorInteractions.js's same-node drop handling) juts out from the
+// lifeline before looping back, in canvas px. UML convention draws this as a
+// small open rectangle, not a straight line (which would be a zero-width
+// sliver since both ends anchor on the same side of the same node).
+const SELF_LOOP_OUT = 56;
+
+function selfLoopPath(edge, a, b) {
+  const horizontal = edge.fromSide === 'left' || edge.fromSide === 'right';
+  if (horizontal) {
+    const outX = a.x + (edge.fromSide === 'left' ? -1 : 1) * SELF_LOOP_OUT;
+    return `M ${a.x} ${a.y} L ${outX} ${a.y} L ${outX} ${b.y} L ${b.x} ${b.y}`;
+  }
+  const outY = a.y + (edge.fromSide === 'top' ? -1 : 1) * SELF_LOOP_OUT;
+  return `M ${a.x} ${a.y} L ${a.x} ${outY} L ${b.x} ${outY} L ${b.x} ${b.y}`;
+}
+
 function buildEdgePath(edge, fromNode, toNode, a, b, allNodes) {
+  // A self-message (fromNode === toNode) always renders as a loop — magic/
+  // orthogonal routing has nothing to route around here (there's no gap
+  // between two different nodes to navigate), and straight/curved between
+  // two points on the very same side of the very same node would draw a
+  // near-invisible sliver instead of a readable "calls itself" shape.
+  if (fromNode.id === toNode.id) return selfLoopPath(edge, a, b);
   if (edge.routing === 'magic' || edge.routing === 'orthogonal') {
     const obstacles = allNodes.filter((n) => n.id !== fromNode.id && n.id !== toNode.id);
     const waypoints = computeMagicWaypoints(fromNode, toNode, obstacles, edge.fromSide, edge.toSide, edge.fromOffset ?? 0.5, edge.toOffset ?? 0.5);
@@ -158,10 +191,17 @@ function dashArray(dash, width) {
   return 'none';
 }
 
-function pathMidpoint(pathEl) {
+// Fraction along the rendered path for each labelPosition — 'start'/'end'
+// deliberately stop short of the actual endpoints (0/1) rather than sitting
+// exactly on them, so the label doesn't overlap the arrowhead or get
+// clipped by the node/lifeline it anchors into.
+const LABEL_POSITION_T = { start: 0.15, middle: 0.5, end: 0.85 };
+
+function pathPointForLabel(pathEl, labelPosition) {
   try {
     const len = pathEl.getTotalLength();
-    return pathEl.getPointAtLength(len / 2);
+    const t = LABEL_POSITION_T[labelPosition] ?? LABEL_POSITION_T.middle;
+    return pathEl.getPointAtLength(len * t);
   } catch {
     return { x: 0, y: 0 };
   }

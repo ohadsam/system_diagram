@@ -39,7 +39,13 @@ export function beginConnectFromNode(nodeId, side, e) {
 
     const elUnder = document.elementFromPoint(ev.clientX, ev.clientY);
     const nodeElUnder = elUnder?.closest?.('.node');
-    const candidateId = nodeElUnder && nodeElUnder.dataset.nodeId !== nodeId ? nodeElUnder.dataset.nodeId : null;
+    // A lifeline may connect to itself (a "self-message" — see
+    // connector.js#selfLoopPath) since its full-height conn-point strip lets
+    // a drag start and end at two genuinely different heights on the same
+    // node; every other shape's drag-target dot is a single point, so
+    // dropping back on the source there would just be a same-point no-op.
+    const allowSelf = fromNode.shape === 'lifeline';
+    const candidateId = nodeElUnder && (nodeElUnder.dataset.nodeId !== nodeId || allowSelf) ? nodeElUnder.dataset.nodeId : null;
 
     if (hoveredEl && hoveredEl !== nodeElUnder) hoveredEl.classList.remove('connect-target');
     if (candidateId) {
@@ -65,7 +71,14 @@ export function beginConnectFromNode(nodeId, side, e) {
       // awkward paths (e.g. exiting left when the target sits to the
       // right) whenever the grabbed handle didn't happen to face the other
       // node. See docs/ARCHITECTURE.md's connector routing section.
-      const sides = toNode ? pickBestSides(fromNode, toNode) : { fromSide: side, toSide: 'left' };
+      // A self-message needs both ends exiting the *same* side (the loop
+      // shape only makes sense that way) — pickBestSides would instead see
+      // two identical, fully-overlapping rects and default to right/left,
+      // which draws as a flat line straight through the lifeline.
+      const isSelfMessage = targetNodeId === nodeId;
+      const sides = isSelfMessage
+        ? { fromSide: side, toSide: side }
+        : toNode ? pickBestSides(fromNode, toNode) : { fromSide: side, toSide: 'left' };
       // Re-derive against `sides.fromSide` (which can differ from the side
       // actually grabbed — see the comment on pickBestSides above) rather
       // than reusing an offset computed for the grabbed side: a fraction

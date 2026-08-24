@@ -50,3 +50,19 @@ test('buildReviewPrompt never throws on missing/empty fields', () => {
   assert.doesNotThrow(() => buildReviewPrompt({}));
   assert.doesNotThrow(() => buildReviewPrompt({ projectName: '', nodeCount: 0, edgeCount: 0 }));
 });
+
+test('buildReviewPrompt asks sequence-diagram-specific questions (call order, missing responses) when hasSequenceDiagram is set', () => {
+  const prompt = buildReviewPrompt({
+    projectName: 'Login Flow', nodeCount: 3, edgeCount: 4, componentNames: ['Client', 'Auth Service', 'Users DB'], hasSequenceDiagram: true,
+  });
+  assert.match(prompt, /sequence\/communication-flow diagram/);
+  assert.match(prompt, /call order/);
+  assert.match(prompt, /out of order/);
+  assert.doesNotMatch(prompt, /scalability, reliability, security, cost/, 'the generic system-design checklist should not also appear');
+});
+
+test('buildReviewPrompt defaults to the regular system-design review when hasSequenceDiagram is omitted', () => {
+  const prompt = buildReviewPrompt({ projectName: 'X', nodeCount: 2, edgeCount: 1 });
+  assert.match(prompt, /system design \/ architecture diagram/);
+  assert.doesNotMatch(prompt, /sequence\/communication-flow diagram/);
+});
