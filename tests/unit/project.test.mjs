@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   createEmptyProject, createNode, createEdge, removeNode, removeEdge, validateProject, nextZIndex, duplicateProject,
+  createVersionSnapshot, removeVersion,
 } from '../../js/core/project.js';
 
 test('createEmptyProject has the expected shape', () => {
@@ -11,6 +12,8 @@ test('createEmptyProject has the expected shape', () => {
   assert.equal(p.edges.length, 0);
   assert.equal(p.viewport.zoom, 1);
   assert.ok(p.id.startsWith('proj_'));
+  assert.deepEqual(p.versions, []);
+  assert.deepEqual(p.presentations, []);
 });
 
 test('createNode applies defaults and overrides', () => {
@@ -132,6 +135,27 @@ test('createNode defaults destroyOffset to null, and validateProject clamps it t
   assert.equal(project.nodes[1].destroyOffset, 1);
   assert.equal(project.nodes[2].destroyOffset, 0);
   assert.equal(project.nodes[3].destroyOffset, null);
+});
+
+test('createNode defaults monthlyCost to null, and validateProject keeps a valid non-negative number or nulls out anything else', () => {
+  const node = createNode(null, 0, 0, {});
+  assert.equal(node.monthlyCost, null);
+
+  const p = createEmptyProject();
+  p.nodes.push(
+    createNode(null, 0, 0, { monthlyCost: 45.5 }),
+    createNode(null, 100, 0, { monthlyCost: 0 }),
+    createNode(null, 200, 0, { monthlyCost: -10 }),
+    createNode(null, 300, 0, { monthlyCost: 'nope' }),
+    createNode(null, 400, 0, { monthlyCost: null }),
+  );
+  const { ok, project } = validateProject(p);
+  assert.ok(ok);
+  assert.equal(project.nodes[0].monthlyCost, 45.5);
+  assert.equal(project.nodes[1].monthlyCost, 0);
+  assert.equal(project.nodes[2].monthlyCost, null);
+  assert.equal(project.nodes[3].monthlyCost, null);
+  assert.equal(project.nodes[4].monthlyCost, null);
 });
 
 test('createNode defaults activations to [], and validateProject clamps/normalizes/id-backfills each entry', () => {
@@ -514,4 +538,119 @@ test('duplicateProject drops a replication pair whose group has no surviving mem
 
   const copy = duplicateProject(p);
   assert.equal(copy.replicationPairs.length, 0);
+});
+
+test('duplicateProject starts with a clean version/presentation history rather than carrying the original\'s', () => {
+  const p = createEmptyProject();
+  p.nodes.push(createNode(null, 0, 0, {}));
+  p.versions.push(createVersionSnapshot(p, 'v1'));
+  p.presentations.push({ id: 'pres_1', name: 'Talk', createdAt: new Date().toISOString(), slides: [{ versionId: p.versions[0].id, title: '', notes: '' }] });
+
+  const copy = duplicateProject(p);
+  assert.deepEqual(copy.versions, []);
+  assert.deepEqual(copy.presentations, []);
+});
+
+test('createVersionSnapshot deep-clones current content so later edits to the live project do not retroactively change it', () => {
+  const p = createEmptyProject();
+  const n1 = createNode(null, 0, 0, { text: 'Original' });
+  p.nodes.push(n1);
+
+  const version = createVersionSnapshot(p, 'v1');
+  assert.equal(version.name, 'v1');
+  assert.ok(version.id.startsWith('ver_'));
+  assert.equal(version.snapshot.nodes.length, 1);
+  assert.equal(version.snapshot.nodes[0].text, 'Original');
+
+  // Mutate the "live" project's node after the snapshot was taken.
+  p.nodes[0].text = 'Changed';
+  assert.equal(version.snapshot.nodes[0].text, 'Original', 'the version must not share object identity with the live node');
+});
+
+test('createVersionSnapshot defaults to an auto-numbered name when none is given', () => {
+  const p = createEmptyProject();
+  const v1 = createVersionSnapshot(p, '');
+  assert.equal(v1.name, 'Version 1');
+  p.versions.push(v1);
+  const v2 = createVersionSnapshot(p, '   ');
+  assert.equal(v2.name, 'Version 2');
+});
+
+test('removeVersion deletes the version and strips it from any presentation slide that referenced it', () => {
+  const p = createEmptyProject();
+  const v1 = createVersionSnapshot(p, 'v1');
+  p.versions.push(v1);
+  const v2 = createVersionSnapshot(p, 'v2');
+  p.versions.push(v2);
+  p.presentations.push({
+    id: 'pres_1',
+    name: 'Talk',
+    createdAt: new Date().toISOString(),
+    slides: [{ versionId: v1.id, title: 'Slide 1', notes: '' }, { versionId: v2.id, title: 'Slide 2', notes: '' }],
+  });
+
+  removeVersion(p, v1.id);
+
+  assert.equal(p.versions.length, 1);
+  assert.equal(p.versions[0].id, v2.id);
+  assert.equal(p.presentations[0].slides.length, 1);
+  assert.equal(p.presentations[0].slides[0].versionId, v2.id);
+});
+
+test('validateProject backfills/validates a stored version\'s own snapshot the same way it does the top-level project', () => {
+  const raw = {
+    nodes: [],
+    edges: [],
+    versions: [
+      {
+        // missing id/name/createdAt on purpose
+        snapshot: {
+          nodes: [{ text: 'From a version', x: 5, y: 5 }], // missing id, on purpose
+          edges: [],
+        },
+      },
+    ],
+  };
+  const { ok, project } = validateProject(raw);
+  assert.ok(ok);
+  assert.equal(project.versions.length, 1);
+  const v = project.versions[0];
+  assert.ok(v.id.startsWith('ver_'));
+  assert.equal(v.name, 'Version');
+  assert.equal(v.snapshot.nodes.length, 1);
+  assert.ok(v.snapshot.nodes[0].id.startsWith('node_'), 'a missing id inside a version snapshot should be backfilled just like a top-level node');
+});
+
+test('validateProject drops a version with no usable snapshot object', () => {
+  const raw = { nodes: [], edges: [], versions: [{ id: 'ver_x', name: 'bad' }, null, 'not an object'] };
+  const { project } = validateProject(raw);
+  assert.deepEqual(project.versions, []);
+});
+
+test('validateProject keeps a presentation slide that points at a real version, and drops one that points at a missing version', () => {
+  const raw = {
+    nodes: [],
+    edges: [],
+    versions: [{ id: 'ver_real', name: 'Real', createdAt: new Date().toISOString(), snapshot: { nodes: [], edges: [] } }],
+    presentations: [
+      {
+        id: 'pres_1',
+        name: 'Talk',
+        slides: [
+          { versionId: 'ver_real', title: 'Kept' },
+          { versionId: 'ver_missing', title: 'Dropped' },
+        ],
+      },
+    ],
+  };
+  const { project } = validateProject(raw);
+  assert.equal(project.presentations.length, 1);
+  assert.equal(project.presentations[0].slides.length, 1);
+  assert.equal(project.presentations[0].slides[0].title, 'Kept');
+});
+
+test('validateProject defaults versions/presentations to empty arrays when absent from the input', () => {
+  const { project } = validateProject({ nodes: [], edges: [] });
+  assert.deepEqual(project.versions, []);
+  assert.deepEqual(project.presentations, []);
 });

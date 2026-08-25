@@ -14,6 +14,10 @@ export const CONTEXT_ROW_MODES = ['floating', 'pinned-top', 'pinned-bottom'];
 export const DEFAULT_UI_PREFS = {
   showGrid: false,
   contextRowMode: 'floating',
+  // Figma-like "snap into place" guides while dragging a node/selection —
+  // see core/alignmentGuides.js. On by default; canvas/nodeInteractions.js
+  // reads this on every drag move.
+  alignGuides: true,
 };
 
 export function getUiPrefs() {

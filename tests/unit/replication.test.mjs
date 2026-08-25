@@ -140,6 +140,20 @@ test('syncReplication propagates a content change from the side that actually ch
   assert.equal(mirror.fill, '#FF0000');
 });
 
+test('syncReplication propagates monthlyCost and labels to the mirror, like notes already did', () => {
+  const { project } = setupPair([{ id: 'n1' }]);
+  const edited = {
+    ...project,
+    nodes: project.nodes.map((n) => (n.id === 'n1' ? { ...n, monthlyCost: 45.5, labels: ['10K RPS'] } : n)),
+  };
+  const synced = syncReplication(project, edited);
+
+  const mirrorId = synced.replicationPairs[0].members[0].b;
+  const mirror = synced.nodes.find((n) => n.id === mirrorId);
+  assert.equal(mirror.monthlyCost, 45.5);
+  assert.deepEqual(mirror.labels, ['10K RPS']);
+});
+
 test('syncReplication propagates destroyOffset, fragmentType, and a fresh-id copy of activations to the mirror', () => {
   const { project } = setupPair([{ id: 'n1', overrides: { shape: 'lifeline' } }]);
   const edited = {

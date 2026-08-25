@@ -6,7 +6,8 @@
 import * as store from '../core/store.js';
 import { el, clear, rerenderPreservingUiState } from '../utils/dom.js';
 import { nextId } from '../core/id.js';
-import { textInput, field, selectInput, checkbox } from '../utils/formControls.js';
+import { textInput, field, selectInput, checkbox, numberInput } from '../utils/formControls.js';
+import { formatMonthlyCost } from '../core/cost.js';
 import { LAYER_DATALIST_ID, ensureLayerDatalist, findLayerByName } from '../utils/layerDatalist.js';
 import { SUBCOMPONENTS_DISPLAY_MODES } from '../core/project.js';
 import { getReplicationInfoForNode, computeMessageSequenceNumbers } from '../canvas/canvas.js';
@@ -258,6 +259,9 @@ function render(node) {
   notes.value = node.notes || '';
   body.appendChild(notes);
 
+  body.appendChild(el('h3', { text: 'Estimated Monthly Cost' }));
+  body.appendChild(renderMonthlyCost(node));
+
   body.appendChild(el('h3', { text: 'Labels' }));
   body.appendChild(renderLabels(node));
 
@@ -287,6 +291,24 @@ function renderReplicationSection(node, { side }) {
     (v) => updateNode((n) => { n.replicationExcluded = v; }),
     'Exclude this component from replication mirroring',
   ));
+  return wrap;
+}
+
+function renderMonthlyCost(node) {
+  const wrap = el('div', { class: 'details-cost' });
+  const row = el('div', { class: 'field-row' });
+  row.appendChild(el('span', { class: 'details-cost-prefix', text: '$', 'aria-hidden': 'true' }));
+  row.appendChild(numberInput(node.monthlyCost ?? '', 0, null, 0.01, (v) => {
+    updateNode((n) => { n.monthlyCost = Number.isFinite(v) ? Math.max(0, v) : null; });
+  }, { placeholder: 'Not estimated', 'aria-label': 'Estimated monthly cost in US dollars' }));
+  row.appendChild(el('span', { class: 'details-cost-suffix', text: '/ mo' }));
+  if (Number.isFinite(node.monthlyCost)) {
+    row.appendChild(el('button', {
+      type: 'button', class: 'btn-link', text: 'Clear',
+      onClick: () => updateNode((n) => { n.monthlyCost = null; }),
+    }));
+  }
+  wrap.appendChild(row);
   return wrap;
 }
 

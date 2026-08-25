@@ -40,6 +40,17 @@ export function createEmptyProject(name = 'Untitled Diagram') {
     nodes: [],
     edges: [],
     replicationPairs: [],
+    // Named snapshots of this project's own content (nodes/edges/
+    // replicationPairs) the user has explicitly captured — see
+    // canvas.js#saveDiagramVersion/#revertToVersion and
+    // docs/ARCHITECTURE.md's "Diagram Versions" section. Deliberately part
+    // of the project itself (not a separate localStorage silo) so it
+    // travels with JSON export/import and full backups like everything
+    // else here.
+    versions: [],
+    // An ordered subset of `versions` (by id) assembled into a slideshow —
+    // see canvas.js#buildPresentation and the "Presentations" section.
+    presentations: [],
   };
 }
 
@@ -63,6 +74,11 @@ export function createNode(def, x, y, overrides = {}) {
     iconVisible: true,
     notes: '',
     labels: [],
+    // Estimated cost in US dollars/month, shown as a small badge on the
+    // node face and rolled into the toolbar's running total (see
+    // core/cost.js) — null means "no estimate entered", distinct from an
+    // explicit $0 (e.g. a free-tier service someone still wants to track).
+    monthlyCost: null,
     subComponents: (def?.subComponents ?? []).map((sc) => ({ id: nextId('sc'), ...sc })),
     subComponentsDisplay: 'chips',
     rows: def?.shape === 'rows' ? ['Row 1'] : [],
@@ -203,7 +219,44 @@ export function duplicateProject(project) {
     nodes,
     edges,
     replicationPairs,
+    // A copy's version history/presentations describe the *original*
+    // project's own editing timeline — carrying them over into an
+    // independent copy (whose future edits are unrelated) would be
+    // misleading, so it starts with a clean slate, same as a fresh id.
+    versions: [],
+    presentations: [],
   };
+}
+
+/** Captures the project's current nodes/edges/replicationPairs as a new
+ * named, timestamped entry to append to `project.versions` — pure (doesn't
+ * mutate `project` or push into its array itself; see
+ * canvas.js#saveDiagramVersion for the dispatch that does). Deep-cloned so
+ * later edits to the live project can never retroactively alter a captured
+ * version. */
+export function createVersionSnapshot(project, name) {
+  const ordinal = (project.versions?.length || 0) + 1;
+  return {
+    id: nextId('ver'),
+    name: (name || '').trim() || `Version ${ordinal}`,
+    createdAt: new Date().toISOString(),
+    snapshot: {
+      nodes: structuredClone(project.nodes),
+      edges: structuredClone(project.edges),
+      replicationPairs: structuredClone(project.replicationPairs || []),
+    },
+  };
+}
+
+/** Deletes a version and cascades to strip it from any presentation slide
+ * that referenced it — same "don't leave a dangling reference behind"
+ * principle removeNode/removeEdge already follow for their own cascades. */
+export function removeVersion(project, versionId) {
+  project.versions = project.versions.filter((v) => v.id !== versionId);
+  project.presentations = (project.presentations || []).map((p) => ({
+    ...p,
+    slides: p.slides.filter((s) => s.versionId !== versionId),
+  }));
 }
 
 export function nextZIndex(project) {
@@ -223,6 +276,164 @@ export function touch(project) {
   project.updatedAt = new Date().toISOString();
 }
 
+/** Validates one node/edge/replicationPairs "content" triple — shared by
+ * the top-level project itself and by every stored version's own snapshot
+ * (see `versions` below), so a version snapshot backfills a missing id or
+ * clamps an out-of-range offset exactly the same way a freshly-imported
+ * project does. Never throws (same contract as validateProject). */
+function validateContent(rawNodes, rawEdges, rawReplicationPairs) {
+  const nodeIds = new Set();
+  const nodes = (Array.isArray(rawNodes) ? rawNodes : [])
+    .filter((n) => n && typeof n === 'object')
+    .map((n) => {
+      // A missing/invalid id gets a fresh one rather than dropping the
+      // node — imports we don't fully control the shape of (a pasted AI
+      // response, hand-edited JSON) are far more likely to omit an id
+      // than to be otherwise malformed, and silently losing a component
+      // is worse than assigning it an id.
+      const id = typeof n.id === 'string' && n.id ? n.id : nextId('node');
+      nodeIds.add(id);
+      return {
+        id,
+        defId: typeof n.defId === 'string' ? n.defId : null,
+        x: Number.isFinite(n.x) ? n.x : 0,
+        y: Number.isFinite(n.y) ? n.y : 0,
+        w: Number.isFinite(n.w) && n.w > 0 ? n.w : 160,
+        h: Number.isFinite(n.h) && n.h > 0 ? n.h : 84,
+        shape: SHAPES.includes(n.shape) ? n.shape : 'rounded',
+        fill: typeof n.fill === 'string' ? n.fill : '#FFFFFF',
+        stroke: typeof n.stroke === 'string' ? n.stroke : '#4F46E5',
+        strokeWidth: Number.isFinite(n.strokeWidth) ? n.strokeWidth : 2,
+        text: typeof n.text === 'string' ? n.text : '',
+        fontSize: Number.isFinite(n.fontSize) ? n.fontSize : 13,
+        textAlign: ['left', 'center', 'right'].includes(n.textAlign) ? n.textAlign : 'center',
+        textPosition: TEXT_POSITIONS.includes(n.textPosition) ? n.textPosition : 'center',
+        icon: typeof n.icon === 'string' ? n.icon : '',
+        iconVisible: n.iconVisible !== false,
+        notes: typeof n.notes === 'string' ? n.notes : '',
+        labels: Array.isArray(n.labels) ? n.labels.filter((l) => typeof l === 'string') : [],
+        monthlyCost: Number.isFinite(n.monthlyCost) && n.monthlyCost >= 0 ? n.monthlyCost : null,
+        subComponents: Array.isArray(n.subComponents)
+          ? n.subComponents
+              .filter((sc) => sc && typeof sc.name === 'string')
+              .map((sc) => ({ id: typeof sc.id === 'string' ? sc.id : nextId('sc'), name: sc.name, icon: typeof sc.icon === 'string' ? sc.icon : '' }))
+          : [],
+        subComponentsDisplay: SUBCOMPONENTS_DISPLAY_MODES.includes(n.subComponentsDisplay) ? n.subComponentsDisplay : 'chips',
+        rows: Array.isArray(n.rows) ? n.rows.filter((r) => typeof r === 'string') : [],
+        zIndex: Number.isFinite(n.zIndex) ? n.zIndex : 1,
+        groupId: typeof n.groupId === 'string' ? n.groupId : null,
+        replicationExcluded: n.replicationExcluded === true,
+        destroyOffset: Number.isFinite(n.destroyOffset) ? Math.min(1, Math.max(0, n.destroyOffset)) : null,
+        activations: Array.isArray(n.activations)
+          ? n.activations
+              .filter((a) => a && Number.isFinite(a.startOffset) && Number.isFinite(a.endOffset))
+              .map((a) => {
+                const s = Math.min(1, Math.max(0, a.startOffset));
+                const eo = Math.min(1, Math.max(0, a.endOffset));
+                return { id: typeof a.id === 'string' ? a.id : nextId('act'), startOffset: Math.min(s, eo), endOffset: Math.max(s, eo) };
+              })
+          : [],
+        fragmentType: FRAGMENT_TYPES.includes(n.fragmentType) ? n.fragmentType : null,
+      };
+    });
+  const edgeIds = new Set();
+  const edges = (Array.isArray(rawEdges) ? rawEdges : [])
+    .filter((e) => e && typeof e === 'object' && nodeIds.has(e.from) && nodeIds.has(e.to))
+    .map((e) => {
+      const id = typeof e.id === 'string' && e.id ? e.id : nextId('edge');
+      edgeIds.add(id);
+      return {
+        id,
+        from: e.from,
+        to: e.to,
+        fromSide: ['top', 'right', 'bottom', 'left'].includes(e.fromSide) ? e.fromSide : 'right',
+        toSide: ['top', 'right', 'bottom', 'left'].includes(e.toSide) ? e.toSide : 'left',
+        fromOffset: Number.isFinite(e.fromOffset) ? Math.min(1, Math.max(0, e.fromOffset)) : 0.5,
+        toOffset: Number.isFinite(e.toOffset) ? Math.min(1, Math.max(0, e.toOffset)) : 0.5,
+        routing: ROUTINGS.includes(e.routing) ? e.routing : 'orthogonal',
+        color: typeof e.color === 'string' ? e.color : '#334155',
+        width: Number.isFinite(e.width) ? e.width : 2,
+        dash: DASH_STYLES.includes(e.dash) ? e.dash : 'solid',
+        startArrow: ARROW_HEADS.includes(e.startArrow) ? e.startArrow : 'none',
+        endArrow: ARROW_HEADS.includes(e.endArrow) ? e.endArrow : 'filled',
+        label: typeof e.label === 'string' ? e.label : '',
+        labelPosition: EDGE_LABEL_POSITIONS.includes(e.labelPosition) ? e.labelPosition : 'middle',
+        notes: typeof e.notes === 'string' ? e.notes : '',
+        sequenceNumberOverride: Number.isInteger(e.sequenceNumberOverride) && e.sequenceNumberOverride >= 1 ? e.sequenceNumberOverride : null,
+      };
+    });
+
+  const replicationPairs = Array.isArray(rawReplicationPairs)
+    ? rawReplicationPairs
+        .filter((p) => p && typeof p === 'object' && typeof p.groupA === 'string' && p.groupA && typeof p.groupB === 'string' && p.groupB && p.groupA !== p.groupB)
+        .map((p) => ({
+          id: typeof p.id === 'string' && p.id ? p.id : nextId('repl'),
+          mode: REPLICATION_MODES.includes(p.mode) ? p.mode : 'active-active',
+          groupA: p.groupA,
+          groupB: p.groupB,
+          offsetX: Number.isFinite(p.offsetX) ? p.offsetX : 0,
+          offsetY: Number.isFinite(p.offsetY) ? p.offsetY : 0,
+          members: Array.isArray(p.members)
+            ? p.members
+                .filter((m) => m && typeof m.a === 'string' && nodeIds.has(m.a) && typeof m.b === 'string' && nodeIds.has(m.b))
+                .map((m) => ({ a: m.a, b: m.b }))
+            : [],
+          edgeMembers: Array.isArray(p.edgeMembers)
+            ? p.edgeMembers
+                .filter((m) => m && typeof m.a === 'string' && edgeIds.has(m.a) && typeof m.b === 'string' && edgeIds.has(m.b))
+                .map((m) => ({ a: m.a, b: m.b }))
+            : [],
+          frozen: p.frozen === true,
+        }))
+    : [];
+
+  return { nodes, edges, replicationPairs };
+}
+
+/** Validates `project.versions` — each entry's own `snapshot` goes through
+ * the exact same `validateContent` as the top-level project, so a stored
+ * version backfills a missing id / clamps an offset the same way an
+ * imported project does, and a version saved by an older/newer app build
+ * never crashes a later validate/revert. An entry with no usable
+ * `snapshot` object at all is dropped rather than kept as a broken one. */
+function validateVersions(rawVersions) {
+  if (!Array.isArray(rawVersions)) return [];
+  return rawVersions
+    .filter((v) => v && typeof v === 'object' && v.snapshot && typeof v.snapshot === 'object')
+    .map((v) => ({
+      id: typeof v.id === 'string' && v.id ? v.id : nextId('ver'),
+      name: typeof v.name === 'string' && v.name.trim() ? v.name : 'Version',
+      createdAt: typeof v.createdAt === 'string' ? v.createdAt : new Date().toISOString(),
+      snapshot: validateContent(v.snapshot.nodes, v.snapshot.edges, v.snapshot.replicationPairs),
+    }));
+}
+
+/** Validates `project.presentations` — each slide's `versionId` must
+ * resolve against the already-validated `versions` list (a slide pointing
+ * at a version that doesn't exist, e.g. because that version was deleted
+ * by an older app build that didn't cascade the deletion, is dropped
+ * rather than kept as a dangling reference). */
+function validatePresentations(rawPresentations, versions) {
+  if (!Array.isArray(rawPresentations)) return [];
+  const versionIds = new Set(versions.map((v) => v.id));
+  return rawPresentations
+    .filter((p) => p && typeof p === 'object')
+    .map((p) => ({
+      id: typeof p.id === 'string' && p.id ? p.id : nextId('pres'),
+      name: typeof p.name === 'string' && p.name.trim() ? p.name : 'Presentation',
+      createdAt: typeof p.createdAt === 'string' ? p.createdAt : new Date().toISOString(),
+      slides: Array.isArray(p.slides)
+        ? p.slides
+            .filter((s) => s && typeof s === 'object' && typeof s.versionId === 'string' && versionIds.has(s.versionId))
+            .map((s) => ({
+              versionId: s.versionId,
+              title: typeof s.title === 'string' ? s.title : '',
+              notes: typeof s.notes === 'string' ? s.notes : '',
+            }))
+        : [],
+    }));
+}
+
 /**
  * Validate an arbitrary parsed-JSON value as a project, returning
  * { ok: true, project } with unknown/invalid fields coerced to safe
@@ -235,109 +446,9 @@ export function validateProject(input) {
     if (!Array.isArray(input.nodes) || !Array.isArray(input.edges)) {
       return { ok: false, error: 'Missing nodes/edges arrays' };
     }
-    const nodeIds = new Set();
-    const nodes = input.nodes
-      .filter((n) => n && typeof n === 'object')
-      .map((n) => {
-        // A missing/invalid id gets a fresh one rather than dropping the
-        // node — imports we don't fully control the shape of (a pasted AI
-        // response, hand-edited JSON) are far more likely to omit an id
-        // than to be otherwise malformed, and silently losing a component
-        // is worse than assigning it an id.
-        const id = typeof n.id === 'string' && n.id ? n.id : nextId('node');
-        nodeIds.add(id);
-        return {
-          id,
-          defId: typeof n.defId === 'string' ? n.defId : null,
-          x: Number.isFinite(n.x) ? n.x : 0,
-          y: Number.isFinite(n.y) ? n.y : 0,
-          w: Number.isFinite(n.w) && n.w > 0 ? n.w : 160,
-          h: Number.isFinite(n.h) && n.h > 0 ? n.h : 84,
-          shape: SHAPES.includes(n.shape) ? n.shape : 'rounded',
-          fill: typeof n.fill === 'string' ? n.fill : '#FFFFFF',
-          stroke: typeof n.stroke === 'string' ? n.stroke : '#4F46E5',
-          strokeWidth: Number.isFinite(n.strokeWidth) ? n.strokeWidth : 2,
-          text: typeof n.text === 'string' ? n.text : '',
-          fontSize: Number.isFinite(n.fontSize) ? n.fontSize : 13,
-          textAlign: ['left', 'center', 'right'].includes(n.textAlign) ? n.textAlign : 'center',
-          textPosition: TEXT_POSITIONS.includes(n.textPosition) ? n.textPosition : 'center',
-          icon: typeof n.icon === 'string' ? n.icon : '',
-          iconVisible: n.iconVisible !== false,
-          notes: typeof n.notes === 'string' ? n.notes : '',
-          labels: Array.isArray(n.labels) ? n.labels.filter((l) => typeof l === 'string') : [],
-          subComponents: Array.isArray(n.subComponents)
-            ? n.subComponents
-                .filter((sc) => sc && typeof sc.name === 'string')
-                .map((sc) => ({ id: typeof sc.id === 'string' ? sc.id : nextId('sc'), name: sc.name, icon: typeof sc.icon === 'string' ? sc.icon : '' }))
-            : [],
-          subComponentsDisplay: SUBCOMPONENTS_DISPLAY_MODES.includes(n.subComponentsDisplay) ? n.subComponentsDisplay : 'chips',
-          rows: Array.isArray(n.rows) ? n.rows.filter((r) => typeof r === 'string') : [],
-          zIndex: Number.isFinite(n.zIndex) ? n.zIndex : 1,
-          groupId: typeof n.groupId === 'string' ? n.groupId : null,
-          replicationExcluded: n.replicationExcluded === true,
-          destroyOffset: Number.isFinite(n.destroyOffset) ? Math.min(1, Math.max(0, n.destroyOffset)) : null,
-          activations: Array.isArray(n.activations)
-            ? n.activations
-                .filter((a) => a && Number.isFinite(a.startOffset) && Number.isFinite(a.endOffset))
-                .map((a) => {
-                  const s = Math.min(1, Math.max(0, a.startOffset));
-                  const eo = Math.min(1, Math.max(0, a.endOffset));
-                  return { id: typeof a.id === 'string' ? a.id : nextId('act'), startOffset: Math.min(s, eo), endOffset: Math.max(s, eo) };
-                })
-            : [],
-          fragmentType: FRAGMENT_TYPES.includes(n.fragmentType) ? n.fragmentType : null,
-        };
-      });
-    const edgeIds = new Set();
-    const edges = input.edges
-      .filter((e) => e && typeof e === 'object' && nodeIds.has(e.from) && nodeIds.has(e.to))
-      .map((e) => {
-        const id = typeof e.id === 'string' && e.id ? e.id : nextId('edge');
-        edgeIds.add(id);
-        return {
-          id,
-          from: e.from,
-          to: e.to,
-          fromSide: ['top', 'right', 'bottom', 'left'].includes(e.fromSide) ? e.fromSide : 'right',
-          toSide: ['top', 'right', 'bottom', 'left'].includes(e.toSide) ? e.toSide : 'left',
-          fromOffset: Number.isFinite(e.fromOffset) ? Math.min(1, Math.max(0, e.fromOffset)) : 0.5,
-          toOffset: Number.isFinite(e.toOffset) ? Math.min(1, Math.max(0, e.toOffset)) : 0.5,
-          routing: ROUTINGS.includes(e.routing) ? e.routing : 'orthogonal',
-          color: typeof e.color === 'string' ? e.color : '#334155',
-          width: Number.isFinite(e.width) ? e.width : 2,
-          dash: DASH_STYLES.includes(e.dash) ? e.dash : 'solid',
-          startArrow: ARROW_HEADS.includes(e.startArrow) ? e.startArrow : 'none',
-          endArrow: ARROW_HEADS.includes(e.endArrow) ? e.endArrow : 'filled',
-          label: typeof e.label === 'string' ? e.label : '',
-          labelPosition: EDGE_LABEL_POSITIONS.includes(e.labelPosition) ? e.labelPosition : 'middle',
-          notes: typeof e.notes === 'string' ? e.notes : '',
-          sequenceNumberOverride: Number.isInteger(e.sequenceNumberOverride) && e.sequenceNumberOverride >= 1 ? e.sequenceNumberOverride : null,
-        };
-      });
-
-    const replicationPairs = Array.isArray(input.replicationPairs)
-      ? input.replicationPairs
-          .filter((p) => p && typeof p === 'object' && typeof p.groupA === 'string' && p.groupA && typeof p.groupB === 'string' && p.groupB && p.groupA !== p.groupB)
-          .map((p) => ({
-            id: typeof p.id === 'string' && p.id ? p.id : nextId('repl'),
-            mode: REPLICATION_MODES.includes(p.mode) ? p.mode : 'active-active',
-            groupA: p.groupA,
-            groupB: p.groupB,
-            offsetX: Number.isFinite(p.offsetX) ? p.offsetX : 0,
-            offsetY: Number.isFinite(p.offsetY) ? p.offsetY : 0,
-            members: Array.isArray(p.members)
-              ? p.members
-                  .filter((m) => m && typeof m.a === 'string' && nodeIds.has(m.a) && typeof m.b === 'string' && nodeIds.has(m.b))
-                  .map((m) => ({ a: m.a, b: m.b }))
-              : [],
-            edgeMembers: Array.isArray(p.edgeMembers)
-              ? p.edgeMembers
-                  .filter((m) => m && typeof m.a === 'string' && edgeIds.has(m.a) && typeof m.b === 'string' && edgeIds.has(m.b))
-                  .map((m) => ({ a: m.a, b: m.b }))
-              : [],
-            frozen: p.frozen === true,
-          }))
-      : [];
+    const { nodes, edges, replicationPairs } = validateContent(input.nodes, input.edges, input.replicationPairs);
+    const versions = validateVersions(input.versions);
+    const presentations = validatePresentations(input.presentations, versions);
 
     const project = {
       formatVersion: FORMAT_VERSION,
@@ -353,6 +464,8 @@ export function validateProject(input) {
       nodes,
       edges,
       replicationPairs,
+      versions,
+      presentations,
     };
     return { ok: true, project };
   } catch (err) {

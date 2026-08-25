@@ -170,6 +170,41 @@ Gateway, Circuit Breaker, and Saga Coordinator now suggest a relevant new templa
 SSO, Identity Provider, and API Key each gained one more curated pairing alongside their existing
 ones.
 
+## v1.27.0 (2026-08-25)
+
+A large batch: diagram versioning/comparison, presentations with PPTX export, ready-made "Design X"
+interview-prep templates, a Command Palette, cost estimation, visible label chips, and smart
+alignment guides while dragging.
+
+**Diagram Versions** ("📸 Version History", File menu) — save named snapshots of a diagram, revert
+to one (undoable), or compare any two side-by-side (added/removed/changed nodes and edges, each
+clickable to jump to it).
+
+**Presentations** ("🎬 Presentations", File menu) — assemble an ordered slideshow out of saved
+versions, play it step-by-step with rendered slide images, and export the whole thing to a real
+`.pptx` file (vendored PptxGenJS — see `vendor/VENDOR.md`).
+
+**5 new "Design X" reference-architecture templates** (Reference Architectures category) — URL
+Shortener, Chat Application, Rate Limiter Service, Social Media Feed, and Ride-Sharing Dispatch —
+complete, ready-to-customize starting points for system-design-interview prep, each instantiating
+as one grouped cluster.
+
+**Command Palette** ("⌘" toolbar button, or Ctrl/Cmd+K from anywhere) — search every app action or
+add any component from one box; selecting a component first shows actions relevant to it (curated
+companions, sub-components, duplicate/delete) ahead of the general list, with full keyboard
+navigation.
+
+**Estimated monthly cost** — set a $/mo estimate on any component (details panel), shown as a badge
+on the component face and rolled into a running total ("💰 Cost Breakdown", Tools menu).
+
+**Visible label chips** — the existing per-component labels field now renders as small chips
+directly on the component face, not just in the details panel — handy for capacity/SLA tags like
+"10K RPS" or "99.9% SLA".
+
+**Smart alignment guides** — dragging a component (or a multi-selection) now snaps into exact
+alignment with a nearby component's edge/center and shows a Figma-like dashed guide line, on by
+default ("🧲 Snap Guides" toggle, Tools menu).
+
 ## v1.26.0 (2026-08-25)
 
 A grab-bag batch closing out the previously-suggested export/lint/AI ideas: two more UML fragment

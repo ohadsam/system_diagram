@@ -19,6 +19,7 @@ import * as messaging from './categories/messaging.js';
 import * as misc from './categories/misc.js';
 import * as monitoring from './categories/monitoring.js';
 import * as networking from './categories/networking.js';
+import * as referenceArchitectures from './categories/reference-architectures.js';
 import * as security from './categories/security.js';
 import * as sequenceTemplates from './categories/sequence-templates.js';
 import * as servers from './categories/servers.js';
@@ -29,7 +30,7 @@ import * as storage from './categories/storage.js';
 const MODULES = [
   aiMl, aiProvidersAgents, aws, backendFrameworks, cache, client, cloudProviders,
   containers, databases, designPatterns, devops, frontendFrameworks, layers, logging,
-  messaging, misc, monitoring, networking, security, sequenceTemplates, servers, shapes, stateMachines, storage,
+  messaging, misc, monitoring, networking, referenceArchitectures, security, sequenceTemplates, servers, shapes, stateMachines, storage,
 ];
 
 function build() {

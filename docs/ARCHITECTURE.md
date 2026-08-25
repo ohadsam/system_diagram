@@ -2241,6 +2241,150 @@ its own stacking context), paint order relative to in-flow content is
 undefined by default, so correctness relies on the two never overlapping
 rather than on layering, unlike the diamond/hexagon fill layer above.
 
+## Diagram Versions & Presentations (`core/project.js`'s `createVersionSnapshot`/`removeVersion`, `core/diagramDiff.js`, `canvas.js`'s version/presentation actions, `modals/versionHistoryModal.js`, `modals/diagramCompareModal.js`, `modals/presentationsModal.js`, `modals/presentationPlayerModal.js`, `io/exportPptx.js`)
+
+A version is a named, timestamped snapshot of `{nodes, edges, replicationPairs}`
+captured onto `project.versions` (`createVersionSnapshot` — `structuredClone`s
+its input for defense-in-depth isolation, even though `store.js`'s own
+`dispatch` already replaces state wholesale via `structuredClone` on every
+mutation). `revertToVersion`/`deleteVersion`/`saveDiagramVersion` in
+`canvas.js` are plain `store.dispatch` actions — undoable, no special-casing.
+`validateContent` (extracted from what used to be `validateProject`'s inline
+node/edge/replicationPairs parsing) is shared between the top-level project
+and every version snapshot, so an imported/hand-edited version gets exactly
+the same id-backfilling/field-clamping as the live project.
+
+Comparing two versions (or a version against the live canvas) is a pure
+id-based structural diff (`core/diagramDiff.js#computeDiagramDiff`) —
+meaningful specifically because a version shares the same project's id-space
+across time, not a general-purpose diagram-diff tool. `diagramCompareModal.js`
+renders added/removed/changed buckets for both nodes and edges, each entry
+clickable only when its id still exists on the live canvas.
+
+A presentation (`project.presentations`) is just an ordered list of
+`{versionId, title, notes}` slides. The interesting part is rendering one:
+`presentationPlayerModal.js#renderSlidesToDataUrls` loops the slides and, for
+each, calls `withTemporaryContent` — swaps `store`'s live `nodes`/`edges` to
+that version's snapshot via `store.dispatch(mutator, {coalesce: true})`,
+waits a frame, captures a screenshot via the existing
+`io/exportImage.js#captureDiagramCanvas()`, then swaps back the same way.
+**Why `{coalesce: true}` matters**: `store.js#dispatch` only calls
+`history.commit(state)` when `opts.coalesce` is falsy (confirmed by reading
+its source, not assumed) — so this whole swap-capture-swap cycle, run for
+every slide, never touches the user's real undo/redo stack. This was
+deliberately chosen over `store.loadProject()`, which resets undo history
+entirely (see `docs/AI_AGENT_GUIDE.md`'s pitfall on this). `replicationPairs`
+is dropped during the temporary swap, matching `canvas/subDiagramEdit.js`'s
+established precedent — the sync engine has nothing useful to reconcile
+against an unrelated snapshot's content.
+
+`io/exportPptx.js#exportPresentationToPptx` reuses `renderSlidesToDataUrls`
+directly, then feeds the resulting data URLs into `PptxGenJS` (vendored, see
+`vendor/VENDOR.md` — the standalone bundle form, JSZip included, exposing
+`window.PptxGenJS`, lazily loaded via `utils/loadScript.js#loadScriptOnce`)
+to build a 16:9 deck, one slide per version with its title as a heading and
+its notes in the slide's speaker notes, then `pptx.write({outputType:
+'blob'})` → the existing `utils/download.js#downloadBlob`.
+
+## Reference Architecture Templates (`data/categories/reference-architectures.js`)
+
+A new component category alongside `design-patterns.js`, built the exact
+same way (`definePattern`, every node a real component/layer defId) but one
+level up in scope — a whole simplified system design (URL Shortener, Chat
+Application, Rate Limiter Service, Social Media Feed, Ride-Sharing Dispatch)
+rather than a single architectural building block. Each one sets
+`groupOnInstantiate: true` (the same field a saved multi-component custom
+component uses, see "Custom multi-component groups" above) so instantiating
+one produces a single movable group with a background frame — a "Design X"
+is meant to read and move as one whole design, not a loose cluster the way
+most `design-patterns.js` entries are. `canvas.js#instantiatePatternAtPoint`
+handles `groupOnInstantiate` identically regardless of which of the two data
+files a pattern came from.
+
+## Command Palette (`toolbar/commandPalette.js`, `modals/commandPaletteModal.js`)
+
+Split into a pure matching function (`toolbar/commandPalette.js#filterCommands`
+— checks a command's `label`/`keywords`, unit-testable without a DOM) and the
+actual modal (`modals/commandPaletteModal.js`, which needs live imports:
+`openModal`, every action it can run, `store` for context). Opened via a
+toolbar button or `Ctrl/Cmd+K` — the shortcut is registered in
+`main.js#initKeyboardShortcuts` *before* the `isTypingTarget` early-return
+guard, the same position as the existing `Ctrl/Cmd+S` handler, so it works
+even while a text input is focused.
+
+Results are built from three sources: `buildAppCommands()` (a flat list of
+~30 app actions), `buildContextualCommands(nodeId)` (only when exactly one
+node is selected — its curated `related`/`relatedLayers`/`relatedPatterns`
+via `data/index.js`'s resolvers, plus duplicate/delete), and a live filter of
+`ALL_COMPONENTS` via the sidebar's own `sidebar/search.js#componentMatches`
+(reused rather than reimplemented). `componentToCommand(def)` branches on the
+matched component's `kind` — `pattern` → `instantiatePatternAtCenter`,
+`layer` with exactly one node selected → `addLayerToNode`, else →
+`addComponentAtCenter` — mirroring `sidebar/dragSource.js`'s established
+click-to-add branching exactly, so a palette-driven "add" never bypasses the
+kind-specific handling a sidebar click would apply. Contextual results render
+first, under their own heading, ahead of the general component/action list.
+Picking a component-adding result reuses the same canvas.js entry points the
+sidebar itself uses, so the existing "✨ Smart Suggestions" banner naturally
+appears afterward — no separate "what to add next" mechanism was needed.
+
+## Estimated Cost & Label Chips (`core/cost.js`, `modals/costBreakdownModal.js`, `canvas/node.js`)
+
+`node.monthlyCost` (default `null`) is a small addition to the node schema
+alongside the pre-existing `labels` field. `core/cost.js` is pure:
+`getCostedNodes`/`computeMonthlyCostTotal`/`formatMonthlyCost`, reused by
+both the node-face badge and `costBreakdownModal.js`'s list+total (Tools
+menu). `canvas/node.js#buildStandardBody` renders a `.node-cost` badge when
+`monthlyCost` is set and a `.node-labels` row of `.node-label-chip`s when
+`labels` is non-empty — both new, visually distinct from the pre-existing
+`.node-subchip` (sub-components) styling so the three don't blend together
+on a busy node. `labels` itself already existed (details panel-editable)
+before this batch but was previously invisible anywhere except a generic
+"has extra info" dot badge; this is the first release that actually renders
+it on the canvas.
+
+## Smart Alignment Guides (`core/alignmentGuides.js`, `canvas/nodeInteractions.js#beginMove`, `canvas.js`'s `.align-guide-layer`)
+
+`core/alignmentGuides.js#computeAlignmentGuides(movingBox, staticBoxes,
+threshold)` is pure geometry: for each of the moving box's
+left/center/right (and top/center/bottom) positions against every static
+box's same three positions, it finds the single closest match per axis
+within `threshold` and returns a `{dx, dy}` nudge plus every guide line that
+position actually lines up with (not just the one that produced the
+snap — so three components already sharing a left edge all light up
+together). `boundingBoxOf(nodes)` lets a multi-selection drag reuse the
+exact same function, treating the whole selection as one box.
+
+Rendering reuses `contentEl` — the div `viewport.js` applies the pan/zoom
+CSS transform to — rather than `marqueeEl`'s pattern of manual screen-space
+math (`marqueeEl` is deliberately a *sibling* of `contentEl` for reasons
+specific to that gesture). A new `.align-guide-layer` SVG sits inside
+`contentEl` alongside the node/edge layers, so a guide line's coordinates
+are plain canvas-space numbers with zero manual zoom math, same as every
+other layer there.
+
+`nodeInteractions.js#beginMove` computes the moving selection's bounding
+box once at drag start (only x/y change mid-drag) and every other node's
+box, then does the actual snap/guide computation **inside the RAF-batched
+`apply()` callback**, not on every raw `pointermove` — the store dispatch
+was already throttled to one write per animation frame, and running an
+O(node count) geometry scan plus a guide-layer DOM rebuild on every raw
+pointer event (which fires far more often than the screen can show) would
+undo that. `onMove` only tracks the raw cursor-follow offset (`rawDx`/
+`rawDy`); `apply()` derives the actual, possibly-snapped `dx`/`dy` from it.
+One real bug caught by this ordering during review: `onUp` used to call
+`hideAlignmentGuides()` *before* its own final `apply()` call — since
+`apply()` itself (post-refactor) calls `showAlignmentGuides` when a snap is
+active, that final call re-drew a guide line that then never got cleared.
+Fixed by moving `hideAlignmentGuides()` to *after* the final `apply()`/
+`store.commitHistory()` in `onUp`.
+
+The snap threshold is a screen-pixel distance (`8 / getViewport().zoom`)
+rather than a fixed canvas-unit one, so the snap "feel" stays consistent
+regardless of zoom level. Toggled via a persisted `io/uiPrefs.js` boolean
+(`alignGuides`, default `true`) and a Tools-menu button
+(`toolbar.js`'s `alignGuidesBtn`).
+
 ## Security notes
 
 - No `innerHTML` is ever fed unsanitized/user-provided strings; text

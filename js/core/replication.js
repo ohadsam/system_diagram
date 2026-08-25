@@ -15,7 +15,7 @@ const REPLICATION_GAP = 120; // px between side A's bounding box and side B, whe
 // opt-out state independently.
 const MIRROR_FIELDS = [
   'defId', 'w', 'h', 'shape', 'fill', 'stroke', 'strokeWidth', 'text', 'fontSize',
-  'textAlign', 'textPosition', 'icon', 'iconVisible', 'notes', 'labels',
+  'textAlign', 'textPosition', 'icon', 'iconVisible', 'notes', 'labels', 'monthlyCost',
   'subComponentsDisplay', 'rows', 'destroyOffset', 'fragmentType',
 ];
 

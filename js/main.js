@@ -17,6 +17,7 @@ import { checkWhatsNew, markVersionSeen } from './io/whatsNew.js';
 import { openWhatsNewModal } from './modals/whatsNewModal.js';
 import * as viewport from './canvas/viewport.js';
 import { setToolMode, setSpaceHeld } from './canvas/toolMode.js';
+import { openCommandPaletteModal } from './modals/commandPaletteModal.js';
 
 function isTypingTarget(elRef) {
   if (!elRef) return false;
@@ -35,6 +36,13 @@ function initKeyboardShortcuts() {
       const project = store.getState();
       saveNamedProject(project);
       showToast(`Saved "${project.name}".`, 'success', 1800);
+      return;
+    }
+    if (mod && e.key.toLowerCase() === 'k') {
+      // Opens even while a text input is focused, same as Ctrl/Cmd+S above —
+      // "quick action" search should work from anywhere in the app.
+      e.preventDefault();
+      openCommandPaletteModal();
       return;
     }
     if (isTypingTarget(document.activeElement)) return;

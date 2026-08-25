@@ -2,9 +2,22 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.26.0';
+export const APP_VERSION = '1.27.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.27.0',
+    date: '2026-08-25',
+    highlights: [
+      'Diagram Versions: save named snapshots of a diagram ("📸 Version History", File menu), revert to one, or compare any two side-by-side (added/removed/changed nodes and edges).',
+      'Presentations: build a slideshow out of saved versions ("🎬 Presentations", File menu), play it step-by-step with rendered slide images, and export the whole thing to a real .pptx file.',
+      '5 new "Design X" reference-architecture templates (Reference Architectures category) for interview prep — URL Shortener, Chat Application, Rate Limiter Service, Social Media Feed, and Ride-Sharing Dispatch — each a complete, ready-to-customize starting point that instantiates as one grouped cluster.',
+      'New Command Palette ("⌘" toolbar button or Ctrl/Cmd+K) — search every app action or add any component from one box; selecting a component first shows actions relevant to it (its curated companions, sub-components, duplicate/delete) ahead of general results.',
+      'Estimated monthly cost: set a $/mo estimate on any component (details panel) — shown as a badge on the component and rolled into a running total ("💰 Cost Breakdown", Tools menu).',
+      'Labels (details panel) now render as visible chips on the component face itself, not just in the details panel — handy for capacity/SLA tags like "10K RPS" or "99.9% SLA".',
+      'Smart alignment guides: dragging a component now snaps into exact alignment with nearby components\' edges/centers and shows a Figma-like guide line, on by default ("🧲 Snap Guides" toggle, Tools menu).',
+    ],
+  },
   {
     version: '1.26.0',
     date: '2026-08-25',

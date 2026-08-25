@@ -279,6 +279,8 @@
       <p>This category holds state shapes — Initial State, State, Choice/Decision, Final State, Fork/Join, History State, Composite State — plus 6 ready-made templates (Traffic Light, Order Lifecycle, TCP Connection, Media Player, Approval Workflow, Auth Session). There's nothing special about a state or a transition: a state is just a component, and a transition's condition or event is just that connector's <strong>label</strong> — so state-machine pieces connect to (and mix freely with) anything else on your diagram using the same drag-to-connect gesture as everything else.</p>
       <p><span class="mock-node">⬭ Authenticating <small style="opacity:.7">→ credentials valid → Logged In</small></span></p>
       <div class="tip">🙈 Don't need this category? Click "🎛️" in the toolbar and check "Hide 'State Machines' components &amp; templates from the sidebar" — it only affects the picker, so anything already on your diagram is unaffected either way.</div>
+      <h3>Reference Architectures</h3>
+      <p>This category holds 5 ready-made "Design X" system-design-interview blueprints — <strong>URL Shortener</strong>, <strong>Chat Application</strong>, <strong>Rate Limiter Service</strong>, <strong>Social Media Feed</strong>, and <strong>Ride-Sharing Dispatch</strong>. Each is a complete, if simplified, whole-system starting point (not just a small architectural building block like the Design Patterns above) — dropping one in instantiates the whole design as one grouped cluster you can immediately move, restyle, or extend to make it your own.</p>
     </section>
 
     <section id="canvas">
@@ -310,6 +312,8 @@
       <p>Some components also suggest ready-made <strong>sub-components</strong> for that exact box — e.g. placing Express (Node.js) offers a Controller and a Middleware, React offers a Hook and a Component. These show in a second row with a dashed "↳" button; clicking one attaches it directly onto the node you just placed (same as dragging it in from "Layers &amp; Roles"), instead of adding a new box next to it.</p>
       <div class="tip">💡 Both lists are hand-curated, not automatic — only pairings most engineers would immediately recognize are included, and they grow a little with each release. A component with no curated companion or sub-component, or ones already present, shows no banner (or no row) at all.</div>
       <p>Not interested? Click "🎛️" in the toolbar and uncheck "Show 'Smart Suggestions'..." under Component library — or just dismiss an individual banner with its ✕, which times out on its own after a few seconds either way.</p>
+      <h3>🧲 Smart alignment guides</h3>
+      <p>While dragging a component (or a multi-selection, moved as one), it snaps into exact alignment with a nearby component's edge or center — a Figma-like dashed guide line appears while it's snapped. On by default; toggle it off with "🧲 Snap Guides" in the Tools menu if you'd rather move freely without it.</p>
       <h3>Revisiting sub-component suggestions later</h3>
       <p>The placement banner is easy to miss — and a component loaded from a saved project never saw it at all. Any component with unattached sub-component suggestions keeps a small <strong>💡 badge</strong> on it, for as long as any of them remain unattached. Click the badge any time to open the details panel's "Suggested sub-components" section, where the same curated list appears as checkboxes — check off any number and click "+ Add selected" to attach them all in one step, instead of one click per suggestion. See "Notes &amp; sub-components" below.</p>
     </section>
@@ -343,7 +347,8 @@
       <div class="tip">💡 A connector has its own smaller variant of this same panel — right-click it and choose "Open details" (see <a href="#connectors">Connectors &amp; arrows</a>) for its label and a free-text notes field.</div>
       <ul>
         <li><strong>Notes</strong> — free-form text about that component.</li>
-        <li><strong>Labels</strong> — short tags shown as chips (e.g. "prod", "critical").</li>
+        <li><strong>Estimated Monthly Cost</strong> — an optional $/mo figure; when set, it shows as a small green badge right on the component and counts toward the running total in "💰 Cost Breakdown" (Tools menu).</li>
+        <li><strong>Labels</strong> — short tags shown as chips directly on the component itself (e.g. "prod", "10K RPS", "99.9% SLA"), not just in this panel.</li>
         <li><strong>Sub-components</strong> — a list of internal parts (e.g. an API Gateway's routes, or a service's modules). Choose whether they show on the component as compact chips (default, truncated after 4) or a full untruncated list.</li>
         <li><strong>💡 Suggested sub-components</strong> — when curated suggestions (see "✨ Smart Suggestions") remain unattached for this component, they appear here as checkboxes; select any number and click "+ Add selected" to attach them all in one step.</li>
         <li><strong>Rows</strong> — for "server with rows" style components, manage each internal row directly (also editable right on the node with the "+ Add row" button).</li>
@@ -389,6 +394,10 @@
         <li><strong>Duplicate Project</strong> (📄 in the toolbar, or right-click the canvas → "Duplicate as new project") — clones the whole thing into a new, independent project named "… (Copy)" and switches you to editing it. Your original stays exactly as it was.</li>
         <li><strong>Duplicate entire canvas</strong> (right-click the canvas) — copies every component and connector in place, offset slightly, within the <em>same</em> project — the diagram, doubled.</li>
       </ul>
+      <h3>📸 Diagram Versions &amp; 🎬 Presentations</h3>
+      <p><strong>Version History</strong> (File menu) lets you capture a named, timestamped snapshot of the current diagram any time — click "📸 Save Version". From the list you can <strong>revert</strong> to one (undoable — <kbd>Ctrl/Cmd</kbd>+<kbd>Z</kbd> brings your current work back if you change your mind), <strong>delete</strong> one, or <strong>compare</strong> any two side-by-side: added/removed/changed components and connectors, each clickable to jump straight to it if it's still on your live canvas.</p>
+      <p><strong>Presentations</strong> (File menu) turns an ordered subset of your saved versions into a slideshow — pick which versions to include, reorder them, give the presentation a name, then <strong>▶️ Play</strong> to step through rendered images of each one with Next/Previous, or <strong>🎬 Export PPTX</strong> to download it as a real PowerPoint file.</p>
+      <div class="tip">💡 Versions and presentations live inside the project file itself, so they travel with JSON export/import and "🗄️ Backup &amp; Restore" like everything else.</div>
       <h3>Clear Canvas</h3>
       <p>Right-click the canvas → <strong>"🧹 Clear canvas"</strong> deletes every component, connector and replication pair and starts fresh, after a confirmation (skipped if the canvas is already empty). Unlike "🆕 New" (File menu), which switches to a brand-new, separate project, Clear Canvas empties the <em>current</em> project in place — same id/name, so a later Save/autosave still writes to the same slot — and Ctrl/Cmd+Z genuinely brings everything back afterward.</p>
     </section>
@@ -492,6 +501,7 @@
       <h2><span class="icon-badge">⌨️</span> Keyboard shortcuts</h2>
       <table>
         <tr><th>Shortcut</th><th>Action</th></tr>
+        <tr><td><kbd>Ctrl/Cmd</kbd>+<kbd>K</kbd></td><td>Open the Command Palette ("⌘ Quick Actions") — search any app action or add any component from one box</td></tr>
         <tr><td><kbd>Ctrl/Cmd</kbd>+<kbd>S</kbd></td><td>Save a checkpoint now (in addition to autosave)</td></tr>
         <tr><td><kbd>Delete</kbd> / <kbd>Backspace</kbd></td><td>Delete selection</td></tr>
         <tr><td><kbd>Ctrl/Cmd</kbd>+<kbd>Z</kbd></td><td>Undo</td></tr>

@@ -4,8 +4,11 @@
 // decide whether to move just one node or the whole multi-selection.
 import * as store from '../core/store.js';
 import { clamp } from '../core/geometry.js';
-import { screenToCanvas } from './viewport.js';
+import { screenToCanvas, getViewport } from './viewport.js';
 import { beginConnectFromNode } from './connectorInteractions.js';
+import { computeAlignmentGuides, boundingBoxOf } from '../core/alignmentGuides.js';
+import { showAlignmentGuides, hideAlignmentGuides } from './canvas.js';
+import { getUiPrefs } from '../io/uiPrefs.js';
 
 const MIN_SIZE = 40;
 const IGNORE_SELECTOR = '.conn-point, .resize-handle, .node-info-btn, .node-menu-btn, .row-item, .node-add-row, .inline-edit-input, .lifeline-activation';
@@ -74,20 +77,52 @@ function beginMove(nodeId, e) {
   const state = store.getState();
   const selection = store.getSelection();
   const movingIds = selection.nodeIds.includes(nodeId) && selection.nodeIds.length > 1 ? selection.nodeIds : [nodeId];
+  const movingIdSet = new Set(movingIds);
   const startPositions = new Map(
     movingIds.map((id) => {
       const n = state.nodes.find((x) => x.id === id);
       return [id, { x: n.x, y: n.y }];
     }),
   );
+  // The moving selection's own bounding box at drag start, and every other
+  // node's box — the inputs to core/alignmentGuides.js#computeAlignmentGuides
+  // (see below). Fixed for the whole gesture: only x/y change while
+  // dragging, and a static node doesn't move out from under an in-progress
+  // drag, so there's no need to recompute either per pointermove.
+  const startBox = boundingBoxOf(movingIds.map((id) => state.nodes.find((n) => n.id === id)));
+  const staticBoxes = state.nodes.filter((n) => !movingIdSet.has(n.id));
 
   let moved = false;
   let raf = null;
+  // Raw cursor-follow offset, updated on every pointermove; `dx`/`dy` (what
+  // actually gets dispatched) are derived from these inside the RAF-batched
+  // apply() below, same as the store write itself — computing the
+  // alignment-guide snap on every raw pointermove (rather than once per
+  // animation frame) would redo an O(node count) scan and rebuild the guide
+  // layer's DOM far more often than the screen can even show it.
+  let rawDx = 0;
+  let rawDy = 0;
   let dx = 0;
   let dy = 0;
 
   const apply = () => {
     raf = null;
+    // Smart alignment guides (Figma-like "snap into place" while dragging) —
+    // see core/alignmentGuides.js. A screen-space threshold (converted to
+    // canvas units by the current zoom) keeps the snap "feel" consistent
+    // whether zoomed in or out, rather than a fixed canvas-unit distance
+    // that would feel looser at low zoom and tighter at high zoom.
+    if (moved && getUiPrefs().alignGuides !== false) {
+      const threshold = 8 / getViewport().zoom;
+      const movingBox = { x: startBox.x + rawDx, y: startBox.y + rawDy, w: startBox.w, h: startBox.h };
+      const guides = computeAlignmentGuides(movingBox, staticBoxes, threshold);
+      dx = rawDx + guides.dx;
+      dy = rawDy + guides.dy;
+      showAlignmentGuides(guides);
+    } else {
+      dx = rawDx;
+      dy = rawDy;
+    }
     store.dispatch((draft) => {
       for (const id of movingIds) {
         const start = startPositions.get(id);
@@ -102,9 +137,9 @@ function beginMove(nodeId, e) {
 
   const onMove = (ev) => {
     const cur = screenToCanvas(ev.clientX, ev.clientY);
-    dx = cur.x - startCanvas.x;
-    dy = cur.y - startCanvas.y;
-    if (Math.abs(dx) > 2 || Math.abs(dy) > 2) moved = true;
+    rawDx = cur.x - startCanvas.x;
+    rawDy = cur.y - startCanvas.y;
+    if (Math.abs(rawDx) > 2 || Math.abs(rawDy) > 2) moved = true;
     if (!raf) raf = requestAnimationFrame(apply);
   };
   const onUp = () => {
@@ -115,6 +150,10 @@ function beginMove(nodeId, e) {
       apply();
       store.commitHistory();
     }
+    // Comes after apply()'s own final call (which may just have redrawn a
+    // guide for the position it dispatched) — clearing first and calling
+    // apply() after would leave that last guide stuck on screen forever.
+    hideAlignmentGuides();
   };
   window.addEventListener('pointermove', onMove);
   window.addEventListener('pointerup', onUp);

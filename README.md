@@ -25,7 +25,7 @@ Or open `index.html` directly in a browser.
 
 ## Features
 
-- **Huge component library** — 550+ predefined components across 24
+- **Huge component library** — 550+ predefined components across 25
   categories (AWS, Databases, Cache, Messaging, Monitoring, DevOps,
   Containers, Networking, Security, Servers, Client/Frontend, Frontend &
   Backend frameworks, Storage, Logging, AI/ML, Cloud providers, Basic
@@ -204,6 +204,23 @@ Or open `index.html` directly in a browser.
   independent local copy for whoever opens it.
 - **Recently Used** — the sidebar's pinned "Recently Used" section shows the
   last 8 components you actually placed on the canvas, most recent first.
+- **Diagram Versions & Presentations** — save named snapshots of a diagram
+  ("📸 Version History"), revert to one or compare any two side-by-side, then
+  assemble a subset of them into a "🎬 Presentation" — play it step-by-step
+  or export it to a real `.pptx` file.
+- **Reference Architecture Templates** — 5 ready-made "Design X" blueprints
+  (URL Shortener, Chat Application, Rate Limiter Service, Social Media Feed,
+  Ride-Sharing Dispatch) for interview prep, each a complete starting point
+  that drops in as one grouped cluster.
+- **Command Palette** — "⌘" toolbar button or Ctrl/Cmd+K opens a searchable
+  box covering every app action and the whole component library at once,
+  with context-aware results when a component is selected.
+- **Estimated cost & label chips** — set a $/mo cost estimate on any
+  component (shown as a badge, rolled into a "💰 Cost Breakdown" total), and
+  free-form labels now render as visible chips on the component itself.
+- **Smart alignment guides** — dragging a component snaps into exact
+  alignment with nearby components and shows a Figma-like guide line,
+  toggleable via "🧲 Snap Guides".
 - **Dismissible hints** — a short first-run guided tour, restartable any
   time, with a separate 🔔/🔕 toggle to turn hint bubbles on/off.
 - **"What's New"** — a one-time modal after each update summarizing what
@@ -216,10 +233,11 @@ See [`help.html`](help.html) for the full interactive user guide.
 ## Tech stack
 
 Vanilla HTML/CSS/JavaScript (ES modules), no framework, no bundler. The
-only two runtime dependencies — `html2canvas` and `jsPDF`, used solely for
-PNG/PDF export — are vendored locally in `vendor/` (see
+only three runtime dependencies — `html2canvas` and `jsPDF` for PNG/PDF
+export, and `PptxGenJS` for the Presentations feature's `.pptx` export —
+are vendored locally in `vendor/` (see
 [`vendor/VENDOR.md`](vendor/VENDOR.md)), not loaded from a CDN, and only
-fetched lazily when you actually export.
+fetched lazily when you actually use the feature that needs them.
 
 ## Project structure
 

@@ -988,6 +988,80 @@ Pure/DOM-free (`js/core/diagramLint.js#computeDiagramLint`), with
 `resolveDef` dependency-injected rather than imported directly so it stays
 unit-testable without touching `localStorage`-backed modules.
 
+### 4.17 Diagram Versions
+"📸 Version History" (File menu) lets a user capture a named, timestamped
+snapshot of the current diagram's content (nodes/edges/replicationPairs) at
+any point, then later revert to one (a normal undoable dispatch, not a
+history reset) or delete it. Two versions can be compared side-by-side — an
+id-based structural diff (`core/diagramDiff.js#computeDiagramDiff`) listing
+added/removed/changed nodes and edges, each clickable to jump to it if it's
+still on the live canvas. Versions live inside the project itself
+(`project.versions`, see §6) rather than a separate `localStorage` silo, so
+they travel with JSON export/import and full backups like everything else.
+
+### 4.18 Presentations
+"🎬 Presentations" (File menu) assembles an ordered subset of saved
+versions (4.17) into a slideshow (`project.presentations`, see §6), each
+slide carrying its own title/notes. Playing one steps through rendered
+screenshots of each version's diagram content — captured by temporarily
+swapping the live canvas to that version's snapshot via a **coalesced**
+store dispatch (so it never pollutes undo/redo history), running the
+existing `io/exportImage.js#captureDiagramCanvas()` capture path, then
+swapping back. A presentation can also be exported to a real `.pptx` file
+(vendored `PptxGenJS`, see `vendor/VENDOR.md`) — one slide per version, each
+image plus its title/notes.
+
+### 4.19 Reference Architecture Templates
+The "Reference Architectures" sidebar category holds ready-made "Design X"
+system-design-interview blueprints (URL Shortener, Chat Application, Rate
+Limiter Service, Social Media Feed, Ride-Sharing Dispatch) — complete, if
+simplified, whole-system starting points, one step up from the small
+architectural building-block patterns in "Design Patterns" (§4.2). Built
+the same way as any other pattern (`definePattern`, real component defIds
+for every node), but with `groupOnInstantiate: true` so a "Design X" comes
+in as one movable group with a background frame, since it's meant to read
+and move as a whole design rather than a loose cluster.
+
+### 4.20 Command Palette
+"⌘ Quick Actions" (toolbar button, or Ctrl/Cmd+K from anywhere including
+while a text field is focused) is a single searchable box covering both
+every major app action (arrange, export, save, ...) and the whole component
+library ("add redis") — picking a component result reuses the same
+`addComponentAtCenter`/`addRelatedComponent`/`addLayerToNode`/
+`instantiatePatternAtCenter` paths the sidebar already uses, branching on
+the component's `kind` the same way `sidebar/dragSource.js`'s click-to-add
+does (a `pattern` instantiates as a cluster, a `layer` attaches to a single
+selected node, everything else adds standalone). When exactly one component
+is selected on the canvas, results relevant to *it* specifically (curated
+companions, sub-components, patterns, plus duplicate/delete) are shown
+first under their own heading, ahead of the general action/component list.
+Arrow keys move the highlighted result, Enter runs it.
+
+### 4.21 Estimated Cost & Label Chips
+Any node can carry an estimated monthly cost in US dollars (details panel,
+`node.monthlyCost`, default `null` = "not estimated") — shown as a small
+badge on the node face itself when set, and rolled into a running total
+viewable via "💰 Cost Breakdown" (Tools menu), which lists every costed
+component (highest first, each clickable to jump to it) plus the total.
+Free-form labels (already editable in the details panel — capacity/SLA
+tags like "10K RPS" or "99.9% SLA") now also render as small chips directly
+on the node face, not just in the details panel, so this kind of
+annotation is visible at a glance on the diagram itself.
+
+### 4.22 Smart Alignment Guides
+While dragging a node (or a multi-selection, treated as one bounding box),
+the drag snaps into exact alignment with a nearby node's left/center/right
+or top/center/bottom edge — independently per axis — and a Figma-like
+dashed guide line is drawn spanning every node sharing that alignment, not
+just the one that triggered it. Pure geometry
+(`core/alignmentGuides.js#computeAlignmentGuides`) driving a plain SVG
+overlay layer in canvas-space (`canvas/canvas.js`'s `.align-guide-layer`,
+a sibling of the node/edge layers so no manual pan/zoom math is needed).
+The snap threshold is a fixed *screen*-pixel distance converted to canvas
+units by the current zoom, so the "feel" stays consistent whether zoomed in
+or out. On by default; toggled off via "🧲 Snap Guides" (Tools menu, a
+persisted `io/uiPrefs.js` preference).
+
 ## 5. Non-functional requirements
 
 - **Security**: no `eval`/`innerHTML` with unsanitized input, no inline
@@ -1026,7 +1100,7 @@ unit-testable without touching `localStorage`-backed modules.
       "fill": "#FFF7ED", "stroke": "#FF9900", "strokeWidth": 2,
       "text": "API Server", "fontSize": 14, "textAlign": "center",
       "icon": "🖥️",
-      "notes": "", "labels": ["prod"],
+      "notes": "", "labels": ["prod"], "monthlyCost": 45.5,
       "subComponents": [{ "id": "sc_1", "name": "Auth", "icon": "🔐" }],
       "rows": [],
       "zIndex": 3,
@@ -1059,6 +1133,22 @@ unit-testable without touching `localStorage`-backed modules.
       "members": [{ "a": "node_a", "b": "node_b" }],
       "edgeMembers": [{ "a": "edge_a", "b": "edge_b" }]
     }
+  ],
+  "versions": [
+    {
+      "id": "ver_...",
+      "name": "Before adding cache",
+      "createdAt": "ISO-8601",
+      "snapshot": { "nodes": [], "edges": [], "replicationPairs": [] }
+    }
+  ],
+  "presentations": [
+    {
+      "id": "pres_...",
+      "name": "Design Review",
+      "createdAt": "ISO-8601",
+      "slides": [{ "versionId": "ver_...", "title": "Before adding cache", "notes": "" }]
+    }
   ]
 }
 ```
@@ -1086,7 +1176,12 @@ into a Group/Ungroup unit — see 4.3.1. `replicationExcluded` (default
 `[]`) drive Live Replication — see 4.14;
 `mode` is one of `active-active` / `active-passive` / `primary-replica`,
 purely descriptive, and `members` maps each side-A node id to its side-B
-mirror's id.
+mirror's id. `monthlyCost` (default `null`) is an estimated US-dollar/month
+figure — see 4.21. `versions` (default `[]`) and `presentations` (default
+`[]`) are described in 4.17/4.18; a version's own `snapshot` is validated
+exactly like the top-level `nodes`/`edges`/`replicationPairs` above (same
+shared `validateContent` helper), and a presentation slide referencing a
+version id that no longer exists is dropped on load.
 
 ## 7. Out of scope for v1 (ideas for later, see PLAN.md §7)
 

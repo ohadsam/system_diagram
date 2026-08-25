@@ -121,6 +121,14 @@ this repo" quick-start.
 | Change the deterministic "🔍 Check Diagram" structural checks | `js/core/diagramLint.js#computeDiagramLint` (pure, `resolveDef` dependency-injected) + `js/modals/diagramLintModal.js` (UI, `resolveComponentDef` is the real `resolveDef` passed in) — see docs/ARCHITECTURE.md's own section for a real false-positive gotcha (the `shape-group` boundary-box shape) before adding a new check here |
 | Add/change an ER-diagram design pattern | `js/data/categories/design-patterns.js`'s local `entity(key, dx, dy, title, attributes)` helper (wraps the existing `shape-server-rows` component via `overrides`) — same `definePattern(...)` mechanism every other pattern uses |
 | Change the sidebar's "Recently Used" section | `js/io/recentComponents.js` (storage, `MAX_RECENT = 8`) + `js/canvas/canvas.js#createNodeFromDrop` (the single `recordComponentUsed(defId)` call site — both drag-drop and click-to-add funnel through it) + `js/sidebar/sidebar.js` (`renderRecentCategory`, mirrors `renderFavoritesCategory`'s shell but flat, no folders) |
+| Change Diagram Versions (save/revert/delete a named snapshot) | `js/core/project.js` (`createVersionSnapshot`/`removeVersion`, `project.versions`) + `js/canvas/canvas.js` (`saveDiagramVersion`/`revertToVersion`/`deleteVersion` — plain `store.dispatch`, undoable) + `js/modals/versionHistoryModal.js` (UI) — see docs/ARCHITECTURE.md's "Diagram Versions & Presentations" section |
+| Change comparing two versions (or a version vs. the live canvas) | `js/core/diagramDiff.js#computeDiagramDiff` (pure, id-based structural diff) + `js/modals/diagramCompareModal.js` (UI, clickable-only-if-still-on-canvas entries) |
+| Change Presentations (build/play/export a slideshow of versions) | `js/core/project.js` (`project.presentations`) + `js/canvas/canvas.js` (`savePresentation`/`deletePresentation`) + `js/modals/presentationsModal.js` (build UI) + `js/modals/presentationPlayerModal.js` (`withTemporaryContent`/`renderSlidesToDataUrls` — **read** docs/ARCHITECTURE.md's section on this before touching it, the `{coalesce: true}` swap-capture-swap pattern is load-bearing for not corrupting undo history) + `js/io/exportPptx.js` (PPTX export, vendored `PptxGenJS`) |
+| Add/change a "Design X" reference-architecture template | `js/data/categories/reference-architectures.js` — same `definePattern(...)` mechanism as `design-patterns.js`, but set `groupOnInstantiate: true` (a whole design should come in as one group, not a loose cluster) |
+| Change the Command Palette (Ctrl/Cmd+K quick actions) | `js/toolbar/commandPalette.js#filterCommands` (pure matching) + `js/modals/commandPaletteModal.js` (the command list, contextual-vs-general sectioning, keyboard nav) + `js/main.js#initKeyboardShortcuts` (the shortcut, registered before the `isTypingTarget` guard like Ctrl/Cmd+S) — see docs/ARCHITECTURE.md's own section, especially `componentToCommand`'s `kind`-based branching before assuming a single "add" function covers every component |
+| Change estimated monthly cost (badge, total, breakdown) | `js/core/project.js` (`monthlyCost` field) + `js/core/cost.js` (`getCostedNodes`/`computeMonthlyCostTotal`/`formatMonthlyCost`, pure) + `js/panel/detailsPanel.js#renderMonthlyCost` (editor) + `js/canvas/node.js` (`.node-cost` badge) + `js/modals/costBreakdownModal.js` (Tools-menu breakdown) |
+| Change label chips on the node face | `js/canvas/node.js#buildLabelChips` (`.node-labels`/`.node-label-chip`) — the underlying `node.labels` field and its details-panel editor (`renderLabels`) already existed; this only added the on-canvas rendering |
+| Change Smart Alignment Guides (snap-while-dragging) | `js/core/alignmentGuides.js#computeAlignmentGuides`/`boundingBoxOf` (pure) + `js/canvas/nodeInteractions.js#beginMove` (**must** stay inside the RAF-batched `apply()`, not raw `pointermove` — see docs/ARCHITECTURE.md's own section for a real bug this ordering caused and how it was fixed) + `js/canvas/canvas.js` (`showAlignmentGuides`/`hideAlignmentGuides`, the `.align-guide-layer`) + `js/io/uiPrefs.js` (`alignGuides` toggle) |
 
 ## Running things locally
 
@@ -584,3 +592,18 @@ npm test
   sequence-diagram pattern until that label is generalized — this was
   deliberately left un-curated for the ER patterns added in this batch for
   exactly that reason.
+- **When a drag gesture's expensive per-frame work (a geometry scan, a DOM
+  rebuild) moves from raw `pointermove` into the existing RAF-batched
+  `apply()` callback, any code that calls `apply()` a second time outside
+  that RAF loop (e.g. a drag-end handler's "flush the final position"
+  call) will re-trigger that same expensive work — including anything
+  `apply()` shows/hides as a side effect.** `nodeInteractions.js#beginMove`'s
+  smart-alignment-guides feature hit this exactly: `onUp` used to call
+  `hideAlignmentGuides()` *before* its own final `apply()` call (needed to
+  flush the last frame's position); once the guide-drawing logic moved
+  inside `apply()` for performance, that final call redrew a guide line
+  that then had nothing left to clear it — a real, caught-by-its-own-e2e-
+  test bug, not a hypothetical. Fixed by moving the "hide/clear" call to
+  *after* the drag-end sequence's own final `apply()`, not before. If you
+  move per-frame visual work into a RAF-batched callback like this,
+  audit every other call site of that callback for the same ordering trap.

@@ -40,8 +40,12 @@ import { openSequenceDiagramModal } from '../modals/sequenceDiagramModal.js';
 import { openImportSequenceMermaidModal } from '../modals/importSequenceMermaidModal.js';
 import { openExportDiagramModal } from '../modals/exportDiagramModal.js';
 import { openShareLinkModal } from '../modals/shareLinkModal.js';
+import { openVersionHistoryModal } from '../modals/versionHistoryModal.js';
+import { openPresentationsModal } from '../modals/presentationsModal.js';
 import { openDiagramLintModal } from '../modals/diagramLintModal.js';
 import { openScaleDiagramModal } from '../modals/scaleDiagramModal.js';
+import { openCommandPaletteModal } from '../modals/commandPaletteModal.js';
+import { openCostBreakdownModal } from '../modals/costBreakdownModal.js';
 // Registers this modal's `sdb:open-subdiagram` window listener (see
 // modals/subDiagramModal.js) — reached from the 🔍 icon on a sequence-
 // diagram group's canvas background, not from a toolbar button of its own,
@@ -95,6 +99,7 @@ export function initToolbar(root) {
   const row1 = el('div', { class: 'toolbar-row toolbar-row-main' });
   row1.appendChild(buildBrand());
   row1.appendChild(buildHistoryGroup());
+  row1.appendChild(buildCommandPaletteGroup());
   row1.appendChild(buildNavToolGroup());
   row1.appendChild(buildQuickCreateGroup());
   row1.appendChild(buildToolbarDropdown('File', '🗂️', 'File: new, save, load, duplicate, import/export, backup', buildFileGroupButtons()));
@@ -198,6 +203,17 @@ function buildHistoryGroup() {
 function syncHistoryButtons() {
   if (undoBtn) undoBtn.disabled = !store.canUndo();
   if (redoBtn) redoBtn.disabled = !store.canRedo();
+}
+
+/** Kept flat (not in a dropdown) — it's the fastest way to reach *any*
+ * other action or add *any* component, so burying it behind a click would
+ * defeat the point. See modals/commandPaletteModal.js. */
+function buildCommandPaletteGroup() {
+  const btn = el('button', {
+    type: 'button', class: 'btn btn-icon', title: 'Quick Actions (Ctrl/Cmd+K): search actions or add a component', text: '⌘',
+    onClick: () => openCommandPaletteModal(),
+  });
+  return group(btn);
 }
 
 /** Select (default click/marquee-drag) vs Hand (pan-anywhere, never moves a
@@ -373,7 +389,9 @@ function buildFileGroupButtons() {
   const backupBtn = el('button', { type: 'button', class: 'btn', title: 'Backup & restore everything', text: '🗄️ Backup & Restore', onClick: openBackupModal });
   const exportDiagramBtn = el('button', { type: 'button', class: 'btn', title: 'Export the whole diagram to Mermaid, draw.io, or Lucidchart', text: '🌐 Export to...', onClick: openExportDiagramModal });
   const shareBtn = el('button', { type: 'button', class: 'btn', title: 'Get a shareable link that encodes this diagram (no backend — a local copy for whoever opens it)', text: '🔗 Share', onClick: openShareLinkModal });
-  return [newBtn, saveAsBtn, loadBtn, duplicateProjectBtn, exportJsonBtn, importJsonBtn, pngBtn, pdfBtn, exportDiagramBtn, shareBtn, backupBtn];
+  const versionHistoryBtn = el('button', { type: 'button', class: 'btn', title: 'Save named snapshots of this diagram, revert to one, or compare two', text: '📸 Version History', onClick: openVersionHistoryModal });
+  const presentationsBtn = el('button', { type: 'button', class: 'btn', title: 'Build a slideshow out of saved versions, play it, or export it to PowerPoint', text: '🎬 Presentations', onClick: openPresentationsModal });
+  return [newBtn, saveAsBtn, loadBtn, duplicateProjectBtn, exportJsonBtn, importJsonBtn, pngBtn, pdfBtn, exportDiagramBtn, shareBtn, versionHistoryBtn, presentationsBtn, backupBtn];
 }
 
 function buildCreateGroupButtons() {
@@ -412,6 +430,17 @@ function buildToolsGroupButtons() {
     });
   }
 
+  const alignGuidesBtn = el('button', {
+    type: 'button', class: `btn${prefs.alignGuides !== false ? ' active' : ''}`,
+    title: 'Snap Guides: show Figma-like alignment guides and snap into place while dragging a component',
+    text: '🧲 Snap Guides',
+    onClick: () => {
+      const next = !alignGuidesBtn.classList.contains('active');
+      saveUiPrefs({ alignGuides: next });
+      alignGuidesBtn.classList.toggle('active', next);
+    },
+  });
+
   const aiReviewBtn = el('button', { type: 'button', class: 'btn', title: 'AI Design Review', text: '🤖 AI Design Review', onClick: toggleAiReviewPanel });
   const autoArrangeBtn = el('button', {
     type: 'button',
@@ -441,7 +470,11 @@ function buildToolsGroupButtons() {
     type: 'button', class: 'btn', title: 'Check Diagram: a few quick, offline structural checks (e.g. a client talking straight to a database, an unconnected component)', text: '🔍 Check Diagram',
     onClick: openDiagramLintModal,
   });
-  return [gridBtn, aiReviewBtn, lintBtn, autoArrangeBtn, distributeBtn, scaleBtn];
+  const costBtn = el('button', {
+    type: 'button', class: 'btn', title: 'Cost Breakdown: list every component with an estimated monthly cost (set per-component in its details panel) and the running total', text: '💰 Cost Breakdown',
+    onClick: openCostBreakdownModal,
+  });
+  return [gridBtn, alignGuidesBtn, aiReviewBtn, lintBtn, costBtn, autoArrangeBtn, distributeBtn, scaleBtn];
 }
 
 function buildHelpGroupButtons() {

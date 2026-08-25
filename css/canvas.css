@@ -171,6 +171,22 @@
   pointer-events: auto;
 }
 
+.align-guide-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4000px;
+  height: 4000px;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.align-guide {
+  stroke: #F43F5E;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
 .marquee {
   position: absolute;
   border: 1px solid var(--color-primary);

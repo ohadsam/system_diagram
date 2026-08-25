@@ -2,7 +2,7 @@
 // store, and owns pan/zoom/marquee-selection. See docs/ARCHITECTURE.md
 // "Canvas rendering".
 import * as store from '../core/store.js';
-import { createEdge, nextZIndex, removeNode as removeNodeFromProject, removeEdge as removeEdgeFromProject, createNode, duplicateProject } from '../core/project.js';
+import { createEdge, nextZIndex, removeNode as removeNodeFromProject, removeEdge as removeEdgeFromProject, createNode, duplicateProject, createVersionSnapshot, removeVersion as removeVersionFromProject } from '../core/project.js';
 import { buildReplicationPair } from '../core/replication.js';
 import { computeAutoLayout } from '../core/autoLayout.js';
 import { layoutLifelines, distributeLifelineColumns, distributeMessages, layoutImportedSequenceDiagram, GAP as LIFELINE_GAP } from '../core/sequenceDiagram.js';
@@ -10,7 +10,7 @@ import { scaleNodes } from '../core/scaleDiagram.js';
 import { getComponentById } from '../data/index.js';
 import { getCustomComponents } from '../io/customComponents.js';
 import { buildCreationOverrides } from '../io/nodeDefaults.js';
-import { el, svgEl } from '../utils/dom.js';
+import { el, svgEl, clear } from '../utils/dom.js';
 import { rectsIntersect, pickBestSides, sideAnchor, computeAnchorOffset } from '../core/geometry.js';
 import { nextId } from '../core/id.js';
 import { showToast } from '../utils/toast.js';
@@ -35,6 +35,7 @@ let edgeLayer = null;
 let edgeHandleLayer = null;
 let groupBgLayer = null;
 let marqueeEl = null;
+let guideLayer = null;
 
 const nodeElements = new Map();
 const edgeElements = new Map();
@@ -62,6 +63,15 @@ export function initCanvas(root) {
   // node's own connection-point strip — see edgeReconnect.js's header
   // comment for why this can't just live inside .edge-layer.
   contentEl.appendChild(edgeHandleLayer);
+  // Smart alignment guides (nodeInteractions.js#beginMove) — sits above
+  // everything else in .canvas-content so a guide line is never hidden
+  // behind the node being dragged. Lives in canvas-space just like every
+  // other layer here (contentEl carries the pan/zoom transform), so a
+  // guide's x/y is a plain canvas coordinate with no manual zoom math
+  // needed, unlike .marquee below (deliberately a sibling of contentEl,
+  // not a child, for reasons specific to that gesture — see its own code).
+  guideLayer = svgEl('svg', { class: 'align-guide-layer' });
+  contentEl.appendChild(guideLayer);
   viewportEl.appendChild(contentEl);
 
   marqueeEl = el('div', { class: 'marquee', hidden: true });
@@ -215,6 +225,25 @@ function beginMarquee(e) {
   window.addEventListener('pointerup', onUp);
 }
 
+/** Renders the alignment-guide lines computed by
+ * core/alignmentGuides.js#computeAlignmentGuides — called from
+ * nodeInteractions.js#beginMove on every drag move while snapping is on.
+ * Plain SVG lines in canvas-space (see guideLayer's own comment above). */
+export function showAlignmentGuides(guides) {
+  if (!guideLayer) return;
+  clear(guideLayer);
+  for (const g of guides.verticalGuides) {
+    guideLayer.appendChild(svgEl('line', { class: 'align-guide', x1: g.x, y1: g.y1, x2: g.x, y2: g.y2 }));
+  }
+  for (const g of guides.horizontalGuides) {
+    guideLayer.appendChild(svgEl('line', { class: 'align-guide', x1: g.x1, y1: g.y, x2: g.x2, y2: g.y }));
+  }
+}
+
+export function hideAlignmentGuides() {
+  if (guideLayer) clear(guideLayer);
+}
+
 function selectNode(nodeId, additive) {
   const current = store.getSelection();
   if (additive) {
@@ -338,6 +367,78 @@ export function setSequenceNumberOverride(edgeId, value) {
   store.dispatch((draft) => {
     const edge = draft.edges.find((e) => e.id === edgeId);
     if (edge) edge.sequenceNumberOverride = value;
+  });
+}
+
+/** Captures the current canvas content as a new named version — see
+ * core/project.js#createVersionSnapshot and docs/ARCHITECTURE.md's
+ * "Diagram Versions" section. A plain `dispatch` (not `loadProject`) so
+ * saving a version is itself undoable, same reasoning as every other
+ * in-place project mutation here (see the `clearCanvas` gotcha this file's
+ * other actions already follow). */
+export function saveDiagramVersion(name) {
+  const state = store.getState();
+  const version = createVersionSnapshot(state, name);
+  store.dispatch((draft) => {
+    draft.versions = [...(draft.versions || []), version];
+  });
+  return version;
+}
+
+/** Replaces the live canvas's nodes/edges/replicationPairs with a saved
+ * version's own snapshot — the version history itself (and every other
+ * version in it) is untouched, so reverting is not a one-way trip: revert
+ * to an older version, then revert again to a newer one, as many times as
+ * needed. Clears selection since a selected id might not exist in the
+ * reverted content. No-op if the version no longer exists (e.g. deleted in
+ * another tab). */
+export function revertToVersion(versionId) {
+  const state = store.getState();
+  const version = (state.versions || []).find((v) => v.id === versionId);
+  if (!version) return false;
+  store.dispatch((draft) => {
+    draft.nodes = structuredClone(version.snapshot.nodes);
+    draft.edges = structuredClone(version.snapshot.edges);
+    draft.replicationPairs = structuredClone(version.snapshot.replicationPairs);
+  });
+  store.select([], []);
+  return true;
+}
+
+/** Deletes a saved version (cascades to strip it from any presentation
+ * slide referencing it — see core/project.js#removeVersion). Does not
+ * touch the live canvas content at all, only the stored history. */
+export function deleteVersion(versionId) {
+  store.dispatch((draft) => {
+    removeVersionFromProject(draft, versionId);
+  });
+}
+
+/** Creates or overwrites a presentation — an ordered subset of saved
+ * versions assembled into a slideshow (see modals/presentationsModal.js,
+ * modals/presentationPlayerModal.js). `slides` is `[{versionId, title,
+ * notes}]`; pass `id` to update an existing presentation in place instead
+ * of creating a new one. */
+export function savePresentation({ id, name, slides }) {
+  const state = store.getState();
+  const existing = id ? (state.presentations || []).find((p) => p.id === id) : null;
+  const presentation = {
+    id: existing?.id || id || nextId('pres'),
+    name: (name || '').trim() || 'Presentation',
+    createdAt: existing?.createdAt || new Date().toISOString(),
+    slides,
+  };
+  store.dispatch((draft) => {
+    const list = draft.presentations || [];
+    const idx = list.findIndex((p) => p.id === presentation.id);
+    draft.presentations = idx === -1 ? [...list, presentation] : list.map((p, i) => (i === idx ? presentation : p));
+  });
+  return presentation;
+}
+
+export function deletePresentation(presentationId) {
+  store.dispatch((draft) => {
+    draft.presentations = (draft.presentations || []).filter((p) => p.id !== presentationId);
   });
 }
 
@@ -524,7 +625,7 @@ export function addComponentAtCenter(defId) {
  * behavior of leaving them unconnected was a real gap — with anchor sides
  * picked from actual relative position (`pickBestSides`), not a hardcoded
  * side, so the edge still looks right however the placement above landed. */
-function addRelatedComponent(defId, anchorNodeId, offsetIndex) {
+export function addRelatedComponent(defId, anchorNodeId, offsetIndex) {
   const def = resolveComponentDef(defId);
   if (!def) return;
   const state = store.getState();

@@ -5,6 +5,7 @@
 import * as store from '../core/store.js';
 import { el, clear } from '../utils/dom.js';
 import { getUnattachedLayerSuggestions } from './suggestions.js';
+import { formatMonthlyCost } from '../core/cost.js';
 
 let handlers = {
   onSelect: () => {},
@@ -276,9 +277,31 @@ function buildStandardBody(node) {
     wrap.appendChild(label);
   }
 
+  if (node.labels?.length) {
+    wrap.appendChild(buildLabelChips(node));
+  }
+
+  if (Number.isFinite(node.monthlyCost)) {
+    wrap.appendChild(el('div', { class: 'node-cost', title: 'Estimated monthly cost', text: `💲 ${formatMonthlyCost(node.monthlyCost)}/mo` }));
+  }
+
   if (node.subComponents?.length) {
     wrap.appendChild(buildSubComponentsDisplay(node));
   }
+  return wrap;
+}
+
+/** Small tag chips for node.labels (capacity/SLA/free-form notes like "10K
+ * RPS" or "99.9% SLA") — set via the details panel's Labels field
+ * (panel/detailsPanel.js#renderLabels). Kept visually distinct from
+ * buildSubComponentsDisplay's chips (.node-subchip): labels describe the
+ * whole node, sub-components are parts inside it. */
+function buildLabelChips(node) {
+  const wrap = el('div', { class: 'node-labels' });
+  for (const label of node.labels.slice(0, 4)) {
+    wrap.appendChild(el('span', { class: 'node-label-chip', text: label }));
+  }
+  if (node.labels.length > 4) wrap.appendChild(el('span', { class: 'node-label-chip more', text: `+${node.labels.length - 4}` }));
   return wrap;
 }
 
