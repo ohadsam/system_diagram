@@ -528,8 +528,8 @@ each candidate message's two endpoint anchor points). This mirrors the same
 
 ### Ready-made templates + Smart Suggestions for patterns (`data/categories/sequence-templates.js`, `data/index.js#getRelatedPatterns`, `canvas/suggestions.js`, `canvas.js#instantiatePatternNearNode`)
 
-The 23 sequence-diagram templates (Login Flow, OAuth Handshake, ..., Saga
-Pattern (Choreography), Idempotent Request Handling) are ordinary `definePattern(...)` entries — the exact
+The 36 sequence-diagram templates (Login Flow, OAuth Handshake, ..., Social/
+Federated Login, Step-Up Authentication) are ordinary `definePattern(...)` entries — the exact
 same "instantiate a whole blueprint at once" mechanism `design-patterns.js`
 already uses for e.g. the API Gateway pattern, with `groupOnInstantiate:
 true` (schema.js) so the result lands as a real group immediately (🔍
@@ -606,6 +606,86 @@ batch's own review pass, not by a user report — worth specifically
 rechecking `MIRROR_FIELDS`/`EDGE_MIRROR_FIELDS` any time a future batch adds
 a new node or edge field, since nothing enforces the allowlist staying in
 sync with the schema.
+
+### Export as PlantUML (`io/exportSequencePlantUML.js`)
+
+A second, self-contained export format offered right next to "📋 Copy as
+Mermaid" in the same drill-down modal. Deliberately **not** refactored to
+share code with `exportSequenceMermaid.js` — the event-collection/sorting
+logic is duplicated between the two files rather than extracted, since each
+format's own line-formatting (participant declaration syntax, arrow tokens,
+indentation) is simple enough to read standalone, and the existing Mermaid
+exporter already had passing tests before this batch that a shared-code
+refactor would risk regressing for a modest de-duplication win. Same
+dash+arrowhead → sync/async/return mapping as the Mermaid exporter, just
+PlantUML's own tokens (`->`/`->>`/`-->` instead of `->>`/`-)`/`-->>`);
+`alt`/`opt`/`loop`/`par` ... `end` block keywords happen to be identical
+between the two formats.
+
+### Import from Mermaid (`io/importSequenceMermaid.js`, `core/sequenceDiagram.js#layoutImportedSequenceDiagram`, `canvas.js#createSequenceDiagramFromMermaid`, `modals/importSequenceMermaidModal.js`)
+
+The inverse of "📋 Copy as Mermaid" — reachable from the Create dropdown's
+"📥 Import from Mermaid" wizard (a plain textarea + Import button, same
+action-modal shape as `sequenceDiagramModal.js`). Three-stage pipeline:
+
+1. **`parseSequenceMermaid(text)`** (pure) — line-by-line regex parsing into
+   `{participants: [{id, label}], events: [...]}`, where each event is one of
+   `message`/`activate`/`deactivate`/`destroy`/`fragmentStart`/`fragmentEnd`.
+   Participants can be declared explicitly (`participant X as Y`) or
+   auto-declared from the first message that mentions them — real
+   hand-written/exported Mermaid text often omits the declarations, and
+   this mirrors how Mermaid itself behaves. `else`/`and` branch dividers are
+   read and skipped (no per-branch concept in this app's own fragment model
+   — one condition per box, see the combined-fragments section above) rather
+   than treated as a parse error.
+2. **`layoutImportedSequenceDiagram(parsed, centerX, centerY, size)`** (pure,
+   in `core/sequenceDiagram.js` alongside `layoutLifelines`) — turns that
+   into concrete lifeline rects, edge specs, per-participant activation bars,
+   destroy offsets, and fragment-box rects. Mermaid text has no explicit
+   vertical position, only line order, so every event is spread evenly down
+   the lifelines' height in the order it appears (a self-message consumes
+   two "slots" — its own start and end height — everything else consumes
+   one), the same "assign an even 0..1 offset per event" idea
+   `distributeMessages` already uses for "Distribute evenly", just computed
+   once at import time instead of on demand. A fragment's box width spans
+   only the participants a message *inside* it actually touched (tracked via
+   an open-fragments stack while iterating events) — not every lifeline in
+   the diagram — falling back to spanning all of them only if the fragment
+   enclosed zero messages.
+3. **`createSequenceDiagramFromMermaid(parsed)`** (canvas.js) — the only
+   stage that touches the store: creates lifeline/fragment nodes and message
+   edges via the ordinary `createNode`/`createEdge` + one `store.dispatch`,
+   sets a shared `groupId` so the result is immediately a real sequence-
+   diagram group (🔍 zoom-in works right away), same shape as
+   `createSequenceDiagram`/`instantiatePatternAtPoint`.
+
+### Sidebar hover-preview thumbnail (`sidebar/patternPreview.js`)
+
+Hovering (or keyboard-focusing) a Sequence Diagram Templates sidebar item
+shows a small SVG sketch of its lifelines and messages — `isSequenceDiagramPattern(def)`
+gates which items get this (any `kind: 'pattern'` whose every node is a
+`shape-lifeline`, the same definition `componentData.test.mjs`'s own template
+integrity test uses) rather than checking `categoryId`, so it stays correct
+if a future template ever lived in a differently-named category. The popup
+itself is appended straight to `document.body` (fixed-positioned, computed
+from the hovered item's `getBoundingClientRect()`) rather than inside the
+sidebar's own DOM, since the sidebar's `overflow: auto` scroll container
+would otherwise clip it.
+
+**Gotcha — `sidebar.js#renderList()` tears down and rebuilds every sidebar
+item on each keystroke** (see its own header comment: expanding/collapsing a
+category, editing the search, custom components changing, ...). If a preview
+popup was showing when that happens, the item it was anchored to gets
+removed without its own `mouseleave`/`blur` ever firing — the mouse never
+actually left, its target just vanished out from under it — leaving the
+popup stuck on screen. Fixed by having `renderList()` call the exported
+`hidePatternPreview()` unconditionally at the top of every rebuild, not just
+relying on the hover/focus handlers' own cleanup. Caught in this batch's own
+UI/UX review pass by deliberately testing "hover a template, then type in
+the search box" rather than just the show/hide path in isolation — worth
+specifically re-testing for any future feature that opens a floating
+element anchored to a sidebar item, since this rebuild-tears-down-the-DOM
+behavior isn't obvious from reading `attachPatternPreview` alone.
 
 ## Auto-arrange (`core/autoLayout.js`, `canvas.js#autoArrangeAll`)
 

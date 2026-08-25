@@ -23,6 +23,7 @@ import { createEdgeEl, updateEdgeEl } from '../canvas/connector.js';
 import { computeMessageSequenceNumbers } from '../canvas/canvas.js';
 import { enterSubDiagramEdit } from '../canvas/subDiagramEdit.js';
 import { buildSequenceMermaid } from '../io/exportSequenceMermaid.js';
+import { buildSequencePlantUML } from '../io/exportSequencePlantUML.js';
 import { showToast } from '../utils/toast.js';
 
 const PAD = 48;
@@ -77,6 +78,20 @@ function renderModalBody(body, api, groupId) {
       const text = buildSequenceMermaid({ nodes, edges, allNodes: state.nodes });
       await navigator.clipboard.writeText(text);
       showToast('Mermaid text copied to clipboard.', 'success', 2000);
+    },
+  }));
+  actions.appendChild(el('button', {
+    type: 'button', class: 'btn', text: '📋 Copy as PlantUML',
+    title: 'Copy this sequence diagram as PlantUML sequence-diagram text',
+    onClick: async () => {
+      const state = store.getState();
+      const nodes = state.nodes.filter((n) => n.groupId === groupId);
+      if (!nodes.length) return;
+      const nodeIds = new Set(nodes.map((n) => n.id));
+      const edges = state.edges.filter((e) => nodeIds.has(e.from) && nodeIds.has(e.to));
+      const text = buildSequencePlantUML({ nodes, edges, allNodes: state.nodes });
+      await navigator.clipboard.writeText(text);
+      showToast('PlantUML text copied to clipboard.', 'success', 2000);
     },
   }));
   actions.appendChild(el('button', {

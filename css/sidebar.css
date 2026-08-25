@@ -320,3 +320,49 @@
 .sidebar-folder[data-open="true"] .folder-list {
   display: flex;
 }
+
+/* Sequence-diagram template hover-preview thumbnail — see
+   sidebar/patternPreview.js. Fixed-positioned, appended straight to
+   document.body (not the sidebar) so it isn't clipped by the sidebar's own
+   overflow:auto scroll container. */
+.pattern-preview-popup {
+  position: fixed;
+  z-index: var(--z-menu);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-2);
+  pointer-events: none;
+}
+
+.pattern-preview-svg {
+  display: block;
+  overflow: hidden;
+}
+
+.pattern-preview-lifeline {
+  stroke: var(--color-border-strong);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+}
+
+.pattern-preview-label {
+  fill: var(--color-text-muted);
+  font-size: 9px;
+  font-family: var(--font-sans);
+}
+
+.pattern-preview-message {
+  stroke: var(--color-primary);
+  stroke-width: 1.5;
+  fill: none;
+}
+
+.pattern-preview-message.is-dashed {
+  stroke-dasharray: 4 3;
+}
+
+.pattern-preview-arrowhead {
+  fill: var(--color-primary);
+}

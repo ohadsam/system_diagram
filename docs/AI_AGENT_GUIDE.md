@@ -110,6 +110,9 @@ this repo" quick-start.
 | Add/change a "Smart Suggestions" sequence-diagram pairing | `relatedPatterns: ['seq-...']` in the `c(...)` call (ids must be `kind: 'pattern'`) — same curation bar as `related`/`relatedLayers`, see `add-library-item` skill |
 | Change dragging a pattern sidebar item onto an existing node | `js/canvas/canvas.js#instantiatePatternNearNode` (positions the pattern clearing the target node's actual leftmost edge, not a flat offset) + `js/sidebar/dragSource.js` (`.pattern-drop-target` hover affordance) |
 | Change the sequence-diagram "Copy as Mermaid" export | `js/io/exportSequenceMermaid.js#buildSequenceMermaid` (pure) + `js/modals/subDiagramModal.js` (the button, clipboard write) |
+| Change the sequence-diagram "Copy as PlantUML" export | `js/io/exportSequencePlantUML.js#buildSequencePlantUML` (pure, deliberately self-contained rather than sharing code with the Mermaid exporter) + `js/modals/subDiagramModal.js` (the button, clipboard write) |
+| Change "📥 Import from Mermaid" (Create dropdown) | `js/io/importSequenceMermaid.js#parseSequenceMermaid` (pure parser) + `js/core/sequenceDiagram.js#layoutImportedSequenceDiagram` (pure layout) + `js/canvas/canvas.js#createSequenceDiagramFromMermaid` (the only store-touching step) + `js/modals/importSequenceMermaidModal.js` (the wizard) — see docs/ARCHITECTURE.md's "Import from Mermaid" section |
+| Change the sidebar's hover-preview thumbnail for a sequence-diagram template | `js/sidebar/patternPreview.js` (`isSequenceDiagramPattern`/`attachPatternPreview`/`hidePatternPreview`) + `css/sidebar.css`'s `.pattern-preview-*` rules — see docs/ARCHITECTURE.md's own section for the "sidebar rebuilds every item on each keystroke" gotcha before touching the show/hide wiring |
 
 ## Running things locally
 
@@ -533,3 +536,14 @@ npm test
   never overhanging past its edge) — the same class of bug as the
   `positionFloatingRow` anchor-off-screen fix elsewhere in this file, worth
   checking for on any new UI anchored to a sequence-diagram element.
+- **A floating popup anchored to a sidebar item must be explicitly hidden
+  when the sidebar list rebuilds, not left to its own `mouseleave`/`blur`
+  handlers.** `sidebar.js#renderList()` fully tears down and rebuilds every
+  `.sidebar-item` on each keystroke/filter change — an item the mouse is
+  currently over can be removed without the mouse ever "leaving" it, since
+  its target just vanished underneath. `sidebar/patternPreview.js`'s hover-
+  preview thumbnail hit this (a stuck popup after typing in the search box
+  while hovering a template) and fixed it by having `renderList()` call the
+  popup module's exported hide function unconditionally at the top of every
+  rebuild. Worth rechecking for any future feature that anchors a floating
+  element (tooltip, popover, preview) to a sidebar item.

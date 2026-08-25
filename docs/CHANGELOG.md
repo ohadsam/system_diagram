@@ -170,6 +170,57 @@ Gateway, Circuit Breaker, and Saga Coordinator now suggest a relevant new templa
 SSO, Identity Provider, and API Key each gained one more curated pairing alongside their existing
 ones.
 
+## v1.25.0 (2026-08-25)
+
+A fourth sequence-diagram batch: 13 more ready-made templates covering distributed-systems,
+protocol, and deployment scenarios, plus Mermaid import, a second export format (PlantUML), and a
+sidebar hover-preview thumbnail for templates.
+
+**13 new templates**: Two-Phase Commit, Outbox Pattern, Event Sourcing/CQRS Command Flow, gRPC
+Unary Call, GraphQL Query Resolution, Presigned URL File Upload, Kafka Consumer-Group Rebalance,
+Distributed Lock Acquisition, Service Mesh mTLS Handshake, Blue-Green/Canary Deployment Traffic
+Shift, DNS Resolution Flow, Social/Federated Login, and Step-Up Authentication — 36 templates total
+in the "Sequence Diagram Templates" category.
+
+**"📥 Import from Mermaid"** (Create dropdown) — the inverse of "📋 Copy as Mermaid": paste Mermaid
+`sequenceDiagram` text and it becomes a real, grouped set of lifelines and messages, reading
+participants, `->>`/`-)`/`-->>` arrow styles, `activate`/`deactivate`, `destroy`, and
+`alt`/`opt`/`loop`/`par` blocks. Best-effort, not a guaranteed lossless round-trip.
+
+**"📋 Copy as PlantUML"** — a second export format alongside the existing Mermaid one, in the same
+drill-down modal.
+
+**Sidebar hover-preview thumbnail** — hovering (or keyboard-focusing) a Sequence Diagram Templates
+item now shows a small SVG sketch of its lifelines and messages before you drop it in.
+
+**Expanded Smart Suggestions**: gRPC Service, GraphQL Server, Apache Kafka, Redis Cache, DNS,
+Service Mesh, S3, and Spinnaker now suggest a relevant new template.
+
+**Fixed during review**: a sidebar preview popup could be left stuck on screen if the search box
+was typed into while the popup was showing (the hovered item's DOM node is torn down and rebuilt
+on every keystroke, without ever firing its own `mouseleave`) — the sidebar now explicitly hides
+any open preview before rebuilding its list. Also fixed: an edge-lifeline's preview label could
+render with its leading character clipped off (a center-anchored SVG text label on the
+leftmost/rightmost lifeline ran past the preview box's own edge).
+
+## v1.24.0 (2026-08-25)
+
+A third sequence-diagram batch: 10 more ready-made templates spanning auth, resilience,
+messaging, and caching, plus a matching wave of Smart Suggestions pairings.
+
+**10 new templates**: Password Reset Flow, Passwordless Magic Link Login, WebAuthn/Passkey
+Authentication, OAuth Client Credentials (M2M), WebSocket Handshake & Messaging, Webhook Delivery
+with Retry, Circuit Breaker Pattern, Cache-Aside Pattern, Saga Pattern (Choreography), and
+Idempotent Request Handling — 23 templates total in the "Sequence Diagram Templates" category.
+
+**New component**: "WebSocket Server" (Networking) — a real-time full-duplex connection, missing
+from the library until now.
+
+**Expanded Smart Suggestions**: Redis Cache, WebSocket Server, Email Service, Webhook, Payment
+Gateway, Circuit Breaker, and Saga Coordinator now suggest a relevant new template; OAuth/OIDC,
+SSO, Identity Provider, and API Key each gained one more curated pairing alongside their existing
+ones.
+
 ## v1.23.0 (2026-08-24)
 
 A UML-completeness batch for sequence diagrams (destroy markers, activation bars, combined

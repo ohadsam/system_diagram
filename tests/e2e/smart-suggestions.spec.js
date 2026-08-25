@@ -55,12 +55,12 @@ test('the dismiss (✕) button closes the banner without adding anything', async
 });
 
 test('a component with no curated companions shows no banner', async ({ page }) => {
-  // addComponentByName's plain substring search for "DNS" also matches
-  // "Route 53" (tagged 'dns') and can rank it first — Route 53 has its own
-  // curated companions (aws-cloudfront/aws-elb), so this needs the exact
-  // "DNS" item, not whatever the search ranks first (same reasoning as
-  // addExactComponent's own header comment above).
-  await addExactComponent(page, 'DNS');
+  // DNS (net-dns) used to be the example here, but it gained a
+  // relatedPatterns entry (seq-dns-resolution) in a later batch — see
+  // add-library-item skill's own note on this exact kind of breakage.
+  // "External System" (misc-external-system) has no related/relatedLayers/
+  // relatedPatterns of its own and no ambiguous substring match.
+  await addExactComponent(page, 'External System');
   await expect(page.locator('.suggestion-banner')).toHaveCount(0);
 });
 

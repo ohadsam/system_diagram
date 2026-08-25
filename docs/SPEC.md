@@ -869,25 +869,44 @@ followed by a response (or any back-and-forth), read top to bottom as time.
   Flow, Passwordless Magic Link Login, WebAuthn/Passkey Authentication,
   OAuth Client Credentials (M2M), WebSocket Handshake & Messaging, Webhook
   Delivery with Retry, Circuit Breaker Pattern, Cache-Aside Pattern, Saga
-  Pattern (Choreography), and Idempotent Request Handling — clicking or
-  dropping one instantiates the whole lifeline+message cluster at once,
-  already grouped (4.15's drill-down zoom-in works immediately). A relevant
+  Pattern (Choreography), Idempotent Request Handling, Two-Phase Commit,
+  Outbox Pattern, Event Sourcing/CQRS Command Flow, gRPC Unary Call,
+  GraphQL Query Resolution, Presigned URL File Upload, Kafka Consumer-Group
+  Rebalance, Distributed Lock Acquisition, Service Mesh mTLS Handshake,
+  Blue-Green/Canary Deployment Traffic Shift, DNS Resolution Flow,
+  Social/Federated Login, and Step-Up Authentication — 36 templates total —
+  clicking or dropping one instantiates the whole lifeline+message cluster
+  at once, already grouped (4.15's drill-down zoom-in works immediately).
+  Hovering (or keyboard-focusing) a template's sidebar item shows a small
+  SVG preview thumbnail of its lifelines and messages first. A relevant
   template is also offered as a Smart Suggestion (4.12) when placing a
   component like OAuth/OIDC, SSO, Identity Provider, API Gateway, JWT, API
   Key, Cognito, React, Router, Redis Cache, WebSocket Server, Email
-  Service, Webhook, Payment Gateway, Circuit Breaker, or Saga Coordinator —
-  accepting it instantiates the template positioned next to that component
-  (not attached onto it, unlike a layer suggestion) — and a template can be
-  dragged from the sidebar directly onto an existing node for the same
-  effect.
-- **Export as Mermaid**: a sequence diagram's drill-down modal (above) has a
-  "📋 Copy as Mermaid" button — converts its lifelines, messages (mapped to
-  Mermaid's `->>`/`-)`/`-->>` arrow syntax by dash+arrowhead), activation
-  bars (`activate`/`deactivate`), destroy markers (`destroy`), and any
-  fragment box whose bounds overlap the group (`alt`/`opt`/`loop`/`par` ...
-  `end`) into Mermaid `sequenceDiagram` text on the clipboard. Best-effort,
-  not a lossless round-trip — Mermaid has no offset-anchored messages or
+  Service, Webhook, Payment Gateway, Circuit Breaker, Saga Coordinator,
+  gRPC Service, GraphQL Server, Apache Kafka, DNS, Service Mesh, S3, or
+  Spinnaker — accepting it instantiates the template positioned next to
+  that component (not attached onto it, unlike a layer suggestion) — and a
+  template can be dragged from the sidebar directly onto an existing node
+  for the same effect.
+- **Export as Mermaid / PlantUML**: a sequence diagram's drill-down modal
+  (above) has "📋 Copy as Mermaid" and "📋 Copy as PlantUML" buttons — each
+  converts its lifelines, messages (mapped to that format's own sync/async/
+  return arrow syntax by dash+arrowhead), activation bars
+  (`activate`/`deactivate`), destroy markers (`destroy`), and any fragment
+  box whose bounds overlap the group (`alt`/`opt`/`loop`/`par` ... `end`)
+  into that format's text on the clipboard. Best-effort, not a lossless
+  round-trip — neither format has offset-anchored messages or
   freely-positioned fragments of its own.
+- **Import from Mermaid**: the Create dropdown's "📥 Import from Mermaid"
+  wizard is the inverse — paste Mermaid `sequenceDiagram` text (participant
+  declarations are optional; participants are auto-declared from the first
+  message that mentions them) and it becomes a real, grouped set of
+  lifelines and messages on the canvas, reading arrow styles
+  (`->>`/`-)`/`-->>` → sync/async/return), `activate`/`deactivate`,
+  `destroy`, and `alt`/`opt`/`loop`/`par` blocks. Events are spread evenly
+  down the lifelines' height in the order they appear in the text (Mermaid
+  text has no explicit vertical position). Best-effort, not a guaranteed
+  lossless round-trip.
 
 ## 5. Non-functional requirements
 

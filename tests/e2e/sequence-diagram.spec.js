@@ -402,6 +402,14 @@ test('"Copy as Mermaid" in the drill-down modal copies valid sequenceDiagram tex
   expect(clipboardText).toContain('participant P1 as Client');
   expect(clipboardText).toContain('participant P2 as Server');
   expect(clipboardText).toContain(': Ping');
+
+  await page.locator('.subdiagram-modal button', { hasText: '📋 Copy as PlantUML' }).click();
+  const plantUmlText = await page.evaluate(() => navigator.clipboard.readText());
+  expect(plantUmlText).toContain('@startuml');
+  expect(plantUmlText).toContain('@enduml');
+  expect(plantUmlText).toContain('participant "Client" as P1');
+  expect(plantUmlText).toContain('participant "Server" as P2');
+  expect(plantUmlText).toContain(': Ping');
 });
 
 test('an "Alt Fragment" box renders its UML pentagon operator tag and is renamable like any other node', async ({ page }) => {
@@ -635,4 +643,85 @@ test('replicating a sequence-diagram selection mirrors its message onto side B, 
   const sideBNodes = allNodes; // re-query: now 4 lifelines total, sides are nth(0,1)=A and nth(2,3)=B by creation order
   await connectAtHeight(page, sideBNodes.nth(2), sideBNodes.nth(3), 0.6, 0.6);
   await expect.poll(() => edgeCount(page)).toBe(4);
+});
+
+// Batch 4 (this session's third sequence-diagram round): "📥 Import from
+// Mermaid" — the inverse of "📋 Copy as Mermaid", reachable from the same
+// Create dropdown as the wizard above.
+async function openImportMermaidModal(page) {
+  await openToolbarGroup(page, 'Create');
+  await page.locator('#toolbar button', { hasText: 'Import from Mermaid' }).click();
+}
+
+test('"Import from Mermaid" turns pasted sequenceDiagram text into lifelines and messages', async ({ page }) => {
+  await openImportMermaidModal(page);
+  await page.locator('.import-sequence-mermaid-modal textarea').fill(
+    'sequenceDiagram\n' +
+    '    participant Client\n' +
+    '    participant Server\n' +
+    '    Client->>Server: GET /data\n' +
+    '    Server-->>Client: 200 OK'
+  );
+  await page.locator('.import-sequence-mermaid-modal button', { hasText: '📥 Import' }).click();
+  await expect(page.locator('.import-sequence-mermaid-modal')).toBeHidden();
+
+  await expect.poll(() => nodeCount(page)).toBe(2);
+  const nodes = page.locator('.node[data-shape="lifeline"]');
+  await expect(nodes.nth(0)).toContainText('Client');
+  await expect(nodes.nth(1)).toContainText('Server');
+  await expect.poll(() => edgeCount(page)).toBe(2);
+  await expect(page.locator('.group-bg-zoom')).toHaveCount(1); // grouped like the wizard's own output
+});
+
+test('"Import from Mermaid" shows an error and creates nothing for text with no participants', async ({ page }) => {
+  await openImportMermaidModal(page);
+  await page.locator('.import-sequence-mermaid-modal textarea').fill('not mermaid text');
+  await page.locator('.import-sequence-mermaid-modal button', { hasText: '📥 Import' }).click();
+  await expect(page.locator('.import-sequence-mermaid-modal .sequence-diagram-error')).toBeVisible();
+  await expect.poll(() => nodeCount(page)).toBe(0);
+});
+
+test('hovering a sequence-diagram template in the sidebar shows a preview thumbnail, which disappears on mouseleave', async ({ page }) => {
+  await page.locator('.sidebar-search input').fill('PKCE Authorization Flow');
+  await page.waitForTimeout(150);
+  const templateItem = page.locator('.sidebar-item[data-name="PKCE Authorization Flow"]');
+  await templateItem.scrollIntoViewIfNeeded();
+  await expect(page.locator('.pattern-preview-popup')).toHaveCount(0);
+
+  await templateItem.hover();
+  await expect(page.locator('.pattern-preview-popup')).toBeVisible();
+  // PKCE Authorization Flow has 3 lifelines and 8 messages (see
+  // data/categories/sequence-templates.js's seq-pkce-flow definition).
+  await expect(page.locator('.pattern-preview-lifeline')).toHaveCount(3);
+  await expect(page.locator('.pattern-preview-message')).toHaveCount(8);
+
+  await page.mouse.move(0, 0);
+  await expect(page.locator('.pattern-preview-popup')).toHaveCount(0);
+});
+
+test('typing in the sidebar search while a preview thumbnail is showing does not leave it stuck on screen', async ({ page }) => {
+  await page.locator('.sidebar-search input').fill('PKCE Authorization Flow');
+  await page.waitForTimeout(150);
+  const templateItem = page.locator('.sidebar-item[data-name="PKCE Authorization Flow"]');
+  await templateItem.scrollIntoViewIfNeeded();
+  await templateItem.hover();
+  await expect(page.locator('.pattern-preview-popup')).toBeVisible();
+
+  // Narrowing the search re-renders the sidebar list (sidebar.js#renderList
+  // tears down and rebuilds every item), removing the hovered item's DOM
+  // node without the mouse ever actually leaving it — the popup must not
+  // be left orphaned on screen.
+  await page.locator('.sidebar-search input').fill('PKCE Authorization Flow Nonexistent');
+  await page.waitForTimeout(150);
+  await expect(page.locator('.pattern-preview-popup')).toHaveCount(0);
+});
+
+test('hovering a plain (non-sequence-diagram) sidebar item shows no preview thumbnail', async ({ page }) => {
+  await page.locator('.sidebar-search input').fill('Load Balancer');
+  await page.waitForTimeout(150);
+  const item = page.locator('.sidebar-item[data-name="Load Balancer"]').first();
+  await item.scrollIntoViewIfNeeded();
+  await item.hover();
+  await page.waitForTimeout(400); // longer than the preview's own show delay
+  await expect(page.locator('.pattern-preview-popup')).toHaveCount(0);
 });

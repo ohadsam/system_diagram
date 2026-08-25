@@ -37,6 +37,7 @@ import { openBackupModal } from '../modals/backupModal.js';
 import { openWhatsNewModal } from '../modals/whatsNewModal.js';
 import { openReplicationModal } from '../modals/replicationModal.js';
 import { openSequenceDiagramModal } from '../modals/sequenceDiagramModal.js';
+import { openImportSequenceMermaidModal } from '../modals/importSequenceMermaidModal.js';
 import { openScaleDiagramModal } from '../modals/scaleDiagramModal.js';
 // Registers this modal's `sdb:open-subdiagram` window listener (see
 // modals/subDiagramModal.js) — reached from the 🔍 icon on a sequence-
@@ -383,8 +384,9 @@ function buildCreateGroupButtons() {
   const generateDesignBtn = el('button', { type: 'button', class: 'btn', title: 'Generate a design from a spec, with AI help', text: '🧠 Generate Design', onClick: openGenerateDesignModal });
   const replicateBtn = el('button', { type: 'button', class: 'btn', title: 'Replicate: link components to auto-mirror across two sides', text: '🔁 Replicate', onClick: openReplicationModal });
   const sequenceDiagramBtn = el('button', { type: 'button', class: 'btn', title: 'Create a sequence/communication-flow diagram: titled lifelines with messages between them', text: '🔀 Sequence Diagram', onClick: openSequenceDiagramModal });
+  const importMermaidBtn = el('button', { type: 'button', class: 'btn', title: 'Import a sequence diagram from pasted Mermaid sequenceDiagram text', text: '📥 Import from Mermaid', onClick: openImportSequenceMermaidModal });
   const defaultsBtn = el('button', { type: 'button', class: 'btn', title: 'Default settings for new components', text: '🎛️ Default Settings', onClick: openDefaultSettingsModal });
-  return [newComponentBtn, generateDesignBtn, replicateBtn, sequenceDiagramBtn, defaultsBtn];
+  return [newComponentBtn, generateDesignBtn, replicateBtn, sequenceDiagramBtn, importMermaidBtn, defaultsBtn];
 }
 
 function buildToolsGroupButtons() {

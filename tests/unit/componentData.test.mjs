@@ -184,7 +184,7 @@ test('getRelatedPatterns resolves ids to real pattern defs and is empty/safe for
     assert.equal(pattern.kind, 'pattern');
   }
   assert.deepEqual(getRelatedPatterns('does-not-exist'), []);
-  assert.deepEqual(getRelatedPatterns('net-dns'), []);
+  assert.deepEqual(getRelatedPatterns('net-firewall'), []); // a real component with no curated relatedPatterns list
 });
 
 test('getRelatedLayers resolves ids to real layer defs and is empty/safe for components with none', () => {

@@ -5,7 +5,7 @@ import * as store from '../core/store.js';
 import { createEdge, nextZIndex, removeNode as removeNodeFromProject, removeEdge as removeEdgeFromProject, createNode, duplicateProject } from '../core/project.js';
 import { buildReplicationPair } from '../core/replication.js';
 import { computeAutoLayout } from '../core/autoLayout.js';
-import { layoutLifelines, distributeLifelineColumns, distributeMessages, GAP as LIFELINE_GAP } from '../core/sequenceDiagram.js';
+import { layoutLifelines, distributeLifelineColumns, distributeMessages, layoutImportedSequenceDiagram, GAP as LIFELINE_GAP } from '../core/sequenceDiagram.js';
 import { scaleNodes } from '../core/scaleDiagram.js';
 import { getComponentById } from '../data/index.js';
 import { getCustomComponents } from '../io/customComponents.js';
@@ -664,6 +664,54 @@ export function createSequenceDiagram(names) {
   });
   store.select(newNodes.map((n) => n.id), []);
   showToast(`Created a sequence diagram with ${newNodes.length} lifelines — drag between two lifelines to draw a message.`, 'success', 3200);
+}
+
+const FRAGMENT_DEF_ID = { alt: 'shape-fragment-alt', opt: 'shape-fragment-opt', loop: 'shape-fragment-loop', par: 'shape-fragment-par' };
+
+/** Turns parsed Mermaid `sequenceDiagram` text (io/importSequenceMermaid.js)
+ * into a real, grouped sequence diagram — lifelines, messages, activation
+ * bars, destroy markers, and alt/opt/loop/par fragment boxes — the inverse
+ * of "📋 Copy as Mermaid" (io/exportSequenceMermaid.js). Returns the number
+ * of lifelines created, or 0 if `parsed` was empty/invalid, so the caller
+ * (modals/importSequenceMermaidModal.js) can show an error instead of a
+ * silent no-op. */
+export function createSequenceDiagramFromMermaid(parsed) {
+  if (!parsed?.participants?.length) return 0;
+  const def = resolveComponentDef('shape-lifeline');
+  if (!def) return 0;
+  const point = screenCenterCanvasPoint();
+  const state = store.getState();
+  let z = nextZIndex(state);
+
+  const layout = layoutImportedSequenceDiagram(parsed, point.x, point.y - def.defaultSize.h / 2, def.defaultSize);
+  const groupId = layout.lifelines.length > 1 ? nextId('group') : null;
+  const newNodes = layout.lifelines.map((spec, i) => createNode(def, spec.x, spec.y, {
+    zIndex: z++,
+    text: spec.text,
+    groupId,
+    activations: layout.activations[i],
+    destroyOffset: layout.destroys[i],
+  }));
+  const idByParticipantId = new Map(parsed.participants.map((p, i) => [p.id, newNodes[i].id]));
+
+  const newEdges = layout.edges
+    .filter((e) => idByParticipantId.has(e.fromId) && idByParticipantId.has(e.toId))
+    .map((e) => createEdge(idByParticipantId.get(e.fromId), idByParticipantId.get(e.toId), e.overrides));
+
+  const fragmentNodes = layout.fragments
+    .map((f) => {
+      const fdef = resolveComponentDef(FRAGMENT_DEF_ID[f.type]);
+      return fdef ? createNode(fdef, f.x, f.y, { zIndex: z++, text: f.label, w: f.w, h: f.h }) : null;
+    })
+    .filter(Boolean);
+
+  store.dispatch((draft) => {
+    draft.nodes.push(...newNodes, ...fragmentNodes);
+    draft.edges.push(...newEdges);
+  });
+  store.select(newNodes.map((n) => n.id), []);
+  showToast(`Imported a sequence diagram with ${newNodes.length} lifelines and ${newEdges.length} messages.`, 'success', 3200);
+  return newNodes.length;
 }
 
 /** Quick "add one more participant" for an existing sequence diagram (right-

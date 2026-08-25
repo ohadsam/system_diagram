@@ -2,9 +2,20 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.24.0';
+export const APP_VERSION = '1.25.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.25.0',
+    date: '2026-08-25',
+    highlights: [
+      '13 more Sequence Diagram Templates: Two-Phase Commit, Outbox Pattern, Event Sourcing/CQRS Command Flow, gRPC Unary Call, GraphQL Query Resolution, Presigned URL File Upload, Kafka Consumer-Group Rebalance, Distributed Lock Acquisition, Service Mesh mTLS Handshake, Blue-Green/Canary Deployment Traffic Shift, DNS Resolution Flow, Social/Federated Login, and Step-Up Authentication.',
+      '"📥 Import from Mermaid" (Create dropdown) — paste Mermaid sequenceDiagram text and it becomes a real, grouped set of lifelines and messages (including activate/deactivate, destroy, and alt/opt/loop/par), the inverse of "📋 Copy as Mermaid".',
+      '"📋 Copy as PlantUML" alongside the existing "📋 Copy as Mermaid" button in a sequence diagram\'s drill-down view — a second export format.',
+      'Hovering a Sequence Diagram Templates item in the sidebar now shows a small preview thumbnail of its lifelines and messages before you drop it in.',
+      'More components suggest a relevant sequence-diagram template in the Smart Suggestions banner: gRPC Service, GraphQL Server, Apache Kafka, Redis Cache, DNS, Service Mesh, S3, and Spinnaker.',
+    ],
+  },
   {
     version: '1.24.0',
     date: '2026-08-25',

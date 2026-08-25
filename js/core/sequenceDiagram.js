@@ -92,3 +92,125 @@ export function distributeMessages(nodes, edges) {
   }
   return updates;
 }
+
+// Same margin idea as OFFSET_MARGIN above, kept separate since an imported
+// diagram's event count (and therefore its ideal margin) has nothing to do
+// with the "Distribute evenly" action's.
+const IMPORT_OFFSET_MARGIN = 0.05;
+
+const MESSAGE_STYLE_OVERRIDES = {
+  sync: { dash: 'solid', endArrow: 'filled' },
+  async: { dash: 'solid', endArrow: 'open' },
+  return: { dash: 'dashed', endArrow: 'open' },
+};
+
+/**
+ * Pure layout for io/importSequenceMermaid.js's parsed
+ * `{participants, events}` — turns it into lifeline rects (same shape
+ * layoutLifelines returns), message edge specs, per-participant activation
+ * bars, per-participant destroy offsets, and combined-fragment box rects.
+ * No DOM/store access — canvas.js#createSequenceDiagramFromMermaid does the
+ * actual node/edge creation from this. Events are read top-to-bottom and
+ * spread evenly down the lifelines' height in that order (Mermaid text has
+ * no explicit vertical position, only line order) — a self-message and an
+ * activate/deactivate pair each consume their own slot in that order, same
+ * as a plain message would.
+ *
+ * @param {{participants:{id:string,label:string}[], events:object[]}} parsed
+ * @param {number} centerX canvas-space x to center the lifeline row on
+ * @param {number} centerY canvas-space y for the top of every lifeline
+ * @param {{w:number,h:number}} size each lifeline's size
+ */
+export function layoutImportedSequenceDiagram(parsed, centerX, centerY, size) {
+  const { participants, events } = parsed;
+  const lifelines = layoutLifelines(participants.map((p) => p.label), centerX, centerY, size);
+  const idToIndex = new Map(participants.map((p, i) => [p.id, i]));
+
+  let totalUnits = 0;
+  const unitOf = events.map((ev) => {
+    const unit = totalUnits;
+    totalUnits += (ev.kind === 'message' && ev.from === ev.to) ? 2 : 1;
+    return unit;
+  });
+  const step = totalUnits > 1 ? (1 - 2 * IMPORT_OFFSET_MARGIN) / (totalUnits - 1) : 0;
+  const offsetFor = (unit) => (totalUnits > 1 ? IMPORT_OFFSET_MARGIN + unit * step : 0.5);
+
+  const edges = [];
+  const activations = participants.map(() => []);
+  const activationStarts = new Map();
+  const destroys = participants.map(() => null);
+  const openFragments = [];
+  const fragments = [];
+
+  events.forEach((ev, i) => {
+    const unit = unitOf[i];
+    if (ev.kind === 'message') {
+      const isSelf = ev.from === ev.to;
+      const fromOffset = offsetFor(unit);
+      const toOffset = isSelf ? offsetFor(unit + 1) : fromOffset;
+      edges.push({
+        fromId: ev.from,
+        toId: ev.to,
+        overrides: {
+          label: ev.label,
+          routing: 'straight',
+          fromOffset,
+          toOffset,
+          startArrow: 'none',
+          ...MESSAGE_STYLE_OVERRIDES[ev.style],
+          ...(isSelf ? { fromSide: 'right', toSide: 'right' } : {}),
+        },
+      });
+      const fromIdx = idToIndex.get(ev.from);
+      const toIdx = idToIndex.get(ev.to);
+      for (const f of openFragments) { f.participantIdxs.add(fromIdx); f.participantIdxs.add(toIdx); }
+    } else if (ev.kind === 'activate') {
+      const idx = idToIndex.get(ev.id);
+      if (idx == null) return;
+      if (!activationStarts.has(idx)) activationStarts.set(idx, []);
+      activationStarts.get(idx).push(offsetFor(unit));
+    } else if (ev.kind === 'deactivate') {
+      const idx = idToIndex.get(ev.id);
+      const stack = idx == null ? null : activationStarts.get(idx);
+      const start = stack && stack.length ? stack.pop() : null;
+      if (start != null) activations[idx].push({ startOffset: start, endOffset: offsetFor(unit) });
+    } else if (ev.kind === 'destroy') {
+      const idx = idToIndex.get(ev.id);
+      if (idx != null) destroys[idx] = offsetFor(unit);
+    } else if (ev.kind === 'fragmentStart') {
+      openFragments.push({ type: ev.type, label: ev.label, startUnit: unit, participantIdxs: new Set() });
+    } else if (ev.kind === 'fragmentEnd') {
+      const frag = openFragments.pop();
+      if (frag) fragments.push({ ...frag, endUnit: unit });
+    }
+  });
+  // An `alt`/`opt`/`loop`/`par` with no matching `end` still gets drawn,
+  // closing at the last event rather than being silently dropped.
+  while (openFragments.length) {
+    fragments.push({ ...openFragments.pop(), endUnit: totalUnits > 0 ? totalUnits - 1 : 0 });
+  }
+
+  const X_MARGIN = 40;
+  const Y_PADDING = 30;
+  const MIN_W = 220;
+  const MIN_H = 80;
+  const fragmentRects = fragments.map((f) => {
+    const idxs = f.participantIdxs.size ? [...f.participantIdxs] : lifelines.map((_, i) => i);
+    const minIdx = Math.min(...idxs);
+    const maxIdx = Math.max(...idxs);
+    const left = lifelines[minIdx].x - X_MARGIN;
+    const right = lifelines[maxIdx].x + lifelines[maxIdx].w + X_MARGIN;
+    const top = centerY + offsetFor(f.startUnit) * size.h - Y_PADDING;
+    const bottom = centerY + offsetFor(f.endUnit) * size.h + Y_PADDING;
+    return {
+      type: f.type,
+      label: f.label,
+      x: left,
+      y: top,
+      w: Math.max(right - left, MIN_W),
+      h: Math.max(bottom - top, MIN_H),
+    };
+  });
+
+  return { lifelines, edges, activations, destroys, fragments: fragmentRects };
+}

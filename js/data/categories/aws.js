@@ -83,7 +83,7 @@ export const components = [
   c('aws-region-ap-northeast-1', 'Region: Asia Pacific (Tokyo)', '🌏', { shape: 'rect', color: AWS, tags: ['region', 'ap-northeast-1', 'multi-region', 'geography'], description: 'Region boundary — ap-northeast-1.', defaultSize: { w: 340, h: 240 } }),
   c('aws-rekognition', 'Rekognition', '👁️', { color: AWS, tags: ['ai', 'vision'] }),
   c('aws-route53', 'Route 53', '🧭', { color: AWS, tags: ['dns', 'networking'], related: ['aws-cloudfront', 'aws-elb'] }),
-  c('aws-s3', 'S3 (Simple Storage Service)', '🪣', { popular: true, color: AWS, tags: ['storage', 'object'], related: ['net-cdn', 'aws-cloudfront'] }),
+  c('aws-s3', 'S3 (Simple Storage Service)', '🪣', { popular: true, color: AWS, tags: ['storage', 'object'], related: ['net-cdn', 'aws-cloudfront'], relatedPatterns: ['seq-presigned-upload'] }),
   c('aws-sagemaker', 'SageMaker', '🧠', { color: AWS, tags: ['ai', 'ml'] }),
   c('aws-secrets-manager', 'Secrets Manager', '🤫', { color: AWS, tags: ['security', 'secrets'] }),
   c('aws-ses', 'SES (Simple Email Service)', '📧', { color: AWS, tags: ['email', 'messaging'] }),

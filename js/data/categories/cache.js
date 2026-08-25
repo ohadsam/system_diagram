@@ -10,7 +10,7 @@ export const components = [
   c('cache-hazelcast', 'Hazelcast', '🧠', { shape: 'cylinder', color: CA }),
   c('cache-memcached', 'Memcached', '📦', { shape: 'cylinder', color: CA }),
   c('cache-memory', 'In-Memory Cache', '💾', { shape: 'cylinder', color: CA }),
-  c('cache-redis', 'Redis Cache', '🧵', { popular: true, shape: 'cylinder', color: '#DC382D', relatedPatterns: ['seq-cache-aside'] }),
+  c('cache-redis', 'Redis Cache', '🧵', { popular: true, shape: 'cylinder', color: '#DC382D', relatedPatterns: ['seq-cache-aside', 'seq-distributed-lock'] }),
   c('cache-reverse-proxy', 'Reverse Proxy Cache', '🛡️', { color: CA }),
   c('cache-varnish', 'Varnish', '🐆', { color: CA }),
 ];

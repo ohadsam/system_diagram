@@ -171,14 +171,19 @@ Or open `index.html` directly in a browser.
   Selecting a message offers sync/async/return style presets; right-click a
   lifeline for a UML "destroy" marker (an X where it terminates) or a
   draggable activation bar (execution occurrence); four "Fragment" shapes
-  (Alt/Opt/Loop/Par) add UML combined-fragment boxes; "📋 Copy as Mermaid"
-  in the drill-down view exports the diagram as Mermaid `sequenceDiagram`
-  text. 23 ready-made templates (Login Flow, OAuth Handshake, PKCE, SCIM,
-  MFA, RBAC/ABAC, SSO, SPA Silent Refresh, API Key Auth, TCP/UDP, Password
+  (Alt/Opt/Loop/Par) add UML combined-fragment boxes; "📋 Copy as Mermaid" /
+  "📋 Copy as PlantUML" in the drill-down view export the diagram as text,
+  and "📥 Import from Mermaid" (Create dropdown) does the reverse — paste
+  Mermaid `sequenceDiagram` text and it becomes a real, grouped diagram.
+  36 ready-made templates (Login Flow, OAuth Handshake, PKCE, SCIM, MFA,
+  RBAC/ABAC, SSO, SPA Silent Refresh, API Key Auth, TCP/UDP, Password
   Reset, Magic Link Login, WebAuthn/Passkey, Circuit Breaker, Cache-Aside,
-  Saga, and more) are also offered as a Smart Suggestion for relevant
+  Saga, Two-Phase Commit, Outbox, Event Sourcing/CQRS, gRPC, GraphQL,
+  DNS Resolution, and more) — hover one in the sidebar for a preview
+  thumbnail first — are also offered as a Smart Suggestion for relevant
   components (OAuth, SSO, API Gateway, JWT, Redis Cache, WebSocket Server,
-  ...) and can be dragged from the sidebar directly onto an existing node.
+  gRPC, GraphQL, Kafka, DNS, ...) and can be dragged from the sidebar
+  directly onto an existing node.
 - **📐 Scale Diagram** — permanently resize every component and its text
   together by a chosen percentage, distinct from zooming the view.
 - **Export** — PNG and PDF snapshots of your diagram.

@@ -8,7 +8,7 @@ export const components = [
   c('mq-activemq', 'ActiveMQ', '📮', { color: MQ }),
   c('mq-eventbridge-generic', 'Event Bus', '🚌', { color: MQ }),
   c('mq-google-pubsub', 'Google Pub/Sub', '📡', { color: '#4285F4' }),
-  c('mq-kafka', 'Apache Kafka', '🪵', { popular: true, color: '#231F20', related: ['db-elasticsearch'] }),
+  c('mq-kafka', 'Apache Kafka', '🪵', { popular: true, color: '#231F20', related: ['db-elasticsearch'], relatedPatterns: ['seq-outbox-pattern', 'seq-kafka-rebalance'] }),
   c('mq-mqtt', 'MQTT Broker', '📶', { color: MQ }),
   c('mq-nats', 'NATS', '✉️', { color: MQ }),
   c('mq-pulsar', 'Apache Pulsar', '🌟', { color: '#188FFF' }),

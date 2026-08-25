@@ -14,6 +14,7 @@ import {
 import { el, clear } from '../utils/dom.js';
 import { filterComponents, normalize, componentMatches } from './search.js';
 import { makeDraggable } from './dragSource.js';
+import { attachPatternPreview, isSequenceDiagramPattern, hidePatternPreview } from './patternPreview.js';
 import { showContextMenu } from '../canvas/contextMenu.js';
 import { confirmAction } from '../modals/confirmModal.js';
 import { promptText } from '../modals/promptModal.js';
@@ -112,6 +113,7 @@ function renderList() {
   // out-of-range scrollTop (e.g. after a search narrows the list) is a
   // harmless no-op clamp, so this is safe for every call site.
   const savedScrollTop = listEl.scrollTop;
+  hidePatternPreview(); // an item a preview popup is anchored to is about to be torn down below
   clear(listEl);
   const q = normalize(query);
   const custom = getCustomComponents();
@@ -459,6 +461,7 @@ function renderItem(def, q, opts = {}) {
   if (isFavorite(def.id)) item.appendChild(el('span', { class: 'item-favorite-badge', text: '🔖', title: 'In your Favorites', 'aria-hidden': 'true' }));
   if (def.kind === 'layer') item.appendChild(el('span', { class: 'item-kind-badge kind-layer', text: '+', title: 'Can attach to a component', 'aria-hidden': 'true' }));
   if (def.kind === 'pattern') item.appendChild(el('span', { class: 'item-kind-badge kind-pattern', text: '⎈', title: 'Adds a group of components', 'aria-hidden': 'true' }));
+  if (isSequenceDiagramPattern(def)) attachPatternPreview(item, def);
 
   makeDraggable(item, def.id);
   item.addEventListener('keydown', (e) => {
