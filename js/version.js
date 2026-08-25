@@ -2,9 +2,18 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.23.0';
+export const APP_VERSION = '1.24.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.24.0',
+    date: '2026-08-25',
+    highlights: [
+      '10 more Sequence Diagram Templates: Password Reset Flow, Passwordless Magic Link Login, WebAuthn/Passkey Authentication, OAuth Client Credentials (M2M), WebSocket Handshake & Messaging, Webhook Delivery with Retry, Circuit Breaker Pattern, Cache-Aside Pattern, Saga Pattern (Choreography), and Idempotent Request Handling.',
+      'New "WebSocket Server" component (Networking).',
+      'More components now suggest a relevant sequence-diagram template in the Smart Suggestions banner: Redis Cache, WebSocket Server, Email Service, Webhook, Payment Gateway, Circuit Breaker, Saga Coordinator, plus expanded suggestions on OAuth/OIDC, SSO, Identity Provider, and API Key.',
+    ],
+  },
   {
     version: '1.23.0',
     date: '2026-08-24',

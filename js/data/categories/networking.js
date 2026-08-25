@@ -19,4 +19,5 @@ export const components = [
   c('net-subnet', 'Subnet', '🔲', { shape: 'rect', color: NW, defaultSize: { w: 220, h: 140 } }),
   c('net-vpn-gateway', 'VPN Gateway', '🔐', { color: NW }),
   c('net-vpc', 'Virtual Network / VPC', '🕸️', { shape: 'rect', color: NW, defaultSize: { w: 260, h: 180 } }),
+  c('net-websocket', 'WebSocket Server', '🔌', { color: NW, description: 'A persistent, full-duplex connection for real-time push (chat, live updates, notifications) — upgraded from an ordinary HTTP request.', tags: ['realtime', 'websocket'], relatedPatterns: ['seq-websocket-handshake'] }),
 ];

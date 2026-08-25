@@ -116,10 +116,10 @@ test('a component with both companion and sub-component suggestions shows both r
 // suggestion, instantiated as a whole grouped diagram next to the node
 // rather than attached onto it the way a `relatedLayers` layer is.
 test('placing a component with curated sequence-diagram suggestions shows a "Sequence diagrams" row, and accepting one instantiates the full grouped template next to it', async ({ page }) => {
-  await addExactComponent(page, 'OAuth / OIDC'); // sec-oauth: relatedPatterns = seq-oauth-handshake, seq-pkce-flow
+  await addExactComponent(page, 'OAuth / OIDC'); // sec-oauth: relatedPatterns = seq-oauth-handshake, seq-pkce-flow, seq-oauth-client-credentials
   await expect(page.locator('.suggestion-banner')).toBeVisible();
   await expect(page.locator('.suggestion-banner')).toContainText('Sequence diagrams for OAuth / OIDC');
-  await expect(page.locator('.suggestion-banner-btn-pattern')).toHaveCount(2);
+  await expect(page.locator('.suggestion-banner-btn-pattern')).toHaveCount(3);
 
   await page.locator('.suggestion-banner-btn-pattern', { hasText: 'PKCE Authorization Flow' }).click();
   await expect(page.locator('.suggestion-banner')).toBeHidden();
@@ -129,4 +129,28 @@ test('placing a component with curated sequence-diagram suggestions shows a "Seq
   await expect.poll(() => nodeCount(page)).toBe(4);
   await expect(page.locator('.node[data-shape="lifeline"]')).toHaveCount(3);
   await expect(page.locator('.group-bg-zoom')).toHaveCount(1);
+});
+
+// Batch 3 (this session's second sequence-diagram round): new relatedPatterns
+// pairings for the resilience/messaging/caching templates added alongside
+// the second wave of auth templates above.
+test('Redis Cache suggests the Cache-Aside Pattern template', async ({ page }) => {
+  await addExactComponent(page, 'Redis Cache');
+  await expect(page.locator('.suggestion-banner')).toBeVisible();
+  await expect(page.locator('.suggestion-banner-btn-pattern', { hasText: 'Cache-Aside Pattern' })).toBeVisible();
+
+  await page.locator('.suggestion-banner-btn-pattern', { hasText: 'Cache-Aside Pattern' }).click();
+  await expect(page.locator('.suggestion-banner')).toBeHidden();
+  await expect.poll(() => nodeCount(page)).toBe(5); // 1 Redis node + Cache-Aside's 4 lifelines
+  await expect(page.locator('.group-bg-zoom')).toHaveCount(1);
+});
+
+test('WebSocket Server suggests the WebSocket Handshake & Messaging template', async ({ page }) => {
+  await addExactComponent(page, 'WebSocket Server');
+  await expect(page.locator('.suggestion-banner')).toBeVisible();
+  await expect(page.locator('.suggestion-banner-btn-pattern', { hasText: 'WebSocket Handshake & Messaging' })).toBeVisible();
+
+  await page.locator('.suggestion-banner-btn-pattern', { hasText: 'WebSocket Handshake & Messaging' }).click();
+  await expect(page.locator('.suggestion-banner')).toBeHidden();
+  await expect.poll(() => nodeCount(page)).toBe(3); // 1 WebSocket Server node + the template's 2 lifelines
 });

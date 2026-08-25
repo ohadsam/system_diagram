@@ -463,6 +463,31 @@ test('the new auth/identity/networking templates (PKCE, MFA, RBAC, ABAC, SSO, SC
   await expect(page.locator('.group-bg')).toHaveCount(templates.length);
 });
 
+test('the second batch of new templates (Password Reset, Magic Link, WebAuthn, Client Credentials, WebSocket, Webhook, Circuit Breaker, Cache-Aside, Saga, Idempotency) all instantiate as grouped sequence diagrams', async ({ page }) => {
+  const templates = [
+    ['Password Reset Flow', 4, 9],
+    ['Passwordless Magic Link Login', 3, 7],
+    ['WebAuthn / Passkey Authentication', 3, 8],
+    ['OAuth Client Credentials (M2M)', 3, 7],
+    ['WebSocket Handshake & Messaging', 2, 7],
+    ['Webhook Delivery with Retry', 2, 8],
+    ['Circuit Breaker Pattern', 3, 9],
+    ['Cache-Aside Pattern', 4, 9],
+    ['Saga Pattern (Choreography)', 3, 9],
+    ['Idempotent Request Handling', 3, 9],
+  ];
+  let expectedNodes = 0;
+  let expectedEdges = 0;
+  for (const [name, lifelineCount, messageCount] of templates) {
+    await addComponentByName(page, name);
+    expectedNodes += lifelineCount;
+    expectedEdges += messageCount;
+    await expect.poll(() => nodeCount(page)).toBe(expectedNodes);
+    await expect.poll(() => edgeCount(page)).toBe(expectedEdges);
+  }
+  await expect(page.locator('.group-bg')).toHaveCount(templates.length);
+});
+
 test('dragging a "Sequence Diagram Templates" pattern onto an existing node instantiates it positioned next to that node', async ({ page }) => {
   await addComponentByName(page, 'API Gateway');
   await expect.poll(() => nodeCount(page)).toBe(1);

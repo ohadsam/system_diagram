@@ -528,8 +528,8 @@ each candidate message's two endpoint anchor points). This mirrors the same
 
 ### Ready-made templates + Smart Suggestions for patterns (`data/categories/sequence-templates.js`, `data/index.js#getRelatedPatterns`, `canvas/suggestions.js`, `canvas.js#instantiatePatternNearNode`)
 
-The 13 sequence-diagram templates (Login Flow, OAuth Handshake, ..., UDP
-Request/Response) are ordinary `definePattern(...)` entries — the exact
+The 23 sequence-diagram templates (Login Flow, OAuth Handshake, ..., Saga
+Pattern (Choreography), Idempotent Request Handling) are ordinary `definePattern(...)` entries — the exact
 same "instantiate a whole blueprint at once" mechanism `design-patterns.js`
 already uses for e.g. the API Gateway pattern, with `groupOnInstantiate:
 true` (schema.js) so the result lands as a real group immediately (🔍

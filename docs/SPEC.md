@@ -861,19 +861,25 @@ followed by a response (or any back-and-forth), read top to bottom as time.
   (its own label). One condition per box — no alt/else divider line.
   Drop one behind the messages it encloses (right-click → Send to back).
 - **Ready-made sequence-diagram templates**: the "Sequence Diagram
-  Templates" sidebar category also offers whole ready-made flows (Login
+  Templates" sidebar category also offers whole ready-made flows — Login
   Flow, OAuth Handshake, Checkout Flow, Retry with Backoff, PKCE
   Authorization Flow, SCIM User Provisioning, MFA Challenge, RBAC/ABAC
   Authorization Checks, SSO (SAML/OIDC), SPA Silent Token Refresh, API Key
-  Authentication, TCP 3-Way Handshake, UDP Request/Response) — clicking or
+  Authentication, TCP 3-Way Handshake, UDP Request/Response, Password Reset
+  Flow, Passwordless Magic Link Login, WebAuthn/Passkey Authentication,
+  OAuth Client Credentials (M2M), WebSocket Handshake & Messaging, Webhook
+  Delivery with Retry, Circuit Breaker Pattern, Cache-Aside Pattern, Saga
+  Pattern (Choreography), and Idempotent Request Handling — clicking or
   dropping one instantiates the whole lifeline+message cluster at once,
   already grouped (4.15's drill-down zoom-in works immediately). A relevant
   template is also offered as a Smart Suggestion (4.12) when placing a
   component like OAuth/OIDC, SSO, Identity Provider, API Gateway, JWT, API
-  Key, Cognito, React, or Router — accepting it instantiates the template
-  positioned next to that component (not attached onto it, unlike a layer
-  suggestion) — and a template can be dragged from the sidebar directly onto
-  an existing node for the same effect.
+  Key, Cognito, React, Router, Redis Cache, WebSocket Server, Email
+  Service, Webhook, Payment Gateway, Circuit Breaker, or Saga Coordinator —
+  accepting it instantiates the template positioned next to that component
+  (not attached onto it, unlike a layer suggestion) — and a template can be
+  dragged from the sidebar directly onto an existing node for the same
+  effect.
 - **Export as Mermaid**: a sequence diagram's drill-down modal (above) has a
   "📋 Copy as Mermaid" button — converts its lifelines, messages (mapped to
   Mermaid's `->>`/`-)`/`-->>` arrow syntax by dash+arrowhead), activation

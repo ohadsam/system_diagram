@@ -152,6 +152,24 @@ user-facing fix or feature, alongside this changelog.
   value `'magic'`, also chooseable for any existing connector from its
   style editor.
 
+## v1.24.0 (2026-08-25)
+
+A third sequence-diagram batch: 10 more ready-made templates spanning auth, resilience,
+messaging, and caching, plus a matching wave of Smart Suggestions pairings.
+
+**10 new templates**: Password Reset Flow, Passwordless Magic Link Login, WebAuthn/Passkey
+Authentication, OAuth Client Credentials (M2M), WebSocket Handshake & Messaging, Webhook Delivery
+with Retry, Circuit Breaker Pattern, Cache-Aside Pattern, Saga Pattern (Choreography), and
+Idempotent Request Handling — 23 templates total in the "Sequence Diagram Templates" category.
+
+**New component**: "WebSocket Server" (Networking) — a real-time full-duplex connection, missing
+from the library until now.
+
+**Expanded Smart Suggestions**: Redis Cache, WebSocket Server, Email Service, Webhook, Payment
+Gateway, Circuit Breaker, and Saga Coordinator now suggest a relevant new template; OAuth/OIDC,
+SSO, Identity Provider, and API Key each gained one more curated pairing alongside their existing
+ones.
+
 ## v1.23.0 (2026-08-24)
 
 A UML-completeness batch for sequence diagrams (destroy markers, activation bars, combined
