@@ -38,6 +38,9 @@ import { openWhatsNewModal } from '../modals/whatsNewModal.js';
 import { openReplicationModal } from '../modals/replicationModal.js';
 import { openSequenceDiagramModal } from '../modals/sequenceDiagramModal.js';
 import { openImportSequenceMermaidModal } from '../modals/importSequenceMermaidModal.js';
+import { openExportDiagramModal } from '../modals/exportDiagramModal.js';
+import { openShareLinkModal } from '../modals/shareLinkModal.js';
+import { openDiagramLintModal } from '../modals/diagramLintModal.js';
 import { openScaleDiagramModal } from '../modals/scaleDiagramModal.js';
 // Registers this modal's `sdb:open-subdiagram` window listener (see
 // modals/subDiagramModal.js) — reached from the 🔍 icon on a sequence-
@@ -368,7 +371,9 @@ function buildFileGroupButtons() {
     },
   });
   const backupBtn = el('button', { type: 'button', class: 'btn', title: 'Backup & restore everything', text: '🗄️ Backup & Restore', onClick: openBackupModal });
-  return [newBtn, saveAsBtn, loadBtn, duplicateProjectBtn, exportJsonBtn, importJsonBtn, pngBtn, pdfBtn, backupBtn];
+  const exportDiagramBtn = el('button', { type: 'button', class: 'btn', title: 'Export the whole diagram to Mermaid, draw.io, or Lucidchart', text: '🌐 Export to...', onClick: openExportDiagramModal });
+  const shareBtn = el('button', { type: 'button', class: 'btn', title: 'Get a shareable link that encodes this diagram (no backend — a local copy for whoever opens it)', text: '🔗 Share', onClick: openShareLinkModal });
+  return [newBtn, saveAsBtn, loadBtn, duplicateProjectBtn, exportJsonBtn, importJsonBtn, pngBtn, pdfBtn, exportDiagramBtn, shareBtn, backupBtn];
 }
 
 function buildCreateGroupButtons() {
@@ -432,7 +437,11 @@ function buildToolsGroupButtons() {
     text: '📐 Scale Diagram',
     onClick: openScaleDiagramModal,
   });
-  return [gridBtn, aiReviewBtn, autoArrangeBtn, distributeBtn, scaleBtn];
+  const lintBtn = el('button', {
+    type: 'button', class: 'btn', title: 'Check Diagram: a few quick, offline structural checks (e.g. a client talking straight to a database, an unconnected component)', text: '🔍 Check Diagram',
+    onClick: openDiagramLintModal,
+  });
+  return [gridBtn, aiReviewBtn, lintBtn, autoArrangeBtn, distributeBtn, scaleBtn];
 }
 
 function buildHelpGroupButtons() {

@@ -88,6 +88,28 @@ test('validateProject defaults an invalid/missing labelPosition to "middle" and 
   assert.equal(project.edges[1].labelPosition, 'middle');
 });
 
+test('createEdge defaults sequenceNumberOverride to null and it is overridable', () => {
+  const edge = createEdge('n1', 'n2');
+  assert.equal(edge.sequenceNumberOverride, null);
+  const custom = createEdge('n1', 'n2', { sequenceNumberOverride: 7 });
+  assert.equal(custom.sequenceNumberOverride, 7);
+});
+
+test('validateProject keeps a valid positive-integer sequenceNumberOverride and discards an invalid one', () => {
+  const p = createEmptyProject();
+  const n1 = createNode(null, 0, 0);
+  const n2 = createNode(null, 200, 0);
+  p.nodes.push(n1, n2);
+  p.edges.push(createEdge(n1.id, n2.id, { sequenceNumberOverride: 5 }));
+  p.edges.push({ ...createEdge(n1.id, n2.id), sequenceNumberOverride: -1 });
+  p.edges.push({ ...createEdge(n1.id, n2.id), sequenceNumberOverride: 2.5 });
+  const { ok, project } = validateProject(p);
+  assert.ok(ok);
+  assert.equal(project.edges[0].sequenceNumberOverride, 5);
+  assert.equal(project.edges[1].sequenceNumberOverride, null);
+  assert.equal(project.edges[2].sequenceNumberOverride, null);
+});
+
 test('createNode accepts "lifeline" as a valid shape', () => {
   const node = createNode(null, 0, 0, { shape: 'lifeline' });
   assert.equal(node.shape, 'lifeline');

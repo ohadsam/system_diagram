@@ -53,6 +53,13 @@
   text-anchor: middle;
   dominant-baseline: central;
 }
+/* A manually-set sequence number (right-click a message -> "Set sequence
+   number...", canvas.js#setSequenceNumberOverride) reads visually distinct
+   from an auto-computed one, since it can legitimately be non-sequential
+   relative to its neighbors — a plain number alone would look like a bug. */
+.edge-seq-badge.is-override circle {
+  fill: var(--color-danger);
+}
 
 /* Drag-to-reconnect handles (canvas/edgeReconnect.js) — rendered in their
    own overlay layer stacked *above* .node-layer (see canvas/canvas.js),

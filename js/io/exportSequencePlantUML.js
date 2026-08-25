@@ -26,6 +26,17 @@ function rectOf(n) {
   return { x: n.x, y: n.y, w: n.w, h: n.h };
 }
 
+function computeGroupBounds(nodes) {
+  const x = Math.min(...nodes.map((n) => n.x));
+  const y = Math.min(...nodes.map((n) => n.y));
+  return {
+    x,
+    y,
+    w: Math.max(...nodes.map((n) => n.x + n.w)) - x,
+    h: Math.max(...nodes.map((n) => n.y + n.h)) - y,
+  };
+}
+
 /**
  * @param {{nodes: object[], edges: object[], allNodes?: object[]}} group
  *   same shape buildSequenceMermaid takes — one getSequenceDiagramGroups()
@@ -35,12 +46,26 @@ function rectOf(n) {
 export function buildSequencePlantUML({ nodes, edges, allNodes = [] }) {
   const lines = ['@startuml'];
   const idFor = new Map();
-  nodes.forEach((n, i) => {
-    const id = `P${i + 1}`;
-    idFor.set(n.id, id);
-    lines.push(`participant "${esc(n.text) || id}" as ${id}`);
-  });
+  nodes.forEach((n, i) => idFor.set(n.id, `P${i + 1}`));
   const nodesById = new Map(nodes.map((n) => [n.id, n]));
+
+  const groupBounds = computeGroupBounds(nodes);
+  // Same "Group / Container" shape -> swimlane mapping as
+  // exportSequenceMermaid.js — PlantUML's own `box ... end box` block.
+  const boxes = allNodes.filter((n) => n.defId === 'shape-group' && rectsIntersect(rectOf(n), groupBounds));
+  const boxFor = (n) => boxes.find((b) => n.x + n.w / 2 > b.x && n.x + n.w / 2 < b.x + b.w) || null;
+
+  let openBox = null;
+  for (const n of nodes) {
+    const box = boxFor(n);
+    if (box !== openBox) {
+      if (openBox) lines.push('end box');
+      if (box) lines.push(`box "${esc(box.text) || 'Group'}"`);
+      openBox = box;
+    }
+    lines.push(`participant "${esc(n.text) || idFor.get(n.id)}" as ${idFor.get(n.id)}`);
+  }
+  if (openBox) lines.push('end box');
 
   const events = [];
   for (const edge of edges) {
@@ -62,16 +87,8 @@ export function buildSequencePlantUML({ nodes, edges, allNodes = [] }) {
     }
   }
 
-  const groupBounds = {
-    x: Math.min(...nodes.map((n) => n.x)),
-    y: Math.min(...nodes.map((n) => n.y)),
-    w: 0,
-    h: 0,
-  };
-  groupBounds.w = Math.max(...nodes.map((n) => n.x + n.w)) - groupBounds.x;
-  groupBounds.h = Math.max(...nodes.map((n) => n.y + n.h)) - groupBounds.y;
   const fragments = allNodes.filter((n) => n.fragmentType && rectsIntersect(rectOf(n), groupBounds));
-  const fragKeyword = { alt: 'alt', opt: 'opt', loop: 'loop', par: 'par', ref: 'ref' };
+  const fragKeyword = { alt: 'alt', opt: 'opt', loop: 'loop', par: 'par', critical: 'critical', break: 'break', ref: 'ref' };
   for (const f of fragments) {
     events.push({ y: f.y, rank: 0, text: `${fragKeyword[f.fragmentType] || 'alt'} ${esc(f.text) || 'condition'}`, fragId: f.id, isStart: true });
     events.push({ y: f.y + f.h, rank: 5, text: 'end', fragId: f.id, isStart: false });

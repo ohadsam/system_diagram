@@ -13,6 +13,15 @@ const e = (from, to, label, extra = {}) => ({ from, to, label, ...extra });
 const twoWay = { startArrow: 'filled', endArrow: 'filled' };
 const dashed = { dash: 'dashed' };
 
+/** An ER-diagram "entity" — reuses the generic rows shape (data/categories/shapes.js
+ * #shape-server-rows is the only `shape: 'rows'` def in the library) via
+ * `overrides` rather than a dedicated ER shape, listing its attributes as
+ * rows the same way any other rows-shaped component does. Height grows
+ * with the attribute count so the box doesn't clip them. */
+function entity(key, dx, dy, title, attributes) {
+  return { key, defId: 'shape-server-rows', dx, dy, label: title, overrides: { icon: '🗂️', rows: attributes, w: 220, h: 60 + attributes.length * 26 } };
+}
+
 export const components = [
   definePattern('pattern-mvc', 'MVC (Model-View-Controller)', '🎮', {
     description: 'Controller mediates between Model and View.',
@@ -324,5 +333,37 @@ export const components = [
       e('regionB', 'dbB'),
       e('dbA', 'dbB', 'cross-region replication', { ...twoWay, ...dashed }),
     ],
+  }),
+
+  definePattern('pattern-er-one-to-many', 'ER: One-to-Many Relationship', '🔢', {
+    description: 'One Customer can have many Orders — the classic 1:N relationship, with the foreign key living on the "many" side.',
+    tags: ['er-diagram', 'database', 'schema'],
+    nodes: [
+      entity('customer', -220, 0, 'Customer', ['id (PK)', 'name', 'email']),
+      entity('order', 220, 0, 'Order', ['id (PK)', 'customer_id (FK)', 'total', 'created_at']),
+    ],
+    edges: [e('customer', 'order', '1 → N')],
+  }),
+
+  definePattern('pattern-er-many-to-many', 'ER: Many-to-Many with Join Table', '🔀', {
+    description: 'A Student can enroll in many Courses and a Course can have many Students — resolved with a join table carrying both foreign keys.',
+    tags: ['er-diagram', 'database', 'schema'],
+    nodes: [
+      entity('student', -320, 0, 'Student', ['id (PK)', 'name']),
+      entity('enrollment', 0, 0, 'Enrollment', ['student_id (FK)', 'course_id (FK)', 'enrolled_at']),
+      entity('course', 320, 0, 'Course', ['id (PK)', 'title']),
+    ],
+    edges: [e('student', 'enrollment', '1 → N'), e('course', 'enrollment', '1 → N')],
+  }),
+
+  definePattern('pattern-er-self-referencing', 'ER: Self-Referencing Relationship', '🔁', {
+    description: 'An Employee row can reference another row of the same table (its manager) — a hierarchy modeled without a separate table.',
+    tags: ['er-diagram', 'database', 'schema'],
+    nodes: [entity('employee', 0, 0, 'Employee', ['id (PK)', 'name', 'manager_id (FK, self)'])],
+    edges: [{
+      from: 'employee',
+      to: 'employee',
+      overrides: { label: 'reports to', routing: 'straight', fromOffset: 0.3, toOffset: 0.7, fromSide: 'right', toSide: 'right', dash: 'solid', startArrow: 'none', endArrow: 'filled' },
+    }],
   }),
 ];

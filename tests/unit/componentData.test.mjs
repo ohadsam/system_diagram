@@ -65,7 +65,13 @@ test('every design-pattern node defId resolves to a real component/layer', () =>
   const patterns = ALL_COMPONENTS.filter((c) => c.kind === 'pattern');
   assert.ok(patterns.length >= 10, `expected at least 10 patterns, got ${patterns.length}`);
   for (const pattern of patterns) {
-    assert.ok(pattern.pattern?.nodes?.length >= 2, `pattern "${pattern.id}" should have at least 2 nodes`);
+    const nodeCount = pattern.pattern?.nodes?.length ?? 0;
+    // A single-node pattern is only legitimate when that one node
+    // references itself (e.g. pattern-er-self-referencing's Employee ->
+    // Employee "reports to" edge) — anything else with fewer than 2 nodes
+    // isn't really a "cluster" blueprint.
+    const isSelfReferencing = nodeCount === 1 && pattern.pattern.edges.every((e) => e.from === e.to);
+    assert.ok(nodeCount >= 2 || isSelfReferencing, `pattern "${pattern.id}" should have at least 2 nodes (or exactly 1 self-referencing node)`);
     for (const node of pattern.pattern.nodes) {
       assert.ok(getComponentById(node.defId), `pattern "${pattern.id}" node "${node.key}" references unknown defId "${node.defId}"`);
     }
@@ -108,12 +114,12 @@ test('every "Sequence Diagram Templates" pattern is all-lifeline, groups on inst
   }
 });
 
-test('the "Sequence Diagram Templates" category also offers four UML combined-fragment box shapes (alt/opt/loop/par)', () => {
+test('the "Sequence Diagram Templates" category also offers six UML combined-fragment box shapes (alt/opt/loop/par/critical/break)', () => {
   const all = getComponentsForCategory('sequence-templates');
   const fragments = all.filter((c) => c.kind === 'component' && c.fragmentType);
-  assert.equal(fragments.length, 4);
+  assert.equal(fragments.length, 6);
   const types = fragments.map((f) => f.fragmentType).sort();
-  assert.deepEqual(types, ['alt', 'loop', 'opt', 'par']);
+  assert.deepEqual(types, ['alt', 'break', 'critical', 'loop', 'opt', 'par']);
   for (const f of fragments) {
     assert.equal(f.shape, 'rect');
     assert.equal(f.textPosition, 'top');

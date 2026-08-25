@@ -2,9 +2,24 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.25.0';
+export const APP_VERSION = '1.26.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.26.0',
+    date: '2026-08-25',
+    highlights: [
+      'UML combined fragments: added "critical" and "break" to the existing Alt/Opt/Loop/Par set.',
+      'Sequence diagram "📋 Copy as Mermaid"/"📋 Copy as PlantUML" now wrap lifelines overlapping a "Group / Container" shape in a labeled swimlane box.',
+      'Right-click a lifeline-to-lifeline message and choose "Set sequence number..." to manually override its auto-computed badge number for the rare case the auto order doesn\'t match intent ("Clear sequence number override" to go back to automatic).',
+      'New "🌐 Export to..." (File menu) — sends the whole diagram (not just a sequence diagram) to another tool: copy or open as a Mermaid flowchart, download a .drawio file for draw.io/diagrams.net, or download the same file for Lucidchart\'s importer — each with a one-click "Open X" link to the tool itself.',
+      'New "🔗 Share" (File menu) — generates a link that encodes the whole diagram in the URL itself (no backend, nothing uploaded); opening it loads a local, independently-editable copy for whoever opens it.',
+      'AI Design Review panel: a "🔍 Review" / "💬 Explain" toggle — Explain mode asks the AI for a plain-language walkthrough of the diagram instead of critique/feedback.',
+      'New "🔍 Check Diagram" (Tools menu) — instant, offline structural checks (a client talking straight to a database, an unconnected component, a replication pair with no load balancer routing to it) with clickable findings that jump to the component involved. Complements "🤖 AI Design Review" rather than replacing it.',
+      '3 new ER-diagram design patterns (Design Patterns category): One-to-Many Relationship, Many-to-Many with Join Table, and a Self-Referencing Relationship — each using the existing "rows" component shape for primary/foreign-key attribute lists.',
+      'New "Recently Used" sidebar section, pinned above the component categories — shows the last 8 components you actually placed on the canvas, most recent first.',
+    ],
+  },
   {
     version: '1.25.0',
     date: '2026-08-25',

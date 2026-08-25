@@ -48,13 +48,15 @@ Or open `index.html` directly in a browser.
   Service, DAL, Authentication, React Hook, Angular Guard, DDD terms, ...).
   Drag one onto an existing component to attach it as a sub-component, or
   add it via that component's details panel (with autocomplete).
-- **Design Patterns** — 29 one-click blueprints (MVC, MVVM, Layered
+- **Design Patterns** — 32 one-click blueprints (MVC, MVVM, Layered
   Architecture, Repository, CQRS, API Gateway, Circuit Breaker,
   Publish-Subscribe, Saga, Hexagonal Architecture, Singleton, Observer,
-  Strategy, plus high-availability blueprints like Active-Active
-  Replication, Active-Passive Replication, Multi-AZ Deployment, Read
-  Replica, and Multi-Region Active-Active) that drop a whole ready-made
-  cluster of connected components onto the canvas at once.
+  Strategy, high-availability blueprints like Active-Active Replication,
+  Active-Passive Replication, Multi-AZ Deployment, Read Replica, and
+  Multi-Region Active-Active, plus entity-relationship templates like
+  One-to-Many, Many-to-Many with Join Table, and Self-Referencing
+  Relationship) that drop a whole ready-made cluster of connected
+  components onto the canvas at once.
 - **State Machines** — states, transitions and conditions using the same
   components/connectors as the rest of the diagram (no special mode), plus
   6 ready-made templates (Traffic Light, Order Lifecycle, TCP Connection,
@@ -140,7 +142,12 @@ Or open `index.html` directly in a browser.
   website so you can get a review — no API key or setup, since it uses the
   account you're already signed into there. Optionally attach a spec file
   to compare against; paste the AI's reply back into the side panel to
-  keep it with your project.
+  keep it with your project. A "💬 Explain" mode toggle asks instead for a
+  plain-language walkthrough of what the diagram represents.
+- **🔍 Check Diagram** — instant, offline structural checks (no AI needed):
+  flags a client talking straight to a database, a component with no
+  connections, or a replication pair with no load balancer routing to it.
+  Click a finding to jump straight to it.
 - **🧠 Generate Design** — the reverse direction: paste or load a
   requirements spec, get a tailored prompt (with the same one-click AI
   links as above) that guides the AI to reply with a design in this app's
@@ -168,13 +175,16 @@ Or open `index.html` directly in a browser.
   connector for a new "Open details" notes panel — handy for annotating a
   message, but works on any connector; a connector's notes also show as a
   hover tooltip, and its label can be positioned near the start/middle/end.
-  Selecting a message offers sync/async/return style presets; right-click a
-  lifeline for a UML "destroy" marker (an X where it terminates) or a
-  draggable activation bar (execution occurrence); four "Fragment" shapes
-  (Alt/Opt/Loop/Par) add UML combined-fragment boxes; "📋 Copy as Mermaid" /
-  "📋 Copy as PlantUML" in the drill-down view export the diagram as text,
-  and "📥 Import from Mermaid" (Create dropdown) does the reverse — paste
-  Mermaid `sequenceDiagram` text and it becomes a real, grouped diagram.
+  Selecting a message offers sync/async/return style presets, or right-click
+  it to manually override its auto-computed sequence-number badge; right-click
+  a lifeline for a UML "destroy" marker (an X where it terminates) or a
+  draggable activation bar (execution occurrence); six "Fragment" shapes
+  (Alt/Opt/Loop/Par/Critical/Break) add UML combined-fragment boxes;
+  "📋 Copy as Mermaid" / "📋 Copy as PlantUML" in the drill-down view export
+  the diagram as text (a "Group / Container" shape overlapping lifelines
+  exports as a labeled swimlane box in both formats), and "📥 Import from
+  Mermaid" (Create dropdown) does the reverse — paste Mermaid
+  `sequenceDiagram` text and it becomes a real, grouped diagram.
   36 ready-made templates (Login Flow, OAuth Handshake, PKCE, SCIM, MFA,
   RBAC/ABAC, SSO, SPA Silent Refresh, API Key Auth, TCP/UDP, Password
   Reset, Magic Link Login, WebAuthn/Passkey, Circuit Breaker, Cache-Aside,
@@ -186,7 +196,14 @@ Or open `index.html` directly in a browser.
   directly onto an existing node.
 - **📐 Scale Diagram** — permanently resize every component and its text
   together by a chosen percentage, distinct from zooming the view.
-- **Export** — PNG and PDF snapshots of your diagram.
+- **Export** — PNG/PDF snapshots, plus "🌐 Export to..." for the whole
+  diagram as Mermaid flowchart text, a draw.io/diagrams.net file, or a
+  Lucidchart-importable download — each with a one-click link to open the
+  tool itself. "🔗 Share" generates a link that encodes the whole diagram
+  in the URL (no backend, nothing uploaded) — opening it loads an
+  independent local copy for whoever opens it.
+- **Recently Used** — the sidebar's pinned "Recently Used" section shows the
+  last 8 components you actually placed on the canvas, most recent first.
 - **Dismissible hints** — a short first-run guided tour, restartable any
   time, with a separate 🔔/🔕 toggle to turn hint bubbles on/off.
 - **"What's New"** — a one-time modal after each update summarizing what

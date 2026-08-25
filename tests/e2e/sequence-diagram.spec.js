@@ -92,6 +92,30 @@ test('a message\'s "Open details" context menu item opens the details panel with
   await expect(page.locator('.details-panel textarea.details-notes')).toHaveValue('Sends the initial request');
 });
 
+test('right-click a message -> "Set sequence number..." overrides its auto-computed badge, and "Clear sequence number override" restores it', async ({ page }) => {
+  await createSequenceDiagram(page, ['Client', 'Server']);
+  const nodes = page.locator('.node[data-shape="lifeline"]');
+  await connectAtHeight(page, nodes.nth(0), nodes.nth(1), 0.2, 0.2);
+  await page.keyboard.press('Escape');
+  await connectAtHeight(page, nodes.nth(0), nodes.nth(1), 0.6, 0.6);
+  await expect.poll(() => edgeCount(page)).toBe(2);
+  await expect(page.locator('.edge-seq-badge text').nth(0)).toHaveText('1');
+  await expect(page.locator('.edge-seq-badge text').nth(1)).toHaveText('2');
+
+  // Override the second (later) message to read as "99".
+  await rightClickEdgeNearNode(page, 1);
+  await page.locator('.context-menu-item', { hasText: 'Set sequence number' }).click();
+  await page.locator('.prompt-modal input[type="number"]').fill('99');
+  await page.locator('.prompt-modal button[type="submit"]').click();
+  await expect(page.locator('.edge-seq-badge text').nth(1)).toHaveText('99');
+  await expect(page.locator('.edge-seq-badge').nth(1)).toHaveClass(/is-override/);
+
+  await rightClickEdgeNearNode(page, 1);
+  await expect(page.locator('.context-menu-item', { hasText: 'Change sequence number' })).toBeVisible();
+  await page.locator('.context-menu-item', { hasText: 'Clear sequence number override' }).click();
+  await expect(page.locator('.edge-seq-badge text').nth(1)).toHaveText('2');
+});
+
 test('Auto-arrange is skipped (with an explanatory toast) while a sequence diagram is on the canvas', async ({ page }) => {
   await createSequenceDiagram(page, ['Client', 'Server']);
   const nodes = page.locator('.node[data-shape="lifeline"]');

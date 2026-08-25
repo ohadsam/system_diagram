@@ -690,4 +690,6 @@ export const components = [
   fragment('shape-fragment-opt', 'Opt Fragment', '❔', 'opt', 'UML "opt" combined fragment — an optional branch that only runs if its condition holds.'),
   fragment('shape-fragment-loop', 'Loop Fragment', '🔁', 'loop', 'UML "loop" combined fragment — the enclosed messages repeat while the condition holds.'),
   fragment('shape-fragment-par', 'Par Fragment', '⏸️', 'par', 'UML "par" combined fragment — the enclosed messages run concurrently/in parallel.'),
+  fragment('shape-fragment-critical', 'Critical Fragment', '⚠️', 'critical', 'UML "critical" combined fragment — the enclosed messages form a critical region that cannot be interrupted (e.g. must run atomically).'),
+  fragment('shape-fragment-break', 'Break Fragment', '🛑', 'break', 'UML "break" combined fragment — an exceptional branch that, once entered, stops the rest of the enclosing sequence from running.'),
 ];

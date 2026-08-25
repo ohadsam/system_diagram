@@ -1,5 +1,6 @@
 // Converts one sequence-diagram group (lifelines + messages, plus any
-// activation bars, destroy markers, and overlapping UML fragment boxes) into
+// activation bars, destroy markers, overlapping UML fragment boxes, and a
+// swimlane grouping via an overlapping "Group / Container" shape) into
 // Mermaid `sequenceDiagram` text. Pure/DOM-free like core/sequenceDiagram.js
 // — the caller (modals/subDiagramModal.js) just writes the result to the
 // clipboard. Best-effort, not a lossless round-trip: Mermaid's own model
@@ -28,6 +29,17 @@ function rectOf(n) {
   return { x: n.x, y: n.y, w: n.w, h: n.h };
 }
 
+function computeGroupBounds(nodes) {
+  const x = Math.min(...nodes.map((n) => n.x));
+  const y = Math.min(...nodes.map((n) => n.y));
+  return {
+    x,
+    y,
+    w: Math.max(...nodes.map((n) => n.x + n.w)) - x,
+    h: Math.max(...nodes.map((n) => n.y + n.h)) - y,
+  };
+}
+
 /**
  * @param {{nodes: object[], edges: object[], allNodes?: object[]}} group
  *   `nodes`/`edges` are one getSequenceDiagramGroups() entry (canvas.js);
@@ -39,12 +51,29 @@ function rectOf(n) {
 export function buildSequenceMermaid({ nodes, edges, allNodes = [] }) {
   const lines = ['sequenceDiagram'];
   const idFor = new Map();
-  nodes.forEach((n, i) => {
-    const id = `P${i + 1}`;
-    idFor.set(n.id, id);
-    lines.push(`    participant ${id} as ${esc(n.text) || id}`);
-  });
+  nodes.forEach((n, i) => idFor.set(n.id, `P${i + 1}`));
   const nodesById = new Map(nodes.map((n) => [n.id, n]));
+
+  const groupBounds = computeGroupBounds(nodes);
+  // A plain "Group / Container" shape (data/categories/shapes.js#shape-group)
+  // drawn behind a run of lifelines becomes a Mermaid `box` — the closest
+  // thing Mermaid has to a swimlane. Matched by x-range containment (not
+  // just overlap) since a box is meant to visually wrap the lifelines it
+  // groups, not merely touch them; the frame's own y doesn't matter here.
+  const boxes = allNodes.filter((n) => n.defId === 'shape-group' && rectsIntersect(rectOf(n), groupBounds));
+  const boxFor = (n) => boxes.find((b) => n.x + n.w / 2 > b.x && n.x + n.w / 2 < b.x + b.w) || null;
+
+  let openBox = null;
+  for (const n of nodes) {
+    const box = boxFor(n);
+    if (box !== openBox) {
+      if (openBox) lines.push('    end');
+      if (box) lines.push(`    box "${esc(box.text) || 'Group'}"`);
+      openBox = box;
+    }
+    lines.push(`${openBox ? '        ' : '    '}participant ${idFor.get(n.id)} as ${esc(n.text) || idFor.get(n.id)}`);
+  }
+  if (openBox) lines.push('    end');
 
   const events = [];
   // rank breaks ties when two events land on the exact same y: a fragment's
@@ -69,16 +98,8 @@ export function buildSequenceMermaid({ nodes, edges, allNodes = [] }) {
     }
   }
 
-  const groupBounds = {
-    x: Math.min(...nodes.map((n) => n.x)),
-    y: Math.min(...nodes.map((n) => n.y)),
-    w: 0,
-    h: 0,
-  };
-  groupBounds.w = Math.max(...nodes.map((n) => n.x + n.w)) - groupBounds.x;
-  groupBounds.h = Math.max(...nodes.map((n) => n.y + n.h)) - groupBounds.y;
   const fragments = allNodes.filter((n) => n.fragmentType && rectsIntersect(rectOf(n), groupBounds));
-  const fragKeyword = { alt: 'alt', opt: 'opt', loop: 'loop', par: 'par', ref: 'ref' };
+  const fragKeyword = { alt: 'alt', opt: 'opt', loop: 'loop', par: 'par', critical: 'critical', break: 'break', ref: 'ref' };
   for (const f of fragments) {
     events.push({ y: f.y, rank: 0, text: `${fragKeyword[f.fragmentType] || 'alt'} ${esc(f.text) || 'condition'}`, fragId: f.id, isStart: true });
     events.push({ y: f.y + f.h, rank: 5, text: 'end', fragId: f.id, isStart: false });

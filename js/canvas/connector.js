@@ -130,6 +130,7 @@ export function updateEdgeEl(g, edge, fromNode, toNode, { selected = false, allN
     text.textContent = String(sequenceNumber);
     text.setAttribute('x', String(a.x));
     text.setAttribute('y', String(a.y));
+    seqBadge.classList.toggle('is-override', edge.sequenceNumberOverride != null);
     seqBadge.style.display = '';
   } else {
     seqBadge.style.display = 'none';

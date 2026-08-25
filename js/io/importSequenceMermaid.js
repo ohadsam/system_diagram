@@ -13,7 +13,7 @@ function arrowStyle(token) {
   return 'return'; // -->>, -->, -x, --x
 }
 
-const FRAGMENT_KEYWORDS = new Set(['alt', 'opt', 'loop', 'par']);
+const FRAGMENT_KEYWORDS = new Set(['alt', 'opt', 'loop', 'par', 'critical', 'break']);
 
 /**
  * @param {string} text raw pasted Mermaid source
@@ -59,7 +59,7 @@ export function parseSequenceMermaid(text) {
       events.push({ kind: 'destroy', id: ensureParticipant(m[1]).id });
       continue;
     }
-    if ((m = line.match(/^(alt|opt|loop|par)\b\s*(.*)$/i))) {
+    if ((m = line.match(/^(alt|opt|loop|par|critical|break)\b\s*(.*)$/i))) {
       const type = m[1].toLowerCase();
       if (FRAGMENT_KEYWORDS.has(type)) {
         events.push({ kind: 'fragmentStart', type, label: m[2]?.trim() || '' });

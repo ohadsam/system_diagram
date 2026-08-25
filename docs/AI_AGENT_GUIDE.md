@@ -105,7 +105,7 @@ this repo" quick-start.
 | Change a lifeline-to-lifeline message's sync/async/return style presets | `js/toolbar/arrowEditor.js#renderMessagePresets` — see "Common pitfalls" below (a buttons-vs-dropdown gotcha that broke an unrelated test by growing the floating style row) |
 | Change a lifeline's destroy marker (X where it terminates) | `js/core/project.js` (`destroyOffset` field) + `js/canvas/canvas.js` (`setLifelineDestroyOffset`/`clearLifelineDestroyOffset`, the context-menu wiring) + `js/canvas/node.js`/`css/node.css` (`.lifeline-destroy-marker`, `--destroy-y`) |
 | Change UML activation bars (add/remove/drag-to-move/-resize) | `js/core/project.js` (`activations` field) + `js/canvas/canvas.js` (`addActivationBar`/`removeActivationBar`) + `js/canvas/nodeInteractions.js` (`beginActivationMove`/`beginActivationResize`, delegated pointerdown — see docs/ARCHITECTURE.md's "Activation bars" section before adding a per-bar listener, it'll go stale) + `js/canvas/node.js`/`css/node.css` (`.lifeline-activation`, `.activation-handle`) |
-| Add/change a UML combined-fragment shape (Alt/Opt/Loop/Par) | `js/core/project.js` (`fragmentType` field, `FRAGMENT_TYPES`) + `js/data/categories/sequence-templates.js#fragment()` (the four sidebar shapes) + `js/canvas/node.js`/`css/node.css` (`.fragment-tag` pentagon) — reuses the plain `rect` shape, **not** a new node shape |
+| Add/change a UML combined-fragment shape (Alt/Opt/Loop/Par/Critical/Break) | `js/core/project.js` (`fragmentType` field, `FRAGMENT_TYPES`) + `js/data/categories/sequence-templates.js#fragment()` (the six sidebar shapes) + `js/canvas/node.js`/`css/node.css` (`.fragment-tag` pentagon) — reuses the plain `rect` shape, **not** a new node shape |
 | Add/change a ready-made sequence-diagram template | `js/data/categories/sequence-templates.js` — `definePattern(id, name, icon, { groupOnInstantiate: true, nodes: lifelines(...), edges: [msg(...), ...] })`; use the raw edge-spec shape via `msg()`, not `e()` — see docs/ARCHITECTURE.md's "Ready-made templates" section for why |
 | Add/change a "Smart Suggestions" sequence-diagram pairing | `relatedPatterns: ['seq-...']` in the `c(...)` call (ids must be `kind: 'pattern'`) — same curation bar as `related`/`relatedLayers`, see `add-library-item` skill |
 | Change dragging a pattern sidebar item onto an existing node | `js/canvas/canvas.js#instantiatePatternNearNode` (positions the pattern clearing the target node's actual leftmost edge, not a flat offset) + `js/sidebar/dragSource.js` (`.pattern-drop-target` hover affordance) |
@@ -113,6 +113,14 @@ this repo" quick-start.
 | Change the sequence-diagram "Copy as PlantUML" export | `js/io/exportSequencePlantUML.js#buildSequencePlantUML` (pure, deliberately self-contained rather than sharing code with the Mermaid exporter) + `js/modals/subDiagramModal.js` (the button, clipboard write) |
 | Change "📥 Import from Mermaid" (Create dropdown) | `js/io/importSequenceMermaid.js#parseSequenceMermaid` (pure parser) + `js/core/sequenceDiagram.js#layoutImportedSequenceDiagram` (pure layout) + `js/canvas/canvas.js#createSequenceDiagramFromMermaid` (the only store-touching step) + `js/modals/importSequenceMermaidModal.js` (the wizard) — see docs/ARCHITECTURE.md's "Import from Mermaid" section |
 | Change the sidebar's hover-preview thumbnail for a sequence-diagram template | `js/sidebar/patternPreview.js` (`isSequenceDiagramPattern`/`attachPatternPreview`/`hidePatternPreview`) + `css/sidebar.css`'s `.pattern-preview-*` rules — see docs/ARCHITECTURE.md's own section for the "sidebar rebuilds every item on each keystroke" gotcha before touching the show/hide wiring |
+| Change swimlane/box grouping in the sequence-diagram Mermaid/PlantUML export | `computeGroupBounds(nodes)` — identical helper duplicated in both `js/io/exportSequenceMermaid.js` and `js/io/exportSequencePlantUML.js` — detects a `shape-group` node overlapping lifelines by x-range containment against each lifeline's center-x, not a full rect intersection |
+| Change a message's manual sequence-number override | `js/core/project.js` (`sequenceNumberOverride` field) + `js/canvas/canvas.js` (`setSequenceNumberOverride`, `computeMessageSequenceNumbers`'s `override ?? i + 1`) + `js/modals/promptModal.js#promptNumber` (the right-click prompt) — the one deliberately *persisted* exception to this app's "sequence numbers are purely derived" rule; see docs/ARCHITECTURE.md's own section |
+| Change whole-diagram export (Mermaid flowchart / draw.io / "Lucidchart") | `js/io/exportFlowchartMermaid.js#buildFlowchartMermaid` + `js/io/exportDrawIO.js#buildDrawIOXml` (both pure) + `js/modals/exportDiagramModal.js` (UI, copy/download/open-provider buttons) — a different export *scope* than the sequence-diagram-only Mermaid/PlantUML exporters above (whole canvas, not one group); "Lucidchart" reuses the draw.io XML as-is, downloaded with a `.drawio` extension |
+| Change the "🔗 Share" link | `js/io/shareLink.js` (`buildShareUrl`/`loadProjectFromHash`, gzip via native `CompressionStream`/`DecompressionStream`, base64url into `location.hash`) + `js/modals/shareLinkModal.js` (UI) + `js/main.js#boot()` (checks `location.hash` for a share link before the normal autosave-restore path — `boot()` is `async` for this) |
+| Change AI Design Review's "🔍 Review" / "💬 Explain" mode toggle | `js/io/aiReview.js#buildExplainPrompt` (second prompt builder alongside `buildReviewPrompt`) + `js/panel/aiReviewPanel.js`'s `mode` state and `currentPrompt()` |
+| Change the deterministic "🔍 Check Diagram" structural checks | `js/core/diagramLint.js#computeDiagramLint` (pure, `resolveDef` dependency-injected) + `js/modals/diagramLintModal.js` (UI, `resolveComponentDef` is the real `resolveDef` passed in) — see docs/ARCHITECTURE.md's own section for a real false-positive gotcha (the `shape-group` boundary-box shape) before adding a new check here |
+| Add/change an ER-diagram design pattern | `js/data/categories/design-patterns.js`'s local `entity(key, dx, dy, title, attributes)` helper (wraps the existing `shape-server-rows` component via `overrides`) — same `definePattern(...)` mechanism every other pattern uses |
+| Change the sidebar's "Recently Used" section | `js/io/recentComponents.js` (storage, `MAX_RECENT = 8`) + `js/canvas/canvas.js#createNodeFromDrop` (the single `recordComponentUsed(defId)` call site — both drag-drop and click-to-add funnel through it) + `js/sidebar/sidebar.js` (`renderRecentCategory`, mirrors `renderFavoritesCategory`'s shell but flat, no folders) |
 
 ## Running things locally
 
@@ -547,3 +555,32 @@ npm test
   popup module's exported hide function unconditionally at the top of every
   rebuild. Worth rechecking for any future feature that anchors a floating
   element (tooltip, popover, preview) to a sidebar item.
+- **A new `io/` module needing simple JSON persistence should go through
+  `io/storage.js#readJSON`/`writeJSON`, not raw `localStorage`.** Every
+  sibling storage module (`favorites.js`, `librarySettings.js`, ...) does,
+  and so does `tests/unit/testSupport.mjs#installMemoryLocalStorage` — its
+  stub only patches `window.localStorage`, not a bare global `localStorage`
+  reference, so a module written against the raw global "works" in a real
+  browser but silently fails every read/write in that test helper.
+  `io/recentComponents.js`'s first draft made exactly this mistake and its
+  own unit tests caught it immediately.
+- **A structural "is this component connected to anything?" check needs to
+  know about every node kind this app has that's deliberately *not* meant
+  to have an edge** — not just the obvious sequence-diagram ones (lifelines,
+  fragment boxes), but also the plain "Group / Container" shape
+  (`defId === 'shape-group'`), which is purely a visual boundary box you
+  drop *behind* other components and is explicitly documented as never
+  meant to connect to anything. `core/diagramLint.js`'s orphan-connectivity
+  check missed this one on its first pass (only excluded lifelines/
+  fragments) and flagged every diagram using a Group/Container shape as
+  having an "unconnected" component — caught in this batch's own review,
+  not a user report.
+- **`canvas/suggestions.js`'s pattern-suggestion row label is hardcoded to
+  "🔀 Sequence diagrams for X"** — `relatedPatterns` is a generic `kind:
+  'pattern'` id list (any `definePattern(...)` entry qualifies, not just a
+  `sequence-templates.js` one), but wiring a non-sequence pattern (e.g. an
+  ER-diagram template) through it today would show that literal, factually
+  wrong copy. Don't add a `relatedPatterns` entry pointing at a non-
+  sequence-diagram pattern until that label is generalized — this was
+  deliberately left un-curated for the ER patterns added in this batch for
+  exactly that reason.

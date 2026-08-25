@@ -504,13 +504,14 @@ Deliberately **not** a new node `shape` — a fragment box reuses the plain
 `rect` shape (same mechanism the "Group / Container" shape already uses,
 including "drop it behind the messages it encloses, right-click → Send to
 back") plus one new node field, `fragmentType` (`alt`/`opt`/`loop`/`par`/
-`ref`, `null` for every ordinary node). Four sidebar items (Alt/Opt/Loop/Par
-Fragment) each carry their own `fragmentType` baked into their component
-def; `createNode`/`schema.js#c()` propagate `def.fragmentType` the same way
-they already special-case `def.textPosition`/`def.iconVisible` — a
-structural property of *that specific shape def* that should always win
-over whatever global new-component defaults the user has configured,
-unlike an ordinary per-node style field.
+`critical`/`break`/`ref`, `null` for every ordinary node). Six sidebar items
+(Alt/Opt/Loop/Par/Critical/Break Fragment) each carry their own
+`fragmentType` baked into their component def; `createNode`/`schema.js#c()`
+propagate `def.fragmentType` the same way they already special-case
+`def.textPosition`/`def.iconVisible` — a structural property of *that
+specific shape def* that should always win over whatever global
+new-component defaults the user has configured, unlike an ordinary per-node
+style field.
 
 Rendered as a small pentagon-shaped tag (`clip-path: polygon(...)`) pinned
 to the box's top-left corner, `node.js` toggling `.has-fragment-tag` the
@@ -622,6 +623,47 @@ PlantUML's own tokens (`->`/`->>`/`-->` instead of `->>`/`-)`/`-->>`);
 `alt`/`opt`/`loop`/`par` ... `end` block keywords happen to be identical
 between the two formats.
 
+### Swimlane/box grouping in Mermaid+PlantUML export (`computeGroupBounds` in both `io/exportSequenceMermaid.js` and `io/exportSequencePlantUML.js`)
+
+A plain "Group / Container" shape (`data/categories/shapes.js#shape-group`)
+whose x-range overlaps one or more lifelines wraps them in that format's own
+swimlane syntax (Mermaid's `box "Label" ... end`, PlantUML's `box "Label"
+... end box`) around the whole participant declaration block for those
+lifelines. Deliberately **x-range containment against each lifeline's
+center-x**, not a full rect-intersection test against the group box's
+actual height — a swimlane groups *participants* (columns), not a time
+range, so whether the group box happens to be short or tall doesn't matter,
+only which lifelines it visually sits above/behind. Both exporters extract
+the identical `computeGroupBounds(nodes)` helper (was inline duplicated
+logic before this batch) since the group-detection logic itself needed to
+be identical between the two formats, unlike the rest of each file's
+line-formatting which is deliberately kept separate (see the "Export as
+PlantUML" gotcha above on why these two files don't share code in general).
+
+### Manual sequence-number override (`js/modals/promptModal.js#promptNumber`, `canvas.js#setSequenceNumberOverride`/`#computeMessageSequenceNumbers`)
+
+A **deliberate, singular exception** to this app's "sequence numbers are
+purely derived, never persisted" architecture principle (see
+`computeMessageSequenceNumbers` above and the badge-numbering description in
+docs/SPEC.md 4.15): `edge.sequenceNumberOverride` (nullable positive
+integer, default `null`) is a genuinely stored field the numbering badge
+shows instead of the computed rank when set, without renumbering its
+neighbors. Right-click a lifeline-to-lifeline message for "Set sequence
+number..." (opens `promptNumber`, a `promptText`-style modal helper using a
+`<input type="number">` instead of text) or "Clear sequence number
+override" (shown instead once set). `connector.js#updateEdgeEl` toggles an
+`.is-override` class on the badge circle so an overridden number is visibly
+distinct (a different fill color) from an auto-computed one — otherwise
+there'd be no way to tell "the app computed 3" from "someone deliberately
+set 3" just by looking at the canvas.
+
+**Same `EDGE_MIRROR_FIELDS` allowlist gotcha as the destroy/activation/
+fragment fields above applies here too** — `sequenceNumberOverride` was
+added to `core/replication.js#EDGE_MIRROR_FIELDS` explicitly; a plain
+integer field with no per-entry `id` of its own, so (unlike `activations`)
+a verbatim copy to the mirrored peer is correct, no fresh-id regeneration
+needed.
+
 ### Import from Mermaid (`io/importSequenceMermaid.js`, `core/sequenceDiagram.js#layoutImportedSequenceDiagram`, `canvas.js#createSequenceDiagramFromMermaid`, `modals/importSequenceMermaidModal.js`)
 
 The inverse of "📋 Copy as Mermaid" — reachable from the Create dropdown's
@@ -686,6 +728,155 @@ the search box" rather than just the show/hide path in isolation — worth
 specifically re-testing for any future feature that opens a floating
 element anchored to a sidebar item, since this rebuild-tears-down-the-DOM
 behavior isn't obvious from reading `attachPatternPreview` alone.
+
+## Whole-diagram export: Mermaid flowchart, draw.io, Lucidchart (`io/exportFlowchartMermaid.js`, `io/exportDrawIO.js`, `modals/exportDiagramModal.js`)
+
+A different export scope than the sequence-diagram-only Mermaid/PlantUML
+exporters above — these two cover the *entire* canvas (every node/edge, not
+scoped to one group), reached via "🌐 Export to..." (File menu). Both
+builder functions are pure/DOM-free, each mapping this app's own shape/dash/
+arrow vocabulary onto the target format's own — a small `switch` per node
+shape and a small `switch`/ternary per edge dash+arrowhead combination, with
+an explicit fallback (plain rectangle / no-equivalent styling) for any shape
+neither format has a native match for (`note`, `rows`, `lifeline`, `cloud`
+depending on the target). Documented as **best-effort, not a lossless
+round-trip** in each file's own header comment — deliberately so, rather
+than silently dropping unsupported shapes or throwing.
+
+"Lucidchart-compatible export" reuses `exportDrawIO.js`'s output as-is
+rather than being a fourth format: Lucidchart's own importer accepts
+draw.io/diagrams.net XML files, and — unlike Mermaid Live Editor and draw.io
+itself — Lucidchart has no public "open with pre-loaded content" URL
+scheme, only file uploads. So its "🔗 Open Lucidchart" button downloads the
+same `.drawio` file and opens `lucid.app` in a new tab rather than a truly
+one-click "already loaded" experience the other two providers get.
+
+`modals/exportDiagramModal.js` reuses the established "copy prompt/content
+to clipboard, then `window.open(providerUrl, '_blank', 'noopener')`, then
+toast instructing paste/import" pattern first seen in
+`modals/generateDesignModal.js#openProvider` and
+`panel/aiReviewPanel.js#openProvider` — same shape, applied to a file
+download instead of a clipboard-only handoff for the draw.io/Lucidchart
+buttons. The downloaded file uses a `.drawio` extension (not `.xml`) even
+though the content is the same either way — draw.io/Lucidchart both accept
+either extension, but naming it `.drawio` matches what the button copy
+actually promises ("Download .drawio file").
+
+## Share link (`io/shareLink.js`, `modals/shareLinkModal.js`, `main.js#boot`)
+
+A "read-only-in-spirit" share link — the whole project JSON, gzip-compressed
+via the native `CompressionStream`/`DecompressionStream` (no bundled
+dependency; confirmed available as Node.js globals too, which is what makes
+`tests/unit/shareLink.test.mjs` possible without a browser) and
+base64url-encoded into the URL's hash fragment (`#share=...`). There's no
+backend to host anything — "sharing" just means handing someone a URL whose
+hash *is* the diagram; opening it loads a local copy into their own browser.
+It's "read-only" only in that it doesn't sync back to the sender, not
+because it's locked — the recipient's local copy is freely editable same as
+any other diagram, exactly like the sequence-diagram drill-down's own
+"read-only until you press Edit" distinction elsewhere in this app.
+
+`main.js#boot()` was converted from sync to `async` to check `location.hash`
+for a share link *before* falling back to the normal
+`restoreAutosavedProject()` path, then calls `history.replaceState` to strip
+the hash after loading so a page reload doesn't silently re-import the same
+link over whatever the user has since done. A malformed/undecodable hash (or
+one that fails `validateProject`) falls through to the normal autosave-
+restore path rather than erroring, same "degrade gracefully" posture as
+every other import path in this app.
+
+## Diagram Lint (`core/diagramLint.js`, `modals/diagramLintModal.js`)
+
+`computeDiagramLint(nodes, edges, replicationPairs, resolveDef)` is pure/
+DOM-free — `resolveDef` is dependency-injected (a plain `(defId) =>
+{categoryId, name}|null` function) rather than imported directly, so the
+module stays unit-testable without pulling in `data/index.js`/
+`io/customComponents.js` (which touch `localStorage`) — `diagramLintModal.js`
+is the only caller that passes the real `canvas.js#resolveComponentDef`.
+Three checks, chosen to be low-false-positive and textbook-recognizable
+rather than exhaustive (see docs/SPEC.md 4.16 for the checks themselves and
+the reasoning against a broader/more opinionated linter).
+
+**Gotcha found in this batch's own review pass**: the orphan-connectivity
+check (#2) initially flagged the plain "Group / Container" shape
+(`shape-group`) as an unconnected component whenever it shared a canvas with
+other wired-up nodes — but that shape is *purely a visual boundary box you
+drop behind other components*, explicitly documented (its own component
+description) as never meant to have an edge of its own. Fixed by excluding
+`node.defId === 'shape-group'` from that check alongside the existing
+lifeline/fragment exclusions. Worth remembering for any future structural
+check here: this app has a few node "kinds" (lifelines, fragment boxes, the
+group/container shape) that deliberately opt out of the normal
+"every node should connect to something" assumption, and a good check needs
+to know about all of them, not just the sequence-diagram ones.
+
+## ER-diagram design patterns (`data/categories/design-patterns.js`)
+
+Three new `definePattern(...)` entries (One-to-Many, Many-to-Many with Join
+Table, Self-Referencing) reusing this library's existing `shape: 'rows'`
+component (`shape-server-rows`) via a local `entity(key, dx, dy, title,
+attributes)` helper that sets `overrides: {icon, rows, w, h}` — confirming
+`spec.overrides` flows through `instantiatePatternAtPoint` into the final
+`createNode()` call the same way any other pattern's per-node overrides do.
+The self-referencing pattern is the first pattern in this app with exactly
+one node (an Employee entity referencing its own `manager_id`) and a
+self-loop edge (`from === to`) on a *non*-lifeline shape — confirmed safe by
+reading `connector.js#buildEdgePath`'s `if (fromNode.id === toNode.id)
+return selfLoopPath(...)` branch, which is shape-agnostic; only the
+*interactive drag gesture* for creating a self-loop is lifeline-gated
+(`connectorInteractions.js`'s `allowSelf`), not the rendering path, so a
+pattern's raw edge-spec data can safely include one for any shape.
+`componentData.test.mjs`'s "every pattern needs ≥2 nodes" assertion was
+relaxed to allow exactly 1 node when every one of its edges is self-
+referencing.
+
+**Not** wired into `relatedPatterns` (Smart Suggestions) from the Databases
+category components, despite an obvious pairing (PostgreSQL/MySQL/... →
+"ER: One-to-Many Relationship" is exactly the kind of pairing that
+mechanism exists for) — `canvas/suggestions.js`'s pattern-suggestion row
+label is hardcoded to "🔀 Sequence diagrams for X" (see the "Ready-made
+templates" section above), which would read as factually wrong copy for a
+non-sequence pattern. Generalizing that label is real, separate scope for
+whichever future batch wants to extend `relatedPatterns` beyond sequence
+templates — not bundled into this one.
+
+## Recently Used sidebar section (`io/recentComponents.js`, `sidebar/sidebar.js`)
+
+A pinned sidebar section (below Favorites, above the category list) showing
+the last 8 component defIds actually placed on the canvas, most recent
+first. `js/canvas/canvas.js#createNodeFromDrop` is the single choke point
+both drag-from-sidebar and click-to-add funnel through (`addComponentAtCenter`
+just calls it with viewport-center coordinates), so `recordComponentUsed(defId)`
+is called there and nowhere else — internal node-creation paths (a pattern's
+sub-nodes, a layer attach, a replication mirror) deliberately don't call it,
+since those aren't "you chose this from the sidebar" in the same sense a
+direct placement is.
+
+Storage-wise this mirrors `io/favorites.js`'s established shape exactly: a
+`Set` of listener callbacks, `readJSON`/`writeJSON` from `io/storage.js`
+(not raw `localStorage`, unlike this file's first draft — see the note
+below), and `onRecentComponentsChange` returning an unsubscribe function.
+`sidebar.js#renderRecentCategory(q, recentDefs)` mirrors
+`renderFavoritesCategory`'s header/toggle shell but renders a flat item list
+(no folders — recency has no concept of user-organized folders the way
+Favorites does). **Deliberately does not auto-expand** the section on every
+change the way `onFavoritesChange`'s listener does for Favorites — Favorites
+only changes from a deliberate right-click action, but a component lands
+here on *every single placement*, so force-expanding it each time would
+yank the sidebar's scroll/attention during completely ordinary canvas work;
+it just re-renders in place instead, same as `onLibrarySettingsChange`.
+
+**Gotcha caught while writing this feature's own unit tests**: the first
+draft read/wrote `localStorage` directly rather than going through
+`io/storage.js#readJSON`/`writeJSON` (the thin, prefixed, defensively-
+try/caught wrapper every other `io/` storage module already uses) — this
+"worked" in the browser but failed the exact same
+`tests/unit/testSupport.mjs#installMemoryLocalStorage` stub every sibling
+`io/*.test.mjs` file already relies on, since that stub only patches
+`window.localStorage`, not a bare global `localStorage` reference. Fixed by
+routing through `storage.js` like every other module in this family — worth
+remembering as the default choice for *any* new `io/` module needing simple
+JSON persistence, not just as a fix after the fact.
 
 ## Auto-arrange (`core/autoLayout.js`, `canvas.js#autoArrangeAll`)
 
@@ -1620,6 +1811,16 @@ call-order/missing-response/race-condition questions, not the generic
 scalability/reliability/security checklist, which doesn't fit a flow
 diagram at all. Purely a prompt-text branch — no other part of the panel
 changes.
+
+**"🔍 Review" / "💬 Explain" mode toggle**: a second exported prompt builder,
+`buildExplainPrompt({projectName, nodeCount, edgeCount, componentNames,
+specText, hasSequenceDiagram})`, asks for a plain-language walkthrough
+instead of critique. The panel's module-level `mode` state (`'review'` |
+`'explain'`) picks which builder `currentPrompt()` calls; switching modes
+resets `promptOverride` to `null` so the new mode's own auto-generated text
+shows instead of silently keeping the other mode's hand-edited prompt —
+exactly the same "an explicit user edit wins until something invalidates
+it" pattern `promptOverride` itself already follows for a project switch.
 
 That last point is a subscription pattern worth calling out:
 `initAiReviewPanel()` subscribes to `store`'s `'change'` event but only

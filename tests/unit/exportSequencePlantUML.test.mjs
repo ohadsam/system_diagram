@@ -82,3 +82,31 @@ test('buildSequencePlantUML wraps enclosed messages in an alt/opt/loop/par block
   assert.ok(altIdx !== -1 && msgIdx !== -1 && endIdx !== -1);
   assert.ok(altIdx < msgIdx && msgIdx < endIdx);
 });
+
+test('buildSequencePlantUML wraps lifelines overlapping a "Group / Container" shape in a box...end box block', () => {
+  const a = lifeline(0, 'A');
+  const b = lifeline(220, 'B');
+  const c = lifeline(440, 'C');
+  const nodes = [a, b, c];
+  const edges = [createEdge(a.id, b.id, { label: 'inside', fromOffset: 0.5, toOffset: 0.5 })];
+  const group = createNode(null, -20, -40, { w: 380, h: 800, text: 'Internal Services', defId: 'shape-group' });
+  const text = buildSequencePlantUML({ nodes, edges, allNodes: [...nodes, group] });
+  const lines = text.split('\n').map((l) => l.trim());
+  const boxIdx = lines.indexOf('box "Internal Services"');
+  const pAIdx = lines.findIndex((l) => l.includes('participant "A" as P1'));
+  const pBIdx = lines.findIndex((l) => l.includes('participant "B" as P2'));
+  const pCIdx = lines.findIndex((l) => l.includes('participant "C" as P3'));
+  const endBoxIdx = lines.indexOf('end box', boxIdx);
+  assert.ok(boxIdx !== -1 && boxIdx < pAIdx && pAIdx < pBIdx && pBIdx < endBoxIdx, 'box should wrap A and B');
+  assert.ok(pCIdx > endBoxIdx, 'C should be declared outside the box');
+});
+
+test('buildSequencePlantUML emits critical/break block keywords for those fragment types', () => {
+  const a = lifeline(0, 'A');
+  const b = lifeline(220, 'B');
+  const nodes = [a, b];
+  const edges = [createEdge(a.id, b.id, { label: 'inside', fromOffset: 0.5, toOffset: 0.5 })];
+  const critical = createNode(null, -20, 100, { w: 400, h: 300, text: 'atomic transfer', fragmentType: 'critical' });
+  const text = buildSequencePlantUML({ nodes, edges, allNodes: [...nodes, critical] });
+  assert.ok(text.includes('critical atomic transfer'));
+});

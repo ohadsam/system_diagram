@@ -25,6 +25,8 @@ import { getToolMode, onToolModeChange } from './toolMode.js';
 import { showSuggestionsFor } from './suggestions.js';
 import { computeGroupBounds } from './groupBackgrounds.js';
 import { confirmAction } from '../modals/confirmModal.js';
+import { promptNumber } from '../modals/promptModal.js';
+import { recordComponentUsed } from '../io/recentComponents.js';
 
 let viewportEl = null;
 let contentEl = null;
@@ -307,7 +309,14 @@ function render(state) {
  * flow they happen), purely for display: nothing is persisted, so it can
  * never go stale and is naturally correct after undo/redo, adding a new
  * message, or deleting one. Every other edge (ordinary component
- * connectors) gets no number at all. */
+ * connectors) gets no number at all.
+ *
+ * The one deliberate exception: an edge with `sequenceNumberOverride` set
+ * (right-click a message -> "Set sequence number...") shows that value
+ * instead of its computed position — a genuinely persisted field, unlike
+ * everything else here, for the rare case the auto order doesn't match
+ * intent. Doesn't renumber its neighbors to keep the sequence gap-free;
+ * the user is choosing to state a specific number, not reflow the rest. */
 export function computeMessageSequenceNumbers(edges, nodesById) {
   const messages = [];
   for (const edge of edges) {
@@ -315,10 +324,21 @@ export function computeMessageSequenceNumbers(edges, nodesById) {
     const toNode = nodesById.get(edge.to);
     if (fromNode?.shape !== 'lifeline' || toNode?.shape !== 'lifeline') continue;
     const y = sideAnchor(fromNode, edge.fromSide, edge.fromOffset ?? 0.5).y;
-    messages.push({ id: edge.id, y });
+    messages.push({ id: edge.id, y, override: edge.sequenceNumberOverride });
   }
   messages.sort((a, b) => a.y - b.y);
-  return new Map(messages.map((m, i) => [m.id, i + 1]));
+  return new Map(messages.map((m, i) => [m.id, m.override ?? i + 1]));
+}
+
+/** Right-click a message -> "Set sequence number...": prompts for a
+ * positive integer and stores it as that edge's override (see
+ * computeMessageSequenceNumbers above). null clears it (context menu's
+ * "Clear sequence number override" calls this directly with null). */
+export function setSequenceNumberOverride(edgeId, value) {
+  store.dispatch((draft) => {
+    const edge = draft.edges.find((e) => e.id === edgeId);
+    if (edge) edge.sequenceNumberOverride = value;
+  });
 }
 
 /** One subtle bounding box behind every multi-member group — a regular
@@ -479,6 +499,7 @@ export function createNodeFromDrop(defId, clientX, clientY) {
   });
   store.select([node.id], []);
   focusNode(node.id);
+  recordComponentUsed(defId);
   showSuggestionsFor(def, node, {
     onAddComponent: (relDefId, offsetIndex) => addRelatedComponent(relDefId, node.id, offsetIndex),
     onAddLayer: (layerDefId) => addLayerToNode(layerDefId, node.id),
@@ -1381,13 +1402,34 @@ function openNodeContextMenu(nodeId, evt) {
 }
 
 function openEdgeContextMenu(edgeId, evt) {
+  const state = store.getState();
+  const edge = state.edges.find((e) => e.id === edgeId);
+  const nodesById = new Map(state.nodes.map((n) => [n.id, n]));
+  const isMessage = edge && nodesById.get(edge.from)?.shape === 'lifeline' && nodesById.get(edge.to)?.shape === 'lifeline';
+
   const items = [
     { label: 'Open details', icon: 'ⓘ', onClick: () => window.dispatchEvent(new CustomEvent('sdb:open-edge-details', { detail: { edgeId } })) },
+  ];
+  if (isMessage) {
+    items.push('separator');
+    items.push({
+      label: edge.sequenceNumberOverride != null ? 'Change sequence number...' : 'Set sequence number...',
+      icon: '#️⃣',
+      onClick: async () => {
+        const n = await promptNumber({ title: 'Sequence number', label: 'Number', defaultValue: edge.sequenceNumberOverride ?? 1, min: 1, confirmLabel: 'Set' });
+        if (n != null) setSequenceNumberOverride(edgeId, n);
+      },
+    });
+    if (edge.sequenceNumberOverride != null) {
+      items.push({ label: 'Clear sequence number override', icon: '↩️', onClick: () => setSequenceNumberOverride(edgeId, null) });
+    }
+  }
+  items.push(
     'separator',
     { label: 'Duplicate', icon: '⧉', onClick: () => { store.select([], [edgeId]); duplicateSelection(); } },
     'separator',
     { label: 'Delete connector', icon: '🗑️', danger: true, onClick: () => { store.select([], [edgeId]); deleteSelection(); } },
-  ];
+  );
   showContextMenu(evt.clientX, evt.clientY, items);
 }
 

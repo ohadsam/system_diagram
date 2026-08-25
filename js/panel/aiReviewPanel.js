@@ -7,7 +7,7 @@
 import * as store from '../core/store.js';
 import { el, clear } from '../utils/dom.js';
 import { nextId } from '../core/id.js';
-import { AI_PROVIDERS, buildReviewPrompt } from '../io/aiReview.js';
+import { AI_PROVIDERS, buildReviewPrompt, buildExplainPrompt } from '../io/aiReview.js';
 import { exportPNG, captureDiagramCanvas } from '../io/exportImage.js';
 import { showToast } from '../utils/toast.js';
 
@@ -16,6 +16,7 @@ let isOpen = false;
 let specFileName = '';
 let specText = '';
 let promptOverride = null;
+let mode = 'review'; // 'review' | 'explain' — which prompt builder currentPrompt() uses
 let savedReviews = [];
 let lastProjectId = null;
 
@@ -60,14 +61,15 @@ function currentPrompt() {
   if (promptOverride !== null) return promptOverride;
   const state = store.getState();
   const componentNames = [...new Set(state.nodes.map((n) => n.text).filter(Boolean))];
-  return buildReviewPrompt({
+  const args = {
     projectName: state.name,
     nodeCount: state.nodes.length,
     edgeCount: state.edges.length,
     componentNames,
     specText,
     hasSequenceDiagram: state.nodes.some((n) => n.shape === 'lifeline'),
-  });
+  };
+  return mode === 'explain' ? buildExplainPrompt(args) : buildReviewPrompt(args);
 }
 
 async function copyPromptToClipboard() {
@@ -125,12 +127,14 @@ function render() {
 
   const body = el('div', { class: 'details-body ai-review-body' });
 
-  body.appendChild(el('p', { class: 'modal-hint', text: 'No API key or setup needed: this prepares a review prompt and the diagram image, then opens your chosen AI\'s own website (where you\'re already signed in) so you can paste them in yourself. There\'s no automatic round trip — paste the AI\'s reply back below to keep it with your project.' }));
+  body.appendChild(el('p', { class: 'modal-hint', text: 'No API key or setup needed: this prepares a prompt and the diagram image, then opens your chosen AI\'s own website (where you\'re already signed in) so you can paste them in yourself. There\'s no automatic round trip — paste the AI\'s reply back below to keep it with your project.' }));
+
+  body.appendChild(buildModeToggle());
 
   body.appendChild(el('h3', { text: '1. Optional: attach a spec to compare against' }));
   body.appendChild(buildSpecAttach());
 
-  body.appendChild(el('h3', { text: '2. Review prompt (editable)' }));
+  body.appendChild(el('h3', { text: mode === 'explain' ? '2. Explain prompt (editable)' : '2. Review prompt (editable)' }));
   const promptArea = el('textarea', {
     class: 'ai-review-prompt',
     rows: 8,
@@ -176,6 +180,26 @@ function render() {
   }
 
   rootEl.appendChild(body);
+}
+
+/** "🔍 Review" vs "💬 Explain" — same prepare-and-hand-off mechanism
+ * (currentPrompt() above just picks a different builder), just asking for
+ * a plain-language walkthrough instead of critique/feedback. Switching
+ * modes clears any hand-edited prompt override so the new mode's own
+ * auto-generated prompt shows, rather than silently keeping stale text
+ * from the other mode. */
+function buildModeToggle() {
+  const wrap = el('div', { class: 'ai-review-mode-toggle' });
+  const modes = [['review', '🔍 Review'], ['explain', '💬 Explain']];
+  for (const [value, label] of modes) {
+    wrap.appendChild(el('button', {
+      type: 'button',
+      class: value === mode ? 'btn btn-primary' : 'btn',
+      text: label,
+      onClick: () => { if (mode !== value) { mode = value; promptOverride = null; render(); } },
+    }));
+  }
+  return wrap;
 }
 
 function buildSpecAttach() {

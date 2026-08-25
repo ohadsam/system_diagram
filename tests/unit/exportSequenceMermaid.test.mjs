@@ -81,3 +81,32 @@ test('buildSequenceMermaid ignores a fragment node that does not overlap the gro
   const text = buildSequenceMermaid({ nodes, edges, allNodes: [...nodes, farAway] });
   assert.ok(!text.includes('opt unrelated'));
 });
+
+test('buildSequenceMermaid wraps lifelines overlapping a "Group / Container" shape in a box block', () => {
+  const a = lifeline(0, 'A');
+  const b = lifeline(220, 'B');
+  const c = lifeline(440, 'C');
+  const nodes = [a, b, c];
+  const edges = [createEdge(a.id, b.id, { label: 'inside', fromOffset: 0.5, toOffset: 0.5 })];
+  // Wraps only A and B, not C.
+  const group = createNode(null, -20, -40, { w: 380, h: 800, text: 'Internal Services', defId: 'shape-group' });
+  const text = buildSequenceMermaid({ nodes, edges, allNodes: [...nodes, group] });
+  const lines = text.split('\n').map((l) => l.trim());
+  const boxIdx = lines.indexOf('box "Internal Services"');
+  const pAIdx = lines.findIndex((l) => l.includes('participant P1 as A'));
+  const pBIdx = lines.findIndex((l) => l.includes('participant P2 as B'));
+  const pCIdx = lines.findIndex((l) => l.includes('participant P3 as C'));
+  const endIdx = lines.indexOf('end', boxIdx);
+  assert.ok(boxIdx !== -1 && boxIdx < pAIdx && pAIdx < pBIdx && pBIdx < endIdx, 'box should wrap A and B');
+  assert.ok(pCIdx > endIdx, 'C should be declared outside the box');
+});
+
+test('buildSequenceMermaid emits critical/break block keywords for those fragment types', () => {
+  const a = lifeline(0, 'A');
+  const b = lifeline(220, 'B');
+  const nodes = [a, b];
+  const edges = [createEdge(a.id, b.id, { label: 'inside', fromOffset: 0.5, toOffset: 0.5 })];
+  const brk = createNode(null, -20, 100, { w: 400, h: 300, text: 'insufficient funds', fragmentType: 'break' });
+  const text = buildSequenceMermaid({ nodes, edges, allNodes: [...nodes, brk] });
+  assert.ok(text.includes('break insufficient funds'));
+});

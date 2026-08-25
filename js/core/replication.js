@@ -62,6 +62,7 @@ function applyMirroredContent(target, source, x, y) {
 const EDGE_MIRROR_FIELDS = [
   'fromSide', 'toSide', 'fromOffset', 'toOffset', 'routing',
   'color', 'width', 'dash', 'startArrow', 'endArrow', 'label', 'labelPosition', 'notes',
+  'sequenceNumberOverride',
 ];
 
 function edgeSignature(edge) {

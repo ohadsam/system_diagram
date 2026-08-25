@@ -21,9 +21,11 @@ import { promptText } from '../modals/promptModal.js';
 import { pickJSONFile } from '../io/fileIO.js';
 import { showToast } from '../utils/toast.js';
 import { getLibrarySettings, onLibrarySettingsChange } from '../io/librarySettings.js';
+import { getRecentComponentIds, onRecentComponentsChange } from '../io/recentComponents.js';
 
 const CUSTOM_CATEGORY = { id: '__custom__', label: 'My Components', color: '#0F172A' };
 const FAVORITES_CATEGORY = { id: '__favorites__', label: 'Favorites', color: '#F59E0B' };
+const RECENT_CATEGORY = { id: '__recent__', label: 'Recently Used', color: '#0EA5E9' };
 const NO_FOLDER = '';
 
 let rootEl = null;
@@ -40,6 +42,11 @@ let editCustomComponentHandler = null;
  * — either a built-in library component or one of the user's own "My
  * Components" — so it can render the same as any other sidebar item. */
 function resolveFavoriteDef(defId) {
+  return getComponentById(defId) || getCustomComponents().find((c) => c.id === defId) || null;
+}
+
+/** Same resolution as resolveFavoriteDef, for the Recently Used list. */
+function resolveRecentDef(defId) {
   return getComponentById(defId) || getCustomComponents().find((c) => c.id === defId) || null;
 }
 
@@ -84,7 +91,7 @@ export function initSidebar(root) {
   listEl = el('div', { class: 'sidebar-categories' });
   rootEl.appendChild(listEl);
 
-  for (const cat of [FAVORITES_CATEGORY, CUSTOM_CATEGORY, ...CATEGORIES]) expanded.set(cat.id, false);
+  for (const cat of [FAVORITES_CATEGORY, RECENT_CATEGORY, CUSTOM_CATEGORY, ...CATEGORIES]) expanded.set(cat.id, false);
 
   onCustomComponentsChange(() => {
     // Auto-reveal "My Components" whenever it changes, so a just-saved
@@ -98,6 +105,10 @@ export function initSidebar(root) {
     renderList();
   });
   onLibrarySettingsChange(renderList);
+  // Unlike Favorites (a deliberate action), a component lands here on every
+  // single placement — auto-expanding the section each time would yank
+  // attention/scroll on normal canvas work, so just re-render in place.
+  onRecentComponentsChange(renderList);
   renderList();
 }
 
@@ -131,6 +142,12 @@ function renderList() {
   if (!q || favoritesMatchQuery(q)) {
     anyMatch = true;
     listEl.appendChild(renderFavoritesCategory(q));
+  }
+
+  const recentDefs = getRecentComponentIds().map(resolveRecentDef).filter(Boolean);
+  if (recentDefs.length && (!q || recentDefs.some((def) => componentMatches(def, q)))) {
+    anyMatch = true;
+    listEl.appendChild(renderRecentCategory(q, recentDefs));
   }
 
   for (const cat of categories) {
@@ -295,6 +312,41 @@ function renderFavoritesCategory(q) {
     list.appendChild(el('p', { class: 'sidebar-empty small', text: 'Right-click any component below and choose "Add to Favorites".' }));
   }
   renderFavoritesTree(list, null, q);
+  wrap.appendChild(list);
+  return wrap;
+}
+
+/** Flat (no folders) pinned section for the last few components actually
+ * placed on the canvas — see io/recentComponents.js. Mirrors
+ * renderFavoritesCategory's header/toggle shell but with a plain item list,
+ * since recency has no concept of user-organized folders. */
+function renderRecentCategory(q, recentDefs) {
+  const isOpen = q ? true : expanded.get(RECENT_CATEGORY.id);
+  const wrap = el('div', { class: 'sidebar-category', 'data-open': isOpen ? 'true' : 'false' });
+
+  const header = el('div', { class: 'category-header' });
+  const toggle = el('button', {
+    class: 'category-toggle',
+    type: 'button',
+    'aria-expanded': String(isOpen),
+    onClick: () => {
+      expanded.set(RECENT_CATEGORY.id, !expanded.get(RECENT_CATEGORY.id));
+      renderList();
+    },
+  });
+  toggle.appendChild(el('span', { class: 'category-dot', style: `background:${RECENT_CATEGORY.color}` }));
+  toggle.appendChild(el('span', { class: 'category-label', text: RECENT_CATEGORY.label }));
+  toggle.appendChild(el('span', { class: 'category-count', text: String(recentDefs.length) }));
+  toggle.appendChild(el('span', { class: 'category-chevron', text: '▸' }));
+  header.appendChild(toggle);
+  wrap.appendChild(header);
+
+  const list = el('div', { class: 'category-list' });
+  const customIds = new Set(getCustomComponents().map((c) => c.id));
+  for (const def of recentDefs) {
+    if (q && !componentMatches(def, q)) continue;
+    list.appendChild(renderItem(def, q, { isCustom: customIds.has(def.id) }));
+  }
   wrap.appendChild(list);
   return wrap;
 }

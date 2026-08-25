@@ -26,7 +26,7 @@ export const REPLICATION_MODES = ['active-active', 'active-passive', 'primary-re
 // docs/SPEC.md "Sequence diagrams" and canvas/node.js's pentagon tag
 // rendering. Deliberately just one condition per box (no alt/else divider
 // line) — see data/categories/sequence-templates.js's fragment shapes.
-export const FRAGMENT_TYPES = ['alt', 'opt', 'loop', 'par', 'ref'];
+export const FRAGMENT_TYPES = ['alt', 'opt', 'loop', 'par', 'critical', 'break', 'ref'];
 
 export function createEmptyProject(name = 'Untitled Diagram') {
   const now = new Date().toISOString();
@@ -130,6 +130,13 @@ export function createEdge(fromNodeId, toNodeId, overrides = {}) {
     label: '',
     labelPosition: 'middle',
     notes: '',
+    // A lifeline-to-lifeline message's displayed badge number is normally
+    // purely derived from vertical position (canvas.js#computeMessageSequenceNumbers)
+    // — never persisted, so it can't go stale. This is the one deliberate
+    // exception: a user-set override the badge shows instead, for the rare
+    // case the auto-computed order doesn't match intent. Irrelevant for any
+    // other edge (only read when both endpoints are lifelines).
+    sequenceNumberOverride: null,
     ...overrides,
   };
 }
@@ -304,6 +311,7 @@ export function validateProject(input) {
           label: typeof e.label === 'string' ? e.label : '',
           labelPosition: EDGE_LABEL_POSITIONS.includes(e.labelPosition) ? e.labelPosition : 'middle',
           notes: typeof e.notes === 'string' ? e.notes : '',
+          sequenceNumberOverride: Number.isInteger(e.sequenceNumberOverride) && e.sequenceNumberOverride >= 1 ? e.sequenceNumberOverride : null,
         };
       });
 

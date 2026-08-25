@@ -79,10 +79,11 @@ export function createNodeEl(node) {
   const activationsLayer = el('div', { class: 'lifeline-activations' });
   root.appendChild(activationsLayer);
 
-  // UML combined-fragment operator tag (alt/opt/loop/par/ref) — a small
-  // pentagon label at the box's top-left corner, hidden via CSS unless
-  // .has-fragment-tag is set (updateNodeEl below). Only the four Fragment
-  // shapes (data/categories/sequence-templates.js) ever set node.fragmentType.
+  // UML combined-fragment operator tag (alt/opt/loop/par/critical/break/ref)
+  // — a small pentagon label at the box's top-left corner, hidden via CSS
+  // unless .has-fragment-tag is set (updateNodeEl below). Only the six
+  // Fragment shapes (data/categories/sequence-templates.js) ever set
+  // node.fragmentType.
   const fragmentTag = el('div', { class: 'fragment-tag', 'aria-hidden': 'true' });
   root.appendChild(fragmentTag);
 

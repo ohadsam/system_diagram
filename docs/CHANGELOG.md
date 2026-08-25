@@ -170,6 +170,47 @@ Gateway, Circuit Breaker, and Saga Coordinator now suggest a relevant new templa
 SSO, Identity Provider, and API Key each gained one more curated pairing alongside their existing
 ones.
 
+## v1.26.0 (2026-08-25)
+
+A grab-bag batch closing out the previously-suggested export/lint/AI ideas: two more UML fragment
+types, swimlane export grouping, a manual message-numbering override, whole-diagram export to three
+external tools, a shareable link, an AI "Explain" mode, a deterministic structural linter, ER-diagram
+patterns, and a "Recently Used" sidebar section.
+
+**UML fragments**: added "critical" and "break" to the existing Alt/Opt/Loop/Par set (6 total).
+
+**Swimlane/box export**: a plain "Group / Container" shape overlapping one or more lifelines now
+wraps them in a labeled swimlane box in both the "📋 Copy as Mermaid" and "📋 Copy as PlantUML"
+exports.
+
+**Manual sequence-number override**: right-click a lifeline-to-lifeline message and choose "Set
+sequence number..." to override its auto-computed badge for the rare case the auto order doesn't
+match intent ("Clear sequence number override" reverts to automatic).
+
+**New "🌐 Export to..."** (File menu) — exports the *whole* diagram (not just a sequence diagram) as
+Mermaid flowchart text, a draw.io/diagrams.net `.drawio` file, or the same file for Lucidchart's
+importer — each with a one-click "Open X" link to the tool itself (Mermaid Live Editor, draw.io,
+Lucidchart).
+
+**New "🔗 Share"** (File menu) — generates a link that encodes the whole diagram directly in the URL
+(gzip-compressed, no backend, nothing uploaded); opening it loads an independent local copy for
+whoever opens it.
+
+**AI Design Review "🔍 Review" / "💬 Explain" toggle** — Explain mode asks the AI for a plain-language
+walkthrough of the diagram instead of critique/feedback, reusing the same prepare-and-hand-off
+mechanism.
+
+**New "🔍 Check Diagram"** (Tools menu) — instant, offline structural checks (client talking straight
+to a database, an unconnected component, a replication pair with no load balancer routing to it),
+each finding clickable to jump to the component involved. Complements "🤖 AI Design Review" rather
+than replacing it.
+
+**3 new ER-diagram design patterns** (Design Patterns category): One-to-Many Relationship,
+Many-to-Many with Join Table, and Self-Referencing Relationship.
+
+**New "Recently Used" sidebar section** — pinned above the category list, shows the last 8
+components you actually placed on the canvas, most recent first.
+
 ## v1.25.0 (2026-08-25)
 
 A fourth sequence-diagram batch: 13 more ready-made templates covering distributed-systems,

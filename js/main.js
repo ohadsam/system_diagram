@@ -8,6 +8,7 @@ import { initToolbar } from './toolbar/toolbar.js';
 import { initDetailsPanel, close as closeDetailsPanel } from './panel/detailsPanel.js';
 import { initAiReviewPanel, close as closeAiReviewPanel } from './panel/aiReviewPanel.js';
 import { initAutosave, restoreAutosavedProject } from './io/autosave.js';
+import { loadProjectFromHash } from './io/shareLink.js';
 import { openCustomComponentModal } from './modals/customComponentModal.js';
 import { initHints } from './hints/hints.js';
 import { saveNamedProject } from './io/projects.js';
@@ -82,9 +83,19 @@ function initKeyboardShortcuts() {
   });
 }
 
-function boot() {
-  const restored = restoreAutosavedProject();
-  store.loadProject(restored || createEmptyProject());
+async function boot() {
+  // A "#share=..." URL (io/shareLink.js) takes priority over the normal
+  // autosave-restore path — opening one loads a local copy of that
+  // project, same as any other Load, not a live-synced session.
+  const shared = await loadProjectFromHash(location.hash);
+  if (shared) {
+    store.loadProject(shared);
+    history.replaceState(null, '', location.pathname + location.search);
+    requestAnimationFrame(() => showToast('Opened from a share link — this is your own local copy; use File > Save As to keep it.', 'info', 5000));
+  } else {
+    const restored = restoreAutosavedProject();
+    store.loadProject(restored || createEmptyProject());
+  }
   initAutosave();
 
   initCanvas(document.getElementById('canvas-viewport'));

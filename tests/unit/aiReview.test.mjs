@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { AI_PROVIDERS, buildReviewPrompt } from '../../js/io/aiReview.js';
+import { AI_PROVIDERS, buildReviewPrompt, buildExplainPrompt } from '../../js/io/aiReview.js';
 
 test('AI_PROVIDERS lists the well-known providers with a name/url/icon each', () => {
   assert.ok(AI_PROVIDERS.length >= 4);
@@ -65,4 +65,30 @@ test('buildReviewPrompt defaults to the regular system-design review when hasSeq
   const prompt = buildReviewPrompt({ projectName: 'X', nodeCount: 2, edgeCount: 1 });
   assert.match(prompt, /system design \/ architecture diagram/);
   assert.doesNotMatch(prompt, /sequence\/communication-flow diagram/);
+});
+
+test('buildExplainPrompt asks for a plain-language walkthrough, not a critique', () => {
+  const prompt = buildExplainPrompt({
+    projectName: 'My Architecture', nodeCount: 3, edgeCount: 2, componentNames: ['EC2', 'RDS', 'S3'],
+  });
+  assert.match(prompt, /My Architecture/);
+  assert.match(prompt, /3 components? and 2 connectors?/);
+  assert.match(prompt, /EC2, RDS, S3/);
+  assert.match(prompt, /explain/i);
+  assert.doesNotMatch(prompt, /risks, gaps or anti-patterns/, 'should not ask for the review checklist');
+});
+
+test('buildExplainPrompt asks sequence-diagram-specific walkthrough questions when hasSequenceDiagram is set', () => {
+  const prompt = buildExplainPrompt({
+    projectName: 'Login Flow', nodeCount: 3, edgeCount: 4, componentNames: ['Client', 'Auth Service', 'Users DB'], hasSequenceDiagram: true,
+  });
+  assert.match(prompt, /sequence\/communication-flow diagram/);
+  assert.match(prompt, /numbered messages/);
+});
+
+test('buildExplainPrompt folds in an attached spec and never throws on missing/empty fields', () => {
+  const prompt = buildExplainPrompt({ projectName: 'X', nodeCount: 1, edgeCount: 0, specText: 'Must support 10k concurrent users.' });
+  assert.match(prompt, /SPEC START/);
+  assert.match(prompt, /10k concurrent users/);
+  assert.doesNotThrow(() => buildExplainPrompt({}));
 });

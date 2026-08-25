@@ -67,6 +67,12 @@ owner; code/UI/comments are English only.
 - Drag-and-drop (pointer-based, works with mouse & touch) from sidebar to
   canvas creates a node. Predefined sub-components (if any) are attached to
   the new node automatically.
+- A pinned **"Recently Used"** section (above the category list, below
+  Favorites) shows the last 8 components actually placed on the canvas
+  (drag or click-to-add alike), most recent first, deduplicated — placing
+  an already-recent one again just moves it back to the front rather than
+  showing it twice. `localStorage`-backed (`js/io/recentComponents.js`),
+  same listener-notified shape as Favorites/My Components.
 
 #### 4.2.1 Layers & Roles
 A `kind: 'layer'` item (Controller, Service, DAL, Authentication, React
@@ -94,7 +100,10 @@ Breaker, Saga, Hexagonal Architecture, a few classic GoF patterns like
 Singleton/Observer/Strategy/Adapter/Decorator, and a set of high-
 availability/replication blueprints — Active-Active Replication,
 Active-Passive Replication (Primary-Standby), Multi-AZ Deployment, Read
-Replica, Multi-Region Active-Active — ~29 total, see
+Replica, Multi-Region Active-Active — plus 3 entity-relationship (ER)
+diagram templates (One-to-Many Relationship, Many-to-Many with Join Table,
+Self-Referencing Relationship, each using the existing "rows" component
+shape for primary/foreign-key attribute lists) — ~32 total, see
 `js/data/categories/design-patterns.js`) is not a single placeable
 component. Dropping or clicking one instantiates a whole small cluster of
 real nodes (each reusing an existing component/layer definition, so
@@ -572,6 +581,28 @@ history instead of adding to it).
   participant names) alongside the main diagram's PNG, and as its own extra
   page appended to the main PDF — cropped tightly to just that group's own
   content, everything else on the canvas hidden for that one capture.
+- **"🌐 Export to..."** (File menu) — a *whole-canvas* export (every node/
+  edge, not scoped to a sequence-diagram group like 4.15's Mermaid/PlantUML
+  export) to three external tools, each best-effort rather than a lossless
+  round-trip since none of these formats has a 1:1 match for every shape
+  this app has:
+  - **Mermaid Flowchart** — converts the diagram to `flowchart LR` text;
+    "📋 Copy as Mermaid" puts it on the clipboard, "🔗 Open Mermaid Live
+    Editor" copies it and opens `mermaid.live` in a new tab to paste into.
+  - **draw.io / diagrams.net** — converts the diagram to mxGraph XML,
+    downloaded as a `.drawio` file; "🔗 Open draw.io" downloads it and opens
+    `app.diagrams.net` to open the file there.
+  - **Lucidchart** — Lucidchart's own importer accepts draw.io files and it
+    has no "open with pre-loaded content" URL scheme (only file uploads,
+    unlike Mermaid Live/draw.io above), so this offers the *same* mxGraph
+    XML download plus a link to `lucid.app` to import it from there.
+- **"🔗 Share"** (File menu) — generates a URL whose hash fragment encodes
+  the entire project (gzip-compressed via the native `CompressionStream`,
+  base64url-encoded — no bundled dependency, no backend). Opening the link
+  loads that project as a local copy in the recipient's own browser
+  (checked before the normal autosave-restore on boot); it's "read-only"
+  only in that edits never sync back to the sender, not because it's
+  locked — the recipient can freely edit their own local copy afterward.
 
 ### 4.9 Hints
 - Short contextual hint bubbles near key UI (sidebar, canvas, toolbar).
@@ -656,8 +687,18 @@ deliberate, transparent design choice, not a shortcut:
   conditions, and whether a call should be async vs. blocking — instead of
   the generic architecture checklist (scalability/reliability/security/
   cost/maintainability), which doesn't fit a flow diagram well.
+- **"🔍 Review" / "💬 Explain" mode toggle**: the panel's top offers two
+  prompt builders, not just one — "🔍 Review" (default) asks for critique/
+  feedback as above; "💬 Explain" instead asks the AI for a plain-language
+  walkthrough of what the diagram represents (useful for onboarding a
+  teammate, or sanity-checking that a generated/imported diagram reads the
+  way you intended). Both reuse the exact same prepare-and-hand-off
+  mechanism — only which prompt-builder function runs differs. Switching
+  modes clears any hand-edited prompt text so the new mode's own
+  auto-generated prompt shows, rather than silently keeping stale text from
+  the other mode.
 
-See `js/io/aiReview.js` (prompt builder, provider list) and
+See `js/io/aiReview.js` (prompt builders, provider list) and
 `js/panel/aiReviewPanel.js` (the panel itself).
 
 ### 4.13 Generate Design from Spec
@@ -805,6 +846,12 @@ followed by a response (or any back-and-forth), read top to bottom as time.
   jog) and is automatically numbered (1, 2, 3, ...) in top-to-bottom order —
   a small numbered badge at its start — purely computed for display, not
   stored, so it's always correct after adding/deleting/undoing a message.
+  Right-click a message → "Set sequence number..." overrides its badge with
+  a manually-chosen number instead (shown with a distinct badge color) for
+  the rare case the auto order doesn't match intent — this one field
+  (`edge.sequenceNumberOverride`) *is* persisted, unlike every other part of
+  this numbering scheme, and doesn't renumber its neighbors; "Clear sequence
+  number override" (shown once set) goes back to automatic numbering.
   Every other connector feature already applies: solid vs. dashed (a
   natural call-vs-response convention), arrow direction, color, label, and
   the right-click "Open details" notes panel (4.4, 4.6).
@@ -853,13 +900,14 @@ followed by a response (or any back-and-forth), read top to bottom as time.
   narrow rectangle centered on the lifeline, draggable by its body (moves
   both offsets together, preserving length) or by either end (resizes that
   end); right-click an existing bar for "Remove activation bar".
-- **Combined fragments**: four "Fragment" shapes (Alt/Opt/Loop/Par) in the
-  Sequence Diagram Templates sidebar category — a plain resizable/movable
-  labeled box (same mechanism as the Group/Container shape, 4.3.x) with a
-  `fragmentType` baked into its definition, rendered as a small UML
-  pentagon operator tag at its top-left corner plus the condition text
-  (its own label). One condition per box — no alt/else divider line.
-  Drop one behind the messages it encloses (right-click → Send to back).
+- **Combined fragments**: six "Fragment" shapes (Alt/Opt/Loop/Par/Critical/
+  Break) in the Sequence Diagram Templates sidebar category — a plain
+  resizable/movable labeled box (same mechanism as the Group/Container
+  shape, 4.3.x) with a `fragmentType` baked into its definition, rendered as
+  a small UML pentagon operator tag at its top-left corner plus the
+  condition text (its own label). One condition per box — no alt/else
+  divider line. Drop one behind the messages it encloses (right-click →
+  Send to back).
 - **Ready-made sequence-diagram templates**: the "Sequence Diagram
   Templates" sidebar category also offers whole ready-made flows — Login
   Flow, OAuth Handshake, Checkout Flow, Retry with Backoff, PKCE
@@ -893,10 +941,14 @@ followed by a response (or any back-and-forth), read top to bottom as time.
   converts its lifelines, messages (mapped to that format's own sync/async/
   return arrow syntax by dash+arrowhead), activation bars
   (`activate`/`deactivate`), destroy markers (`destroy`), and any fragment
-  box whose bounds overlap the group (`alt`/`opt`/`loop`/`par` ... `end`)
-  into that format's text on the clipboard. Best-effort, not a lossless
-  round-trip — neither format has offset-anchored messages or
-  freely-positioned fragments of its own.
+  box whose bounds overlap the group (`alt`/`opt`/`loop`/`par`/`critical`/
+  `break` ... `end`) into that format's text on the clipboard. A plain
+  "Group / Container" shape (4.3.x) whose horizontal span overlaps one or
+  more lifelines also wraps them in a labeled swimlane (Mermaid's
+  `box "Label" ... end` / PlantUML's `box "Label" ... end box`), letting you
+  group lifelines into named participants/teams in the exported text.
+  Best-effort, not a lossless round-trip — neither format has
+  offset-anchored messages or freely-positioned fragments of its own.
 - **Import from Mermaid**: the Create dropdown's "📥 Import from Mermaid"
   wizard is the inverse — paste Mermaid `sequenceDiagram` text (participant
   declarations are optional; participants are auto-declared from the first
@@ -907,6 +959,34 @@ followed by a response (or any back-and-forth), read top to bottom as time.
   down the lifelines' height in the order they appear in the text (Mermaid
   text has no explicit vertical position). Best-effort, not a guaranteed
   lossless round-trip.
+
+### 4.16 Diagram Lint
+A "🔍 Check Diagram" toolbar button runs a small, deterministic (non-AI) set
+of structural checks over the current diagram's graph and lists what it
+found, each clickable to select and center the view on the component(s)
+involved. Complementary to 4.12's AI Design Review, not a replacement — it
+needs no LLM/API key/paste-back round trip, runs instantly, and is
+deliberately narrow: a handful of textbook, low-false-positive checks most
+engineers would immediately recognize, not a general-purpose architecture
+linter (a much bigger, far more opinionated project than this one
+attempts). Currently three checks:
+
+1. A "Client & Frontend"-category component connected directly to a
+   "Databases"-category component (no service/API layer in between).
+2. A component with zero connections while the rest of the diagram is wired
+   up (only fires once the diagram has at least one edge elsewhere, so a
+   still-empty diagram isn't flagged node-by-node) — excludes sequence-
+   diagram elements (lifelines, fragment boxes) and the plain "Group /
+   Container" shape (4.3.x), none of which are meant to have an edge of
+   their own.
+3. A Live Replication pair (4.14) with no load balancer/API gateway-named
+   component routing traffic to either side — only fires once the
+   replication feature is actually in use, so it's a confident signal, not
+   a guess about intent.
+
+Pure/DOM-free (`js/core/diagramLint.js#computeDiagramLint`), with
+`resolveDef` dependency-injected rather than imported directly so it stays
+unit-testable without touching `localStorage`-backed modules.
 
 ## 5. Non-functional requirements
 
@@ -966,7 +1046,8 @@ followed by a response (or any back-and-forth), read top to bottom as time.
       "routing": "orthogonal",
       "color": "#334155", "width": 2, "dash": "solid",
       "startArrow": "none", "endArrow": "filled",
-      "label": "HTTPS", "labelPosition": "middle", "notes": ""
+      "label": "HTTPS", "labelPosition": "middle", "notes": "",
+      "sequenceNumberOverride": null
     }
   ],
   "replicationPairs": [
@@ -992,8 +1073,10 @@ where along the edge's own rendered path its label sits — see 4.4.
 `destroyOffset` (default `null`, 0..1) and `activations` (default `[]`, each
 `{id, startOffset, endOffset}`) are lifeline-only UML sequence-diagram
 fields — see 4.15. `fragmentType` (default `null`, one of
-`alt`/`opt`/`loop`/`par`/`ref`) marks a node as a combined-fragment box —
-see 4.15.
+`alt`/`opt`/`loop`/`par`/`critical`/`break`/`ref`) marks a node as a
+combined-fragment box — see 4.15. `sequenceNumberOverride` (default `null`,
+a positive integer when set) is the one deliberate exception to "sequence
+numbers are purely derived, never persisted" — see 4.15.
 `notes` (default `""`) is free-form text shown/edited in the connector's
 own details-panel variant (4.6), and also surfaced as a hover tooltip on
 the connector itself — see 4.4. `groupId` (default `null`) ties 2+ nodes

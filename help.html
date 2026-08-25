@@ -211,6 +211,7 @@
       <li><a href="#custom">Custom components &amp; shapes</a></li>
       <li><a href="#saving">Saving, loading &amp; export</a></li>
       <li><a href="#ai-review">AI Design Review</a></li>
+      <li><a href="#check-diagram">Check Diagram</a></li>
       <li><a href="#generate-design">Generate Design from Spec</a></li>
       <li><a href="#replication">Live Replication</a></li>
       <li><a href="#sequence-diagram">Sequence Diagrams</a></li>
@@ -248,6 +249,7 @@
         <li><strong>My Components</strong> — your own saved components (see "Custom components" below) appear in their own category at the top, with right-click Edit/Delete.</li>
         <li><strong>★ Popular</strong> — a small tinted background and ★ badge mark the handful of components in each category most engineers would immediately recognize as common building blocks (PostgreSQL, Docker, S3, Kafka, React, ...) — purely a visual landmark, it never changes sort order or search.</li>
         <li><strong>★ Popular only</strong> — the toggle button right below the search box narrows every category down to just its ★-marked components (Favorites and My Components are unaffected).</li>
+        <li><strong>Recently Used</strong> — a pinned section (below Favorites) automatically shows the last 8 components you actually placed on the canvas, most recent first — no setup needed.</li>
       </ul>
       <div class="tip">🧠 The <strong>AI Providers &amp; Agents</strong> category covers the generative-AI world: model providers (OpenAI, Anthropic, Google, AWS Bedrock, Azure OpenAI, Mistral, Cohere, Hugging Face, Ollama, ...), specific models (GPT, Claude, Gemini, Llama, Whisper, DALL·E, ...), the Model Context Protocol (MCP Server/Client/Tool/Resource/Prompt), agents &amp; agent frameworks (LangGraph, AutoGen, CrewAI, Semantic Kernel, LlamaIndex), and skills/tools/RAG building blocks (Skill, System Prompt, RAG Pipeline, Knowledge Base, Guardrails, Function Calling). These behave like any other component — drag or click to add.</div>
       <div class="tip">☸️ The <strong>AWS</strong> category includes container-orchestration building blocks — EKS Cluster, EKS Node Group, Pod (EKS), ECS Cluster, ECS Service, ECS Task — alongside the managed services (EKS, ECS, Fargate, ...) themselves.</div>
@@ -270,7 +272,7 @@
       </ul>
       <p><span class="mock-node">🎮 API Server <small style="opacity:.7">+ Controller, + Auth</small></span></p>
       <h3>Design Patterns</h3>
-      <p>This category holds 29 ready-made architecture blueprints — MVC, MVVM, Layered Architecture, Repository, CQRS, API Gateway, Circuit Breaker, Publish-Subscribe, Event Sourcing, Saga, Hexagonal Architecture, Cache-Aside, classic patterns like Singleton, Observer, Strategy, Adapter and Decorator, and high-availability blueprints — Active-Active Replication, Active-Passive Replication (Primary-Standby), Multi-AZ Deployment, Read Replica, Multi-Region Active-Active. Dragging or clicking one instantiates the <em>whole cluster</em> at once — every component and connector it needs, positioned and selected together so you can immediately move or restyle the group, or undo it as a single step.</p>
+      <p>This category holds 32 ready-made architecture blueprints — MVC, MVVM, Layered Architecture, Repository, CQRS, API Gateway, Circuit Breaker, Publish-Subscribe, Event Sourcing, Saga, Hexagonal Architecture, Cache-Aside, classic patterns like Singleton, Observer, Strategy, Adapter and Decorator, high-availability blueprints — Active-Active Replication, Active-Passive Replication (Primary-Standby), Multi-AZ Deployment, Read Replica, Multi-Region Active-Active — and entity-relationship (ER) diagram templates — One-to-Many Relationship, Many-to-Many with Join Table, Self-Referencing Relationship — each using the component library's "rows" shape for primary/foreign-key attribute lists. Dragging or clicking one instantiates the <em>whole cluster</em> at once — every component and connector it needs, positioned and selected together so you can immediately move or restyle the group, or undo it as a single step.</p>
       <div class="tip">💡 Pattern components reuse the same styling as the regular library, so once dropped in they're just normal components — resize, restyle, rename, or delete any of them individually.</div>
       <div class="tip">🔁 The HA patterns above drop a one-time, labeled snapshot — for a diagram that <em>keeps</em> two sides mirrored as you keep editing, see "Live Replication" below instead.</div>
       <h3>State Machines</h3>
@@ -369,6 +371,8 @@
         <li><strong>Load</strong> — reopen a saved diagram, or load one from a <code>.json</code> file. Click the ☆ next to any saved project to favorite it — favorites sort first and the "⭐ Favorites only" checkbox filters down to just them.</li>
         <li><strong>Export JSON</strong> — download the full diagram as a portable file (also how you back it up or move it to another browser/computer).</li>
         <li><strong>Export PNG / PDF</strong> — a rendered image of your diagram, ready to paste into docs or slides. If your project has one or more <a href="#sequence-diagram">sequence-diagram</a> groups, each one also exports as its own extra PNG file (alongside the main diagram's) or extra PDF page, cropped tightly to just that group's own content.</li>
+        <li><strong>🌐 Export to...</strong> — sends the <em>whole</em> diagram to another tool: "📋 Copy as Mermaid" (or "🔗 Open Mermaid Live Editor", which copies it and opens the site to paste into), a downloadable <code>.drawio</code> file for draw.io/diagrams.net (with a "🔗 Open draw.io" link), or the same file for Lucidchart's own importer ("🔗 Open Lucidchart"). Best-effort — each format has its own shape/style vocabulary, so this isn't always a perfectly lossless round-trip.</li>
+        <li><strong>🔗 Share</strong> — generates a link that encodes the whole diagram directly in the URL itself (gzip-compressed) — there's no backend, so nothing is actually uploaded anywhere. Opening the link loads an independent local copy into whoever opens it; it doesn't stay in sync with further edits on either end.</li>
       </ul>
       <h3>Bulk export/import &amp; full backup</h3>
       <p>Beyond single-project/single-library files, you can export/import in bulk:</p>
@@ -393,6 +397,7 @@
       <h2><span class="icon-badge">🤖</span> AI Design Review</h2>
       <p>Click "🤖" in the toolbar to open a side panel that helps you get a system-design review from a mainstream AI — <strong>no API key or setup required</strong>.</p>
       <div class="tip">🔑 How it actually works: no AI provider (Claude, ChatGPT, Gemini, Copilot) offers key-free API access, and pulling results from Google's AI-powered search isn't possible either (blocked, and against Google's terms) — so instead of pretending otherwise, this panel prepares everything and hands it to <em>you</em> to paste in, using whichever AI account you're already signed into.</div>
+      <div class="tip">💬 The panel's top has a "🔍 Review" / "💬 Explain" toggle — Review (the default) asks for critique/feedback as below; Explain instead asks the AI for a plain-language walkthrough of what the diagram represents, handy for onboarding a teammate or sanity-checking a generated/imported diagram.</div>
       <ol>
         <li><strong>Optional: attach a spec</strong> — a plain-text or Markdown file whose content gets folded into the prompt, so the AI can compare your diagram against your requirements.</li>
         <li><strong>Review the prompt</strong> — auto-generated from your diagram (component names, counts), fully editable.</li>
@@ -403,6 +408,17 @@
       <p><span class="mock-node">🤖 AI Design Review <small style="opacity:.7">prompt + image ready → opens Claude/ChatGPT/Gemini/Copilot</small></span></p>
       <div class="tip">💡 Opening a different project (New / Load / Duplicate / restoring a backup) while the panel is open clears its attached spec, prompt edits and saved replies — a review prepared for one diagram shouldn't silently attach itself to another.</div>
       <div class="tip">🔀 If your canvas has a <a href="#sequence-diagram">sequence diagram</a> on it, the prompt automatically asks flow-specific questions instead — call order, missing responses, race conditions — rather than the generic architecture checklist.</div>
+    </section>
+
+    <section id="check-diagram">
+      <h2><span class="icon-badge">🔍</span> Check Diagram</h2>
+      <p>Click "🔍 Check Diagram" (Tools menu) for a handful of quick, <strong>offline</strong> structural checks — no AI, no internet, instant. It's not a full review (see <a href="#ai-review">AI Design Review</a> above for that) — just a few textbook patterns most engineers would recognize immediately:</p>
+      <ul>
+        <li>A component in the <strong>Client/Frontend</strong> category connected directly to a <strong>Databases</strong> component, with no service/API layer in between.</li>
+        <li>A component with <strong>no connections at all</strong>, while the rest of the diagram is wired up (an empty diagram isn't flagged).</li>
+        <li>A <a href="#replication">Live Replication</a> pair with no load balancer or API gateway routing traffic to either side.</li>
+      </ul>
+      <p>Each finding is clickable — it closes the dialog and selects/centers the component(s) involved so you can fix it right away.</p>
     </section>
 
     <section id="generate-design">
@@ -439,7 +455,7 @@
       <p>A UML-style "communication flow" diagram — vertical <strong>lifelines</strong>, one per participant, with horizontal <strong>messages</strong> between them showing a call followed by a response (or any back-and-forth), read top to bottom as time.</p>
       <ol>
         <li><strong>Open the wizard</strong> — toolbar's "✨ Create" menu → "🔀 Sequence Diagram". Enter 2 or more participant names (Client, Server, Database, ...) — add or remove rows as needed — and click "🔀 Create". One titled lifeline appears for each name, evenly spaced left to right.</li>
-        <li><strong>Draw messages</strong> — drag from one lifeline's edge to another, same as any connector (see <a href="#connectors">Connectors &amp; arrows</a>). A lifeline's connection points span its <em>full height</em> instead of a small dot, so you can grab/drop at whatever height represents when the message happens — several messages on the same lifeline land at their own distinct heights instead of piling up on one point. A message between two lifelines starts out straight (no elbow) and is automatically numbered (1, 2, 3, ...) in the order they occur, top to bottom — a small numbered badge at each message's start, always kept correct even after adding, deleting, or undoing one.</li>
+        <li><strong>Draw messages</strong> — drag from one lifeline's edge to another, same as any connector (see <a href="#connectors">Connectors &amp; arrows</a>). A lifeline's connection points span its <em>full height</em> instead of a small dot, so you can grab/drop at whatever height represents when the message happens — several messages on the same lifeline land at their own distinct heights instead of piling up on one point. A message between two lifelines starts out straight (no elbow) and is automatically numbered (1, 2, 3, ...) in the order they occur, top to bottom — a small numbered badge at each message's start, always kept correct even after adding, deleting, or undoing one. Need a specific message numbered differently than the auto order? Right-click it and choose <strong>"Set sequence number..."</strong> to manually override just its own badge (shown in a distinct color) — "Clear sequence number override" (shown instead once set) goes back to automatic.</li>
         <li><strong>Style and annotate</strong> — every ordinary connector feature applies: color, thickness, solid vs. dashed (handy as a call-vs-response convention), arrow direction, and a label (positioned near its start, middle, or end from the arrow style editor). Right-click a message and choose "Open details" for a right-side panel with its label and a free-text notes field — the notes also show as a hover tooltip on the message itself.</li>
         <li><strong>A lifeline can message itself</strong> — drag from a lifeline's connection strip back onto that same lifeline at a different height (e.g. "validate input" before a real call out). It renders as a small loop instead of a flat line through the lifeline, and still gets a sequence number and every normal connector feature.</li>
         <li><strong>Reconnect a message</strong> — select it and drag either of its two small round endpoint handles to a different height or a different lifeline, instead of deleting and redrawing it. Dropping on empty canvas cancels the reconnect.</li>
@@ -457,8 +473,8 @@
       <p>Group 2 or more lifelines together (select them, then "Group selection" in the style row) and a 🔍 icon appears on the group's background box — click it for a read-only zoomed-in preview of just that sequence diagram, in a modal, or "📌 Pin to side panel" to dock the same live-updating preview instead of a popup. The preview itself is view-only; click its "✏️ Edit" button (also available directly from a pinned panel) to open the real canvas scoped to just that group's lifelines and messages for actual editing — a banner marks this state, and its "✅ Done editing" button saves your changes back into the main diagram.</p>
       <div class="tip">📤 A sequence-diagram group exports as its own extra PNG file (alongside the main diagram's PNG) or extra PDF page automatically — see <a href="#saving">Saving, loading &amp; export</a>.</div>
 
-      <h3>Combined fragments (Alt/Opt/Loop/Par)</h3>
-      <p>Search "🔷 Add Shape" or the sidebar's "Sequence Diagram Templates" category for "Alt Fragment", "Opt Fragment", "Loop Fragment", or "Par Fragment" — a resizable, movable labeled box with a small UML pentagon tag showing its operator, for enclosing a group of messages under a condition (e.g. "user is premium"). Drop it behind the messages it should enclose (right-click → Send to back), and set the condition by renaming the box like any other component. One condition per box — no alt/else divider line.</p>
+      <h3>Combined fragments (Alt/Opt/Loop/Par/Critical/Break)</h3>
+      <p>Search "🔷 Add Shape" or the sidebar's "Sequence Diagram Templates" category for "Alt Fragment", "Opt Fragment", "Loop Fragment", "Par Fragment", "Critical Fragment", or "Break Fragment" — a resizable, movable labeled box with a small UML pentagon tag showing its operator, for enclosing a group of messages under a condition (e.g. "user is premium"). Drop it behind the messages it should enclose (right-click → Send to back), and set the condition by renaming the box like any other component. One condition per box — no alt/else divider line.</p>
 
       <h3>Ready-made sequence-diagram templates</h3>
       <p>The sidebar's "Sequence Diagram Templates" category also has whole ready-made flows you can drop in at once, already grouped: Login Flow, OAuth Handshake, Checkout Flow, Retry with Backoff, PKCE Authorization Flow, SCIM User Provisioning, MFA Challenge, RBAC Authorization Check, ABAC Authorization Check, SSO (SAML/OIDC), SPA Silent Token Refresh, API Key Authentication, TCP 3-Way Handshake, UDP Request/Response, Password Reset Flow, Passwordless Magic Link Login, WebAuthn/Passkey Authentication, OAuth Client Credentials (M2M), WebSocket Handshake &amp; Messaging, Webhook Delivery with Retry, Circuit Breaker Pattern, Cache-Aside Pattern, Saga Pattern (Choreography), Idempotent Request Handling, Two-Phase Commit, Outbox Pattern, Event Sourcing/CQRS Command Flow, gRPC Unary Call, GraphQL Query Resolution, Presigned URL File Upload, Kafka Consumer-Group Rebalance, Distributed Lock Acquisition, Service Mesh mTLS Handshake, Blue-Green/Canary Deployment Traffic Shift, DNS Resolution Flow, Social/Federated Login, and Step-Up Authentication.</p>
@@ -466,7 +482,7 @@
       <div class="tip">💡 A relevant template is also offered as a Smart Suggestion (see "✨ Smart Suggestions") right after placing a component like OAuth/OIDC, SSO, Identity Provider, API Gateway, JWT, API Key, Cognito, React, Router, Redis Cache, WebSocket Server, Email Service, Webhook, Payment Gateway, Circuit Breaker, Saga Coordinator, gRPC Service, GraphQL Server, Apache Kafka, DNS, Service Mesh, S3, or Spinnaker — accepting it instantiates the template positioned next to that component. You can also drag a template from the sidebar directly onto an existing node for the same effect.</div>
 
       <h3>Export as Mermaid / PlantUML</h3>
-      <p>Open a sequence diagram's 🔍 zoom-in preview (above) and click "📋 Copy as Mermaid" or "📋 Copy as PlantUML" to copy it as text in that format — including activation bars, destroy markers, and any overlapping fragment box. Best-effort, not a guaranteed lossless round-trip.</p>
+      <p>Open a sequence diagram's 🔍 zoom-in preview (above) and click "📋 Copy as Mermaid" or "📋 Copy as PlantUML" to copy it as text in that format — including activation bars, destroy markers, and any overlapping fragment box. A "Group / Container" shape overlapping one or more lifelines also wraps them in a labeled swimlane box in the exported text. Best-effort, not a guaranteed lossless round-trip.</p>
 
       <h3>Import from Mermaid</h3>
       <p>"Create" → "📥 Import from Mermaid" is the reverse — paste Mermaid <code>sequenceDiagram</code> text (participant declarations are optional) and it becomes a real, grouped diagram: participants become lifelines, and each message becomes a connector, reading arrow styles, <code>activate</code>/<code>deactivate</code>, <code>destroy</code>, and <code>alt</code>/<code>opt</code>/<code>loop</code>/<code>par</code> blocks. Best-effort, not a guaranteed lossless round-trip.</p>
@@ -532,6 +548,10 @@
       <details>
         <summary>Does "Generate Design" call an AI automatically too?</summary>
         <p>No, same as AI Design Review — it prepares a prompt and copies it to your clipboard, then opens the AI provider's own website for you to paste it into and send yourself. The generated diagram only appears after you paste the AI's reply back into the wizard.</p>
+      </details>
+      <details>
+        <summary>Why doesn't "🌐 Export to..." → Lucidchart open the diagram directly, like Mermaid Live or draw.io does?</summary>
+        <p>Lucidchart's importer only accepts uploaded files — unlike Mermaid Live Editor and draw.io/diagrams.net, it has no public "open with this content pre-loaded" link. So "Open Lucidchart" downloads the same draw.io-format file (which Lucidchart's own importer accepts) and opens <code>lucid.app</code> in a new tab — from there, use File → Import to load it.</p>
       </details>
       <details>
         <summary>If I delete a component from a replicated side, does its mirror really disappear too?</summary>

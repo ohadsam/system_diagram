@@ -90,6 +90,22 @@ test('the AI Design Review panel opens, builds a prompt from the diagram, and ac
   await expect(page.locator('#ai-review-panel')).not.toHaveClass(/open/);
 });
 
+test('switching the AI panel from "Review" to "Explain" swaps the auto-generated prompt', async ({ page }) => {
+  await addComponentByName(page, 'PostgreSQL');
+  await openToolbarGroup(page, 'Tools');
+  await page.locator('#toolbar button[title="AI Design Review"]').click();
+
+  const prompt = page.locator('.ai-review-prompt');
+  await expect(prompt).toHaveValue(/senior system design reviewer/);
+
+  await page.locator('.ai-review-mode-toggle button', { hasText: '💬 Explain' }).click();
+  await expect(prompt).toHaveValue(/plain-language explanation/);
+  await expect(prompt).toHaveValue(/PostgreSQL/); // still reflects the actual diagram
+
+  await page.locator('.ai-review-mode-toggle button', { hasText: '🔍 Review' }).click();
+  await expect(prompt).toHaveValue(/senior system design reviewer/);
+});
+
 test('the AI Design Review prompt asks sequence-diagram-specific questions when the canvas holds a sequence diagram', async ({ page }) => {
   await openToolbarGroup(page, 'Create');
   await page.locator('#toolbar button', { hasText: 'Sequence Diagram' }).click();
