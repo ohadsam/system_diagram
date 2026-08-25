@@ -165,6 +165,32 @@ test.describe('mobile viewport (390x844)', () => {
     const info = await scrollWidthInfo(page);
     expect(info.scroll).toBeLessThanOrEqual(info.inner);
   });
+
+  test('the project tab strip does not force horizontal overflow once 2 tabs are open', async ({ page }) => {
+    await page.locator('#toolbar button.toolbar-dropdown-trigger', { hasText: 'File' }).click();
+    await page.locator('.toolbar-dropdown-panel button', { hasText: 'Open in New Tab' }).click();
+    await page.locator('.add-tab-modal button', { hasText: '🆕 New blank diagram' }).click();
+    await expect(page.locator('.project-tab')).toHaveCount(2);
+    const info = await scrollWidthInfo(page);
+    expect(info.scroll).toBeLessThanOrEqual(info.inner);
+  });
+
+  test('the Outline panel opens as a slide-over drawer without horizontal overflow', async ({ page }) => {
+    await addComponentOnMobile(page, 'Redis');
+    await page.locator('#toolbar button.toolbar-dropdown-trigger', { hasText: 'Tools' }).click();
+    await page.locator('.toolbar-dropdown-panel button', { hasText: 'Outline' }).click();
+    await expect(page.locator('#outline-panel')).toHaveClass(/open/);
+    const info = await scrollWidthInfo(page);
+    expect(info.scroll).toBeLessThanOrEqual(info.inner);
+  });
+
+  test('Presenter Mode hides the toolbar/sidebar without leaving any horizontal overflow behind', async ({ page }) => {
+    await page.locator('#toolbar button.toolbar-dropdown-trigger', { hasText: 'Tools' }).click();
+    await page.locator('.toolbar-dropdown-panel button', { hasText: 'Presenter Mode' }).click();
+    await expect(page.locator('.kiosk-exit-btn')).toBeVisible();
+    const info = await scrollWidthInfo(page);
+    expect(info.scroll).toBeLessThanOrEqual(info.inner);
+  });
 });
 
 test.describe('tablet viewport (768x1024)', () => {

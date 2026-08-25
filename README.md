@@ -244,6 +244,23 @@ Or open `index.html` directly in a browser.
   changed, reachable any time afterward from the toolbar.
 - **Responsive** — full desktop layout; sidebar/details panel become
   slide-over drawers on mobile, with touch-friendly interactions.
+- **📋 Outline panel** — a searchable, collapsible list of every component
+  and connector on the canvas, doubling as a table of contents; click an
+  entry to jump to it, or select something on the canvas to see it
+  highlighted in the list.
+- **🕘 Undo History** — a visual timeline of every edit with an
+  auto-generated label ("Added...", "Moved 2 components", ...); jump
+  straight to any past point instead of pressing undo repeatedly.
+- **Terraform export** — "🌐 Export to..." can now also generate a starter
+  Terraform (`.tf`) file for the AWS components on the canvas.
+- **Diagram tabs** — "🗂️ Open in New Tab..." opens another saved diagram
+  (or a new blank one) alongside your current one, with a tab strip to
+  switch between them.
+- **🖥️ Presenter Mode** — hides the toolbar, sidebar and side panels for a
+  full-bleed, distraction-free view; Esc or a floating Exit button brings
+  them back.
+- **Duplicate-tab warning** — opening this app in a second browser tab
+  shows a warning, since both share the same autosave/saved-project storage.
 
 See [`help.html`](help.html) for the full interactive user guide.
 

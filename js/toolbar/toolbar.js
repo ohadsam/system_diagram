@@ -41,11 +41,15 @@ import { openImportSequenceMermaidModal } from '../modals/importSequenceMermaidM
 import { openExportDiagramModal } from '../modals/exportDiagramModal.js';
 import { openShareLinkModal } from '../modals/shareLinkModal.js';
 import { openVersionHistoryModal } from '../modals/versionHistoryModal.js';
+import { openHistoryTimelineModal } from '../modals/historyTimelineModal.js';
 import { openPresentationsModal } from '../modals/presentationsModal.js';
 import { openDiagramLintModal } from '../modals/diagramLintModal.js';
 import { openScaleDiagramModal } from '../modals/scaleDiagramModal.js';
 import { openDiagramThemeModal } from '../modals/diagramThemeModal.js';
 import { setMinimapVisible } from '../canvas/minimap.js';
+import { toggleOutlinePanel } from '../panel/outlinePanel.js';
+import { initProjectTabsBar } from './projectTabsBar.js';
+import { openAddTabModal } from '../modals/addTabModal.js';
 import { openCommandPaletteModal } from '../modals/commandPaletteModal.js';
 import { openCostBreakdownModal } from '../modals/costBreakdownModal.js';
 // Registers this modal's `sdb:open-subdiagram` window listener (see
@@ -64,6 +68,7 @@ import { showToast } from '../utils/toast.js';
 import { resetHints, areHintsEnabled, setHintsEnabled } from '../hints/hints.js';
 import { getUiPrefs, saveUiPrefs, onUiPrefsChange, THEME_MODES } from '../io/uiPrefs.js';
 import { setTheme } from '../io/theme.js';
+import { isKioskMode, toggleKioskMode, onKioskModeChange } from '../core/kioskMode.js';
 import { onSuggestionsVisibilityChange } from '../canvas/suggestions.js';
 
 let contextRow = null;
@@ -128,6 +133,12 @@ export function initToolbar(root) {
   // landed on top of the first-run tour's hint bubble.
   row1.appendChild(buildCanvasSearchGroup());
   root.appendChild(row1);
+
+  // Hidden (not just empty) until a second tab actually exists — see
+  // toolbar/projectTabsBar.js's own header comment.
+  const tabsRow = el('div', { class: 'toolbar-row toolbar-row-tabs', hidden: true });
+  root.appendChild(tabsRow);
+  initProjectTabsBar(tabsRow);
 
   // Not appended anywhere yet — mountContextRow() (inside renderContextRowInner)
   // moves this single persistent element into whichever container matches
@@ -361,6 +372,7 @@ function buildFileGroupButtons() {
   });
   const saveAsBtn = el('button', { type: 'button', class: 'btn', title: 'Save this diagram with a name', text: '💾 Save As', onClick: openSaveAsModal });
   const loadBtn = el('button', { type: 'button', class: 'btn', title: 'Load a saved diagram', text: '📂 Load', onClick: openLoadProjectModal });
+  const addTabBtn = el('button', { type: 'button', class: 'btn', title: 'Open another diagram in a new tab, switchable from a tab strip without reloading each time', text: '🗂️ Open in New Tab...', onClick: openAddTabModal });
   const duplicateProjectBtn = el('button', {
     type: 'button', class: 'btn', title: 'Duplicate this project into a new one (the original stays untouched)', text: '📄 Duplicate project',
     onClick: duplicateProjectAsNew,
@@ -397,8 +409,9 @@ function buildFileGroupButtons() {
   const exportDiagramBtn = el('button', { type: 'button', class: 'btn', title: 'Export the whole diagram to Mermaid, draw.io, or Lucidchart', text: '🌐 Export to...', onClick: openExportDiagramModal });
   const shareBtn = el('button', { type: 'button', class: 'btn', title: 'Get a shareable link that encodes this diagram (no backend — a local copy for whoever opens it)', text: '🔗 Share', onClick: openShareLinkModal });
   const versionHistoryBtn = el('button', { type: 'button', class: 'btn', title: 'Save named snapshots of this diagram, revert to one, or compare two', text: '📸 Version History', onClick: openVersionHistoryModal });
+  const historyTimelineBtn = el('button', { type: 'button', class: 'btn', title: 'Visual undo/redo timeline — jump straight to any past step instead of pressing undo repeatedly', text: '🕘 Undo History', onClick: openHistoryTimelineModal });
   const presentationsBtn = el('button', { type: 'button', class: 'btn', title: 'Build a slideshow out of saved versions, play it, or export it to PowerPoint', text: '🎬 Presentations', onClick: openPresentationsModal });
-  return [newBtn, saveAsBtn, loadBtn, duplicateProjectBtn, exportJsonBtn, importJsonBtn, pngBtn, pdfBtn, exportDiagramBtn, shareBtn, versionHistoryBtn, presentationsBtn, backupBtn];
+  return [newBtn, saveAsBtn, loadBtn, addTabBtn, duplicateProjectBtn, exportJsonBtn, importJsonBtn, pngBtn, pdfBtn, exportDiagramBtn, shareBtn, versionHistoryBtn, historyTimelineBtn, presentationsBtn, backupBtn];
 }
 
 function buildCreateGroupButtons() {
@@ -494,6 +507,12 @@ function buildToolsGroupButtons() {
   });
 
   const aiReviewBtn = el('button', { type: 'button', class: 'btn', title: 'AI Design Review', text: '🤖 AI Design Review', onClick: toggleAiReviewPanel });
+  const outlineBtn = el('button', {
+    type: 'button', class: 'btn',
+    title: 'Outline: a searchable list of every component and connector on the canvas — click one to jump to it, or select on the canvas to find it here',
+    text: '📋 Outline',
+    onClick: toggleOutlinePanel,
+  });
   const autoArrangeBtn = el('button', {
     type: 'button',
     class: 'btn',
@@ -533,7 +552,15 @@ function buildToolsGroupButtons() {
     text: '🎨 Diagram Theme',
     onClick: openDiagramThemeModal,
   });
-  return [gridBtn, minimapBtn, focusModeBtn, alignGuidesBtn, themeBtn, aiReviewBtn, lintBtn, costBtn, autoArrangeBtn, distributeBtn, scaleBtn, diagramThemeBtn];
+  const presenterModeBtn = el('button', {
+    type: 'button',
+    class: `btn${isKioskMode() ? ' active' : ''}`,
+    title: 'Presenter Mode: hide the toolbar, sidebar and side panels for a full-bleed, distraction-free view — Esc or the floating Exit button brings them back',
+    text: '🖥️ Presenter Mode',
+    onClick: toggleKioskMode,
+  });
+  onKioskModeChange((active) => presenterModeBtn.classList.toggle('active', active));
+  return [gridBtn, minimapBtn, focusModeBtn, alignGuidesBtn, themeBtn, aiReviewBtn, outlineBtn, lintBtn, costBtn, autoArrangeBtn, distributeBtn, scaleBtn, diagramThemeBtn, presenterModeBtn];
 }
 
 function buildHelpGroupButtons() {

@@ -137,6 +137,13 @@ this repo" quick-start.
 | Change manual connector waypoints (drag-to-bend) | `js/canvas/waypointHandles.js` (the handle overlay — diffed by positional index, not id) + `js/core/project.js` (`edge.waypoints` field) + `js/canvas/connector.js#buildEdgePath` (checked *before* any `routing` branch — a universal override) + `js/canvas/canvas.js#clearEdgeWaypoints` ("Straighten connector" context-menu item) |
 | Change pinned comments | `js/core/project.js` (`createComment`/`validateComments`, `project.comments`) + `js/canvas/commentPins.js` (pin rendering, diffed by id) + `js/modals/commentModal.js` (`sdb:open-comment` window event, editor) + `js/canvas/canvas.js` (`addCommentAt`/`addCommentAtCenter`/`updateCommentText`/`toggleCommentResolved`/`deleteComment`, and `getContentBounds`'s comment-padding for Fit-to-Screen/export) |
 | Fix a floating panel nested in `#toolbar` losing to a sibling drawer (`#sidebar`/`#details-panel`) despite a higher z-index | Raise `--z-toolbar` itself in `css/variables.css` (currently 26, just above `--z-panel`'s 25) rather than reparenting the panel — a real `document.body` portal seems more "correct" but breaks the ~28 e2e specs that locate a dropdown's buttons via `'#toolbar button'`, see "Common pitfalls" below |
+| Change Terraform export | `js/io/exportTerraform.js` (`AWS_RESOURCE_MAP`, `buildTerraform` — pure, DOM-free) + `js/modals/exportDiagramModal.js` (4th export-target section) |
+| Change the Outline panel | `js/panel/outlinePanel.js` — `contentSignature` gates the expensive rebuild (skip it unless an id/label/type actually changed, not on every drag-frame `'change'`), `itemElements` Map drives cheap canvas→list highlight sync, same `rerenderPreservingUiState` + `data-focus-key` mechanism as the details panel for the search box |
+| Change the visual undo/redo timeline | `js/core/history.js` (`getTimeline`/`jumpTo` — built from the existing stack-movement primitives, not a new mechanism) + `js/core/historyLabels.js#describeHistoryStep` (pure, reuses `computeDiagramDiff`) + `js/modals/historyTimelineModal.js` |
+| Change diagram tabs (open/switch/close) | `js/io/projectTabs.js` (bookkeeping — a thin layer over the *existing* `io/projects.js` save/load, `core/store.js` stays single-document) + `js/toolbar/projectTabsBar.js` (the tab strip UI) + `js/modals/addTabModal.js` (the "+" picker). **Read** docs/ARCHITECTURE.md's "Multiple diagram tabs" section before touching the ordering in `switchToProjectTab`/`openNewProjectTab`/`closeProjectTab` — `store.loadProject()` fires `'change'` synchronously, so the tab-id bookkeeping must be updated *before* that call, not after, or a subscriber's re-render sees stale tab data. Closing a *non*-active tab never calls `store.loadProject()` at all, so it can't rely on `'change'` either — see `subscribeTabsChanged`. |
+| Change Presenter Mode | `js/core/kioskMode.js` (on/off pub-sub, deliberately not persisted) + `js/toolbar/kioskModeUi.js` (the floating exit button — the only chrome left once the toolbar itself is hidden) + `css/layout.css`'s `body.kiosk-mode` rules + `main.js#initKeyboardShortcuts` (Escape also exits it) |
+| Change large-diagram rendering perf (off-screen culling) | `css/node.css`'s `.node-body { content-visibility: auto; }` + the `.canvas-viewport.exporting .node-body` override that forces it back off during PNG/PDF capture. **Read** docs/ARCHITECTURE.md's "Large-diagram rendering performance" section before moving this rule onto `.node` itself or onto anything `.node-external-label` is nested inside — see "Common pitfalls" below. |
+| Change the duplicate-tab warning | `js/io/duplicateTabWarning.js` (`initDuplicateTabWarning` — a `BroadcastChannel`, not a localStorage lock flag; returns a `dispose()` used only by its own unit test) |
 
 ## Running things locally
 
@@ -666,3 +673,18 @@ npm test
   `getBoundingClientRect()` is detected. Any *third* future fixed-corner
   overlay would need the same explicit treatment added; there's no generic
   "avoid every other overlay" mechanism here.
+- **`content-visibility: auto` (css/node.css's `.node-body` rule, for
+  large-diagram perf) must never end up on an ancestor of anything measured
+  while off-screen.** It's deliberately on `.node-body`, not `.node`
+  itself, and `.node-external-label` is a *sibling* of `.node-body` (not
+  nested inside it) specifically so `canvas.js#getContentBounds`'s
+  off-screen-label measurement (see the pitfall above) stays correct. If a
+  future change ever needs another element measured via
+  `getBoundingClientRect()` while potentially off-screen, keep it out from
+  under `.node-body` the same way, or give it its own `content-visibility:
+  visible` override for that path. Also remember `.canvas-viewport.exporting
+  .node-body { content-visibility: visible; }` exists for a reason
+  (html2canvas walks the DOM manually and isn't guaranteed to see the same
+  on/off-screen relevance the real renderer would) — don't remove it as
+  "unnecessary" without re-verifying PNG/PDF export of a diagram with
+  off-screen content first.

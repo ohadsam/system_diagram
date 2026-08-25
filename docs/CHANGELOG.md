@@ -170,6 +170,40 @@ Gateway, Circuit Breaker, and Saga Coordinator now suggest a relevant new templa
 SSO, Identity Provider, and API Key each gained one more curated pairing alongside their existing
 ones.
 
+## v1.29.0 (2026-08-25)
+
+A 7-feature batch: a canvas table-of-contents, a visual undo/redo timeline, Terraform export,
+multiple diagram tabs, Presenter Mode, large-diagram rendering performance, and a duplicate-tab
+warning.
+
+**Outline panel** ("📋 Outline", Tools menu) — a searchable, collapsible list of every component and
+connector on the canvas, doubling as a table of contents. Click an entry to select and center it;
+selecting something on the canvas highlights its row in the panel too.
+
+**Undo History** ("🕘 Undo History", File menu) — a visual timeline of every past and available-to-
+redo edit, each auto-labeled in plain language ("Added...", "Moved 2 components", ...). Jump
+straight to any step instead of pressing undo/redo repeatedly.
+
+**Terraform export** — "🌐 Export to..." gains a 4th target: a starter `.tf` file with one resource
+block per recognized AWS component on the canvas, plus comments noting connectors and any
+unmapped AWS components.
+
+**Diagram tabs** — "🗂️ Open in New Tab..." (File menu) opens another saved diagram (or a new blank
+one) alongside your current one. A tab strip appears above the toolbar once 2+ are open, to switch
+between them; closing a tab never deletes its underlying saved project.
+
+**Presenter Mode** ("🖥️ Presenter Mode", Tools menu) — hides the toolbar, sidebar and every side
+panel for a full-bleed, distraction-free canvas view. Esc or a floating "Exit Presenter Mode"
+button brings everything back.
+
+**Large-diagram rendering performance** — components far outside the current view no longer cost
+rendering work; the browser skips their layout/paint until scrolled back into view. Purely an
+internal optimization — "Fit to screen", PNG/PDF export, and every measurement stay exactly as
+accurate as before.
+
+**Duplicate-tab warning** — opening this app in a second browser tab now shows a one-time warning
+in both tabs, since every tab shares the same autosave and saved-project storage.
+
 ## v1.28.0 (2026-08-25)
 
 An 8-feature batch of visual/UX upgrades: dark mode, diagram-wide color themes, custom icon upload,

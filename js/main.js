@@ -7,6 +7,7 @@ import { initSidebar, configureSidebar } from './sidebar/sidebar.js';
 import { initToolbar } from './toolbar/toolbar.js';
 import { initDetailsPanel, close as closeDetailsPanel } from './panel/detailsPanel.js';
 import { initAiReviewPanel, close as closeAiReviewPanel } from './panel/aiReviewPanel.js';
+import { initOutlinePanel } from './panel/outlinePanel.js';
 import { initAutosave, restoreAutosavedProject } from './io/autosave.js';
 import { loadProjectFromHash } from './io/shareLink.js';
 import { openCustomComponentModal } from './modals/customComponentModal.js';
@@ -19,6 +20,9 @@ import * as viewport from './canvas/viewport.js';
 import { setToolMode, setSpaceHeld } from './canvas/toolMode.js';
 import { openCommandPaletteModal } from './modals/commandPaletteModal.js';
 import { initTheme } from './io/theme.js';
+import { isKioskMode, setKioskMode } from './core/kioskMode.js';
+import { initKioskModeUi } from './toolbar/kioskModeUi.js';
+import { initDuplicateTabWarning } from './io/duplicateTabWarning.js';
 
 function isTypingTarget(elRef) {
   if (!elRef) return false;
@@ -76,6 +80,7 @@ function initKeyboardShortcuts() {
       hideContextMenu();
       closeDetailsPanel();
       closeAiReviewPanel();
+      if (isKioskMode()) setKioskMode(false);
     } else if (e.key === ' ' && !e.repeat) {
       // Hold Space to temporarily pan (Hand tool) no matter which tool is
       // active, Figma-style — released back to whatever was active before.
@@ -135,8 +140,11 @@ async function boot() {
   initToolbar(document.getElementById('toolbar'));
   initDetailsPanel(document.getElementById('details-panel'));
   initAiReviewPanel(document.getElementById('ai-review-panel'));
+  initOutlinePanel(document.getElementById('outline-panel'));
 
   configureSidebar({ onEditCustomComponent: (def) => openCustomComponentModal({ editDef: def }) });
+  initKioskModeUi();
+  initDuplicateTabWarning(showToast);
 
   initKeyboardShortcuts();
   requestAnimationFrame(() => initHints());

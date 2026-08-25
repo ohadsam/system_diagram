@@ -76,3 +76,31 @@
   width: var(--ai-panel-width);
   overflow-y: auto;
 }
+
+#outline-panel {
+  flex: 0 0 0;
+  width: 0;
+  overflow: hidden;
+  border-left: 1px solid var(--color-border);
+  background: var(--color-surface);
+  transition: width 0.18s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+#outline-panel.open {
+  flex: 0 0 var(--outline-panel-width);
+  width: var(--outline-panel-width);
+}
+
+/* Presenter/Kiosk clean mode (see core/kioskMode.js) — hides every piece of
+   chrome around the canvas so it fills the whole viewport. #canvas-viewport
+   needs no rule of its own: it's already the sole `flex: 1 1 auto` item in
+   .app-body, so it fills whatever space the hidden siblings stop claiming. */
+body.kiosk-mode #toolbar,
+body.kiosk-mode #sidebar,
+body.kiosk-mode #details-panel,
+body.kiosk-mode #outline-panel,
+body.kiosk-mode #ai-review-panel {
+  display: none;
+}

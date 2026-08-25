@@ -122,6 +122,75 @@
   display: none;
 }
 
+/* Same gotcha as .toolbar-row-context[hidden] just above — .toolbar-row's
+   own display:flex beats the UA stylesheet's [hidden] rule. */
+.toolbar-row-tabs[hidden] {
+  display: none;
+}
+
+.toolbar-row-tabs {
+  padding: 4px var(--space-4);
+  gap: 4px;
+}
+
+.project-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px 5px 12px;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  font-size: 12.5px;
+  max-width: 180px;
+  background: transparent;
+  color: var(--color-text-muted);
+}
+
+.project-tab:hover {
+  background: var(--color-surface-alt);
+}
+
+.project-tab.active {
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+  font-weight: 600;
+  box-shadow: inset 0 -2px 0 var(--color-primary);
+}
+
+.project-tab-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  max-width: 160px;
+  text-align: left;
+}
+
+.project-tab-close {
+  flex: 0 0 auto;
+  font-size: 11px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+  color: inherit;
+}
+
+.project-tab-close:hover {
+  background: var(--color-danger-soft);
+}
+
+.project-tab-add {
+  font-size: 14px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+}
+
+.project-tab-add:hover {
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+}
+
 .toolbar-brand {
   display: flex;
   align-items: center;
@@ -298,4 +367,36 @@
   font-size: 12px;
   color: var(--color-text-muted);
   font-weight: 600;
+}
+
+/* Presenter/Kiosk clean mode's floating exit affordance — see
+   core/kioskMode.js and toolbar/kioskModeUi.js. Always in the DOM, but only
+   shown while body has the kiosk-mode class (js/toolbar/kioskModeUi.js
+   toggles it) so it never intrudes on the normal editing UI. */
+.kiosk-exit-btn {
+  display: none;
+  position: fixed;
+  top: var(--space-3);
+  right: var(--space-3);
+  z-index: var(--z-kiosk-exit);
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-lg);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-text);
+  opacity: 0.55;
+  transition: opacity 0.15s ease;
+}
+
+.kiosk-exit-btn:hover {
+  opacity: 1;
+}
+
+body.kiosk-mode .kiosk-exit-btn {
+  display: flex;
 }

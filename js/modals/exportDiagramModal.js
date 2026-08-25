@@ -1,7 +1,7 @@
 // "Export Diagram" — whole-canvas exports to external tools, alongside the
 // existing JSON/PNG/PDF exports (io/fileIO.js, io/exportImage.js,
 // io/exportPdf.js) and the sequence-diagram-only Mermaid/PlantUML exports
-// (modals/subDiagramModal.js). Three targets:
+// (modals/subDiagramModal.js). Four targets:
 //   - Mermaid flowchart text (io/exportFlowchartMermaid.js) — copy + open
 //     Mermaid Live Editor, same "copy then open the provider in a new tab"
 //     pattern modals/generateDesignModal.js#openProvider already uses.
@@ -12,11 +12,15 @@
 //     of Mermaid Live's "open with content pre-loaded" URL scheme (it only
 //     accepts file uploads), so this offers a download + a link to
 //     Lucidchart itself rather than a direct pre-loaded editor link.
+//   - Terraform (io/exportTerraform.js) — a best-effort AWS resource
+//     skeleton, copy or download as a .tf file; no "open provider" link
+//     since there's no equivalent web target for this one.
 import { openModal } from './modal.js';
 import { el } from '../utils/dom.js';
 import * as store from '../core/store.js';
 import { buildFlowchartMermaid } from '../io/exportFlowchartMermaid.js';
 import { buildDrawIOXml } from '../io/exportDrawIO.js';
+import { buildTerraform } from '../io/exportTerraform.js';
 import { downloadBlob, sanitizeFilename } from '../utils/download.js';
 import { showToast } from '../utils/toast.js';
 
@@ -81,6 +85,23 @@ export function openExportDiagramModal() {
             downloadDrawIO('lucidchart');
             openInNewTab('https://lucid.app/');
             showToast('File downloaded — in Lucidchart, use File → Import to load it.', 'success', 4000);
+          } },
+        ],
+      }));
+
+      body.appendChild(buildSection({
+        title: 'Terraform (AWS)',
+        description: 'Best-effort resource skeleton for the AWS components on the canvas — a starting point for `terraform apply`, not a finished config. Only common AWS building blocks are mapped; anything else is listed in a comment instead of silently dropped.',
+        buttons: [
+          { text: '📋 Copy as Terraform', onClick: async () => {
+            const state = store.getState();
+            await copyToClipboard(buildTerraform(state.nodes, state.edges));
+            showToast('Terraform skeleton copied to clipboard.', 'success', 2000);
+          } },
+          { text: '⬇️ Download .tf file', onClick: () => {
+            const state = store.getState();
+            const blob = new Blob([buildTerraform(state.nodes, state.edges)], { type: 'text/plain' });
+            downloadBlob(blob, `${sanitizeFilename(state.name)}.tf`);
           } },
         ],
       }));

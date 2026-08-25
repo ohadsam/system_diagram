@@ -99,3 +99,17 @@ export function canUndo() {
 export function canRedo() {
   return history.canRedo();
 }
+
+/** For modals/historyTimelineModal.js — see History#getTimeline. */
+export function getHistoryTimeline() {
+  return history.getTimeline();
+}
+
+/** For modals/historyTimelineModal.js — see History#jumpTo. */
+export function jumpToHistoryIndex(index) {
+  const snap = history.jumpTo(index);
+  if (!snap) return;
+  state = snap;
+  select([], []);
+  emit('change', state);
+}

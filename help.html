@@ -320,6 +320,10 @@
       <p>Turn on "🧭 Minimap" (Tools menu) for a small overview panel in the canvas's corner — every component as a tiny rect, plus a "you are here" box for the current view. Click or drag anywhere on it to jump the main view there instantly, handy for a large diagram you'd otherwise have to scroll/zoom around to navigate. "🔦 Focus Mode" (Tools menu) dims every component <em>except</em> the current selection and whatever's directly connected to it, so you can trace one part of a busy diagram without the rest fighting for attention — turn it off to bring everything back to full brightness. Both are purely visual and remembered as a preference; neither changes your saved diagram.</p>
       <h3>💬 Pinned comments</h3>
       <p>Right-click empty canvas and choose "Add comment here" to drop a small pin at that spot and open it for editing right away. Click any existing pin to reopen it — edit its note, or check "Mark as resolved" to change its look (a ✓ instead of the speech-bubble icon, dimmed) without deleting it. A pin's "Delete" button removes it (undoable, like everything else). Comments aren't attached to any component — they're independent notes anywhere on the diagram — but they're always included when you use "Fit to screen" or export to PNG/PDF, so a pin never gets left out of frame.</p>
+      <h3>📋 Outline panel</h3>
+      <p>Click "📋 Outline" (Tools menu) for a searchable, collapsible list of every component and connector currently on the canvas, grouped into two sections — handy as a quick table of contents on a large diagram. Click any entry to select and center it on the canvas; the reverse works too — select something on the canvas and its row lights up in the Outline panel automatically. Type in the search box to filter the list down by name.</p>
+      <h3>🖥️ Presenter Mode</h3>
+      <p>Click "🖥️ Presenter Mode" (Tools menu) to hide the toolbar, sidebar, and every side panel, leaving a full-bleed view of just the canvas — handy for presenting or screen-sharing a diagram without the editing controls on screen. A small floating "✕ Exit Presenter Mode" button in the corner (the only thing left on screen) or the <kbd>Esc</kbd> key brings everything back. This is just a view preference, not saved with the diagram — reloading the page always starts back in the normal editing view.</p>
     </section>
 
     <section id="styling">
@@ -386,7 +390,7 @@
         <li><strong>Load</strong> — reopen a saved diagram, or load one from a <code>.json</code> file. Click the ☆ next to any saved project to favorite it — favorites sort first and the "⭐ Favorites only" checkbox filters down to just them.</li>
         <li><strong>Export JSON</strong> — download the full diagram as a portable file (also how you back it up or move it to another browser/computer).</li>
         <li><strong>Export PNG / PDF</strong> — a rendered image of your diagram, ready to paste into docs or slides. If your project has one or more <a href="#sequence-diagram">sequence-diagram</a> groups, each one also exports as its own extra PNG file (alongside the main diagram's) or extra PDF page, cropped tightly to just that group's own content.</li>
-        <li><strong>🌐 Export to...</strong> — sends the <em>whole</em> diagram to another tool: "📋 Copy as Mermaid" (or "🔗 Open Mermaid Live Editor", which copies it and opens the site to paste into), a downloadable <code>.drawio</code> file for draw.io/diagrams.net (with a "🔗 Open draw.io" link), or the same file for Lucidchart's own importer ("🔗 Open Lucidchart"). Best-effort — each format has its own shape/style vocabulary, so this isn't always a perfectly lossless round-trip.</li>
+        <li><strong>🌐 Export to...</strong> — sends the <em>whole</em> diagram to another tool: "📋 Copy as Mermaid" (or "🔗 Open Mermaid Live Editor", which copies it and opens the site to paste into), a downloadable <code>.drawio</code> file for draw.io/diagrams.net (with a "🔗 Open draw.io" link), the same file for Lucidchart's own importer ("🔗 Open Lucidchart"), or "📋 Copy as Terraform"/"⬇️ Download .tf file" — a starter Terraform file with one resource block per recognized AWS component on the canvas. Best-effort — each format has its own shape/style vocabulary, so this isn't always a perfectly lossless round-trip, and the Terraform file is a starting point to edit, not something meant to <code>terraform apply</code> as-is.</li>
         <li><strong>🔗 Share</strong> — generates a link that encodes the whole diagram directly in the URL itself (gzip-compressed) — there's no backend, so nothing is actually uploaded anywhere. Opening the link loads an independent local copy into whoever opens it; it doesn't stay in sync with further edits on either end.</li>
       </ul>
       <h3>Bulk export/import &amp; full backup</h3>
@@ -410,6 +414,10 @@
       <div class="tip">💡 Versions and presentations live inside the project file itself, so they travel with JSON export/import and "🗄️ Backup &amp; Restore" like everything else.</div>
       <h3>Clear Canvas</h3>
       <p>Right-click the canvas → <strong>"🧹 Clear canvas"</strong> deletes every component, connector and replication pair and starts fresh, after a confirmation (skipped if the canvas is already empty). Unlike "🆕 New" (File menu), which switches to a brand-new, separate project, Clear Canvas empties the <em>current</em> project in place — same id/name, so a later Save/autosave still writes to the same slot — and Ctrl/Cmd+Z genuinely brings everything back afterward.</p>
+      <h3>🕘 Undo History</h3>
+      <p>"🕘 Undo History" (File menu) shows every past edit and everything currently available to redo as one ordered list, each step auto-labeled in plain language ("Added \"API Gateway\"", "Moved 2 components", "Restyled 3 components", ...) instead of a bare number. The row marked "You are here" is your current position; click any other row to jump straight to that point in one action, instead of pressing undo/redo repeatedly to get there.</p>
+      <h3>🗂️ Diagram tabs</h3>
+      <p>"🗂️ Open in New Tab..." (File menu) opens a picker: start a brand-new blank diagram, or reopen any other saved project — as an <em>additional</em> tab alongside whatever's already open, not a replacement. Once 2 or more diagrams are open this way, a tab strip appears above the toolbar, one tab per open diagram, showing its name; click a tab to switch the canvas to it (your outgoing tab's changes are saved first, exactly like Save As would), or its "✕" to close it — which removes it from the strip but never deletes the underlying saved project, so it's still reachable from Load or "Open in New Tab..." again later. A single diagram never shows this strip at all.</p>
     </section>
 
     <section id="ai-review">
@@ -587,6 +595,14 @@
       <details>
         <summary>There are two search boxes — what's the difference?</summary>
         <p>The sidebar's search (left panel) searches the component <em>library</em> — everything you could add. The toolbar's "🔎 Find on canvas" search (top bar) searches only what's <em>already on your canvas</em> — your placed components and connectors, by name/label.</p>
+      </details>
+      <details>
+        <summary>Why did I get a warning that this app is "already open in another tab"?</summary>
+        <p>Every tab of this app shares the same autosave and saved-project storage in your browser. Editing the same diagram in two tabs at once can overwrite one tab's changes with the other's, so opening a second tab shows a one-time warning in both. It's safe to keep working — just be aware that whichever tab saves last "wins" for anything both tabs touch.</p>
+      </details>
+      <details>
+        <summary>Will a really large diagram (hundreds of components) slow the app down?</summary>
+        <p>Components far outside your current view cost the browser very little — it skips rendering their inner detail until they're scrolled/panned/zoomed back into sight. This is automatic and invisible: "Fit to screen", PNG/PDF export, and everything else still work exactly the same regardless of how much of the diagram is currently on screen.</p>
       </details>
     </section>
   </main>

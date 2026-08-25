@@ -68,6 +68,7 @@
   --panel-width: 320px;
   --panel-collapsed-width: 36px;
   --ai-panel-width: 380px;
+  --outline-panel-width: 260px;
 
   --z-canvas: 1;
   --z-panel: 25;
@@ -93,6 +94,11 @@
   --z-hint: 60;
   --z-menu: 70;
   --z-toast: 80;
+  /* The floating "Exit Presenter Mode" button (see core/kioskMode.js) is the
+     one piece of chrome deliberately left on screen once every other panel
+     is hidden — it must win over literally everything else still capable of
+     rendering, including a toast, so it's the highest value in the scale. */
+  --z-kiosk-exit: 90;
 }
 
 /* Dark theme — see js/io/uiPrefs.js (`theme: 'system'|'light'|'dark'`) and

@@ -56,6 +56,16 @@
     box-shadow: var(--shadow-lg);
   }
 
+  #outline-panel.open {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(85vw, 300px);
+    z-index: var(--z-panel);
+    box-shadow: var(--shadow-lg);
+  }
+
   .toolbar-row-main {
     row-gap: var(--space-2);
   }

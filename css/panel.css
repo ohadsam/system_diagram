@@ -326,3 +326,107 @@ body.resizing-details-panel {
   max-height: 200px;
   overflow-y: auto;
 }
+
+.outline-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  flex: 0 0 auto;
+}
+
+.outline-header h2 {
+  flex: 1 1 auto;
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.outline-close {
+  font-size: 14px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  flex: 0 0 auto;
+}
+
+.outline-close:hover {
+  background: var(--color-surface-alt);
+}
+
+.outline-search {
+  margin: var(--space-3) var(--space-4) 0;
+  flex: 0 0 auto;
+}
+
+/* .outline-body is the only scrollable region — the header and search box
+   stay put so searching/closing never requires scrolling back up first. */
+.outline-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: var(--space-3) var(--space-4) var(--space-4);
+}
+
+.outline-section + .outline-section {
+  margin-top: var(--space-3);
+}
+
+.outline-section-toggle {
+  width: 100%;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-muted);
+  padding: var(--space-1) 0;
+}
+
+.outline-section-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: var(--space-1);
+}
+
+.outline-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  text-align: left;
+  padding: 6px var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.outline-item:hover {
+  background: var(--color-surface-alt);
+}
+
+.outline-item.active {
+  background: var(--color-primary-soft);
+  color: var(--color-primary-hover);
+}
+
+.outline-item-icon {
+  flex: 0 0 auto;
+  font-size: 14px;
+  width: 18px;
+  text-align: center;
+}
+
+.outline-item-label {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.outline-empty {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  text-align: center;
+  margin-top: var(--space-3);
+}

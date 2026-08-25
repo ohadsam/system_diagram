@@ -19,8 +19,10 @@ index.html ──► js/main.js
                  ├─ toolbar/toolbar.js   (reads store selection, writes via store)
                  ├─ panel/detailsPanel.js
                  ├─ panel/aiReviewPanel.js
+                 ├─ panel/outlinePanel.js (searchable canvas table-of-contents)
+                 ├─ core/kioskMode.js    (Presenter Mode's on/off pub-sub)
                  ├─ modals/*.js          (incl. modals/generateDesignModal.js, modals/replicationModal.js, modals/sequenceDiagramModal.js)
-                 ├─ io/*.js              (localStorage, file, image/pdf export)
+                 ├─ io/*.js              (localStorage, file, image/pdf export, incl. io/projectTabs.js, io/duplicateTabWarning.js)
                  └─ hints/hints.js
 ```
 
@@ -72,6 +74,29 @@ old project is still separately autosaved/saved under its own id, just not
 reachable via Ctrl/Cmd+Z from the new one), but worth knowing before
 reaching for `loadProject()` as a shortcut for "clear the current
 project's content" anywhere else in the future.
+
+### Visual undo/redo timeline (`core/historyLabels.js`, `modals/historyTimelineModal.js`)
+
+"🕘 Undo History" (File menu) lists every entry in `history`'s undo/redo
+stacks at once, with an auto-generated human-readable label per step, and
+lets you jump straight to any one of them instead of pressing undo/redo
+repeatedly. Two additions make this possible without changing what
+`history.js` actually stores:
+
+- `history.getTimeline()`/`jumpTo(index)` — `getTimeline` just concatenates
+  `[...undoStack, current, ...redoStack.slice().reverse()]` into one
+  chronological array (plus the current index within it); `jumpTo` moves
+  `current` to any index by popping/pushing the same two stacks the normal
+  `undo()`/`redo()` already use, the right number of times — it's built
+  entirely out of the existing stack-movement primitives, not a new
+  mechanism.
+- `core/historyLabels.js#describeHistoryStep(prev, next)` — pure, and
+  reuses `core/diagramDiff.js#computeDiagramDiff` rather than reimplementing
+  change-detection, turning its structural diff into a label like `Added
+  "API Gateway"`, `Moved 2 components`, or `Restyled 3 components` (joining
+  multiple categories with `, ` when a step changed more than one kind of
+  thing). Purely derived for display — nothing here is persisted, so
+  labels can't go stale and are naturally correct after any jump.
 
 ## Canvas rendering (`canvas/`)
 
@@ -2610,6 +2635,164 @@ rather than spanning the full width like that banner does.
   "remove the ugly focus ring" instinct on any *other* input should reach
   for restyling the ring (a custom `:focus-visible` rule), not suppressing
   it outright.
+
+## Terraform Export (`io/exportTerraform.js`, `modals/exportDiagramModal.js`)
+
+A 4th target alongside Mermaid/draw.io/Lucidchart in the "🌐 Export to..."
+modal. `AWS_RESOURCE_MAP` is a curated, best-effort mapping (same curation
+bar as Smart Suggestions — not every AWS defId is worth a hardcoded
+resource type) from ~36 of the ~93 AWS component defIds to their real
+Terraform resource type (`'aws-ec2' → 'aws_instance'`, etc.). `buildTerraform`
+emits a `provider "aws" {}` block, one resource block per mapped node with a
+disambiguated snake_case resource name, a commented list of AWS-to-AWS
+connectors (never real `depends_on`/reference wiring — this is a starting
+point to edit, not a deployable file), and a commented list of any AWS
+components on the canvas that aren't in the map, so nothing is silently
+dropped. Non-AWS components are skipped with no comment at all (they have no
+Terraform equivalent to even mention).
+
+## Canvas Outline panel (`panel/outlinePanel.js`)
+
+A collapsible, searchable "table of contents" for the current diagram —
+`#outline-panel`, a fourth `<aside>` alongside the details/AI-review panels
+in `index.html`, toggled via the "📋 Outline" Tools-menu button
+(`toggleOutlinePanel`). Lists every node and edge, grouped into two
+collapsible sections, each row showing an icon + display name (falls back to
+the defId/shape when a node has no custom label).
+
+- **Bidirectional selection sync**, per the feature's actual point: clicking
+  a row calls `store.select([id], [])` and centers the viewport on it
+  (`selectAndCenter`) — canvas→list is the reverse direction, done cheaply
+  via `syncHighlight`, which toggles an `.active` class on the row's element
+  (kept in a persistent `id → element` `Map`, the same diff-by-id pattern
+  `commentPins.js`/`minimap.js` already use) rather than rebuilding the list
+  on every selection change.
+- **Rebuild vs. re-render**: `store.subscribe('change', ...)` fires on every
+  RAF-batched drag frame, but a drag never changes what the Outline should
+  *display* (no id added/removed, no label changed) — `contentSignature`
+  computes a cheap JSON fingerprint of just the id/label/type fields (never
+  x/y/w/h/style) so `onStoreChange` can skip the full `buildContents` rebuild
+  entirely on every frame where nothing the list cares about actually
+  changed.
+- **Search input focus survives its own rebuild** via the established
+  `rerenderPreservingUiState` + `data-focus-key` mechanism (`utils/dom.js`)
+  — the same fix this codebase already uses for the details panel and style
+  editor, reused rather than reinvented here.
+
+## Multiple diagram tabs (`io/projectTabs.js`, `toolbar/projectTabsBar.js`, `modals/addTabModal.js`)
+
+Deliberately a *thin persistence/orchestration layer*, not a second document
+model: `core/store.js` still only ever holds one live project at a time.
+`io/projectTabs.js`'s `openTabIds` (a small array of saved-project ids,
+persisted under its own localStorage key) is just bookkeeping on top of the
+*existing* `io/projects.js` save/load primitives — switching tabs really is
+"save the outgoing tab, then `loadNamedProject` + `store.loadProject` the
+target", the same mechanism "Load" already used. This means undo/redo,
+autosave, and every other single-document assumption elsewhere in the app
+needed zero changes.
+
+- **Bookkeeping must be updated *before* `store.loadProject()`, not after.**
+  `store.loadProject()` fires the store's `'change'` event *synchronously* —
+  any subscriber (like `projectTabsBar.js`'s re-render) runs to completion
+  before `loadProject()` itself returns. `switchToProjectTab`/
+  `openNewProjectTab`/`closeProjectTab` all call `addTabId`/`closeTabId`
+  *before* `store.loadProject(...)`, specifically so a re-render triggered by
+  that `loadProject` call sees the final tab list, not a stale one from a
+  half-updated bookkeeping step. Get this ordering backwards and the tab
+  strip silently shows the wrong tab count until the *next* unrelated
+  `'change'` event happens to fire.
+- **Closing a tab that isn't the active one never touches `store.loadProject`
+  at all** (nothing needs to load — the live canvas doesn't change) — which
+  means it never fires `'change'` either, so `projectTabsBar.js` can't rely
+  on that event alone to know the tab list changed. `io/projectTabs.js`
+  exposes its own `subscribeTabsChanged` pub-sub (fired from `writeState`,
+  the one choke point every tab-list mutation goes through) specifically to
+  cover this case; the tab bar subscribes to both `store`'s `'change'` *and*
+  this.
+- The tab strip (`.toolbar-row-tabs`, an always-mounted-but-conditionally-
+  `hidden` row inserted right after the toolbar's main row) only becomes
+  visible once 2+ tabs are open — a single-diagram user sees no new chrome
+  at all. Needs the same `.toolbar-row-tabs[hidden] { display: none; }`
+  override as `.toolbar-row-context` (see the stacking-context/hidden-row
+  gotcha further down this doc) since `.toolbar-row`'s own `display: flex`
+  otherwise beats the `[hidden]` UA default.
+- Each tab renders as a `<div class="project-tab">` wrapping two sibling
+  `<button>`s (the tab's own select action, and its close "✕") rather than
+  nesting a close button inside a single outer `<button>` — a `<button>`
+  cannot legally contain another interactive `<button>`.
+
+## Presenter/Kiosk clean mode (`core/kioskMode.js`, `toolbar/kioskModeUi.js`)
+
+A "🖥️ Presenter Mode" Tools-menu toggle that hides `#toolbar`, `#sidebar`,
+and all three side panels via a single `body.kiosk-mode` class (see
+`css/layout.css`), leaving `#canvas-viewport` to fill the whole viewport —
+it needs no CSS rule of its own since it's already the sole `flex: 1 1 auto`
+item in `.app-body`. `core/kioskMode.js` is a tiny pub-sub (same shape as
+`canvas/toolMode.js`) holding one boolean, deliberately **not** persisted
+like `io/uiPrefs.js`'s other toggles — reloading the page while presenting
+should never leave a visitor stuck looking at a chrome-less canvas with no
+toolbar to find their way back out of.
+
+Since the toggle button that turns kiosk mode *on* lives inside the very
+toolbar that then disappears, `toolbar/kioskModeUi.js` mounts one permanent,
+always-in-the-DOM `.kiosk-exit-btn` (shown only via `body.kiosk-mode
+.kiosk-exit-btn { display: flex; }`) as the way back — plus Escape
+(`main.js#initKeyboardShortcuts`) as a keyboard equivalent. `--z-kiosk-exit`
+is the highest value in the app's z-index scale (`css/variables.css`) since
+this button must stay clickable over literally everything else still able
+to render, including a toast.
+
+## Large-diagram rendering performance (`css/node.css`)
+
+`.node-body` (not `.node` itself) gets `content-visibility: auto`, letting
+the browser skip style/layout/paint entirely for an off-screen node's
+icon/label/sub-component rows/badges — the actual DOM weight of a node lives
+there, not on the outer `.node` wrapper. Two deliberate placement choices
+keep this "measure-safe":
+
+- **On `.node-body`, not `.node`**: `.node`'s own box already has an
+  explicit inline width/height from the project data (never depends on its
+  content for sizing), so `canvas.js#getSelectionScreenRect`'s
+  `getBoundingClientRect()` calls on `.node` stay accurate for an
+  off-screen selected node regardless of what's skipped inside it.
+- **`.node-external-label` is a *sibling* of `.node-body`, not a
+  descendant** (see `canvas/node.js#updateExternalLabel` — both are direct
+  children of the `.node` root). `canvas.js#getContentBounds` unions in
+  every `.node-external-label`'s real `getBoundingClientRect()` regardless
+  of whether its node is currently on-screen, specifically so "Fit to
+  screen"/PNG/PDF export don't crop a label that extends outside its node's
+  own box (this function has bitten this exact bug class before — see its
+  own header comment). Because the label isn't nested inside the
+  content-visibility'd element, this measurement was never at risk from this
+  change — a genuine "off by construction" guarantee, not something that
+  merely happens to work today.
+
+PNG/PDF export (`io/exportImage.js#captureDiagramCanvas`) already toggles a
+`.canvas-viewport.exporting` class for the duration of the capture (used
+elsewhere to hide the minimap/grid background). `css/node.css` adds
+`.canvas-viewport.exporting .node-body { content-visibility: visible; }` to
+force every node fully rendered during that capture — belt-and-suspenders
+against html2canvas (which walks the DOM manually, not through the browser's
+real paint pipeline) not reliably re-classifying every node as "relevant to
+the user" in time after the viewport is resized to the content's bounds.
+
+## Duplicate-tab warning (`io/duplicateTabWarning.js`)
+
+Every browser tab of this app shares the same `localStorage` — the autosave
+slot, saved projects, tab bookkeeping above, all of it — so two tabs open at
+once can silently overwrite one tab's edits with the other's. `main.js#boot`
+calls `initDuplicateTabWarning(showToast)`, which opens a same-origin
+`BroadcastChannel('sdb-tab-presence')`: on load it posts a `hello`; any tab
+that receives one immediately replies `here`; either message triggers a
+one-time toast in *both* tabs. Deliberately **not** a `localStorage` "lock"
+flag — a flag needs careful cleanup on crash/close to avoid falsely warning
+a single tab forever, whereas a `BroadcastChannel` only ever reaches tabs
+that are genuinely open right now, no cleanup required. The "already
+warned" flag lives in the function's own closure (returned from
+`initDuplicateTabWarning`, one instance per tab/module-load) rather than
+module scope, precisely so nothing here could ever leak across what should
+be independent tabs — and so a unit test simulating two tabs in one process
+gets two independent instances instead of accidentally sharing one.
 
 ## Security notes
 

@@ -27,6 +27,37 @@
   padding: 8px 10px;
   overflow: hidden;
   transition: box-shadow 0.1s;
+  /* Large-diagram perf: lets the browser skip style/layout/paint of a
+     node's icon/label/sub-component rows entirely while it's off-screen —
+     the actual DOM weight of a node lives in here, not on .node itself.
+     Deliberately on .node-body, not the outer .node element: .node's own
+     box is unaffected (it already has an explicit inline width/height from
+     the project data, so nothing needs `contain-intrinsic-size`), which
+     keeps canvas.js#getSelectionScreenRect's getBoundingClientRect() on
+     .node accurate for an off-screen selected node. Just as important,
+     .node-external-label (see node.js#updateExternalLabel) is a *sibling*
+     of .node-body under the same .node root, not a descendant of it — so
+     it stays fully laid out regardless of this rule, which is what keeps
+     canvas.js#getContentBounds's off-screen-label bounds correct (a repeat
+     of that function's own past bug class would have been exactly this:
+     "Fit to Screen"/PNG export silently cropping content that a naive
+     content-visibility rule made unmeasurable). See the .exporting override
+     below for why export itself forces this back off entirely rather than
+     relying on the browser to notice everything is back in view in time. */
+  content-visibility: auto;
+}
+
+/* PNG/PDF export (js/io/exportImage.js#captureDiagramCanvas) resizes
+   .canvas-viewport to exactly the content's own bounds and captures it with
+   html2canvas, which walks the DOM manually rather than through the normal
+   paint pipeline — it isn't guaranteed to see the same off-screen/on-screen
+   relevance the real renderer would, or to see it updated after the resize
+   in time. Forcing content-visibility back to its normal (fully rendered)
+   state for the capture removes that uncertainty entirely, at zero runtime
+   cost since export is a rare, deliberate action rather than the hot path
+   this rule exists to speed up. */
+.canvas-viewport.exporting .node-body {
+  content-visibility: visible;
 }
 
 .node[data-shape="rect"] .node-body { border-radius: 4px; }

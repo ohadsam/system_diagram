@@ -2,9 +2,22 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.28.0';
+export const APP_VERSION = '1.29.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.29.0',
+    date: '2026-08-25',
+    highlights: [
+      'New "📋 Outline" panel (Tools menu) — a searchable, collapsible list of every component and connector on the canvas, doubling as a table of contents: click an entry to select and center it on the canvas, or select something on the canvas to see it highlighted in the list.',
+      'New "🕘 Undo History" (File menu) — a visual timeline of every edit with an auto-generated label ("Added \'API Gateway\'", "Moved 2 components", ...); jump straight to any past point instead of pressing undo repeatedly.',
+      'Export to Terraform: the "🌐 Export to..." modal (File menu) can now generate a starter Terraform (.tf) file for the AWS components on the canvas, with a resource block per mapped service and their connections noted.',
+      'Diagram tabs: "🗂️ Open in New Tab..." (File menu) opens a second saved diagram — or a new blank one — alongside your current one, with a tab strip to switch between them without a full Load dialog each time.',
+      'New "🖥️ Presenter Mode" (Tools menu) — hides the toolbar, sidebar and side panels for a full-bleed, distraction-free view when presenting a diagram; press Esc or the floating Exit button to come back.',
+      'Large diagrams now render more smoothly — off-screen components no longer cost rendering time, with no change to exports, measurements, or "Fit to screen".',
+      'Opening this diagram builder in a second browser tab now shows a warning, since both tabs share the same autosave and saved-project storage and editing in both at once can overwrite one tab\'s changes.',
+    ],
+  },
   {
     version: '1.28.0',
     date: '2026-08-25',

@@ -464,6 +464,62 @@
   flex-wrap: wrap;
 }
 
+.history-timeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-3);
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.history-timeline-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-alt);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: var(--color-text);
+}
+
+.history-timeline-row:hover:not(:disabled) {
+  border-color: var(--color-primary);
+}
+
+.history-timeline-row:disabled {
+  cursor: default;
+}
+
+.history-timeline-row.current {
+  background: var(--color-primary-soft);
+  border-color: var(--color-primary);
+}
+
+.history-timeline-index {
+  flex: 0 0 auto;
+  min-width: 24px;
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.history-timeline-label {
+  flex: 1 1 auto;
+  font-size: 13px;
+}
+
+.history-timeline-here {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
 .version-history-compare-picker {
   margin-top: var(--space-4);
   padding-top: var(--space-3);

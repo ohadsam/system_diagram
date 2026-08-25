@@ -80,3 +80,27 @@ test('"Download for Lucidchart" downloads a file, and "Open Lucidchart" download
   const openedUrl = await page.evaluate(() => window.__openedUrl);
   expect(openedUrl).toContain('lucid.app');
 });
+
+test('"Copy as Terraform" copies a resource block for a mapped AWS component', async ({ page }) => {
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await addComponentByName(page, 'S3');
+  await openExportDiagramModal(page);
+
+  await page.locator('.export-diagram-modal button', { hasText: '📋 Copy as Terraform' }).click();
+  const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
+  expect(clipboardText).toContain('resource "aws_s3_bucket"');
+  expect(clipboardText).toContain('provider "aws"');
+});
+
+test('"Download .tf file" downloads a file with Terraform content', async ({ page }) => {
+  await addComponentByName(page, 'S3');
+  await openExportDiagramModal(page);
+
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.locator('.export-diagram-modal button', { hasText: 'Download .tf file' }).click(),
+  ]);
+  expect(download.suggestedFilename()).toMatch(/\.tf$/);
+  const path = await download.path();
+  expect(path).toBeTruthy();
+});

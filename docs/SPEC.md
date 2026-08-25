@@ -1125,6 +1125,64 @@ of an unlabeled symbol. The app's existing `:focus-visible` keyboard-focus
 ring (`css/base.css`) is honored everywhere, including the command palette's
 search input, which previously suppressed it.
 
+### 4.29 Terraform Export
+The "🌐 Export to..." modal (also home to Mermaid/draw.io/Lucidchart) gains
+a 4th target: "Copy as Terraform" / "Download .tf file", generating a
+starter `.tf` file for the AWS components on the canvas — one resource
+block per component mapped to a real Terraform resource type, a comment
+noting AWS-to-AWS connectors, and a comment listing any AWS components not
+yet mapped (never silently dropped). Non-AWS components are skipped with no
+mention, since they have no Terraform equivalent. Intended as an editable
+starting point, not a deployable file as-is.
+
+### 4.30 Canvas Outline panel
+A "📋 Outline" toolbar button (Tools menu) opens a collapsible side panel
+listing every component and connector currently on the canvas, grouped into
+two sections, with a search box to filter by name. Clicking an entry selects
+and centers that component/connector on the canvas; conversely, selecting
+something on the canvas highlights the matching row in the Outline panel.
+Doubles as a quick table of contents for a large diagram.
+
+### 4.31 Multiple diagram tabs
+"🗂️ Open in New Tab..." (File menu) opens a picker to either start a new
+blank diagram or reopen any other saved project as an additional tab,
+alongside the diagram already open. Once 2+ tabs are open, a tab strip
+appears above the toolbar showing each open diagram by name; clicking a tab
+switches the live canvas to it (saving the outgoing tab's changes first), and
+each tab's own "✕" closes it (without deleting the underlying saved
+project) — closing the active tab switches to another open one. A single
+diagram never shows this tab strip at all.
+
+### 4.32 Presenter Mode
+"🖥️ Presenter Mode" (Tools menu) hides the toolbar, sidebar, and every side
+panel, leaving a full-bleed view of just the canvas — useful for presenting
+or screen-sharing a diagram without the editing chrome visible. A small
+floating "✕ Exit Presenter Mode" button (the only chrome left on screen)
+or the Escape key returns to the normal editing view. The setting is not
+remembered across a page reload.
+
+### 4.33 Large-diagram rendering performance
+Components far outside the current view no longer cost meaningful rendering
+work — the browser is free to skip laying out and painting their inner
+content until they're scrolled/panned/zoomed back into view. This has no
+observable effect on correctness: "Fit to screen", PNG/PDF export, and every
+other measurement stay accurate regardless of what's currently on-screen.
+
+### 4.34 Duplicate-tab warning
+Opening this app in a second browser tab shows a one-time warning (in both
+tabs) that the diagram builder is already open elsewhere — every tab shares
+the same autosave slot and saved-project storage, so editing the same
+diagram in two tabs at once can silently overwrite one tab's changes with
+the other's.
+
+### 4.35 Visual Undo/Redo Timeline
+"🕘 Undo History" (File menu) shows every past and available-to-redo edit as
+a single ordered list, each entry auto-labeled in plain language (e.g.
+`Added "API Gateway"`, `Moved 2 components`, `Restyled 3 components`) rather
+than a bare step number. The current position is marked "You are here";
+clicking any other entry jumps straight to that point in one action instead
+of pressing undo/redo repeatedly.
+
 ## 5. Non-functional requirements
 
 - **Security**: no `eval`/`innerHTML` with unsanitized input, no inline
