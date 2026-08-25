@@ -19,7 +19,7 @@ import { el } from '../utils/dom.js';
 
 const EDGE_MARGIN = 8;
 
-let openPanel = null; // { root, panel, close } of the currently open dropdown, if any
+let openPanel = null; // { root, close } of the currently open dropdown, if any
 const openChangeListeners = new Set();
 
 /** Lets other floating UI (toolbar.js's contextual style row) know when any
@@ -45,7 +45,7 @@ function closeOpenPanel() {
 }
 
 document.addEventListener('pointerdown', (e) => {
-  if (openPanel && !openPanel.root.contains(e.target) && !openPanel.panel.contains(e.target)) closeOpenPanel();
+  if (openPanel && !openPanel.root.contains(e.target)) closeOpenPanel();
 });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeOpenPanel();
@@ -59,20 +59,7 @@ document.addEventListener('keydown', (e) => {
  */
 export function buildToolbarDropdown(label, icon, title, buttons) {
   const root = el('div', { class: 'toolbar-dropdown' });
-  // Appended straight to document.body (a portal), not into `root` — #toolbar
-  // is a flex item of #app with its own explicit z-index (--z-toolbar), which
-  // per the flex-item stacking rules makes it a real stacking context that
-  // traps any z-indexed descendant inside it, no matter how high that
-  // descendant's own z-index is set. A nested panel could never actually
-  // outrank a sibling like the mobile #sidebar drawer (--z-panel), which
-  // sits *outside* #toolbar's trapped context, even with z-index: var(--z-menu)
-  // — this bit a real user when the sidebar drawer and this dropdown were
-  // both open at once on a narrow screen. Living directly under body puts it
-  // in the same top-level stacking context as that drawer, contextMenu.js's
-  // own menu, and toolbar.js's floating contextual style row, so its z-index
-  // is finally compared on equal footing instead of losing before it starts.
   const panel = el('div', { class: 'toolbar-dropdown-panel', role: 'menu', hidden: true });
-  document.body.appendChild(panel);
   for (const b of buttons) panel.appendChild(b);
   // Close the panel once one of its own buttons has been used, so it
   // doesn't sit open over the canvas after the action already ran.
@@ -113,7 +100,6 @@ export function buildToolbarDropdown(label, icon, title, buttons) {
         positionPanel();
         openPanel = {
           root,
-          panel,
           close: () => {
             panel.hidden = true;
             trigger.setAttribute('aria-expanded', 'false');
@@ -131,5 +117,6 @@ export function buildToolbarDropdown(label, icon, title, buttons) {
   );
 
   root.appendChild(trigger);
+  root.appendChild(panel);
   return root;
 }

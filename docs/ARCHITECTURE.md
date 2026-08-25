@@ -2538,22 +2538,40 @@ Two review-caught gaps, both now fixed and regression-tested:
 it is trapped inside that context, no matter how high that descendant's own
 z-index is set.** `js/toolbar/toolbarDropdown.js`'s dropdown panel
 (`position: fixed`, `z-index: var(--z-menu)` — the highest UI layer short
-of hints/toasts) used to be a plain DOM child of its trigger, nested inside
+of hints/toasts) is a plain DOM child of its trigger, nested inside
 `#toolbar`. That worked fine until this batch's minimap made it common to
 have the mobile `#sidebar` drawer (`z-index: var(--z-panel)`, a *sibling*
 of `#toolbar` outside its trapped context) open at the same time as a
-dropdown — since `#sidebar`'s context (25) legitimately outranks the whole
-of `#toolbar`'s context (20) at the root level, the dropdown panel rendered
-*behind* the sidebar drawer despite its own much higher nominal z-index.
-Fixed by making the panel a true portal, like `canvas/contextMenu.js`'s own
-right-click menu and `toolbar.js`'s floating contextual style row already
-are: `buildToolbarDropdown` now appends `panel` straight to `document.body`
-instead of into its trigger's wrapper `div`, and the module's outside-
-click-to-close listener checks `panel.contains(e.target)` in addition to
-the trigger's own wrapper. The lesson generalizes: a high z-index only wins
-*within its own stacking context* — moving genuinely page-level floating UI
-out from under any ancestor that might itself become (or already is) a
-stacking context is the robust fix, not chasing ever-higher z-index numbers.
+dropdown — since `#sidebar`'s context (25) legitimately outranked the whole
+of `#toolbar`'s context (previously 20) at the root level, the dropdown
+panel rendered *behind* the sidebar drawer despite its own much higher
+nominal z-index.
+
+The first fix attempted here was making the panel a true portal (append it
+straight to `document.body` instead of nesting it in its trigger's wrapper
+`div`), matching `canvas/contextMenu.js`'s own right-click menu and
+`toolbar.js`'s floating contextual style row. That's the architecturally
+"correct" fix in isolation, but it broke a much bigger, pre-existing
+assumption: roughly 28 e2e spec files (and `tests/e2e/helpers.js`'s
+`openToolbarGroup`) locate a dropdown's buttons via `'#toolbar button'`,
+relying on the panel actually being a DOM descendant of `#toolbar` — moving
+it out from under `#toolbar` made every one of those selectors stop
+matching, timing out dozens of unrelated tests. **A "more correct"
+architectural fix is not automatically the right fix if it silently breaks
+a widely-relied-upon convention elsewhere** — caught here only because the
+full e2e suite was re-run before merging, not by the review passes
+themselves (see docs/AI_AGENT_GUIDE.md's own note on this). Reverted, and
+fixed instead by simply raising `--z-toolbar` itself (20 → 26, just above
+`--z-panel`'s 25) in `css/variables.css` — since `#toolbar` and the mobile
+drawers never spatially overlap in normal layout, this only changes the
+outcome for the one case that actually needed fixing (a dropdown panel
+extending down into a drawer's screen region), with zero DOM/JS changes and
+zero risk to the `'#toolbar button'` convention. The general lesson still
+holds — a high z-index only wins *within its own stacking context* — but
+the fix for a *specific* instance of it should stay as narrow as possible;
+reach for the trapping ancestor's own z-index first, and only resort to a
+DOM restructure (a real portal) when the trapped element's home genuinely
+needs to change, not just its numeric rank.
 
 A related, narrower instance of the same family of bug: the floating
 contextual style row (`toolbar.js#positionFloatingRow`) could land visually

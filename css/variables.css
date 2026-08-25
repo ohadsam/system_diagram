@@ -70,8 +70,20 @@
   --ai-panel-width: 380px;
 
   --z-canvas: 1;
-  --z-toolbar: 20;
   --z-panel: 25;
+  /* #toolbar is a flex item of #app with its own explicit z-index, which
+     makes it a real stacking context — any z-indexed descendant of it
+     (like toolbar/toolbarDropdown.js's dropdown panel, z-index: var(--z-menu))
+     is trapped inside that context and compared against a sibling like the
+     mobile #sidebar/#details-panel/#ai-review-panel drawers (--z-panel)
+     using #toolbar's own value only, no matter how high the descendant's own
+     z-index is. Kept above --z-panel (not just above --z-canvas) so a
+     dropdown panel extending down into a drawer's screen region — the two
+     don't overlap in normal layout, only when a floating descendant of one
+     reaches into the other's territory — still wins, which bit a real user
+     when both were open at once on a narrow screen. See docs/AI_AGENT_GUIDE.md's
+     "Common pitfalls" for the full stacking-context explanation. */
+  --z-toolbar: 26;
   /* A fixed corner overlay a user deliberately turned on — it should stay
      clickable even when the floating contextual style row (--z-panel)
      happens to land on top of it near the selection, rather than silently

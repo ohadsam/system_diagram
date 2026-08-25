@@ -136,7 +136,7 @@ this repo" quick-start.
 | Change Focus Mode | `js/core/focusMode.js#computeFocusedIds` (pure) + `js/canvas/canvas.js` (`setFocusMode`/`applyFocusDimming`, called from both `render()` and `renderSelectionOnly()`) + `js/io/uiPrefs.js` (`focusMode`) |
 | Change manual connector waypoints (drag-to-bend) | `js/canvas/waypointHandles.js` (the handle overlay — diffed by positional index, not id) + `js/core/project.js` (`edge.waypoints` field) + `js/canvas/connector.js#buildEdgePath` (checked *before* any `routing` branch — a universal override) + `js/canvas/canvas.js#clearEdgeWaypoints` ("Straighten connector" context-menu item) |
 | Change pinned comments | `js/core/project.js` (`createComment`/`validateComments`, `project.comments`) + `js/canvas/commentPins.js` (pin rendering, diffed by id) + `js/modals/commentModal.js` (`sdb:open-comment` window event, editor) + `js/canvas/canvas.js` (`addCommentAt`/`addCommentAtCenter`/`updateCommentText`/`toggleCommentResolved`/`deleteComment`, and `getContentBounds`'s comment-padding for Fit-to-Screen/export) |
-| Add a toolbar-descendant floating panel meant to escape `#toolbar` (a new dropdown, a new always-on-top overlay) | Append it to `document.body` directly (a portal), like `canvas/contextMenu.js` and `toolbar.js`'s floating contextual style row already do — **never** nest it inside `#toolbar` and rely on its own z-index alone, see "Common pitfalls" below |
+| Fix a floating panel nested in `#toolbar` losing to a sibling drawer (`#sidebar`/`#details-panel`) despite a higher z-index | Raise `--z-toolbar` itself in `css/variables.css` (currently 26, just above `--z-panel`'s 25) rather than reparenting the panel — a real `document.body` portal seems more "correct" but breaks the ~28 e2e specs that locate a dropdown's buttons via `'#toolbar button'`, see "Common pitfalls" below |
 
 ## Running things locally
 
@@ -623,20 +623,33 @@ npm test
   context, and *any* z-indexed descendant of it — no matter how high that
   descendant's own z-index is — is compared against other elements only
   within `#toolbar`'s local context, never directly against a sibling like
-  `#sidebar`. `toolbar/toolbarDropdown.js`'s dropdown panel used to be a
-  plain child of its trigger (nested inside `#toolbar`) with
+  `#sidebar`. `toolbar/toolbarDropdown.js`'s dropdown panel is a plain
+  child of its trigger (nested inside `#toolbar`) with
   `z-index: var(--z-menu)` — the app's *highest* UI layer short of hints/
-  toasts — and still rendered visually *behind* the mobile `#sidebar`
+  toasts — yet still rendered visually *behind* the mobile `#sidebar`
   drawer (a much lower `z-index: var(--z-panel)`) whenever both were open
   at once, because `#sidebar` sits outside `#toolbar`'s trapped context
-  and legitimately outranks the whole of it. Fixed by making the panel a
-  true portal (`document.body.appendChild(panel)`), matching
-  `canvas/contextMenu.js`'s own right-click menu and `toolbar.js`'s
-  floating contextual style row, which already worked this way. If a new
-  piece of floating UI needs to guarantee it's above sidebar/details-panel
-  drawers or other page-level overlays, portal it to `document.body` —
-  don't just reach for a higher z-index number and assume it settles the
-  question; check what stacking context it's actually nested in first.
+  and legitimately outranked the whole of it. **First fix attempted:**
+  make the panel a true portal (`document.body.appendChild(panel)`),
+  matching `canvas/contextMenu.js`'s own right-click menu and `toolbar.js`'s
+  floating contextual style row, which already work this way — correct in
+  isolation, but it broke ~28 e2e spec files (plus `tests/e2e/helpers.js`'s
+  `openToolbarGroup`) that locate a dropdown's own buttons via
+  `'#toolbar button'`, relying on the panel staying a DOM descendant of
+  `#toolbar`; reparenting it silently made every one of those selectors
+  stop matching, timing out dozens of unrelated tests. Caught only by
+  re-running the full e2e suite before merging — not by any of the three
+  review passes — which is exactly why that step exists. **Actual fix:**
+  reverted the portal, and instead raised `--z-toolbar` itself (20 → 26,
+  just above `--z-panel`'s 25) in `css/variables.css` — since `#toolbar`
+  and the mobile drawers never spatially overlap in normal layout, this
+  fixes the one real case (a dropdown panel reaching into a drawer's screen
+  region) with zero DOM/JS changes and no risk to the `'#toolbar button'`
+  convention. Lesson: when a trapped descendant needs to outrank a sibling
+  of its trapping ancestor, try raising the *ancestor's* own z-index first
+  — a real DOM portal is a bigger, riskier change and should be reserved
+  for when the trapped element's home genuinely needs to move, not just
+  its numeric rank.
 - **Two independently-`position: fixed`, `document.body`-portaled overlays
   can still visually collide even though neither is stacking-context-
   trapped** — the minimap (a fixed corner panel) and the floating
