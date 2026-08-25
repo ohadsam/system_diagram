@@ -4,6 +4,8 @@ import * as store from '../core/store.js';
 import { el, clear } from '../utils/dom.js';
 import { field, colorInput, numberInput, selectInput, textInput, checkbox } from '../utils/formControls.js';
 import { SHAPES, TEXT_POSITIONS } from '../core/project.js';
+import { pickImageFile } from '../io/fileIO.js';
+import { showToast } from '../utils/toast.js';
 
 const SHAPE_LABELS = {
   rect: 'Rectangle', rounded: 'Rounded', circle: 'Circle', diamond: 'Diamond',
@@ -40,6 +42,32 @@ export function renderNodeStyleEditor(container, nodeIds) {
 
   if (nodeIds.length === 1) {
     container.appendChild(field('Icon', textInput(first.icon, (v) => updateAll((n) => { n.icon = v; }), { maxLength: 4, class: 'icon-field', 'data-focus-key': 'icon' })));
+    container.appendChild(el('button', {
+      type: 'button',
+      class: 'btn btn-secondary btn-sm',
+      title: first.iconImage
+        ? 'Replace the uploaded icon image (overrides the emoji icon above)'
+        : 'Upload an image or SVG to use as this component\'s icon instead of the emoji above',
+      text: first.iconImage ? '🖼️ Replace Image' : '🖼️ Upload Image',
+      onClick: async () => {
+        const result = await pickImageFile();
+        if (!result) return;
+        if (!result.ok) {
+          showToast(result.error, 'error', 3200);
+          return;
+        }
+        updateAll((n) => { n.iconImage = result.dataUrl; });
+      },
+    }));
+    if (first.iconImage) {
+      container.appendChild(el('button', {
+        type: 'button',
+        class: 'btn btn-secondary btn-sm',
+        title: 'Remove the uploaded icon image and go back to the emoji icon',
+        text: '✕ Remove Image',
+        onClick: () => updateAll((n) => { n.iconImage = null; }),
+      }));
+    }
     container.appendChild(field('Text', textInput(first.text, (v) => updateAll((n) => { n.text = v; }), { 'data-focus-key': 'text' })));
     container.appendChild(field('Width', numberInput(Math.round(first.w), 24, 2000, 1, (v) => updateAll((n) => { n.w = v; }), { 'data-focus-key': 'w' })));
     container.appendChild(field('Height', numberInput(Math.round(first.h), 24, 2000, 1, (v) => updateAll((n) => { n.h = v; }), { 'data-focus-key': 'h' })));

@@ -154,6 +154,19 @@ test('syncReplication propagates monthlyCost and labels to the mirror, like note
   assert.deepEqual(mirror.labels, ['10K RPS']);
 });
 
+test('syncReplication propagates a custom icon image (iconImage) to the mirror', () => {
+  const { project } = setupPair([{ id: 'n1' }]);
+  const edited = {
+    ...project,
+    nodes: project.nodes.map((n) => (n.id === 'n1' ? { ...n, iconImage: 'data:image/png;base64,AAAA' } : n)),
+  };
+  const synced = syncReplication(project, edited);
+
+  const mirrorId = synced.replicationPairs[0].members[0].b;
+  const mirror = synced.nodes.find((n) => n.id === mirrorId);
+  assert.equal(mirror.iconImage, 'data:image/png;base64,AAAA');
+});
+
 test('syncReplication propagates destroyOffset, fragmentType, and a fresh-id copy of activations to the mirror', () => {
   const { project } = setupPair([{ id: 'n1', overrides: { shape: 'lifeline' } }]);
   const edited = {
@@ -343,6 +356,21 @@ test('syncReplication propagates an internal edge content change from the side t
   const synced = syncReplication(afterDiscovery, relabeled);
   const mirror = synced.edges.find((e) => e.id === mirrorId);
   assert.equal(mirror.label, 'response');
+});
+
+test('syncReplication propagates manually-dragged waypoints on an internal edge to the mirror', () => {
+  const { project } = setupPair([{ id: 'n1' }, { id: 'n2' }]);
+  const withEdge = { ...project, edges: [createEdge('n1', 'n2', { id: 'e1' })] };
+  const afterDiscovery = syncReplication(project, withEdge);
+  const mirrorId = afterDiscovery.replicationPairs[0].edgeMembers[0].b;
+
+  const bent = {
+    ...afterDiscovery,
+    edges: afterDiscovery.edges.map((e) => (e.id === 'e1' ? { ...e, waypoints: [{ x: 50, y: 60 }] } : e)),
+  };
+  const synced = syncReplication(afterDiscovery, bent);
+  const mirror = synced.edges.find((e) => e.id === mirrorId);
+  assert.deepEqual(mirror.waypoints, [{ x: 50, y: 60 }]);
 });
 
 test('syncReplication cascade-deletes an internal edge\'s mirror when the original is deleted', () => {

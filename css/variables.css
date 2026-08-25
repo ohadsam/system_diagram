@@ -15,6 +15,35 @@
   --color-success: #16A34A;
   --color-focus: #6366F1;
 
+  /* Canvas-specific chrome (not diagram *content* — a node's own fill/
+     stroke is user-chosen data and deliberately never touched by theme). */
+  --color-grid-dot: #D5D9E0;
+
+  /* The warm "highlighted/popular" treatment reused across a few unrelated
+     surfaces (sidebar ★ Popular items/toggle, the on-canvas 💡 suggestion
+     badge hover, the details panel's suggested-sub-components box) — one
+     token set instead of the same literal hex repeated in 4 files. */
+  --color-amber-soft: #FFFBEB;
+  --color-amber-soft-hover: #FEF3C7;
+  --color-amber-border: #FDE68A;
+  --color-amber-text: #B45309;
+
+  /* Search/lint-match text highlight (<mark>) — stays saturated in both
+     themes on purpose, same as a browser's native find-in-page highlight. */
+  --color-highlight: #FEF08A;
+
+  /* A handful of small "always-dark chip" surfaces (toast, hint bubble, and
+     the light button *inside* that dark bubble) are deliberately theme-
+     invariant — they're designed as a fixed dark pill with light text (or
+     vice versa for the inner button) regardless of the surrounding app
+     theme, the same way a browser's native toast/snackbar usually is. Never
+     overridden in the dark block below — that's the point. */
+  --color-inverse-bg: #1E293B;
+  --color-inverse-text: #FFFFFF;
+  --color-inverse-text-muted: #CBD5E1;
+  --color-inverse-surface: #FFFFFF;
+  --color-inverse-surface-text: #1E293B;
+
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 16px;
@@ -43,7 +72,78 @@
   --z-canvas: 1;
   --z-toolbar: 20;
   --z-panel: 25;
+  /* A fixed corner overlay a user deliberately turned on — it should stay
+     clickable even when the floating contextual style row (--z-panel)
+     happens to land on top of it near the selection, rather than silently
+     absorbing the click on an inert label underneath. Still well below
+     --z-hint/--z-menu/--z-toast, which must always win over it. */
+  --z-minimap: 30;
   --z-hint: 60;
   --z-menu: 70;
   --z-toast: 80;
+}
+
+/* Dark theme — see js/io/uiPrefs.js (`theme: 'system'|'light'|'dark'`) and
+   js/main.js's early inline <head> script in index.html (applies the
+   `data-theme` attribute before first paint, avoiding a light-mode flash
+   for a visitor who already chose dark). Two ways in, same token set:
+   the OS-level preference (no explicit choice made yet) and an explicit
+   `data-theme="dark"` override that wins over the OS preference either
+   way — hence the `:not([data-theme="light"])` guard on the media-query
+   block below, so a visitor who explicitly chose light isn't yanked back
+   into dark by their OS. Diagram *content* colors (a node's own fill/
+   stroke, chosen by the user or the component library) are never touched
+   here — only app chrome. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-bg: #0F1420;
+    --color-surface: #1A2130;
+    --color-surface-alt: #212939;
+    --color-border: #313B4E;
+    --color-border-strong: #47536B;
+    --color-text: #E5E9F0;
+    --color-text-muted: #9AA5B8;
+    --color-text-faint: #6B7690;
+    --color-primary: #6366F1;
+    --color-primary-hover: #818CF8;
+    --color-primary-soft: #2E2E63;
+    --color-danger: #F87171;
+    --color-danger-soft: #45201F;
+    --color-success: #4ADE80;
+    --color-focus: #818CF8;
+    --color-grid-dot: #2B3444;
+    --color-amber-soft: #3A2E12;
+    --color-amber-soft-hover: #4A3A16;
+    --color-amber-border: #6B5322;
+    --color-amber-text: #FBBF24;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
+  }
+}
+
+:root[data-theme="dark"] {
+  --color-bg: #0F1420;
+  --color-surface: #1A2130;
+  --color-surface-alt: #212939;
+  --color-border: #313B4E;
+  --color-border-strong: #47536B;
+  --color-text: #E5E9F0;
+  --color-text-muted: #9AA5B8;
+  --color-text-faint: #6B7690;
+  --color-primary: #6366F1;
+  --color-primary-hover: #818CF8;
+  --color-primary-soft: #2E2E63;
+  --color-danger: #F87171;
+  --color-danger-soft: #45201F;
+  --color-success: #4ADE80;
+  --color-focus: #818CF8;
+  --color-grid-dot: #2B3444;
+  --color-amber-soft: #3A2E12;
+  --color-amber-soft-hover: #4A3A16;
+  --color-amber-border: #6B5322;
+  --color-amber-text: #FBBF24;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
 }

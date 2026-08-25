@@ -39,3 +39,45 @@ export function pickJSONFile() {
     input.click();
   });
 }
+
+// A generous cap on the *encoded* data URL a custom node icon can carry —
+// large enough for any reasonably-sized icon/logo, small enough that a
+// project full of them still saves fine to localStorage (see
+// io/storage.js's quota handling) and isn't a silent bloat trap.
+const MAX_ICON_IMAGE_DATA_URL_LENGTH = 700000; // ~500KB of raw image data, base64-encoded
+
+/** Opens a native file picker for an image (raster or SVG) and resolves
+ * with its contents as a data URL — the format canvas/node.js#buildIconEl
+ * and core/project.js's `node.iconImage` field expect — or an error string
+ * if cancelled, unreadable, or over the size cap.
+ * @returns {Promise<{ok:true, dataUrl:string}|{ok:false, error:string}|null>} null means the user cancelled
+ */
+export function pickImageFile() {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*,.svg';
+    input.style.display = 'none';
+    input.addEventListener('change', () => {
+      const file = input.files?.[0];
+      input.remove();
+      if (!file) {
+        resolve(null);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = String(reader.result || '');
+        if (dataUrl.length > MAX_ICON_IMAGE_DATA_URL_LENGTH) {
+          resolve({ ok: false, error: 'That image is too large — please use one under ~500KB.' });
+          return;
+        }
+        resolve({ ok: true, dataUrl });
+      };
+      reader.onerror = () => resolve({ ok: false, error: 'Could not read that file.' });
+      reader.readAsDataURL(file);
+    });
+    document.body.appendChild(input);
+    input.click();
+  });
+}

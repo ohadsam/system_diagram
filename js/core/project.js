@@ -51,6 +51,11 @@ export function createEmptyProject(name = 'Untitled Diagram') {
     // An ordered subset of `versions` (by id) assembled into a slideshow —
     // see canvas.js#buildPresentation and the "Presentations" section.
     presentations: [],
+    // Figma-style pinned annotations — a free-floating note at a canvas
+    // point, not attached to any node (see canvas/commentPins.js and
+    // core/project.js#createComment). Part of the project itself, same
+    // "travels with export/import/backup" reasoning as `versions` above.
+    comments: [],
   };
 }
 
@@ -72,6 +77,10 @@ export function createNode(def, x, y, overrides = {}) {
     textPosition: 'center',
     icon: def?.icon ?? '',
     iconVisible: true,
+    // A user-uploaded image/SVG data URL that replaces the emoji `icon`
+    // when set (see canvas/node.js#buildIconEl) — null means "use the
+    // emoji icon", not merely "no icon" (iconVisible already covers that).
+    iconImage: null,
     notes: '',
     labels: [],
     // Estimated cost in US dollars/month, shown as a small badge on the
@@ -153,7 +162,29 @@ export function createEdge(fromNodeId, toNodeId, overrides = {}) {
     // case the auto-computed order doesn't match intent. Irrelevant for any
     // other edge (only read when both endpoints are lifelines).
     sequenceNumberOverride: null,
+    // User-dragged bend points (canvas-space {x,y}, in order from `from` to
+    // `to`) that override every automatic routing algorithm — see
+    // canvas/connector.js#buildEdgePath and canvas/waypointHandles.js. Empty
+    // means "let routing/fromSide/toSide decide", same as every edge before
+    // this field existed. Absolute, not relative to either endpoint — a
+    // node moving away just re-routes straight to/from wherever the
+    // waypoints already are, the same "manual override, not automatically
+    // re-derived" contract fromOffset/toOffset already set for anchoring.
+    waypoints: [],
     ...overrides,
+  };
+}
+
+/** A Figma-style pinned annotation: a free-floating note at a canvas point
+ * (`x`,`y`), independent of any node — see canvas/commentPins.js. */
+export function createComment(x, y, text = '') {
+  return {
+    id: nextId('comment'),
+    x,
+    y,
+    text,
+    resolved: false,
+    createdAt: new Date().toISOString(),
   };
 }
 
@@ -225,6 +256,10 @@ export function duplicateProject(project) {
     // misleading, so it starts with a clean slate, same as a fresh id.
     versions: [],
     presentations: [],
+    // Comments are diagram content (like nodes/edges), not editing history,
+    // so — unlike versions/presentations above — they do carry over; only
+    // their ids are regenerated, same "never shares identity" contract.
+    comments: (project.comments || []).map((c) => ({ ...c, id: nextId('comment') })),
   };
 }
 
@@ -310,6 +345,7 @@ function validateContent(rawNodes, rawEdges, rawReplicationPairs) {
         textPosition: TEXT_POSITIONS.includes(n.textPosition) ? n.textPosition : 'center',
         icon: typeof n.icon === 'string' ? n.icon : '',
         iconVisible: n.iconVisible !== false,
+        iconImage: typeof n.iconImage === 'string' && /^data:image\//.test(n.iconImage) && n.iconImage.length <= 700000 ? n.iconImage : null,
         notes: typeof n.notes === 'string' ? n.notes : '',
         labels: Array.isArray(n.labels) ? n.labels.filter((l) => typeof l === 'string') : [],
         monthlyCost: Number.isFinite(n.monthlyCost) && n.monthlyCost >= 0 ? n.monthlyCost : null,
@@ -360,6 +396,9 @@ function validateContent(rawNodes, rawEdges, rawReplicationPairs) {
         labelPosition: EDGE_LABEL_POSITIONS.includes(e.labelPosition) ? e.labelPosition : 'middle',
         notes: typeof e.notes === 'string' ? e.notes : '',
         sequenceNumberOverride: Number.isInteger(e.sequenceNumberOverride) && e.sequenceNumberOverride >= 1 ? e.sequenceNumberOverride : null,
+        waypoints: Array.isArray(e.waypoints)
+          ? e.waypoints.filter((p) => p && Number.isFinite(p.x) && Number.isFinite(p.y)).map((p) => ({ x: p.x, y: p.y }))
+          : [],
       };
     });
 
@@ -408,6 +447,24 @@ function validateVersions(rawVersions) {
     }));
 }
 
+/** Validates `project.comments` — same never-throws, backfill-don't-drop
+ * contract as every other validate* helper here. A comment missing/invalid
+ * `x`/`y` is dropped outright (a pin with no real position means nothing),
+ * everything else gets a sane default. */
+function validateComments(rawComments) {
+  if (!Array.isArray(rawComments)) return [];
+  return rawComments
+    .filter((c) => c && typeof c === 'object' && Number.isFinite(c.x) && Number.isFinite(c.y))
+    .map((c) => ({
+      id: typeof c.id === 'string' && c.id ? c.id : nextId('comment'),
+      x: c.x,
+      y: c.y,
+      text: typeof c.text === 'string' ? c.text : '',
+      resolved: c.resolved === true,
+      createdAt: typeof c.createdAt === 'string' ? c.createdAt : new Date().toISOString(),
+    }));
+}
+
 /** Validates `project.presentations` — each slide's `versionId` must
  * resolve against the already-validated `versions` list (a slide pointing
  * at a version that doesn't exist, e.g. because that version was deleted
@@ -449,6 +506,7 @@ export function validateProject(input) {
     const { nodes, edges, replicationPairs } = validateContent(input.nodes, input.edges, input.replicationPairs);
     const versions = validateVersions(input.versions);
     const presentations = validatePresentations(input.presentations, versions);
+    const comments = validateComments(input.comments);
 
     const project = {
       formatVersion: FORMAT_VERSION,
@@ -466,6 +524,7 @@ export function validateProject(input) {
       replicationPairs,
       versions,
       presentations,
+      comments,
     };
     return { ok: true, project };
   } catch (err) {

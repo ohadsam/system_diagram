@@ -221,6 +221,23 @@ Or open `index.html` directly in a browser.
 - **Smart alignment guides** — dragging a component snaps into exact
   alignment with nearby components and shows a Figma-like guide line,
   toggleable via "🧲 Snap Guides".
+- **Dark mode & Diagram Theme** — a "Theme" toolbar button cycles
+  Match System / Light / Dark for the whole app, while "🎨 Diagram Theme"
+  permanently recolors every component to a curated palette (Ocean, Sunset,
+  Forest, Monochrome, Pastel), keeping same-colored components grouped.
+- **Custom icon upload** — use your own image as any component's icon
+  instead of the built-in emoji/icon set.
+- **🧭 Minimap** — a small overview map in the canvas corner; click or drag
+  it to jump the main view anywhere.
+- **🔦 Focus Mode** — dims every component except the current selection and
+  its directly-connected neighbors.
+- **Manual connector waypoints** — drag handles along a selected connector
+  to add, move, or remove bend points, overriding its routing style.
+- **Pinned comments** — right-click empty canvas to drop a note pin
+  anywhere on the diagram; click a pin to edit it or mark it resolved.
+- **Accessibility** — arrow-key nudging for the selected component,
+  accessible names on every icon-only toolbar button, and a visible
+  keyboard focus ring throughout, including the command palette.
 - **Dismissible hints** — a short first-run guided tour, restartable any
   time, with a separate 🔔/🔕 toggle to turn hint bubbles on/off.
 - **"What's New"** — a one-time modal after each update summarizing what

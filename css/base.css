@@ -171,7 +171,7 @@ textarea {
 }
 
 mark {
-  background: #FEF08A;
+  background: var(--color-highlight);
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
@@ -188,8 +188,8 @@ mark {
 }
 
 .toast {
-  background: var(--color-text);
-  color: #fff;
+  background: var(--color-inverse-bg);
+  color: var(--color-inverse-text);
   padding: 10px 16px;
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);

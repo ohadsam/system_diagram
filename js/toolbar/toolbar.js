@@ -16,7 +16,7 @@ import { createEmptyProject } from '../core/project.js';
 import { el, clear, rerenderPreservingUiState } from '../utils/dom.js';
 import {
   deleteSelection, duplicateSelection, groupSelection, ungroupSelection, selectionHasGroup, duplicateProjectAsNew,
-  getSelectionScreenRect, autoArrangeAll, distributeSequenceDiagram,
+  getSelectionScreenRect, autoArrangeAll, distributeSequenceDiagram, setFocusMode,
 } from '../canvas/canvas.js';
 import { getBaseToolMode, setToolMode, onToolModeChange } from '../canvas/toolMode.js';
 import { onViewportChange, centerOn } from '../canvas/viewport.js';
@@ -44,6 +44,8 @@ import { openVersionHistoryModal } from '../modals/versionHistoryModal.js';
 import { openPresentationsModal } from '../modals/presentationsModal.js';
 import { openDiagramLintModal } from '../modals/diagramLintModal.js';
 import { openScaleDiagramModal } from '../modals/scaleDiagramModal.js';
+import { openDiagramThemeModal } from '../modals/diagramThemeModal.js';
+import { setMinimapVisible } from '../canvas/minimap.js';
 import { openCommandPaletteModal } from '../modals/commandPaletteModal.js';
 import { openCostBreakdownModal } from '../modals/costBreakdownModal.js';
 // Registers this modal's `sdb:open-subdiagram` window listener (see
@@ -51,12 +53,17 @@ import { openCostBreakdownModal } from '../modals/costBreakdownModal.js';
 // diagram group's canvas background, not from a toolbar button of its own,
 // so nothing else here calls it directly; the import alone is what's needed.
 import '../modals/subDiagramModal.js';
+// Same reasoning as subDiagramModal.js just above — reached only via the
+// `sdb:open-comment` event (see canvas.js#addCommentAt/#addCommentAtCenter
+// and canvas/commentPins.js's pin click handler), not a toolbar button.
+import '../modals/commentModal.js';
 import { toggleAiReviewPanel } from '../panel/aiReviewPanel.js';
 import { openGenerateDesignModal } from '../modals/generateDesignModal.js';
 import { confirmAction } from '../modals/confirmModal.js';
 import { showToast } from '../utils/toast.js';
 import { resetHints, areHintsEnabled, setHintsEnabled } from '../hints/hints.js';
-import { getUiPrefs, saveUiPrefs, onUiPrefsChange } from '../io/uiPrefs.js';
+import { getUiPrefs, saveUiPrefs, onUiPrefsChange, THEME_MODES } from '../io/uiPrefs.js';
+import { setTheme } from '../io/theme.js';
 import { onSuggestionsVisibilityChange } from '../canvas/suggestions.js';
 
 let contextRow = null;
@@ -195,8 +202,8 @@ function buildBrand() {
 }
 
 function buildHistoryGroup() {
-  undoBtn = el('button', { type: 'button', class: 'btn btn-icon', title: 'Undo (Ctrl+Z)', text: '↶', onClick: () => store.undo() });
-  redoBtn = el('button', { type: 'button', class: 'btn btn-icon', title: 'Redo (Ctrl+Shift+Z)', text: '↷', onClick: () => store.redo() });
+  undoBtn = el('button', { type: 'button', class: 'btn btn-icon', title: 'Undo (Ctrl+Z)', 'aria-label': 'Undo', text: '↶', onClick: () => store.undo() });
+  redoBtn = el('button', { type: 'button', class: 'btn btn-icon', title: 'Redo (Ctrl+Shift+Z)', 'aria-label': 'Redo', text: '↷', onClick: () => store.redo() });
   return group(undoBtn, redoBtn);
 }
 
@@ -210,7 +217,7 @@ function syncHistoryButtons() {
  * defeat the point. See modals/commandPaletteModal.js. */
 function buildCommandPaletteGroup() {
   const btn = el('button', {
-    type: 'button', class: 'btn btn-icon', title: 'Quick Actions (Ctrl/Cmd+K): search actions or add a component', text: '⌘',
+    type: 'button', class: 'btn btn-icon', title: 'Quick Actions (Ctrl/Cmd+K): search actions or add a component', 'aria-label': 'Quick Actions', text: '⌘',
     onClick: () => openCommandPaletteModal(),
   });
   return group(btn);
@@ -223,11 +230,11 @@ function buildCommandPaletteGroup() {
  * which of these is pressed; releasing it restores whichever was active. */
 function buildNavToolGroup() {
   const selectBtn = el('button', {
-    type: 'button', class: 'btn btn-icon', title: 'Select tool (V): click to select, drag empty space to marquee-select', text: '🖱️',
+    type: 'button', class: 'btn btn-icon', title: 'Select tool (V): click to select, drag empty space to marquee-select', 'aria-label': 'Select tool', text: '🖱️',
     onClick: () => setToolMode('select'),
   });
   const handBtn = el('button', {
-    type: 'button', class: 'btn btn-icon', title: 'Hand tool (H, or hold Space): drag anywhere to pan the canvas without moving components', text: '✋',
+    type: 'button', class: 'btn btn-icon', title: 'Hand tool (H, or hold Space): drag anywhere to pan the canvas without moving components', 'aria-label': 'Hand tool', text: '✋',
     onClick: () => setToolMode('hand'),
   });
   const sync = () => {
@@ -430,6 +437,36 @@ function buildToolsGroupButtons() {
     });
   }
 
+  const minimapBtn = el('button', {
+    type: 'button', class: `btn${prefs.showMinimap ? ' active' : ''}`,
+    title: 'Minimap: show a small overview map in the corner of the canvas — click or drag on it to jump the view',
+    text: '🧭 Minimap',
+    onClick: () => {
+      const next = !minimapBtn.classList.contains('active');
+      saveUiPrefs({ showMinimap: next });
+      minimapBtn.classList.toggle('active', next);
+      setMinimapVisible(next);
+    },
+  });
+  if (prefs.showMinimap) {
+    requestAnimationFrame(() => setMinimapVisible(true));
+  }
+
+  const focusModeBtn = el('button', {
+    type: 'button', class: `btn${prefs.focusMode ? ' active' : ''}`,
+    title: 'Focus Mode: dim every component except the current selection and its directly-connected neighbors',
+    text: '🔦 Focus Mode',
+    onClick: () => {
+      const next = !focusModeBtn.classList.contains('active');
+      saveUiPrefs({ focusMode: next });
+      focusModeBtn.classList.toggle('active', next);
+      setFocusMode(next);
+    },
+  });
+  if (prefs.focusMode) {
+    requestAnimationFrame(() => setFocusMode(true));
+  }
+
   const alignGuidesBtn = el('button', {
     type: 'button', class: `btn${prefs.alignGuides !== false ? ' active' : ''}`,
     title: 'Snap Guides: show Figma-like alignment guides and snap into place while dragging a component',
@@ -438,6 +475,21 @@ function buildToolsGroupButtons() {
       const next = !alignGuidesBtn.classList.contains('active');
       saveUiPrefs({ alignGuides: next });
       alignGuidesBtn.classList.toggle('active', next);
+    },
+  });
+
+  const THEME_ICON = { system: '🌓', light: '☀️', dark: '🌙' };
+  const THEME_LABEL = { system: 'Match System', light: 'Light', dark: 'Dark' };
+  const themeBtn = el('button', {
+    type: 'button', class: 'btn',
+    title: `Theme: ${THEME_LABEL[prefs.theme]} (click to switch)`,
+    text: `${THEME_ICON[prefs.theme]} Theme: ${THEME_LABEL[prefs.theme]}`,
+    onClick: () => {
+      const nextIndex = (THEME_MODES.indexOf(getUiPrefs().theme) + 1) % THEME_MODES.length;
+      const next = THEME_MODES[nextIndex];
+      setTheme(next);
+      themeBtn.title = `Theme: ${THEME_LABEL[next]} (click to switch)`;
+      themeBtn.textContent = `${THEME_ICON[next]} Theme: ${THEME_LABEL[next]}`;
     },
   });
 
@@ -474,7 +526,14 @@ function buildToolsGroupButtons() {
     type: 'button', class: 'btn', title: 'Cost Breakdown: list every component with an estimated monthly cost (set per-component in its details panel) and the running total', text: '💰 Cost Breakdown',
     onClick: openCostBreakdownModal,
   });
-  return [gridBtn, alignGuidesBtn, aiReviewBtn, lintBtn, costBtn, autoArrangeBtn, distributeBtn, scaleBtn];
+  const diagramThemeBtn = el('button', {
+    type: 'button',
+    class: 'btn',
+    title: 'Diagram Theme: permanently recolor every component to a chosen palette, keeping same-colored components grouped together',
+    text: '🎨 Diagram Theme',
+    onClick: openDiagramThemeModal,
+  });
+  return [gridBtn, minimapBtn, focusModeBtn, alignGuidesBtn, themeBtn, aiReviewBtn, lintBtn, costBtn, autoArrangeBtn, distributeBtn, scaleBtn, diagramThemeBtn];
 }
 
 function buildHelpGroupButtons() {
@@ -629,7 +688,24 @@ function positionFloatingRow() {
     top = Math.max(bounds.top + EDGE_MARGIN, Math.min(top, bounds.bottom - rowRect.height - EDGE_MARGIN));
   }
   const maxLeft = bounds.right - rowRect.width - EDGE_MARGIN;
-  const left = Math.max(bounds.left + EDGE_MARGIN, Math.min(anchor.left, maxLeft));
+  let left = Math.max(bounds.left + EDGE_MARGIN, Math.min(anchor.left, maxLeft));
+
+  // The minimap (canvas/minimap.js) is a `position: absolute` panel pinned to
+  // #canvas-viewport's bottom-right corner — unlike the Smart Suggestions
+  // banner above (full-width, so trimming vertical `available` was enough),
+  // it only ever occupies that one corner, so only nudge `left` here, and
+  // only when the row's vertical span would actually land over it; shrinking
+  // height whenever the minimap merely happens to be visible, regardless of
+  // where the row is, would be needlessly conservative for a selection
+  // nowhere near that corner.
+  const minimapEl = document.querySelector('.minimap:not([hidden])');
+  if (minimapEl) {
+    const mm = minimapEl.getBoundingClientRect();
+    const verticallyOverlaps = top < mm.bottom && top + rowRect.height > mm.top;
+    if (verticallyOverlaps && left + rowRect.width > mm.left) {
+      left = Math.max(bounds.left + EDGE_MARGIN, mm.left - rowRect.width - EDGE_MARGIN);
+    }
+  }
   contextRow.style.left = `${left}px`;
   contextRow.style.top = `${top}px`;
 }
@@ -743,10 +819,10 @@ function renderContextRowInner(selection) {
 
   const actions = el('div', { class: 'toolbar-context-actions' });
   if (selection.nodeIds.length >= 2) {
-    actions.appendChild(el('button', { type: 'button', class: 'btn btn-icon', title: 'Group selection', text: '🔗', onClick: groupSelection }));
+    actions.appendChild(el('button', { type: 'button', class: 'btn btn-icon', title: 'Group selection', 'aria-label': 'Group selection', text: '🔗', onClick: groupSelection }));
   }
   if (selectionHasGroup()) {
-    actions.appendChild(el('button', { type: 'button', class: 'btn btn-icon', title: 'Ungroup', text: '✂️', onClick: ungroupSelection }));
+    actions.appendChild(el('button', { type: 'button', class: 'btn btn-icon', title: 'Ungroup', 'aria-label': 'Ungroup', text: '✂️', onClick: ungroupSelection }));
   }
   if (hasNodes) {
     // Works whether or not the selection was grouped first — a saved custom
@@ -755,7 +831,7 @@ function renderContextRowInner(selection) {
     // the richer, editable "New Component" flow (customComponentModal.js)
     // so its shape/colors/etc. stay tweakable before saving.
     actions.appendChild(el('button', {
-      type: 'button', class: 'btn btn-icon', title: 'Save selection as a reusable custom component', text: '⭐',
+      type: 'button', class: 'btn btn-icon', title: 'Save selection as a reusable custom component', 'aria-label': 'Save selection as a reusable custom component', text: '⭐',
       onClick: () => {
         if (selection.nodeIds.length === 1 && !hasEdges) {
           const node = store.getState().nodes.find((n) => n.id === selection.nodeIds[0]);
@@ -766,9 +842,9 @@ function renderContextRowInner(selection) {
       },
     }));
   }
-  duplicateBtn = el('button', { type: 'button', class: 'btn btn-icon', title: 'Duplicate (Ctrl+D)', text: '⧉', onClick: duplicateSelection });
+  duplicateBtn = el('button', { type: 'button', class: 'btn btn-icon', title: 'Duplicate (Ctrl+D)', 'aria-label': 'Duplicate', text: '⧉', onClick: duplicateSelection });
   actions.appendChild(duplicateBtn);
-  deleteBtn = el('button', { type: 'button', class: 'btn btn-icon btn-danger', title: 'Delete (Del)', text: '🗑️', onClick: deleteSelection });
+  deleteBtn = el('button', { type: 'button', class: 'btn btn-icon btn-danger', title: 'Delete (Del)', 'aria-label': 'Delete', text: '🗑️', onClick: deleteSelection });
   actions.appendChild(deleteBtn);
   body.appendChild(actions);
   contextRow.appendChild(body);

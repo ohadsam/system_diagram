@@ -651,7 +651,6 @@
 }
 
 .command-palette-input:focus {
-  outline: none;
   border-color: var(--color-primary);
 }
 
@@ -770,4 +769,54 @@
 .cost-breakdown-total-amount {
   color: #065F46;
   font-size: 16px;
+}
+
+.comment-modal-text {
+  width: 100%;
+  resize: vertical;
+}
+
+.diagram-theme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.diagram-theme-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-alt);
+  cursor: pointer;
+  text-align: left;
+}
+
+.diagram-theme-card:hover {
+  border-color: var(--color-primary-soft);
+}
+
+.diagram-theme-card.active {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+
+.diagram-theme-swatches {
+  display: flex;
+  gap: 2px;
+}
+
+.diagram-theme-swatch {
+  flex: 1;
+  height: 22px;
+  border-radius: 3px;
+}
+
+.diagram-theme-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
 }

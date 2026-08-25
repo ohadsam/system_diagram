@@ -18,6 +18,7 @@ import { openWhatsNewModal } from './modals/whatsNewModal.js';
 import * as viewport from './canvas/viewport.js';
 import { setToolMode, setSpaceHeld } from './canvas/toolMode.js';
 import { openCommandPaletteModal } from './modals/commandPaletteModal.js';
+import { initTheme } from './io/theme.js';
 
 function isTypingTarget(elRef) {
   if (!elRef) return false;
@@ -84,6 +85,23 @@ function initKeyboardShortcuts() {
       setToolMode('hand');
     } else if (!mod && e.key.toLowerCase() === 'v') {
       setToolMode('select');
+    } else if (!mod && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+      // Nudges the selected node(s) by keyboard — the only way to reposition
+      // a component without a mouse/touch drag, so this is load-bearing for
+      // keyboard-only and switch-device use, not just a nice-to-have. Shift
+      // for a bigger step, same convention as Figma/Illustrator.
+      const nodeIds = store.getSelection().nodeIds;
+      if (!nodeIds.length) return;
+      e.preventDefault();
+      const step = e.shiftKey ? 10 : 1;
+      const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
+      const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
+      store.dispatch((draft) => {
+        for (const id of nodeIds) {
+          const n = draft.nodes.find((x) => x.id === id);
+          if (n) { n.x += dx; n.y += dy; }
+        }
+      });
     }
   });
   window.addEventListener('keyup', (e) => {
@@ -92,6 +110,12 @@ function initKeyboardShortcuts() {
 }
 
 async function boot() {
+  // Already applied synchronously by index.html's inline <head> script
+  // (before this module even loaded) — called again here so the rest of
+  // the app (the toolbar's theme toggle) can rely on io/theme.js's applied
+  // state being in sync with io/uiPrefs.js's stored one from this point on.
+  initTheme();
+
   // A "#share=..." URL (io/shareLink.js) takes priority over the normal
   // autosave-restore path — opening one loads a local copy of that
   // project, same as any other Load, not a live-synced session.

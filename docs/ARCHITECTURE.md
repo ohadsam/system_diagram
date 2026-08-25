@@ -2385,6 +2385,214 @@ regardless of zoom level. Toggled via a persisted `io/uiPrefs.js` boolean
 (`alignGuides`, default `true`) and a Tools-menu button
 (`toolbar.js`'s `alignGuidesBtn`).
 
+## Dark Mode & Diagram Theme (`io/theme.js`, `io/uiPrefs.js`, `modals/diagramThemeModal.js`, `core/diagramTheme.js`)
+
+Two independent, easily-confused mechanisms:
+
+- **Dark mode** is a pure *display* setting. `io/theme.js#setTheme(mode)`
+  (`'system' | 'light' | 'dark'`) stamps `data-theme` on `<html>` and
+  persists the choice via `io/uiPrefs.js`; every color in the app is a CSS
+  custom property in `css/variables.css` that already resolves differently
+  under `[data-theme="dark"]` (or `prefers-color-scheme` for `'system'`), so
+  no per-component code is needed — this is the same token scheme node/edge
+  default colors themselves reference. The toolbar's "Theme" button
+  (`toolbar.js`) cycles the three modes and updates its own icon/label.
+- **Diagram Theme** (`core/diagramTheme.js#applyDiagramTheme`) *permanently
+  rewrites* `node.fill`/`node.stroke` for every node in one dispatch —
+  it's project data, not a display setting, and is a normal single undo
+  step. `DIAGRAM_THEMES` is a small curated palette list (Ocean, Sunset,
+  Forest, Monochrome, Pastel); the apply function first groups nodes by
+  their *current* fill color (so components that are already color-coded by
+  tier/layer stay grouped), then assigns each distinct group the next color
+  in the target palette in a stable, deterministic order (first-seen), so
+  re-running the same theme twice is idempotent. `modals/diagramThemeModal.js`
+  is a simple swatch-grid picker; `canvas.js#applyDiagramThemeToCanvas` wires
+  it to the live selection or whole canvas.
+
+## Custom Icon Upload (`io/fileIO.js#pickImageFile`, `canvas/node.js#buildIconEl`, `toolbar/styleEditor.js`)
+
+`node.iconImage` is a data-URI string (or `null`); when set it renders via
+`buildIconEl` (used by both the standard and "rows" node bodies) as an
+`<img>` instead of the emoji/icon-font glyph `node.icon` would otherwise
+produce — `iconImage` wins whenever both are present, so switching back to
+a built-in icon means explicitly clearing it (the style editor's "Remove
+Image" button does exactly that, alongside "Upload"/"Replace").
+`fileIO.js#pickImageFile()` is a small promise-wrapped `<input type=file>` +
+`FileReader` helper, mirroring the existing JSON-file-picker pattern in the
+same module. Like any other node field, `iconImage` needed adding to Live
+Replication's `MIRROR_FIELDS` allowlist by hand (see "Common pitfalls" in
+`docs/AI_AGENT_GUIDE.md`) — it does not mirror automatically just by
+existing on the node.
+
+## Minimap (`core/minimap.js`, `canvas/minimap.js`)
+
+Split the same way `core/alignmentGuides.js`/`canvas/nodeInteractions.js`
+are: `core/minimap.js` is pure, DOM-free layout math —
+`computeMinimapLayout(nodes, viewport, viewportRect, mapSize)` fits every
+node's canvas-space box into a fixed small map size (letterboxed to
+preserve aspect ratio) and returns both the scaled node rects and a
+"you are here" viewport rect; `minimapPointToCanvas` is its exact inverse,
+used to translate a click/drag on the minimap back into a canvas point to
+center on. `canvas/minimap.js` is the DOM/interaction half — a self-
+contained `<div class="minimap">` positioned in `#canvas-viewport`'s own
+corner (**not** inside `.canvas-content`, so it never pans/zooms itself),
+with its own `store`/viewport subscriptions and render loop, deliberately
+kept out of `canvas.js`'s main node/edge diff-render for the same reason
+`guideLayer` is: it's read-only overlay chrome, not part of the diagram's
+own data. Toggled via a persisted `io/uiPrefs.js` boolean (`showMinimap`)
+and a Tools-menu button. Uses the `--z-minimap` token (`css/variables.css`)
+— see that file's comment for why it must sit above the floating contextual
+style row but below hints/menus/toasts, and see "Gotchas" below for the
+overlap this created with that same floating row.
+
+## Focus Mode (`core/focusMode.js`, `canvas.js#setFocusMode`/`#applyFocusDimming`)
+
+`core/focusMode.js#computeFocusedIds(selection, nodes, edges)` is a pure
+function returning the set of node/edge ids that should stay at full
+opacity: the current selection itself, plus every edge directly touching a
+selected node and the node on the far end of each such edge. `canvas.js`
+applies it by toggling a `.dimmed` class (CSS opacity, `css/canvas.css`) on
+everything *not* in that set, called from both `render()` and
+`renderSelectionOnly()` so it stays correct across a full re-render and a
+selection-only fast path alike. Toggled via a persisted `io/uiPrefs.js`
+boolean (`focusMode`) and a Tools-menu button; with nothing selected, focus
+mode is a no-op (nothing is dimmed) rather than dimming everything.
+
+## Manual Connector Waypoints (`canvas/waypointHandles.js`, `edge.waypoints`)
+
+Generalizes a connector's path with an explicit, user-placed point list
+that overrides its routing style, following the same "separate overlay
+layer stacked above the node layer" architecture `canvas/edgeReconnect.js`
+already established for reconnect handles (so a handle's own pointer
+events never lose the hit-test to whatever's visually underneath) —
+`initWaypointHandles`/`syncWaypointHandles` live in `edgeHandleLayer`,
+diffed by *positional index* rather than any stored id (a waypoint has no
+identity beyond its position in the array, so the closure captured at
+render time for handle *N* is always consistent with cache key *N*, even
+across an insert/remove that shifts every later index).
+
+- `connector.js#buildEdgePath` checks `edge.waypoints?.length` *before* any
+  `routing`-specific branch — manual waypoints are a universal override
+  regardless of the edge's chosen routing style, the same "explicit
+  override wins" precedent used elsewhere (e.g. a component def's own
+  `textPosition`). The actual path through `[a, ...edge.waypoints, b]` is
+  `core/geometry.js#waypointsPath`, reused verbatim from magic-routing.
+- Dragging an existing handle, or dragging out a new one from the "+"
+  midpoint marker, uses the same `store.dispatch(mutator, {coalesce:true})`
+  + `store.commitHistory()` on pointerup pattern as `nodeInteractions.js`'s
+  own node-drag — the whole gesture becomes one undo step, not one per
+  intermediate frame.
+- Right-clicking a waypoint handle removes just that point; right-clicking
+  the connector line itself (`canvas.js#clearEdgeWaypoints`) removes all of
+  them via a "Straighten connector" context-menu item, returning it to its
+  routing style's default path.
+- **Gotcha**: the small waypoint-add handle carries a `data-edge-id`
+  attribute (for its own click handling) — the same attribute name a shared
+  e2e test helper's `closest('[data-edge-id=...]')` check used to decide
+  whether a right-click landed "on the edge." A right-click on the add-
+  handle satisfied that loose check even though it isn't the real edge
+  element and has no context-menu listener of its own, silently swallowing
+  the click. Fixed by giving `.waypoint-add-handle` its own `contextmenu`
+  listener that forwards a synthetic `MouseEvent('contextmenu', ...)` to the
+  real `.edge[data-edge-id="..."]` element. Worth remembering for any future
+  overlay element that reuses a "real" element's own data attributes for
+  convenience.
+
+## Pinned Comments (`canvas/commentPins.js`, `modals/commentModal.js`, `project.comments`)
+
+A comment (`core/project.js#createComment`) is `{id, x, y, text, resolved}`
+— a plain canvas-space point, entirely independent of every node/edge (no
+`nodeId` it's attached to). `canvas/commentPins.js` renders them as small
+`<button>` pins in their own `.comment-layer`, appended inside
+`.canvas-content` (so pins pan/zoom with the diagram, unlike the minimap)
+but *last*, so a pin is never hidden behind a node. Diffed by id, the same
+"reuse existing DOM, add/remove only what changed" pattern the node/edge
+layers use. `modals/commentModal.js` follows the established `sdb:open-*`
+window-event convention (`sdb:open-comment`) other canvas-triggered-but-
+not-toolbar-button modals use (see `subDiagramModal.js`) to avoid a
+circular import between `canvas.js` and the modal.
+
+Two review-caught gaps, both now fixed and regression-tested:
+
+- **Live Replication**: like any new node/edge field, a new *project-level*
+  array needs no special replication wiring (replication only mirrors
+  fields on individual mirrored nodes/edges) — but a new node/edge field
+  does, and this batch's `iconImage`/`waypoints` were both initially missing
+  from `MIRROR_FIELDS`/`EDGE_MIRROR_FIELDS` in `core/replication.js`. See
+  "Common pitfalls" in `docs/AI_AGENT_GUIDE.md`.
+- **`canvas.js#getContentBounds`**: used by both "Fit to Screen" and
+  PNG/PDF export, and already documented as "not a pure function of
+  `state.nodes`" (it also reads live DOM). It initially ignored
+  `state.comments` entirely and required at least one node to return
+  anything — meaning a comment sitting outside every node's own bounds (or
+  a comment-only diagram) could be cropped out of view/export. Fixed by
+  folding each comment's position (padded by a small fixed pin-radius
+  constant, since a pin has a real ~26px on-screen footprint despite being
+  stored as a single point) into the same bounds computation as nodes/edges.
+
+### Gotcha: a toolbar-descendant floating panel can't outrank a sibling drawer just by raising its own z-index
+
+`#toolbar` is a flex item of `#app` (`display: flex`) with its own explicit
+`z-index` (`--z-toolbar`) — per the flex-item stacking rules this makes
+`#toolbar` a genuine stacking context, and **any z-indexed descendant of
+it is trapped inside that context, no matter how high that descendant's own
+z-index is set.** `js/toolbar/toolbarDropdown.js`'s dropdown panel
+(`position: fixed`, `z-index: var(--z-menu)` — the highest UI layer short
+of hints/toasts) used to be a plain DOM child of its trigger, nested inside
+`#toolbar`. That worked fine until this batch's minimap made it common to
+have the mobile `#sidebar` drawer (`z-index: var(--z-panel)`, a *sibling*
+of `#toolbar` outside its trapped context) open at the same time as a
+dropdown — since `#sidebar`'s context (25) legitimately outranks the whole
+of `#toolbar`'s context (20) at the root level, the dropdown panel rendered
+*behind* the sidebar drawer despite its own much higher nominal z-index.
+Fixed by making the panel a true portal, like `canvas/contextMenu.js`'s own
+right-click menu and `toolbar.js`'s floating contextual style row already
+are: `buildToolbarDropdown` now appends `panel` straight to `document.body`
+instead of into its trigger's wrapper `div`, and the module's outside-
+click-to-close listener checks `panel.contains(e.target)` in addition to
+the trigger's own wrapper. The lesson generalizes: a high z-index only wins
+*within its own stacking context* — moving genuinely page-level floating UI
+out from under any ancestor that might itself become (or already is) a
+stacking context is the robust fix, not chasing ever-higher z-index numbers.
+
+A related, narrower instance of the same family of bug: the floating
+contextual style row (`toolbar.js#positionFloatingRow`) could land visually
+under the minimap's fixed corner position when the selected node was near
+the bottom-right of the canvas — both are correctly *outside* any trapping
+context here (contextRow already portals to `document.body`, same as
+above), so this one really was just two independently-positioned overlays
+competing for the same screen region, not a stacking-context trap. Fixed
+locally in `positionFloatingRow` by nudging its computed `left` further
+left whenever it would otherwise vertically overlap the minimap's own
+`getBoundingClientRect()` — deliberately narrow (only trims `left`, and
+only when an actual overlap is detected) rather than reusing the wider
+"trim available height" treatment already applied there for the Smart
+Suggestions banner, since the minimap only ever occupies one fixed corner
+rather than spanning the full width like that banner does.
+
+## Accessibility Pass
+
+- **Arrow-key nudge** (`main.js#initKeyboardShortcuts`): with exactly one
+  node selected and focus not inside a text field (reuses the existing
+  `isTypingTarget` guard), the arrow keys move it by 1px (10px with Shift)
+  via a normal `store.dispatch` + `commitHistory`, one undo step per
+  keypress.
+- **Icon-only buttons need a real accessible name**: a plain Unicode symbol
+  like "−"/"+"/"⛶" is not reliably announced by screen readers the way an
+  emoji or explicit `aria-label` is (this codebase already relies on
+  `title` for sighted-user tooltips, which does *not* by itself produce an
+  accessible name for every browser/AT combination). Audited every
+  icon-only toolbar button and added an explicit `aria-label` alongside its
+  existing `title` where the visible glyph alone wasn't already
+  self-describing text.
+- **`:focus-visible` must not be casually overridden**: the app already had
+  a global keyboard-focus-ring rule in `css/base.css`; the command palette's
+  search input had its own `.command-palette-input:focus { outline: none; }`
+  rule silently defeating it for that one field. Removed — a future
+  "remove the ugly focus ring" instinct on any *other* input should reach
+  for restyling the ring (a custom `:focus-visible` rule), not suppressing
+  it outright.
+
 ## Security notes
 
 - No `innerHTML` is ever fed unsanitized/user-provided strings; text

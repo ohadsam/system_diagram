@@ -129,6 +129,14 @@ this repo" quick-start.
 | Change estimated monthly cost (badge, total, breakdown) | `js/core/project.js` (`monthlyCost` field) + `js/core/cost.js` (`getCostedNodes`/`computeMonthlyCostTotal`/`formatMonthlyCost`, pure) + `js/panel/detailsPanel.js#renderMonthlyCost` (editor) + `js/canvas/node.js` (`.node-cost` badge) + `js/modals/costBreakdownModal.js` (Tools-menu breakdown) |
 | Change label chips on the node face | `js/canvas/node.js#buildLabelChips` (`.node-labels`/`.node-label-chip`) — the underlying `node.labels` field and its details-panel editor (`renderLabels`) already existed; this only added the on-canvas rendering |
 | Change Smart Alignment Guides (snap-while-dragging) | `js/core/alignmentGuides.js#computeAlignmentGuides`/`boundingBoxOf` (pure) + `js/canvas/nodeInteractions.js#beginMove` (**must** stay inside the RAF-batched `apply()`, not raw `pointermove` — see docs/ARCHITECTURE.md's own section for a real bug this ordering caused and how it was fixed) + `js/canvas/canvas.js` (`showAlignmentGuides`/`hideAlignmentGuides`, the `.align-guide-layer`) + `js/io/uiPrefs.js` (`alignGuides` toggle) |
+| Change dark mode (light/dark/system) | `js/io/theme.js#setTheme` (stamps `data-theme`) + `js/io/uiPrefs.js` (`theme` field) + `css/variables.css` (every color token's dark-mode override) — a display setting only, not project data |
+| Change the Diagram Theme palettes (permanent recolor) | `js/core/diagramTheme.js` (`DIAGRAM_THEMES`, `applyDiagramTheme` — groups nodes by current fill first) + `js/modals/diagramThemeModal.js` (swatch picker) + `js/canvas/canvas.js#applyDiagramThemeToCanvas` |
+| Change custom icon upload | `js/io/fileIO.js#pickImageFile` (file picker) + `js/core/project.js` (`node.iconImage` field) + `js/canvas/node.js#buildIconEl` (renders it over `node.icon` when set) + `js/toolbar/styleEditor.js` (Upload/Replace/Remove buttons) — remember to add `iconImage` to `core/replication.js#MIRROR_FIELDS` if it or a similar field ever needs re-adding |
+| Change the minimap | `js/core/minimap.js` (`computeMinimapLayout`/`minimapPointToCanvas`, pure) + `js/canvas/minimap.js` (`initMinimap`/`setMinimapVisible`, its own store/viewport subscriptions — deliberately outside `canvas.js`'s main render) + `js/io/uiPrefs.js` (`showMinimap`) + `--z-minimap` in `css/variables.css` |
+| Change Focus Mode | `js/core/focusMode.js#computeFocusedIds` (pure) + `js/canvas/canvas.js` (`setFocusMode`/`applyFocusDimming`, called from both `render()` and `renderSelectionOnly()`) + `js/io/uiPrefs.js` (`focusMode`) |
+| Change manual connector waypoints (drag-to-bend) | `js/canvas/waypointHandles.js` (the handle overlay — diffed by positional index, not id) + `js/core/project.js` (`edge.waypoints` field) + `js/canvas/connector.js#buildEdgePath` (checked *before* any `routing` branch — a universal override) + `js/canvas/canvas.js#clearEdgeWaypoints` ("Straighten connector" context-menu item) |
+| Change pinned comments | `js/core/project.js` (`createComment`/`validateComments`, `project.comments`) + `js/canvas/commentPins.js` (pin rendering, diffed by id) + `js/modals/commentModal.js` (`sdb:open-comment` window event, editor) + `js/canvas/canvas.js` (`addCommentAt`/`addCommentAtCenter`/`updateCommentText`/`toggleCommentResolved`/`deleteComment`, and `getContentBounds`'s comment-padding for Fit-to-Screen/export) |
+| Add a toolbar-descendant floating panel meant to escape `#toolbar` (a new dropdown, a new always-on-top overlay) | Append it to `document.body` directly (a portal), like `canvas/contextMenu.js` and `toolbar.js`'s floating contextual style row already do — **never** nest it inside `#toolbar` and rely on its own z-index alone, see "Common pitfalls" below |
 
 ## Running things locally
 
@@ -607,3 +615,41 @@ npm test
   *after* the drag-end sequence's own final `apply()`, not before. If you
   move per-frame visual work into a RAF-batched callback like this,
   audit every other call site of that callback for the same ordering trap.
+- **A high z-index only wins inside its own stacking context — nesting a
+  "should always be on top" floating panel inside an ordinary layout
+  element can trap it below a completely unrelated sibling.** `#toolbar` is
+  a flex item of `#app` with its own explicit `z-index` (`--z-toolbar`);
+  per the flex-item stacking rules that makes `#toolbar` a real stacking
+  context, and *any* z-indexed descendant of it — no matter how high that
+  descendant's own z-index is — is compared against other elements only
+  within `#toolbar`'s local context, never directly against a sibling like
+  `#sidebar`. `toolbar/toolbarDropdown.js`'s dropdown panel used to be a
+  plain child of its trigger (nested inside `#toolbar`) with
+  `z-index: var(--z-menu)` — the app's *highest* UI layer short of hints/
+  toasts — and still rendered visually *behind* the mobile `#sidebar`
+  drawer (a much lower `z-index: var(--z-panel)`) whenever both were open
+  at once, because `#sidebar` sits outside `#toolbar`'s trapped context
+  and legitimately outranks the whole of it. Fixed by making the panel a
+  true portal (`document.body.appendChild(panel)`), matching
+  `canvas/contextMenu.js`'s own right-click menu and `toolbar.js`'s
+  floating contextual style row, which already worked this way. If a new
+  piece of floating UI needs to guarantee it's above sidebar/details-panel
+  drawers or other page-level overlays, portal it to `document.body` —
+  don't just reach for a higher z-index number and assume it settles the
+  question; check what stacking context it's actually nested in first.
+- **Two independently-`position: fixed`, `document.body`-portaled overlays
+  can still visually collide even though neither is stacking-context-
+  trapped** — the minimap (a fixed corner panel) and the floating
+  contextual style row (positioned next to whatever's selected) can both
+  legitimately end up in the same screen region when a component near the
+  canvas's bottom-right corner is selected. This isn't a z-index problem
+  (whichever paints last just wins outright, hiding the other's content
+  entirely) — it needs actual geometric collision-avoidance, not a layer
+  order. `toolbar.js#positionFloatingRow` already trims itself away from
+  the Smart Suggestions banner (a full-width bottom overlay) by shrinking
+  its available height; the minimap only occupies one fixed corner, so it
+  gets a narrower, more targeted fix instead — nudging `left` only when an
+  actual vertical-and-horizontal overlap with the minimap's own
+  `getBoundingClientRect()` is detected. Any *third* future fixed-corner
+  overlay would need the same explicit treatment added; there's no generic
+  "avoid every other overlay" mechanism here.

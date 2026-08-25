@@ -262,10 +262,22 @@ function renameNode(node, value) {
   });
 }
 
+/** A node's icon is either a user-uploaded image/SVG (`iconImage`, set via
+ * the style editor's "Upload Icon" — see toolbar/styleEditor.js) or the
+ * plain emoji `icon` field every component starts with; `iconImage` wins
+ * when both are present. Returns null when no icon should render at all. */
+function buildIconEl(node) {
+  if (node.iconVisible === false) return null;
+  if (node.iconImage) return el('img', { class: 'node-icon node-icon-image', src: node.iconImage, alt: '', draggable: false });
+  if (node.icon) return el('div', { class: 'node-icon', text: node.icon });
+  return null;
+}
+
 function buildStandardBody(node) {
   const position = node.textPosition || 'center';
   const wrap = el('div', { class: `node-standard pos-${position}` });
-  if (node.iconVisible !== false && node.icon) wrap.appendChild(el('div', { class: 'node-icon', text: node.icon }));
+  const iconEl = buildIconEl(node);
+  if (iconEl) wrap.appendChild(iconEl);
 
   if (!OUTSIDE_POSITIONS.includes(position)) {
     const label = el('div', { class: 'node-label', title: 'Double-click to rename' });
@@ -348,7 +360,8 @@ function updateExternalLabel(rootEl, node) {
 function buildRowsBody(node) {
   const wrap = el('div', { class: 'node-rows' });
   const header = el('div', { class: 'node-rows-header' });
-  if (node.iconVisible !== false && node.icon) header.appendChild(el('span', { class: 'node-icon', text: node.icon }));
+  const rowsIconEl = buildIconEl(node);
+  if (rowsIconEl) header.appendChild(rowsIconEl);
   const label = el('span', { class: 'node-label', text: node.text, title: 'Double-click to rename' });
   label.addEventListener('dblclick', (e) => {
     e.stopPropagation();

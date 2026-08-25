@@ -3,6 +3,15 @@
   display: flex;
   user-select: none;
   touch-action: none;
+  opacity: 1;
+  transition: opacity 0.15s ease;
+}
+
+/* Focus Mode (see canvas/canvas.js#applyFocusDimming) — everything not
+   directly connected to the current selection fades out instead of being
+   hidden, so the rest of the diagram still reads as context. */
+.node.dimmed {
+  opacity: 0.2;
 }
 
 .node-body {
@@ -348,6 +357,13 @@
   pointer-events: none;
 }
 
+.node-icon-image {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  -webkit-user-drag: none;
+}
+
 .node-label {
   font-weight: 600;
   text-align: center;
@@ -672,5 +688,5 @@
 }
 
 .node-suggestion-badge:hover {
-  background: #FFFBEB;
+  background: var(--color-amber-soft);
 }

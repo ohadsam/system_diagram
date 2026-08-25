@@ -21,7 +21,7 @@ import { filterCommands } from '../toolbar/commandPalette.js';
 import {
   deleteSelection, duplicateSelection, autoArrangeAll, distributeSequenceDiagram, duplicateProjectAsNew,
   addRelatedComponent, addLayerToNode, instantiatePatternNearNode, instantiatePatternAtCenter, addComponentAtCenter,
-  resolveComponentDef, clearCanvas,
+  resolveComponentDef, clearCanvas, setFocusMode, addCommentAtCenter,
 } from '../canvas/canvas.js';
 import * as viewport from '../canvas/viewport.js';
 import { openSaveAsModal } from './saveAsModal.js';
@@ -40,6 +40,9 @@ import { openPresentationsModal } from './presentationsModal.js';
 import { openDiagramLintModal } from './diagramLintModal.js';
 import { openCostBreakdownModal } from './costBreakdownModal.js';
 import { openScaleDiagramModal } from './scaleDiagramModal.js';
+import { openDiagramThemeModal } from './diagramThemeModal.js';
+import { getUiPrefs, saveUiPrefs } from '../io/uiPrefs.js';
+import { setMinimapVisible } from '../canvas/minimap.js';
 import { openGenerateDesignModal } from './generateDesignModal.js';
 import { confirmAction } from './confirmModal.js';
 import { exportProjectToFile } from '../io/fileIO.js';
@@ -87,7 +90,27 @@ function buildAppCommands() {
     { id: 'auto-arrange', label: '🗺️ Auto-arrange', keywords: ['arrange', 'layout', 'tidy', 'order', 'sort'], run: autoArrangeAll },
     { id: 'distribute', label: '↔️ Distribute Evenly', keywords: ['distribute', 'space', 'even'], run: distributeSequenceDiagram },
     { id: 'scale', label: '📐 Scale Diagram', keywords: ['scale', 'resize'], run: openScaleDiagramModal },
+    { id: 'diagram-theme', label: '🎨 Diagram Theme', keywords: ['theme', 'recolor', 'palette', 'color'], run: openDiagramThemeModal },
+    { id: 'add-comment', label: '💬 Add Comment', keywords: ['comment', 'annotation', 'note', 'pin'], run: addCommentAtCenter },
     { id: 'toggle-grid', label: '▦ Toggle Grid', keywords: ['grid', 'toggle', 'background'], run: () => document.querySelector('.canvas-viewport')?.classList.toggle('show-grid') },
+    {
+      id: 'toggle-minimap', label: '🧭 Toggle Minimap', keywords: ['minimap', 'overview', 'map'],
+      run: () => {
+        const next = !getUiPrefs().showMinimap;
+        saveUiPrefs({ showMinimap: next });
+        setMinimapVisible(next);
+        document.querySelector('#toolbar button[title^="Minimap"]')?.classList.toggle('active', next);
+      },
+    },
+    {
+      id: 'toggle-focus-mode', label: '🔦 Toggle Focus Mode', keywords: ['focus', 'dim', 'spotlight', 'highlight'],
+      run: () => {
+        const next = !getUiPrefs().focusMode;
+        saveUiPrefs({ focusMode: next });
+        setFocusMode(next);
+        document.querySelector('#toolbar button[title^="Focus Mode"]')?.classList.toggle('active', next);
+      },
+    },
     { id: 'new-component', label: '🧩 New Component', keywords: ['custom component', 'new component', 'create component'], run: () => openCustomComponentModal({}) },
     { id: 'new-shape', label: '✏️ New Custom Shape', keywords: ['custom shape', 'new shape'], run: openCustomShapeModal },
     { id: 'default-settings', label: '🎛️ Default Settings', keywords: ['settings', 'defaults', 'preferences'], run: openDefaultSettingsModal },

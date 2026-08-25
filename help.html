@@ -316,6 +316,10 @@
       <p>While dragging a component (or a multi-selection, moved as one), it snaps into exact alignment with a nearby component's edge or center — a Figma-like dashed guide line appears while it's snapped. On by default; toggle it off with "🧲 Snap Guides" in the Tools menu if you'd rather move freely without it.</p>
       <h3>Revisiting sub-component suggestions later</h3>
       <p>The placement banner is easy to miss — and a component loaded from a saved project never saw it at all. Any component with unattached sub-component suggestions keeps a small <strong>💡 badge</strong> on it, for as long as any of them remain unattached. Click the badge any time to open the details panel's "Suggested sub-components" section, where the same curated list appears as checkboxes — check off any number and click "+ Add selected" to attach them all in one step, instead of one click per suggestion. See "Notes &amp; sub-components" below.</p>
+      <h3>🧭 Minimap &amp; 🔦 Focus Mode</h3>
+      <p>Turn on "🧭 Minimap" (Tools menu) for a small overview panel in the canvas's corner — every component as a tiny rect, plus a "you are here" box for the current view. Click or drag anywhere on it to jump the main view there instantly, handy for a large diagram you'd otherwise have to scroll/zoom around to navigate. "🔦 Focus Mode" (Tools menu) dims every component <em>except</em> the current selection and whatever's directly connected to it, so you can trace one part of a busy diagram without the rest fighting for attention — turn it off to bring everything back to full brightness. Both are purely visual and remembered as a preference; neither changes your saved diagram.</p>
+      <h3>💬 Pinned comments</h3>
+      <p>Right-click empty canvas and choose "Add comment here" to drop a small pin at that spot and open it for editing right away. Click any existing pin to reopen it — edit its note, or check "Mark as resolved" to change its look (a ✓ instead of the speech-bubble icon, dimmed) without deleting it. A pin's "Delete" button removes it (undoable, like everything else). Comments aren't attached to any component — they're independent notes anywhere on the diagram — but they're always included when you use "Fit to screen" or export to PNG/PDF, so a pin never gets left out of frame.</p>
     </section>
 
     <section id="styling">
@@ -329,6 +333,10 @@
       <p>By default this row shows as a small card that pops up right next to whatever you've selected, instead of pushing the rest of the screen around. Click <strong>📌</strong> on it to pin it to the top of the screen instead (back in the toolbar, like earlier versions of this app); click it again to unpin and go back to floating. Prefer it pinned to the bottom, or want floating/pinned-top as your permanent default? Set it once in "🎛️ Default Settings" → "Style editor" and every new selection uses it from then on.</p>
       <h3>Default settings for new components</h3>
       <p>Click "🎛️" in the toolbar to set defaults applied whenever you add a <em>new</em> component from then on: no background color, show/hide icon, text position, and how sub-components display (compact chips or a full list). A component's own style always wins after that — these are just the starting point. There's also an "Apply to all existing components now" action, if you want your current diagram to match too (undoable in one step).</p>
+      <h3>Custom icon upload</h3>
+      <p>Next to the built-in icon picker, an "Upload Image" button lets you use your own image file as that component's icon instead — a company logo, a screenshot, anything. Once uploaded, "Replace Image" swaps it for a different file and "Remove Image" goes back to the built-in emoji/icon-font icon.</p>
+      <h3>🎨 Diagram Theme</h3>
+      <p>Click "🎨 Diagram Theme" (Tools menu) to permanently recolor <em>every</em> component on the canvas to one of several curated palettes (Ocean, Sunset, Forest, Monochrome, Pastel). Components that currently share a fill color stay grouped together — they just all get mapped to the same new color in the chosen palette — so an existing color-coding scheme (by tier, by team, whatever) survives the re-skin. This is a real, undoable edit to your diagram's data, unlike dark mode below which is purely how the app displays itself.</p>
     </section>
 
     <section id="connectors">
@@ -339,6 +347,8 @@
       <h3>🪄 Magic routing</h3>
       <p>Every connector already auto-avoids obstacles by default (see above). "🪄 Magic" is that same routing offered as an explicit choice in a connector's Routing dropdown, for when you want its distinct glowing style on purpose. If no clear path exists it falls back to a normal elbow connector rather than failing.</p>
       <div class="tip">💡 A magic connector keeps re-routing itself live as you move components around, exactly like every other routing style.</div>
+      <h3>Manual bend points</h3>
+      <p>Select a connector to reveal small handles along its path. Drag a handle to move that bend point, drag the small "+" that appears between two handles to insert a new one right there, or right-click a handle to remove just that point. Right-click the connector itself and choose "Straighten connector" to remove every manual bend point at once and go back to its routing style's normal path. Manual bend points override whatever routing style is chosen (straight/elbow/curved/magic) — the connector still keeps its color, arrows, and label, just following your own path instead.</p>
     </section>
 
     <section id="details">
@@ -514,7 +524,10 @@
         <tr><td><kbd>V</kbd></td><td>Switch to the Select tool</td></tr>
         <tr><td>Hold <kbd>Space</kbd></td><td>Temporarily pan, whichever tool is active</td></tr>
         <tr><td><kbd>Esc</kbd></td><td>Clear selection / close panels</td></tr>
+        <tr><td>Arrow keys</td><td>Nudge the selected component by 1px (not while typing in a field)</td></tr>
+        <tr><td><kbd>Shift</kbd>+Arrow keys</td><td>Nudge the selected component by 10px</td></tr>
       </table>
+      <div class="tip">💡 The "Theme" button in the Tools menu cycles Match System / Light / Dark for the whole app. Every icon-only toolbar button (undo/redo, zoom, fit to screen) also has a real accessible name for screen readers, and the keyboard focus ring is visible everywhere, including the Command Palette's search box.</div>
     </section>
 
     <section id="faq">

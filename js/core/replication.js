@@ -15,7 +15,7 @@ const REPLICATION_GAP = 120; // px between side A's bounding box and side B, whe
 // opt-out state independently.
 const MIRROR_FIELDS = [
   'defId', 'w', 'h', 'shape', 'fill', 'stroke', 'strokeWidth', 'text', 'fontSize',
-  'textAlign', 'textPosition', 'icon', 'iconVisible', 'notes', 'labels', 'monthlyCost',
+  'textAlign', 'textPosition', 'icon', 'iconVisible', 'iconImage', 'notes', 'labels', 'monthlyCost',
   'subComponentsDisplay', 'rows', 'destroyOffset', 'fragmentType',
 ];
 
@@ -62,7 +62,7 @@ function applyMirroredContent(target, source, x, y) {
 const EDGE_MIRROR_FIELDS = [
   'fromSide', 'toSide', 'fromOffset', 'toOffset', 'routing',
   'color', 'width', 'dash', 'startArrow', 'endArrow', 'label', 'labelPosition', 'notes',
-  'sequenceNumberOverride',
+  'sequenceNumberOverride', 'waypoints',
 ];
 
 function edgeSignature(edge) {

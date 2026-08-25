@@ -2,8 +2,8 @@
   position: fixed;
   z-index: var(--z-hint);
   width: 260px;
-  background: var(--color-text);
-  color: #fff;
+  background: var(--color-inverse-bg);
+  color: var(--color-inverse-text);
   border-radius: var(--radius-md);
   padding: var(--space-3) var(--space-3) var(--space-2);
   box-shadow: var(--shadow-lg);
@@ -29,12 +29,12 @@
 }
 
 .hint-actions .btn-link {
-  color: #CBD5E1;
+  color: var(--color-inverse-text-muted);
   font-size: 11px;
 }
 
 .hint-actions .btn-primary {
-  background: #fff;
-  color: var(--color-text);
-  border-color: #fff;
+  background: var(--color-inverse-surface);
+  color: var(--color-inverse-surface-text);
+  border-color: var(--color-inverse-surface);
 }

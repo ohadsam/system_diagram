@@ -177,6 +177,11 @@ function buildEdgePath(edge, fromNode, toNode, a, b, allNodes) {
   // two points on the very same side of the very same node would draw a
   // near-invisible sliver instead of a readable "calls itself" shape.
   if (fromNode.id === toNode.id) return selfLoopPath(edge, a, b);
+  // Manual waypoints (dragged in via canvas/waypointHandles.js) are an
+  // explicit user override — same "wins over automatic" precedent as e.g.
+  // a def's own textPosition beating the global default — so they take the
+  // path over any routing algorithm, orthogonal/magic included.
+  if (edge.waypoints?.length) return waypointsPath([a, ...edge.waypoints, b]);
   if (edge.routing === 'magic' || edge.routing === 'orthogonal') {
     const obstacles = allNodes.filter((n) => n.id !== fromNode.id && n.id !== toNode.id);
     const waypoints = computeMagicWaypoints(fromNode, toNode, obstacles, edge.fromSide, edge.toSide, edge.fromOffset ?? 0.5, edge.toOffset ?? 0.5);

@@ -116,8 +116,9 @@ export function definePattern(id, name, icon, { description = '', tags = [], nod
 
 // Very light tint of a hex color toward white, used as a component's default
 // fill so text/icon stay legible without every component needing its own
-// fill value.
-function tint(hex) {
+// fill value. Exported too — core/diagramTheme.js reuses it so a themed
+// node's fill is derived the exact same way a library component's already is.
+export function tint(hex) {
   const clean = hex.replace('#', '');
   const full = clean.length === 3 ? clean.split('').map((ch) => ch + ch).join('') : clean;
   const int = parseInt(full, 16);

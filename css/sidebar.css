@@ -40,8 +40,8 @@
 }
 
 .sidebar-popular-toggle.active {
-  color: #B45309;
-  background: #FFFBEB;
+  color: var(--color-amber-text);
+  background: var(--color-amber-soft);
   border-color: #F59E0B;
 }
 
@@ -187,11 +187,11 @@
 }
 
 .sidebar-item.item-popular {
-  background: #FFFBEB;
+  background: var(--color-amber-soft);
 }
 
 .sidebar-item.item-popular:hover {
-  background: #FEF3C7;
+  background: var(--color-amber-soft-hover);
 }
 
 .item-popular-badge {

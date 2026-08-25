@@ -2,11 +2,14 @@
 // store, and owns pan/zoom/marquee-selection. See docs/ARCHITECTURE.md
 // "Canvas rendering".
 import * as store from '../core/store.js';
-import { createEdge, nextZIndex, removeNode as removeNodeFromProject, removeEdge as removeEdgeFromProject, createNode, duplicateProject, createVersionSnapshot, removeVersion as removeVersionFromProject } from '../core/project.js';
+import { createEdge, nextZIndex, removeNode as removeNodeFromProject, removeEdge as removeEdgeFromProject, createNode, duplicateProject, createVersionSnapshot, removeVersion as removeVersionFromProject, createComment } from '../core/project.js';
 import { buildReplicationPair } from '../core/replication.js';
 import { computeAutoLayout } from '../core/autoLayout.js';
 import { layoutLifelines, distributeLifelineColumns, distributeMessages, layoutImportedSequenceDiagram, GAP as LIFELINE_GAP } from '../core/sequenceDiagram.js';
 import { scaleNodes } from '../core/scaleDiagram.js';
+import { applyDiagramTheme, DIAGRAM_THEMES } from '../core/diagramTheme.js';
+import { initMinimap } from './minimap.js';
+import { computeFocusedIds } from '../core/focusMode.js';
 import { getComponentById } from '../data/index.js';
 import { getCustomComponents } from '../io/customComponents.js';
 import { buildCreationOverrides } from '../io/nodeDefaults.js';
@@ -20,6 +23,8 @@ import { attachNodeInteractions } from './nodeInteractions.js';
 import { createEdgeEl, updateEdgeEl, configureEdgeHandlers, initConnectorDefs } from './connector.js';
 import { initConnectorInteractions } from './connectorInteractions.js';
 import { initEdgeReconnect, syncEdgeHandles } from './edgeReconnect.js';
+import { initWaypointHandles, syncWaypointHandles } from './waypointHandles.js';
+import { initCommentPins, renderCommentPins } from './commentPins.js';
 import { showContextMenu, hideContextMenu } from './contextMenu.js';
 import { getToolMode, onToolModeChange } from './toolMode.js';
 import { showSuggestionsFor } from './suggestions.js';
@@ -36,6 +41,7 @@ let edgeHandleLayer = null;
 let groupBgLayer = null;
 let marqueeEl = null;
 let guideLayer = null;
+let commentLayer = null;
 
 const nodeElements = new Map();
 const edgeElements = new Map();
@@ -72,6 +78,12 @@ export function initCanvas(root) {
   // not a child, for reasons specific to that gesture — see its own code).
   guideLayer = svgEl('svg', { class: 'align-guide-layer' });
   contentEl.appendChild(guideLayer);
+  // Pinned comments (see canvas/commentPins.js) sit above every other
+  // canvas-space layer, same reasoning as guideLayer just above — a pin
+  // must always be clickable, never hidden behind a node/edge it happens
+  // to be pinned near.
+  commentLayer = el('div', { class: 'comment-layer' });
+  contentEl.appendChild(commentLayer);
   viewportEl.appendChild(contentEl);
 
   marqueeEl = el('div', { class: 'marquee', hidden: true });
@@ -81,6 +93,8 @@ export function initCanvas(root) {
   initConnectorDefs(edgeLayer);
   initConnectorInteractions(edgeLayer);
   initEdgeReconnect(edgeHandleLayer);
+  initWaypointHandles(edgeHandleLayer);
+  initCommentPins(commentLayer);
 
   configureNodeHandlers({
     onSelect: (nodeId, additive) => selectNode(nodeId, additive),
@@ -103,6 +117,8 @@ export function initCanvas(root) {
   store.subscribe('change', render);
   store.subscribe('selection', renderSelectionOnly);
   render(store.getState());
+
+  initMinimap(viewportEl);
 }
 
 function wireWheel() {
@@ -331,6 +347,31 @@ function render(state) {
     });
   }
   syncEdgeHandles(state, store.getSelection());
+  syncWaypointHandles(state, store.getSelection());
+  renderCommentPins(state.comments || []);
+  applyFocusDimming(store.getSelection());
+}
+
+// ---- Focus Mode ----
+// Dims every node/edge not directly connected to the current selection,
+// so a large diagram can be read one neighborhood at a time. Purely a
+// view-layer overlay (a `.dimmed` class, toggled here) — never touches
+// project data, so it needs no undo/redo entry and survives a toggle with
+// zero effect on anything exported/saved.
+let focusModeEnabled = false;
+
+export function setFocusMode(enabled) {
+  focusModeEnabled = enabled;
+  applyFocusDimming(store.getSelection());
+}
+
+function applyFocusDimming(selection) {
+  const active = focusModeEnabled && selection.nodeIds.length > 0;
+  const { nodeIds: focusedNodeIds, edgeIds: focusedEdgeIds } = active
+    ? computeFocusedIds(selection.nodeIds, store.getState().edges)
+    : { nodeIds: new Set(), edgeIds: new Set() };
+  for (const [id, elRef] of nodeElements) elRef.classList.toggle('dimmed', active && !focusedNodeIds.has(id));
+  for (const [id, elRef] of edgeElements) elRef.classList.toggle('dimmed', active && !focusedEdgeIds.has(id));
 }
 
 /** Auto-numbers "messages" — edges between two lifeline nodes — in
@@ -367,6 +408,59 @@ export function setSequenceNumberOverride(edgeId, value) {
   store.dispatch((draft) => {
     const edge = draft.edges.find((e) => e.id === edgeId);
     if (edge) edge.sequenceNumberOverride = value;
+  });
+}
+
+/** Discards every manually-dragged bend point (see
+ * canvas/waypointHandles.js), handing the connector back to whatever
+ * routing/fromSide/toSide would otherwise draw. */
+export function clearEdgeWaypoints(edgeId) {
+  store.dispatch((draft) => {
+    const edge = draft.edges.find((e) => e.id === edgeId);
+    if (edge) edge.waypoints = [];
+  });
+}
+
+// ---- Pinned comments (see canvas/commentPins.js and core/project.js#createComment) ----
+
+/** Drops a new comment pin at the right-click point (canvas-viewport's
+ * "Add comment here" — see openCanvasContextMenu below) and immediately
+ * opens it for editing, same "create then open" flow as a freshly-drawn
+ * sequence-diagram message's details. */
+export function addCommentAt(evt) {
+  const point = viewport.screenToCanvas(evt.clientX, evt.clientY);
+  const comment = createComment(point.x, point.y);
+  store.dispatch((draft) => { draft.comments.push(comment); });
+  window.dispatchEvent(new CustomEvent('sdb:open-comment', { detail: { commentId: comment.id } }));
+}
+
+/** Command-palette equivalent of addCommentAt — there's no click point to
+ * anchor to, so it drops at the current viewport's center instead, same
+ * convention as addComponentAtCenter. */
+export function addCommentAtCenter() {
+  const point = screenCenterCanvasPoint();
+  const comment = createComment(point.x, point.y);
+  store.dispatch((draft) => { draft.comments.push(comment); });
+  window.dispatchEvent(new CustomEvent('sdb:open-comment', { detail: { commentId: comment.id } }));
+}
+
+export function updateCommentText(commentId, text) {
+  store.dispatch((draft) => {
+    const c = draft.comments.find((x) => x.id === commentId);
+    if (c) c.text = text;
+  });
+}
+
+export function toggleCommentResolved(commentId) {
+  store.dispatch((draft) => {
+    const c = draft.comments.find((x) => x.id === commentId);
+    if (c) c.resolved = !c.resolved;
+  });
+}
+
+export function deleteComment(commentId) {
+  store.dispatch((draft) => {
+    draft.comments = draft.comments.filter((x) => x.id !== commentId);
   });
 }
 
@@ -503,6 +597,8 @@ function renderSelectionOnly(selection) {
   for (const [id, elRef] of nodeElements) elRef.classList.toggle('selected', selection.nodeIds.includes(id));
   for (const [id, elRef] of edgeElements) elRef.classList.toggle('selected', selection.edgeIds.includes(id));
   syncEdgeHandles(store.getState(), selection);
+  syncWaypointHandles(store.getState(), selection);
+  applyFocusDimming(selection);
 }
 
 // ---- node/edge creation & mutation helpers ----
@@ -1251,12 +1347,28 @@ function reorderZ(nodeId, toFront) {
  * conversion; external labels are plain positioned HTML, so their
  * genuinely-in-viewport-pixels rect goes through screenToCanvas first. */
 export function getContentBounds() {
-  const nodes = store.getState().nodes;
-  if (!nodes.length) return null;
-  let minX = Math.min(...nodes.map((n) => n.x));
-  let minY = Math.min(...nodes.map((n) => n.y));
-  let maxX = Math.max(...nodes.map((n) => n.x + n.w));
-  let maxY = Math.max(...nodes.map((n) => n.y + n.h));
+  const state = store.getState();
+  const nodes = state.nodes;
+  const comments = state.comments || [];
+  if (!nodes.length && !comments.length) return null;
+
+  const xs = [];
+  const ys = [];
+  for (const n of nodes) { xs.push(n.x, n.x + n.w); ys.push(n.y, n.y + n.h); }
+  // A comment pin has a real on-screen footprint (~26px, see .comment-pin in
+  // css/canvas.css) even though it's stored as a single point — pad by half
+  // that so "Fit to Screen"/PNG export don't crop a pin sitting outside
+  // every node's own bounds (e.g. a planning note dropped before anything
+  // else exists yet).
+  const COMMENT_PIN_RADIUS = 14;
+  for (const c of comments) {
+    xs.push(c.x - COMMENT_PIN_RADIUS, c.x + COMMENT_PIN_RADIUS);
+    ys.push(c.y - COMMENT_PIN_RADIUS, c.y + COMMENT_PIN_RADIUS);
+  }
+  let minX = Math.min(...xs);
+  let minY = Math.min(...ys);
+  let maxX = Math.max(...xs);
+  let maxY = Math.max(...ys);
 
   if (edgeLayer) {
     const bbox = edgeLayer.getBBox();
@@ -1379,6 +1491,22 @@ export function scaleDiagram(factor) {
     draft.nodes = scaleNodes(draft.nodes, factor, origin);
   });
   showToast(`Scaled the diagram to ${Math.round(factor * 100)}%.`, 'success', 2200);
+}
+
+/** Permanently recolors every component to a chosen palette (see
+ * core/diagramTheme.js#applyDiagramTheme) — same "one-shot, undoable
+ * transform" shape as scaleDiagram above, just for color instead of size. */
+export function applyDiagramThemeToCanvas(themeKey) {
+  const state = store.getState();
+  if (!state.nodes.length) {
+    showToast('Nothing to recolor yet — add some components first.', 'info', 2200);
+    return;
+  }
+  store.dispatch((draft) => {
+    draft.nodes = applyDiagramTheme(draft.nodes, themeKey);
+  });
+  const label = DIAGRAM_THEMES[themeKey]?.label || themeKey;
+  showToast(`Applied the "${label}" theme.`, 'success', 2200);
 }
 
 /** Every group whose members are ALL lifeline nodes (2+) — a "sequence
@@ -1525,6 +1653,10 @@ function openEdgeContextMenu(edgeId, evt) {
       items.push({ label: 'Clear sequence number override', icon: '↩️', onClick: () => setSequenceNumberOverride(edgeId, null) });
     }
   }
+  if (edge?.waypoints?.length) {
+    items.push('separator');
+    items.push({ label: 'Straighten connector (remove bend points)', icon: '📏', onClick: () => clearEdgeWaypoints(edgeId) });
+  }
   items.push(
     'separator',
     { label: 'Duplicate', icon: '⧉', onClick: () => { store.select([], [edgeId]); duplicateSelection(); } },
@@ -1539,6 +1671,8 @@ function openCanvasContextMenu(evt) {
     { label: 'Select all', icon: '▭', onClick: () => store.select(store.getState().nodes.map((n) => n.id), []) },
     { label: 'Fit to screen', icon: '🔍', onClick: fitToScreen },
     { label: 'Reset zoom to 100%', icon: '💯', onClick: () => viewport.zoomTo(1) },
+    'separator',
+    { label: 'Add comment here', icon: '💬', onClick: () => addCommentAt(evt) },
     'separator',
     { label: 'Duplicate entire canvas', icon: '⧉', onClick: duplicateEntireCanvas },
     { label: 'Duplicate as new project', icon: '📄', onClick: duplicateProjectAsNew },

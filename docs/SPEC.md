@@ -1062,6 +1062,69 @@ units by the current zoom, so the "feel" stays consistent whether zoomed in
 or out. On by default; toggled off via "🧲 Snap Guides" (Tools menu, a
 persisted `io/uiPrefs.js` preference).
 
+### 4.23 Dark Mode & Diagram Themes
+The "Theme" toolbar button (Tools menu) cycles a persisted `io/uiPrefs.js`
+preference through Match System / Light / Dark; `io/theme.js#setTheme`
+stamps `data-theme` on the document root and every color in the app (canvas,
+toolbar, modals, node/edge colors that reference CSS custom properties)
+follows the corresponding light/dark token set in `css/variables.css`.
+Separately, "🎨 Diagram Theme" (Tools menu) *permanently* recolors every
+node's own `fill`/`stroke` to one of several curated palettes (Ocean,
+Sunset, Forest, Monochrome, Pastel) — components that currently share a
+color are grouped together and mapped to the same new color, so a
+diagram's existing color-coding by layer/tier is preserved, just re-skinned.
+This is a one-time bulk edit (undoable as one step), unlike the dark-mode
+toggle which is a non-destructive display setting.
+
+### 4.24 Custom Icon Upload
+A node's style editor has an "Upload Image" button (alongside the existing
+built-in icon picker) to use a local image file as that node's icon instead
+of an emoji/icon-font glyph — stored as a data URI on `node.iconImage`,
+which takes precedence over `node.icon` when rendering and mirrors like any
+other node field under Live Replication.
+
+### 4.25 Minimap & Focus Mode
+"🧭 Minimap" (Tools menu, persisted preference) shows a small always-on-top
+overview panel in the canvas's corner with every node as a tiny rect and a
+"you are here" box for the current pan/zoom; click or drag on it to jump the
+main view anywhere. "🔦 Focus Mode" (Tools menu, persisted preference) dims
+every node except the current selection and its directly-connected
+neighbors, for tracing one part of a large diagram without losing the rest
+as context. Both are pure display overlays with no effect on the saved
+project data.
+
+### 4.26 Manual Connector Waypoints
+A selected connector shows small drag handles along its rendered path (a
+dedicated overlay layer, the same architecture as the reconnect-endpoint
+handles): dragging one moves an existing bend point, dragging the small "+"
+that appears between two handles inserts a new one at that spot, and
+right-clicking a handle (or the connector itself) removes all manual bend
+points and returns it to its routing style's default path. Manual waypoints
+(`edge.waypoints`, an ordered list of `{x,y}` canvas points) take priority
+over the connector's `routing` value for path computation, but the
+`routing`/arrow/label/style settings are all unaffected and still apply
+around the manual path.
+
+### 4.27 Pinned Comments
+Right-clicking empty canvas offers "Add comment here", dropping a small
+pin (`project.comments`, each `{id, x, y, text, resolved}`) at that canvas
+point and immediately opening it for editing. Clicking an existing pin
+reopens the same editor to change its note or toggle "Mark as resolved"
+(shown with a checkmark and muted styling instead of the default speech-
+bubble icon). Comments are independent of every node/edge — not attached to
+a component, not included in duplicate-entire-canvas — but are included in
+"Fit to screen" and PNG/PDF export bounds so a pin is never cropped out of
+view.
+
+### 4.28 Accessibility
+A selected node can be nudged with the arrow keys (1px per press, 10px with
+Shift held), for precise keyboard-only positioning without a mouse.
+Icon-only toolbar buttons (undo/redo, zoom in/out/reset, fit to screen) all
+carry a real `aria-label` so a screen reader announces their purpose instead
+of an unlabeled symbol. The app's existing `:focus-visible` keyboard-focus
+ring (`css/base.css`) is honored everywhere, including the command palette's
+search input, which previously suppressed it.
+
 ## 5. Non-functional requirements
 
 - **Security**: no `eval`/`innerHTML` with unsanitized input, no inline
@@ -1099,7 +1162,7 @@ persisted `io/uiPrefs.js` preference).
       "shape": "rounded",
       "fill": "#FFF7ED", "stroke": "#FF9900", "strokeWidth": 2,
       "text": "API Server", "fontSize": 14, "textAlign": "center",
-      "icon": "🖥️",
+      "icon": "🖥️", "iconImage": null,
       "notes": "", "labels": ["prod"], "monthlyCost": 45.5,
       "subComponents": [{ "id": "sc_1", "name": "Auth", "icon": "🔐" }],
       "rows": [],
@@ -1121,8 +1184,12 @@ persisted `io/uiPrefs.js` preference).
       "color": "#334155", "width": 2, "dash": "solid",
       "startArrow": "none", "endArrow": "filled",
       "label": "HTTPS", "labelPosition": "middle", "notes": "",
-      "sequenceNumberOverride": null
+      "sequenceNumberOverride": null,
+      "waypoints": []
     }
+  ],
+  "comments": [
+    { "id": "comment_...", "x": 400, "y": 220, "text": "Double-check retries here", "resolved": false }
   ],
   "replicationPairs": [
     {

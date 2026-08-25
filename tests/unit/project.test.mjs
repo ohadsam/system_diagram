@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   createEmptyProject, createNode, createEdge, removeNode, removeEdge, validateProject, nextZIndex, duplicateProject,
-  createVersionSnapshot, removeVersion,
+  createVersionSnapshot, removeVersion, createComment,
 } from '../../js/core/project.js';
 
 test('createEmptyProject has the expected shape', () => {
@@ -113,6 +113,28 @@ test('validateProject keeps a valid positive-integer sequenceNumberOverride and 
   assert.equal(project.edges[2].sequenceNumberOverride, null);
 });
 
+test('createEdge defaults waypoints to an empty array and it is overridable', () => {
+  const edge = createEdge('n1', 'n2');
+  assert.deepEqual(edge.waypoints, []);
+  const custom = createEdge('n1', 'n2', { waypoints: [{ x: 10, y: 20 }] });
+  assert.deepEqual(custom.waypoints, [{ x: 10, y: 20 }]);
+});
+
+test('validateProject keeps well-formed waypoints and drops malformed entries', () => {
+  const p = createEmptyProject();
+  const n1 = createNode(null, 0, 0);
+  const n2 = createNode(null, 200, 0);
+  p.nodes.push(n1, n2);
+  p.edges.push(createEdge(n1.id, n2.id, {
+    waypoints: [{ x: 50, y: 60 }, { x: 'nope', y: 10 }, { x: 90, y: 100 }, null, 'garbage'],
+  }));
+  p.edges.push({ ...createEdge(n1.id, n2.id), waypoints: 'not-an-array' });
+  const { ok, project } = validateProject(p);
+  assert.ok(ok);
+  assert.deepEqual(project.edges[0].waypoints, [{ x: 50, y: 60 }, { x: 90, y: 100 }]);
+  assert.deepEqual(project.edges[1].waypoints, []);
+});
+
 test('createNode accepts "lifeline" as a valid shape', () => {
   const node = createNode(null, 0, 0, { shape: 'lifeline' });
   assert.equal(node.shape, 'lifeline');
@@ -156,6 +178,27 @@ test('createNode defaults monthlyCost to null, and validateProject keeps a valid
   assert.equal(project.nodes[2].monthlyCost, null);
   assert.equal(project.nodes[3].monthlyCost, null);
   assert.equal(project.nodes[4].monthlyCost, null);
+});
+
+test('createNode defaults iconImage to null, and validateProject keeps a well-formed data:image/... URL or nulls out anything else', () => {
+  const node = createNode(null, 0, 0, {});
+  assert.equal(node.iconImage, null);
+
+  const p = createEmptyProject();
+  p.nodes.push(
+    createNode(null, 0, 0, { iconImage: 'data:image/png;base64,AAAA' }),
+    createNode(null, 100, 0, { iconImage: 'not-a-data-url' }),
+    createNode(null, 200, 0, { iconImage: 'data:text/plain;base64,AAAA' }),
+    createNode(null, 300, 0, { iconImage: `data:image/png;base64,${'A'.repeat(800000)}` }),
+    createNode(null, 400, 0, { iconImage: null }),
+  );
+  const { ok, project } = validateProject(p);
+  assert.ok(ok);
+  assert.equal(project.nodes[0].iconImage, 'data:image/png;base64,AAAA');
+  assert.equal(project.nodes[1].iconImage, null, 'not a data URL at all');
+  assert.equal(project.nodes[2].iconImage, null, 'not an image MIME type');
+  assert.equal(project.nodes[3].iconImage, null, 'over the size cap');
+  assert.equal(project.nodes[4].iconImage, null);
 });
 
 test('createNode defaults activations to [], and validateProject clamps/normalizes/id-backfills each entry', () => {
@@ -653,4 +696,60 @@ test('validateProject defaults versions/presentations to empty arrays when absen
   const { project } = validateProject({ nodes: [], edges: [] });
   assert.deepEqual(project.versions, []);
   assert.deepEqual(project.presentations, []);
+});
+
+test('createEmptyProject starts with an empty comments array', () => {
+  const p = createEmptyProject();
+  assert.deepEqual(p.comments, []);
+});
+
+test('createComment builds a pin with the expected shape, unresolved by default', () => {
+  const c = createComment(50, 60, 'Check this flow');
+  assert.equal(c.x, 50);
+  assert.equal(c.y, 60);
+  assert.equal(c.text, 'Check this flow');
+  assert.equal(c.resolved, false);
+  assert.ok(c.id);
+  assert.ok(c.createdAt);
+});
+
+test('createComment defaults text to an empty string', () => {
+  const c = createComment(0, 0);
+  assert.equal(c.text, '');
+});
+
+test('validateProject keeps well-formed comments and drops one missing x/y', () => {
+  const raw = {
+    nodes: [],
+    edges: [],
+    comments: [
+      { id: 'c1', x: 10, y: 20, text: 'Hello', resolved: true },
+      { x: 'nope', y: 5, text: 'Bad position' },
+      { id: 'c3', x: 1, y: 2 },
+    ],
+  };
+  const { ok, project } = validateProject(raw);
+  assert.ok(ok);
+  assert.equal(project.comments.length, 2);
+  assert.equal(project.comments[0].text, 'Hello');
+  assert.equal(project.comments[0].resolved, true);
+  assert.equal(project.comments[1].id, 'c3');
+  assert.equal(project.comments[1].text, '', 'missing text defaults to empty string');
+  assert.equal(project.comments[1].resolved, false, 'missing resolved defaults to false');
+});
+
+test('validateProject defaults comments to an empty array when absent or malformed', () => {
+  assert.deepEqual(validateProject({ nodes: [], edges: [] }).project.comments, []);
+  assert.deepEqual(validateProject({ nodes: [], edges: [], comments: 'not-an-array' }).project.comments, []);
+});
+
+test('duplicateProject regenerates comment ids but keeps their content', () => {
+  const p = createEmptyProject();
+  p.comments.push(createComment(10, 20, 'Original note'));
+  const copy = duplicateProject(p);
+  assert.equal(copy.comments.length, 1);
+  assert.notEqual(copy.comments[0].id, p.comments[0].id);
+  assert.equal(copy.comments[0].text, 'Original note');
+  assert.equal(copy.comments[0].x, 10);
+  assert.equal(copy.comments[0].y, 20);
 });

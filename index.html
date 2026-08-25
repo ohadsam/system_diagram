@@ -7,6 +7,24 @@
   <meta name="description" content="Design system architecture diagrams with a huge library of servers, databases, AWS services, frameworks and more — drag, connect, style, and export. Runs entirely in your browser." />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧩</text></svg>" />
 
+  <!-- Applies a stored dark/light theme choice before first paint, so a
+       visitor who already chose one doesn't see a flash of the other theme
+       while js/main.js's module script loads. Deliberately synchronous
+       (not type="module", which defers) and reads localStorage directly
+       rather than importing io/uiPrefs.js — see js/io/theme.js's header
+       comment, which does the same thing (and is what every later theme
+       change actually goes through) for why the two aren't merged into one. -->
+  <script>
+    (function () {
+      try {
+        var prefs = JSON.parse(localStorage.getItem('prefs') || '{}');
+        if (prefs.theme === 'dark' || prefs.theme === 'light') {
+          document.documentElement.setAttribute('data-theme', prefs.theme);
+        }
+      } catch (e) { /* localStorage unavailable (private mode, etc.) — fall back to prefers-color-scheme */ }
+    })();
+  </script>
+
   <link rel="stylesheet" href="css/variables.css" />
   <link rel="stylesheet" href="css/base.css" />
   <link rel="stylesheet" href="css/layout.css" />

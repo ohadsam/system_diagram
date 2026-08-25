@@ -175,8 +175,8 @@ body.resizing-details-panel {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  border: 1px solid #FDE68A;
-  background: #FFFBEB;
+  border: 1px solid var(--color-amber-border);
+  background: var(--color-amber-soft);
   border-radius: var(--radius-sm);
   padding: var(--space-2);
 }

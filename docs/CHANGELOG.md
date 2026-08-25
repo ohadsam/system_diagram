@@ -170,6 +170,48 @@ Gateway, Circuit Breaker, and Saga Coordinator now suggest a relevant new templa
 SSO, Identity Provider, and API Key each gained one more curated pairing alongside their existing
 ones.
 
+## v1.28.0 (2026-08-25)
+
+An 8-feature batch of visual/UX upgrades: dark mode, diagram-wide color themes, custom icon upload,
+a minimap, focus mode, draggable connector bend points, pinned comments, and an accessibility pass.
+
+**Dark mode** — the "Theme" toolbar button (Tools menu) cycles Match System / Light / Dark; the
+whole app restyles instantly and the choice is remembered.
+
+**Diagram Theme** ("🎨 Diagram Theme", Tools menu) — permanently recolors every component to one of
+several curated palettes (Ocean, Sunset, Forest, Monochrome, Pastel), keeping components that
+currently share a color grouped together in the new palette.
+
+**Custom icon upload** — any component's style editor now has an "Upload Image" button to use your
+own image as its icon instead of the built-in emoji/icon set.
+
+**Minimap** ("🧭 Minimap", Tools menu) — a small overview map in the corner of the canvas showing
+every component as a tiny rect plus a "you are here" box; click or drag on it to jump the main view
+anywhere.
+
+**Focus Mode** ("🔦 Focus Mode", Tools menu) — dims every component except the current selection and
+its directly-connected neighbors, for tracing one part of a large diagram.
+
+**Manual connector waypoints** — a selected connector now shows small drag handles along its path:
+drag one to bend the connector there, drag the "+" between two handles to add a new bend point, or
+right-click a handle (or the connector itself) to remove it.
+
+**Pinned comments** — right-click empty canvas and choose "Add comment here" to drop a note pin
+anywhere; click a pin to edit its text or mark it resolved. Pins are included in "Fit to screen" and
+PNG/PDF export.
+
+**Accessibility** — a selected component can be nudged with the arrow keys (1px, or 10px with
+Shift); every icon-only toolbar button (undo/redo/zoom/fit) now has a real accessible name for
+screen readers; the command palette's search box keeps a visible focus ring instead of suppressing
+it.
+
+**Fixed**: the floating contextual style row could render partly hidden behind the new minimap when
+the selected component was near the bottom-right corner of the canvas.
+
+**Fixed**: opening a toolbar dropdown (File/Create/Tools/Help) while the sidebar drawer was open on
+a narrow/mobile screen could render the dropdown's menu items behind the drawer instead of on top
+of it.
+
 ## v1.27.0 (2026-08-25)
 
 A large batch: diagram versioning/comparison, presentations with PPTX export, ready-made "Design X"
