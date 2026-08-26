@@ -2781,7 +2781,16 @@ of the normal node/edge rendering: small numbered `.anim-badge` order badges
 `commentPins.js`/`minimap.js` — kept out of `node.js`/`connector.js`
 entirely so this feature never touches those already-complex files) shown
 only while editing, and a `.anim-hidden` class toggle on `nodeElements`/
-`edgeElements` driven by `getAnimationPlaybackState()` while playing. Both
+`edgeElements` driven by `getAnimationPlaybackState()` while playing. The
+whole feature works identically for any node/edge shape — a lifeline, a
+flowchart decision diamond, a fragment box, an ordinary component — since
+`animationSteps` only ever stores a `targetType`/`targetId`, never a shape.
+The one place shape actually mattered: a node's badge position used to be
+its bottom-left corner (`n.y + n.h`), which put the badge nowhere near the
+readable content on an unusually tall shape like a sequence-diagram lifeline
+(640px default height) — `renderAnimationBadges` caps the offset at 84
+(`project.js#createNode`'s default component height) so the badge stays
+just below the visible label/title on any shape, ordinary or not. Both
 are re-run from an `onAnimationChange` subscription in `initCanvas` (not
 just from the normal store-driven `render()`) since starting/stopping
 playback never dispatches to the store — without that separate

@@ -643,7 +643,14 @@ function renderAnimationBadges(state, nodesById) {
     let pos = null;
     if (step.targetType === 'node') {
       const n = nodesById.get(step.targetId);
-      if (n) pos = { x: n.x, y: n.y + n.h };
+      // Capped at a typical component's own height (84, see
+      // project.js#createNode's default) rather than the node's actual
+      // height, so the badge stays near the readable label/icon instead of
+      // sliding arbitrarily far down an unusually tall shape — a sequence
+      // diagram's lifeline (default 640px tall) being the concrete case
+      // this matters for. A no-op for every ordinary component, which is
+      // never taller than the cap anyway.
+      if (n) pos = { x: n.x, y: n.y + Math.min(n.h, 84) };
     } else {
       const edge = state.edges.find((e) => e.id === step.targetId);
       const fromNode = edge && nodesById.get(edge.from);

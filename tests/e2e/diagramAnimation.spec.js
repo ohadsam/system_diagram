@@ -216,3 +216,34 @@ test('the ✕ button closes the panel', async ({ page }) => {
   await page.locator('.animation-close').click();
   await expect(page.locator('#animation-panel.open')).toHaveCount(0);
 });
+
+test('works on any shape regardless of diagram type — a sequence-diagram lifeline, a flowchart decision diamond, and their connectors can all be animated', async ({ page }) => {
+  await addComponentByName(page, 'Lifeline');
+  await addComponentByName(page, 'Diamond (Decision)');
+  await connectNodes(page, page.locator('.node[data-shape="lifeline"]'), page.locator('.node[data-shape="diamond"]'));
+  await expect(page.locator('.edge')).toHaveCount(1);
+
+  await openAnimationPanel(page);
+  await expect(page.locator('.animation-add-row')).toHaveCount(3);
+  for (let i = 0; i < 3; i++) {
+    await page.locator('.animation-add-row').first().locator('button', { hasText: '+ Add' }).click();
+  }
+  await expect(page.locator('.animation-step-row')).toHaveCount(3);
+
+  // The order badge over a very tall shape (a lifeline defaults to 640px)
+  // stays near its readable title/icon instead of sliding to the bottom of
+  // the shape — see canvas.js#renderAnimationBadges's height cap.
+  const lifelineBox = await page.locator('.node[data-shape="lifeline"]').boundingBox();
+  const lifelineBadge = await page.locator('.anim-badge').first().boundingBox();
+  expect(lifelineBadge.y).toBeLessThan(lifelineBox.y + 90);
+
+  await page.locator('.animation-play-btn').click();
+  await expect(page.locator('.node[data-shape="lifeline"]')).toHaveClass(/anim-hidden/);
+  await expect(page.locator('.node[data-shape="diamond"]')).toHaveClass(/anim-hidden/);
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('.node[data-shape="lifeline"]')).not.toHaveClass(/anim-hidden/);
+  await expect(page.locator('.node[data-shape="diamond"]')).not.toHaveClass(/anim-hidden/);
+  await expect(page.locator('.edge')).not.toHaveClass(/anim-hidden/);
+});
