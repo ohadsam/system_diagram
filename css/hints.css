@@ -50,6 +50,18 @@
    .hint-bubble above, so it gets its own fixed corner (bottom-left) away
    from the minimap (bottom-right, css/canvas.css) and the toast stack
    (css/base.css). */
+/* pointer-events: none on the card itself, restored only on its one real
+   control (the close button) — this is a standing, persistent overlay
+   (unlike .hint-bubble above, which is transient and dismissed forever
+   after one interaction), and its bottom-left position can still end up
+   under a dynamically-placed floating element like the contextual style
+   row (toolbar.js#positionFloatingRow, which follows the selection
+   anywhere on the canvas). Making the card's non-interactive bulk
+   click-through avoids blocking whatever it happens to visually cover —
+   see docs/AI_AGENT_GUIDE.md's "floating overlay blocks clicks" pitfall,
+   which this hit for real (a floating "Save selection as a reusable
+   custom component" button landing under this card in
+   tests/e2e/sequence-diagram.spec.js). */
 .onboarding-checklist-card {
   position: fixed;
   left: 16px;
@@ -62,6 +74,7 @@
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
   padding: var(--space-3);
+  pointer-events: none;
 }
 
 .onboarding-checklist-close {
@@ -73,6 +86,7 @@
   font-size: 13px;
   line-height: 1;
   padding: 2px;
+  pointer-events: auto;
 }
 
 .onboarding-checklist-title {
