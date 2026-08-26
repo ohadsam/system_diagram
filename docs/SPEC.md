@@ -1319,6 +1319,106 @@ pinned with a literal `left`/`right` — the mobile sidebar/panel drawers,
 the toast stack, and the kiosk-mode exit button — get explicit
 `[dir="rtl"]` override rules alongside their normal (LTR) ones.
 
+### 4.42 Configurable Storage Backend
+Every persisted thing this app stores (saved projects, backups, My
+Components, settings) can live in either `localStorage` (the default) or
+IndexedDB, chosen from "🗄️ Backup & Restore" (File menu). Since IndexedDB
+is natively async and the rest of the app calls `readJSON`/`writeJSON`
+synchronously everywhere, IndexedDB mode is backed by an in-memory cache
+populated once at boot (`initStorageBackend()`, awaited first thing in
+`main.js#boot()`) so every existing call site keeps working unmodified.
+Switching backends (`switchStorageBackend()`) always copies every entry
+from the current backend into the new one first and never deletes the
+source, so switching back is always possible; the page reloads afterward
+to boot cleanly on the new backend.
+
+### 4.43 SVG Export
+"🔺 Export SVG" (File menu) exports the diagram as a scalable vector
+image, alongside the existing PNG/PDF export. Since a saved `.svg` file
+becomes its own document when reopened (its `:root` is the `<svg>` root,
+not the original page), every CSS custom property the exported subtree
+uses is resolved to its live concrete value and inlined as a flat
+`:root {...}` block rather than relying on the app's own selector-based
+light/dark theme rules to re-match in a foreign document.
+
+### 4.44 Search All Projects
+"🔎 Search All Projects" (File menu) searches node/edge text and comment
+text across every saved project in this browser at once — not just the
+one currently open — showing per-project match snippets and a one-click
+"Load" for any result.
+
+### 4.45 Comments: Unresolved Badge, List, and Mentions
+A small badge on the toolbar's "💬 Comments" button shows how many
+comments on the current diagram are still unresolved (hidden entirely at
+zero). The same button opens a list of every comment, unresolved-first,
+each with a one-click jump-to-it action. Typing `@name` in a reply (see
+4.27/4.40) renders it as a small highlighted mention chip, built from real
+DOM text nodes rather than `innerHTML`.
+
+### 4.46 Diagram Lint Auto-fix
+Select findings from "🔍 Check Diagram" (4.16) now offer a one-click
+"🔧 Auto-fix" button: a client-to-database finding inserts a "Service
+Layer" node between the two and reroutes the existing edge through it; an
+unrouted-replicas finding adds a "Load Balancer" node connected to every
+member. Both apply as a single undoable action. The orphan-component
+finding has no fix — there's no single sensible default for "connect this
+to something."
+
+### 4.47 Replication Sync Direction
+When Flow Simulation (4.37) is on, each Live Replication pair (4.14) also
+shows a dashed line with a small dot traveling back and forth between its
+two mirrored members — replication has no real drawn connector to animate
+otherwise, since the sync relationship is data, not a connector. The
+visual rides the same `.edge-layer` visibility/pause toggle Flow
+Simulation already controls, with no separate on/off state of its own.
+
+### 4.48 Getting Started Checklist
+A small dismissible card ("🚀 Getting Started", reopenable from the Help
+menu) tracks a few first steps for anyone just getting oriented (add a
+component, connect two, save the diagram), checking each one off as it's
+completed.
+
+### 4.49 Template Gallery
+"🖼️ Template Gallery" (Create menu) is a visual browser for every
+Reference Architecture (4.19) and Design Pattern (see 4. Component
+library), each shown as a small SVG preview thumbnail (a simplified
+node/edge layout, not a live render) instead of only a name in the
+sidebar list. Clicking a card instantiates it the same way clicking it in
+the sidebar would.
+
+### 4.50 Offline Support (PWA)
+The app registers a service worker (`sw.js`) and links a web app manifest
+(`manifest.json`), so once it's been loaded once it keeps working —
+including autosave — without a network connection, and can be installed
+like a native app. The service worker uses a stale-while-revalidate
+strategy (serve from cache immediately, refetch in the background) rather
+than a hand-maintained precache list, since this app has no build step
+and therefore no generated asset manifest to keep such a list in sync
+with.
+
+### 4.51 Import ER Diagram from SQL
+"📥 Import from SQL" (Create menu) parses pasted `CREATE TABLE`
+statements (a best-effort regex-based parser, not a full SQL grammar) and
+creates one "entity" node per table (the same `rows`-shape convention
+this library's own ER design-pattern templates already use) with its
+columns listed, plus a labeled edge per foreign key (inline `REFERENCES`
+or a table-level `FOREIGN KEY (...) REFERENCES ...(...)` constraint). A
+foreign key referencing a table that wasn't actually defined is silently
+dropped rather than creating a dangling edge.
+
+### 4.52 C4 Model
+A dedicated "C4 Model" component category provides the standard C4
+notation shapes with their conventional color coding: Person, Software
+System, External Software System, Container, External Container, and
+Component. A "🧩 C4 Context Diagram" wizard (Create menu) bootstraps the
+most common starting point — a System Context diagram — from a system
+name and a dynamic list of people/external systems, laying the named
+system out in the center with people above and external systems below,
+each connected to the center. Only the Context level has a dedicated
+wizard; a Container or Component diagram is built the same way as any
+other diagram, by dragging the matching shapes onto the canvas and
+connecting them — there is no enforced multi-level drill-down state.
+
 ## 5. Non-functional requirements
 
 - **Security**: no `eval`/`innerHTML` with unsanitized input, no inline

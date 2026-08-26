@@ -1,0 +1,13 @@
+{
+  "name": "System Design Diagram Builder",
+  "short_name": "Diagram Builder",
+  "description": "Design system architecture diagrams with a huge library of servers, databases, AWS services, frameworks and more — drag, connect, style, and export. Runs entirely in your browser, and works offline once installed.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4F46E5",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

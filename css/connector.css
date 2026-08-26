@@ -111,6 +111,32 @@
 .edge-layer.flow-simulation-on .flow-dot {
   display: block;
 }
+
+/* Replication pair sync visualization (see canvas/canvas.js#
+   renderReplicationSyncPaths) — same hidden-unless-flow-simulation-on
+   convention as .flow-dot above, since there's no real edge/connector
+   backing this path for a "hide when off" class to already live on. Same
+   purple as a replicated group's own boundary (css/canvas.css's
+   .group-bg-replicated) — no shared variable exists for it there either,
+   so this matches the literal color rather than introducing one only here. */
+.replication-sync-path {
+  display: none;
+  fill: none;
+  stroke: #A855F7;
+  stroke-width: 1.5;
+  stroke-dasharray: 4 4;
+  opacity: 0.4;
+}
+.replication-sync-dot {
+  display: none;
+  pointer-events: none;
+  fill: #A855F7;
+  filter: drop-shadow(0 0 3px #A855F7);
+}
+.edge-layer.flow-simulation-on .replication-sync-path,
+.edge-layer.flow-simulation-on .replication-sync-dot {
+  display: block;
+}
 .edge.anim-hidden .flow-dot {
   display: none;
 }

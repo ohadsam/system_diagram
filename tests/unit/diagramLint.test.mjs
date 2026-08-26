@@ -20,6 +20,20 @@ test('computeDiagramLint flags a client node connected directly to a database no
   assert.ok(findings[0].message.includes('Postgres'));
 });
 
+test('computeDiagramLint\'s client-to-db finding carries an insert-service-layer fix with the client/db ends resolved correctly either direction', () => {
+  const client = createNode(null, 0, 0, { text: 'Web App', defId: 'fe-react' });
+  const db = createNode(null, 200, 0, { text: 'Postgres', defId: 'db-postgres' });
+  const resolveDef = fakeResolveDef({ 'fe-react': { categoryId: 'client', name: 'React' }, 'db-postgres': { categoryId: 'databases', name: 'PostgreSQL' } });
+
+  const forwardEdge = createEdge(client.id, db.id, {});
+  const forward = computeDiagramLint([client, db], [forwardEdge], [], resolveDef);
+  assert.deepEqual(forward[0].fix, { type: 'insert-service-layer', edgeId: forwardEdge.id, clientId: client.id, dbId: db.id });
+
+  const reverseEdge = createEdge(db.id, client.id, {});
+  const reverse = computeDiagramLint([client, db], [reverseEdge], [], resolveDef);
+  assert.deepEqual(reverse[0].fix, { type: 'insert-service-layer', edgeId: reverseEdge.id, clientId: client.id, dbId: db.id });
+});
+
 test('computeDiagramLint does not flag a client connected to a non-database, or a client through a service to a database', () => {
   const client = createNode(null, 0, 0, { text: 'Web App', defId: 'fe-react' });
   const service = createNode(null, 200, 0, { text: 'API', defId: 'srv-app-server' });
@@ -44,6 +58,7 @@ test('computeDiagramLint flags a node with no connections, but only when the dia
   const withEdge = computeDiagramLint([a, b, orphan], [createEdge(a.id, b.id, {})], [], resolveDef);
   assert.equal(withEdge.length, 1);
   assert.ok(withEdge[0].message.includes('Forgotten'));
+  assert.equal(withEdge[0].fix, undefined, 'an orphan component has no single correct auto-fix, so it should carry none');
 
   const noEdgesAtAll = computeDiagramLint([a, b, orphan], [], [], resolveDef);
   assert.equal(noEdgesAtAll.length, 0, 'an entirely unconnected diagram (nothing wired up yet) should not be flagged node-by-node');
@@ -78,6 +93,8 @@ test('computeDiagramLint flags a replication pair with no load balancer/gateway 
   assert.equal(findings[0].id, 'unrouted-replicas-repl_1');
   assert.ok(findings[0].message.includes('Service A'));
   assert.ok(findings[0].message.includes('Service B'));
+  assert.equal(findings[0].fix.type, 'add-load-balancer');
+  assert.deepEqual(new Set(findings[0].fix.memberIds), new Set([a.id, b.id]));
 });
 
 test('computeDiagramLint does not flag a replication pair that has a load balancer routing to it', () => {

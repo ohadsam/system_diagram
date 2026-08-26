@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   createEmptyProject, createNode, createEdge, removeNode, removeEdge, validateProject, nextZIndex, duplicateProject,
   createVersionSnapshot, removeVersion, createComment, createReply, createAnimationStep, createAnimation,
+  countUnresolvedComments,
 } from '../../js/core/project.js';
 
 test('createEmptyProject has the expected shape', () => {
@@ -728,6 +729,19 @@ test('createReply builds a reply with the expected shape', () => {
   assert.equal(r.text, 'Use a queue here');
   assert.ok(r.id);
   assert.ok(r.createdAt);
+});
+
+test('countUnresolvedComments counts only unresolved comments', () => {
+  const resolved = { ...createComment(0, 0, 'a'), resolved: true };
+  const unresolvedOne = createComment(1, 1, 'b');
+  const unresolvedTwo = createComment(2, 2, 'c');
+  assert.equal(countUnresolvedComments([resolved, unresolvedOne, unresolvedTwo]), 2);
+});
+
+test('countUnresolvedComments handles an empty/missing array without throwing', () => {
+  assert.equal(countUnresolvedComments([]), 0);
+  assert.equal(countUnresolvedComments(undefined), 0);
+  assert.equal(countUnresolvedComments(null), 0);
 });
 
 test('validateProject keeps well-formed comments and drops one missing x/y', () => {

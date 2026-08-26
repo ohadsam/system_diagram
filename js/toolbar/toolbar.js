@@ -12,7 +12,7 @@
 // describing what it does; see docs/AI_AGENT_GUIDE.md "Add a toolbar
 // button" for the convention this file follows.
 import * as store from '../core/store.js';
-import { createEmptyProject } from '../core/project.js';
+import { createEmptyProject, countUnresolvedComments } from '../core/project.js';
 import { el, clear, rerenderPreservingUiState } from '../utils/dom.js';
 import {
   deleteSelection, duplicateSelection, groupSelection, ungroupSelection, selectionHasGroup, duplicateProjectAsNew,
@@ -27,8 +27,10 @@ import { buildToolbarDropdown, onDropdownOpenChange } from './toolbarDropdown.js
 import { exportProjectToFile, pickJSONFile, parseProjectFile } from '../io/fileIO.js';
 import { exportPNG } from '../io/exportImage.js';
 import { exportPDF } from '../io/exportPdf.js';
+import { exportSVG } from '../io/exportSvg.js';
 import { openSaveAsModal } from '../modals/saveAsModal.js';
 import { openLoadProjectModal } from '../modals/loadProjectModal.js';
+import { openGlobalSearchModal } from '../modals/globalSearchModal.js';
 import { openCustomComponentModal } from '../modals/customComponentModal.js';
 import { openSaveComponentGroupModal } from '../modals/saveComponentGroupModal.js';
 import { openCustomShapeModal } from '../modals/customShapeModal.js';
@@ -38,13 +40,17 @@ import { openWhatsNewModal } from '../modals/whatsNewModal.js';
 import { openReplicationModal } from '../modals/replicationModal.js';
 import { openAiEditModal } from '../modals/aiEditModal.js';
 import { openSequenceDiagramModal } from '../modals/sequenceDiagramModal.js';
+import { openTemplateGalleryModal } from '../modals/templateGalleryModal.js';
 import { openImportSequenceMermaidModal } from '../modals/importSequenceMermaidModal.js';
+import { openImportSqlModal } from '../modals/importSqlModal.js';
+import { openC4ContextModal } from '../modals/c4ContextModal.js';
 import { openExportDiagramModal } from '../modals/exportDiagramModal.js';
 import { openShareLinkModal } from '../modals/shareLinkModal.js';
 import { openVersionHistoryModal } from '../modals/versionHistoryModal.js';
 import { openHistoryTimelineModal } from '../modals/historyTimelineModal.js';
 import { openPresentationsModal } from '../modals/presentationsModal.js';
 import { openDiagramLintModal } from '../modals/diagramLintModal.js';
+import { openCommentsListModal } from '../modals/commentsListModal.js';
 import { openScaleDiagramModal } from '../modals/scaleDiagramModal.js';
 import { openDiagramThemeModal } from '../modals/diagramThemeModal.js';
 import { setMinimapVisible } from '../canvas/minimap.js';
@@ -68,6 +74,7 @@ import { openGenerateDesignModal } from '../modals/generateDesignModal.js';
 import { confirmAction } from '../modals/confirmModal.js';
 import { showToast } from '../utils/toast.js';
 import { resetHints, areHintsEnabled, setHintsEnabled } from '../hints/hints.js';
+import { openOnboardingChecklistWidget } from '../hints/onboardingChecklistWidget.js';
 import { getUiPrefs, saveUiPrefs, onUiPrefsChange, THEME_MODES, LANGUAGES } from '../io/uiPrefs.js';
 import { t, getLanguage, setLanguage } from '../io/i18n.js';
 import { setTheme } from '../io/theme.js';
@@ -375,6 +382,12 @@ function buildFileGroupButtons() {
   });
   const saveAsBtn = el('button', { type: 'button', class: 'btn', title: 'Save this diagram with a name', text: '💾 Save As', onClick: openSaveAsModal });
   const loadBtn = el('button', { type: 'button', class: 'btn', title: 'Load a saved diagram', text: '📂 Load', onClick: openLoadProjectModal });
+  const globalSearchBtn = el('button', {
+    type: 'button', class: 'btn',
+    title: 'Search All Projects: find text across every saved project in this browser, not just the one open now',
+    text: '🔎 Search All Projects',
+    onClick: openGlobalSearchModal,
+  });
   const addTabBtn = el('button', { type: 'button', class: 'btn', title: 'Open another diagram in a new tab, switchable from a tab strip without reloading each time', text: '🗂️ Open in New Tab...', onClick: openAddTabModal });
   const duplicateProjectBtn = el('button', {
     type: 'button', class: 'btn', title: 'Duplicate this project into a new one (the original stays untouched)', text: '📄 Duplicate project',
@@ -408,13 +421,21 @@ function buildFileGroupButtons() {
       if (!result.ok) showToast(result.error, 'error');
     },
   });
-  const backupBtn = el('button', { type: 'button', class: 'btn', title: 'Backup & restore everything', text: '🗄️ Backup & Restore', onClick: openBackupModal });
+  const svgBtn = el('button', {
+    type: 'button', class: 'btn', title: 'Export diagram as a vector SVG image — scales to any size with no quality loss',
+    text: '🔺 Export SVG',
+    onClick: async () => {
+      const result = await exportSVG(store.getState().name);
+      if (!result.ok) showToast(result.error, 'error');
+    },
+  });
+  const backupBtn = el('button', { type: 'button', class: 'btn', title: 'Backup & restore everything, and choose where it\'s all stored (localStorage or IndexedDB)', text: '🗄️ Backup & Restore', onClick: openBackupModal });
   const exportDiagramBtn = el('button', { type: 'button', class: 'btn', title: 'Export the whole diagram to Mermaid, draw.io, or Lucidchart', text: '🌐 Export to...', onClick: openExportDiagramModal });
   const shareBtn = el('button', { type: 'button', class: 'btn', title: 'Get a shareable link that encodes this diagram (no backend — a local copy for whoever opens it)', text: '🔗 Share', onClick: openShareLinkModal });
   const versionHistoryBtn = el('button', { type: 'button', class: 'btn', title: 'Save named snapshots of this diagram, revert to one, or compare two', text: '📸 Version History', onClick: openVersionHistoryModal });
   const historyTimelineBtn = el('button', { type: 'button', class: 'btn', title: 'Visual undo/redo timeline — jump straight to any past step instead of pressing undo repeatedly', text: '🕘 Undo History', onClick: openHistoryTimelineModal });
   const presentationsBtn = el('button', { type: 'button', class: 'btn', title: 'Build a slideshow out of saved versions, play it, or export it to PowerPoint', text: '🎬 Presentations', onClick: openPresentationsModal });
-  return [newBtn, saveAsBtn, loadBtn, addTabBtn, duplicateProjectBtn, exportJsonBtn, importJsonBtn, pngBtn, pdfBtn, exportDiagramBtn, shareBtn, versionHistoryBtn, historyTimelineBtn, presentationsBtn, backupBtn];
+  return [newBtn, saveAsBtn, loadBtn, globalSearchBtn, addTabBtn, duplicateProjectBtn, exportJsonBtn, importJsonBtn, pngBtn, pdfBtn, svgBtn, exportDiagramBtn, shareBtn, versionHistoryBtn, historyTimelineBtn, presentationsBtn, backupBtn];
 }
 
 function buildCreateGroupButtons() {
@@ -437,8 +458,16 @@ function buildCreateGroupButtons() {
   const replicateBtn = el('button', { type: 'button', class: 'btn', title: 'Replicate: link components to auto-mirror across two sides', text: '🔁 Replicate', onClick: openReplicationModal });
   const sequenceDiagramBtn = el('button', { type: 'button', class: 'btn', title: 'Create a sequence/communication-flow diagram: titled lifelines with messages between them', text: '🔀 Sequence Diagram', onClick: openSequenceDiagramModal });
   const importMermaidBtn = el('button', { type: 'button', class: 'btn', title: 'Import a sequence diagram from pasted Mermaid sequenceDiagram text', text: '📥 Import from Mermaid', onClick: openImportSequenceMermaidModal });
+  const importSqlBtn = el('button', { type: 'button', class: 'btn', title: 'Import an ER diagram from pasted SQL CREATE TABLE statements', text: '📥 Import from SQL', onClick: openImportSqlModal });
+  const c4ContextBtn = el('button', { type: 'button', class: 'btn', title: 'Create a C4 Model System Context diagram: a central system, its users, and external systems it depends on', text: '🧩 C4 Context Diagram', onClick: openC4ContextModal });
   const defaultsBtn = el('button', { type: 'button', class: 'btn', title: 'Default settings for new components', text: '🎛️ Default Settings', onClick: openDefaultSettingsModal });
-  return [newComponentBtn, generateDesignBtn, aiEditBtn, replicateBtn, sequenceDiagramBtn, importMermaidBtn, defaultsBtn];
+  const templateGalleryBtn = el('button', {
+    type: 'button', class: 'btn',
+    title: 'Template Gallery: browse Reference Architectures and Design Patterns visually, with a preview thumbnail for each',
+    text: '🖼️ Template Gallery',
+    onClick: openTemplateGalleryModal,
+  });
+  return [newComponentBtn, generateDesignBtn, aiEditBtn, replicateBtn, sequenceDiagramBtn, importMermaidBtn, importSqlBtn, c4ContextBtn, templateGalleryBtn, defaultsBtn];
 }
 
 function buildToolsGroupButtons() {
@@ -528,6 +557,19 @@ function buildToolsGroupButtons() {
   });
 
   const aiReviewBtn = el('button', { type: 'button', class: 'btn', title: 'AI Design Review', text: '🤖 AI Design Review', onClick: toggleAiReviewPanel });
+  const commentsBadge = el('span', { class: 'toolbar-count-badge', hidden: true });
+  const commentsBtn = el('button', {
+    type: 'button', class: 'btn',
+    title: 'Comments: browse every pinned comment on this diagram, unresolved ones first',
+    onClick: openCommentsListModal,
+  }, [el('span', { text: '💬 Comments' }), commentsBadge]);
+  const updateCommentsBadge = () => {
+    const count = countUnresolvedComments(store.getState().comments);
+    commentsBadge.textContent = String(count);
+    commentsBadge.hidden = count === 0;
+  };
+  store.subscribe('change', updateCommentsBadge);
+  updateCommentsBadge();
   const outlineBtn = el('button', {
     type: 'button', class: 'btn',
     title: 'Outline: a searchable list of every component and connector on the canvas — click one to jump to it, or select on the canvas to find it here',
@@ -601,7 +643,7 @@ function buildToolsGroupButtons() {
     },
   });
   requestAnimationFrame(() => setFlowSimulationEnabled(prefs.flowSimulation));
-  return [gridBtn, minimapBtn, focusModeBtn, alignGuidesBtn, themeBtn, languageBtn, aiReviewBtn, outlineBtn, lintBtn, costBtn, autoArrangeBtn, distributeBtn, scaleBtn, diagramThemeBtn, presenterModeBtn, animationBtn, flowSimBtn];
+  return [gridBtn, minimapBtn, focusModeBtn, alignGuidesBtn, themeBtn, languageBtn, aiReviewBtn, outlineBtn, commentsBtn, lintBtn, costBtn, autoArrangeBtn, distributeBtn, scaleBtn, diagramThemeBtn, presenterModeBtn, animationBtn, flowSimBtn];
 }
 
 function buildHelpGroupButtons() {
@@ -626,7 +668,11 @@ function buildHelpGroupButtons() {
     type: 'button', class: 'btn', title: "What's new", text: '🆕 What\'s New',
     onClick: () => openWhatsNewModal(),
   });
-  return [helpBtn, hintsBtn, hintsToggleBtn, whatsNewBtn];
+  const onboardingBtn = el('button', {
+    type: 'button', class: 'btn', title: 'Show the getting-started checklist again', text: '🚀 Getting Started',
+    onClick: openOnboardingChecklistWidget,
+  });
+  return [helpBtn, hintsBtn, hintsToggleBtn, whatsNewBtn, onboardingBtn];
 }
 
 /** Short human summary of the current selection, shown in the contextual

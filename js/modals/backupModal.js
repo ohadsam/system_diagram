@@ -9,6 +9,52 @@ import { confirmAction } from './confirmModal.js';
 import { exportFullBackup, importFullBackupFile } from '../io/fullBackup.js';
 import { exportCustomComponents, importCustomComponents } from '../io/customComponents.js';
 import { exportAllSavedProjects, importSavedProjectsBundle } from '../io/projects.js';
+import { getStorageBackend, switchStorageBackend, STORAGE_BACKENDS } from '../io/storage.js';
+
+const BACKEND_LABEL = { localStorage: 'localStorage (default)', indexeddb: 'IndexedDB' };
+
+function storageBackendSection() {
+  const wrap = el('div', { class: 'backup-section' });
+  wrap.appendChild(el('h3', { class: 'modal-subheading', text: '💽 Storage backend' }));
+  wrap.appendChild(el('p', {
+    class: 'backup-section-desc',
+    text: 'Where everything above — saved projects, backups, My Components, and every other setting — actually lives in this browser. localStorage needs no setup but is usually capped around 5-10MB; IndexedDB has a much larger quota, useful if you keep many or large saved projects. Switching copies everything from the current backend into the new one first — nothing is deleted from the old one, so you can always switch back.',
+  }));
+
+  const select = el('select', { class: 'storage-backend-select' },
+    STORAGE_BACKENDS.map((b) => el('option', { value: b, text: BACKEND_LABEL[b], selected: b === getStorageBackend() || undefined })));
+
+  const status = el('p', { class: 'backup-section-desc storage-backend-status', text: `Currently active: ${BACKEND_LABEL[getStorageBackend()]}.` });
+
+  const switchBtn = el('button', {
+    type: 'button', class: 'btn btn-secondary', text: 'Switch & copy data…',
+    onClick: async () => {
+      const next = select.value;
+      const current = getStorageBackend();
+      if (next === current) { showToast(`Already using ${BACKEND_LABEL[current]}.`, 'info'); return; }
+      const ok = await confirmAction({
+        title: `Switch to ${BACKEND_LABEL[next]}?`,
+        message: `This copies everything currently stored in ${BACKEND_LABEL[current]} into ${BACKEND_LABEL[next]} and makes it the active backend. Nothing is deleted from ${BACKEND_LABEL[current]} — you can switch back the same way at any time. The page will reload afterward.`,
+        confirmLabel: 'Switch',
+      });
+      if (!ok) return;
+      switchBtn.disabled = true;
+      const result = await switchStorageBackend(next);
+      if (!result.ok) {
+        switchBtn.disabled = false;
+        showToast(result.error, 'error');
+        return;
+      }
+      showToast(`Switched to ${BACKEND_LABEL[next]} (copied ${result.movedCount} item(s)). Reloading…`, 'success', 2400);
+      setTimeout(() => window.location.reload(), 900);
+    },
+  });
+
+  const row = el('div', { class: 'field-row storage-backend-row' }, [select, switchBtn]);
+  wrap.appendChild(row);
+  wrap.appendChild(status);
+  return wrap;
+}
 
 function section(title, description, exportBtn, importBtn) {
   const wrap = el('div', { class: 'backup-section' });
@@ -23,7 +69,7 @@ function section(title, description, exportBtn, importBtn) {
 
 export function openBackupModal() {
   openModal({
-    title: 'Backup & Restore',
+    title: 'Backup & Storage',
     className: 'backup-modal',
     render: (body) => {
       body.appendChild(section(
@@ -95,6 +141,8 @@ export function openBackupModal() {
           },
         }),
       ));
+
+      body.appendChild(storageBackendSection());
     },
   });
 }

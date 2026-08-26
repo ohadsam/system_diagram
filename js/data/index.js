@@ -5,6 +5,7 @@ import * as aiMl from './categories/ai-ml.js';
 import * as aiProvidersAgents from './categories/ai-providers-agents.js';
 import * as aws from './categories/aws.js';
 import * as backendFrameworks from './categories/backend-frameworks.js';
+import * as c4Model from './categories/c4-model.js';
 import * as cache from './categories/cache.js';
 import * as client from './categories/client.js';
 import * as cloudProviders from './categories/cloud-providers.js';
@@ -28,7 +29,7 @@ import * as stateMachines from './categories/state-machines.js';
 import * as storage from './categories/storage.js';
 
 const MODULES = [
-  aiMl, aiProvidersAgents, aws, backendFrameworks, cache, client, cloudProviders,
+  aiMl, aiProvidersAgents, aws, backendFrameworks, c4Model, cache, client, cloudProviders,
   containers, databases, designPatterns, devops, frontendFrameworks, layers, logging,
   messaging, misc, monitoring, networking, referenceArchitectures, security, sequenceTemplates, servers, shapes, stateMachines, storage,
 ];

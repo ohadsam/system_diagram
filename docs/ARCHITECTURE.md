@@ -24,10 +24,15 @@ index.html ──► js/main.js
                  ├─ core/kioskMode.js    (Presenter Mode's on/off pub-sub)
                  ├─ core/animationPlayback.js (Diagram Animation's step-through state machine)
                  ├─ canvas/animationOverlay.js (Diagram Animation's floating playback controls + draw layer)
-                 ├─ modals/*.js          (incl. modals/generateDesignModal.js, modals/replicationModal.js, modals/sequenceDiagramModal.js, modals/aiEditModal.js, modals/customLintRulesModal.js)
-                 ├─ io/*.js              (localStorage, file, image/pdf export, incl. io/projectTabs.js, io/duplicateTabWarning.js, io/exportAnimation.js, io/aiEditDesign.js, io/customLintRules.js, io/i18n.js)
-                 └─ hints/hints.js
+                 ├─ modals/*.js          (incl. modals/generateDesignModal.js, modals/replicationModal.js, modals/sequenceDiagramModal.js, modals/aiEditModal.js, modals/customLintRulesModal.js, modals/globalSearchModal.js, modals/commentsListModal.js, modals/templateGalleryModal.js, modals/importSqlModal.js, modals/c4ContextModal.js)
+                 ├─ io/*.js              (localStorage/IndexedDB, file, image/pdf/svg export, incl. io/projectTabs.js, io/duplicateTabWarning.js, io/exportAnimation.js, io/aiEditDesign.js, io/customLintRules.js, io/i18n.js, io/storage.js, io/indexedDbStore.js, io/exportSvg.js, io/globalProjectSearch.js, io/sqlDdlImport.js, io/serviceWorker.js)
+                 └─ hints/hints.js (incl. hints/onboardingChecklistWidget.js)
 ```
+
+`sw.js` and `manifest.json` (repo root, alongside `index.html`) are the
+service worker and web app manifest that make offline/installable support
+(4.50) possible — the browser fetches and registers them directly, so
+they aren't imported from `main.js` the way everything else here is.
 
 ## State flow
 
@@ -3124,6 +3129,164 @@ warned" flag lives in the function's own closure (returned from
 module scope, precisely so nothing here could ever leak across what should
 be independent tabs — and so a unit test simulating two tabs in one process
 gets two independent instances instead of accidentally sharing one.
+
+## Configurable storage backend (`io/storage.js`, `io/indexedDbStore.js`)
+
+`STORAGE_BACKENDS = ['localStorage', 'indexeddb']`; module-level `backend`
+defaults to `'localStorage'`, read once at module load from a real
+`localStorage.getItem(...)` call (so the choice itself always lives in
+`localStorage`, regardless of which backend it points to). Since virtually
+every module in this app calls `readJSON`/`writeJSON` synchronously and
+IndexedDB is natively async, IndexedDB mode is backed by an `idbCache`
+Map populated once via `initStorageBackend()` (awaited as the literal
+first statement of `main.js#boot()`) — every subsequent `readJSON`/
+`writeJSON` hits the cache synchronously, with writes also firing a
+background `idbPut()`. `switchStorageBackend(next)` copies every entry
+from the currently-active backend into `next` (never deletes the source,
+so switching is always reversible), persists the new choice, and the
+caller (`modals/backupModal.js`) reloads the page afterward so the app
+boots cleanly against the new backend. The default backend pays zero cost
+for any of this machinery.
+
+## SVG export (`io/exportSvg.js`)
+
+Clones the relevant node/edge DOM subtree into a standalone `<svg>`
+document. The key gotcha: a saved `.svg` file becomes its own document
+when reopened, where `:root` refers to the `<svg>` root itself, not the
+original page's `<html>` — so the app's usual selector-based light/dark
+theme CSS rules never match there. `collectResolvedRootVariables()` reads
+every custom property's *live resolved value* at export time and inlines
+it as a flat `:root {...}` block instead, sidestepping the whole
+cross-document matching problem.
+
+## Search All Projects (`io/globalProjectSearch.js`, `modals/globalSearchModal.js`)
+
+`searchSavedProjects(projects, query)` is a pure function scanning every
+saved project's node/edge text and comment text for a match, returning
+per-project match snippets labeled by kind (`MATCH_LABEL`). The modal
+reads every saved project via the existing `io/projects.js` list (no new
+storage), so it stays correct regardless of which storage backend is
+active.
+
+## Comments upgrades (`core/project.js#countUnresolvedComments`, `modals/commentsListModal.js`, `core/mentions.js`)
+
+`countUnresolvedComments(comments)` is a one-line pure filter, kept in
+`core/project.js` alongside the other comment helpers (`createReply`,
+etc.) so both the toolbar badge and the list modal derive the same count
+the same way. `commentsListModal.js` sorts unresolved-first and dispatches
+a `sdb:open-comment` event (the same one `commentPins.js` uses) to jump to
+a comment, so "open a comment" has exactly one code path regardless of
+whether it started from a pin click or the list. `core/mentions.js#splitMentions`
+is a pure regex-based text splitter (`/@[A-Za-z0-9_][A-Za-z0-9_-]*/g`);
+`commentModal.js#appendTextWithMentions` walks its output building real
+DOM text nodes/spans — never `innerHTML` — applied only to rendered reply
+text, not the editable note textarea.
+
+## Diagram Lint auto-fix (`core/diagramLint.js`'s `fix` field, `canvas.js#applyLintAutoFix`)
+
+A finding can carry an optional `fix: {type, ...}` descriptor —
+`insert-service-layer` (client-to-db findings; direction-agnostic, since
+`computeDiagramLint` already resolved which end is the client regardless
+of `edge.from`/`edge.to` order) or `add-load-balancer` (unrouted-replicas
+findings, carrying every member's node id). `applyLintAutoFix` builds the
+new node/edge objects outside `store.dispatch`, then pushes everything
+inside one dispatch call, so a fix is always a single undo step. The
+orphan-component finding deliberately carries no `fix` — there's no
+sensible single default target to connect it to.
+
+## Replication sync direction (`canvas.js#renderReplicationSyncPaths`, `css/connector.css`)
+
+A Live Replication pair has no real drawn edge between its two mirrored
+sides (the sync relationship is `project.replicationPairs` data, not a
+connector) — so Flow Simulation had nothing to animate for it. A
+`replication-sync-layer` `<g>` is created as a literal child of the
+existing `edgeLayer` SVG root (see `initCanvas`), purely so it inherits
+that layer's pre-existing `.flow-simulation-on` visibility/pause toggle
+for free, with zero new state. `renderReplicationSyncPaths` clears and
+rebuilds one `<path>` + `<circle>` per pair-member on every `render()`
+call, same pattern as `renderGroupBackgrounds()`. The dot's motion is
+bidirectional (`keyPoints="0;1;0" keyTimes="0;0.5;1" calcMode="linear"` on
+its `animateMotion`) since replication sync is inherently two-way
+regardless of which cosmetic label (Active-Active/Active-Passive/
+Primary-Replica) a pair uses.
+
+## Getting Started checklist (`core/onboardingChecklist.js`, `io/onboardingChecklist.js`, `hints/onboardingChecklistWidget.js`)
+
+`core/onboardingChecklist.js#computeOnboardingProgress(ctx)` is a pure
+function over a small `ctx` snapshot (node/edge counts, whether a save
+has happened) that returns each step's done/not-done state — no DOM, unit
+tested directly. `io/onboardingChecklist.js` only tracks whether the
+widget has been dismissed (`localStorage`, independent of the storage
+backend setting above — this is a UI preference, not project data). The
+widget itself re-renders its checklist on every store `change` event
+while open, so checking off a step (e.g. saving the diagram) updates it
+live without needing to be reopened.
+
+## Template Gallery (`modals/templateGalleryModal.js`, `core/patternThumbnailLayout.js`)
+
+`computePatternThumbnailLayout(pattern)` is a DOM-free geometry helper —
+given a pattern's node/edge specs, it returns simple box/line coordinates
+for a small SVG preview, deliberately kept separate from (not merged
+into) the existing lifeline-only hover-preview in
+`sidebar/patternPreview.js`, to avoid regression risk in that
+already-working, already-tested feature. The gallery covers Reference
+Architectures and Design Patterns only — Sequence Diagram Templates
+already have their own dedicated hover-preview and are excluded here to
+avoid a confusing second preview mechanism for the same items.
+
+## Offline support / PWA (`sw.js`, `manifest.json`, `io/serviceWorker.js`)
+
+`sw.js` uses a **stale-while-revalidate** strategy — serve a cached
+response immediately if one exists, and always refetch in the background
+to update the cache for next time — deliberately chosen over a
+hand-maintained precache manifest, since this app has **no build step and
+no generated asset list**: a static precache array would go stale the
+instant a new file was added and nobody remembered to update it. Nothing
+is precached upfront; the cache fills in as pages/assets are actually
+requested. `io/serviceWorker.js#registerServiceWorker()` is called from
+`main.js#boot()` and no-ops silently if `navigator.serviceWorker` isn't
+available (e.g. non-HTTPS local testing in some browsers).
+
+## Import ER Diagram from SQL (`io/sqlDdlImport.js`, `core/erDiagramLayout.js`, `canvas.js#createErDiagramFromDdl`)
+
+`parseSqlDdl(sqlText)` is a lightweight regex-based parser, not a real SQL
+grammar — deliberately scoped to `CREATE TABLE` statements only (views,
+triggers, and everything else are silently ignored). Its core technique
+is paren-depth-aware splitting (`splitTopLevel`, `extractBalancedParens`):
+a naive comma-split or non-greedy regex breaks the moment a column type
+has its own parens (`DECIMAL(10,2)`) or a table-level constraint spans
+multiple columns (`FOREIGN KEY (a, b)`), so both helpers track paren depth
+explicitly rather than pattern-matching around it. A foreign key
+referencing a table name that was never actually defined in the same
+paste is dropped rather than creating a dangling edge; a "table" whose
+body is only constraints and no real columns (a pure link table) is
+skipped as a node entirely — its foreign keys still contribute edges to
+the tables they reference the constraint FROM, but the parser doesn't
+fabricate a node from nothing. `core/erDiagramLayout.js#layoutErTables` is
+a pure grid-layout helper; `canvas.js#createErDiagramFromDdl` reuses the
+`shape-server-rows` def (the same "entity" convention `design-patterns.js`'s
+own 3 built-in ER templates already use) so an imported diagram is
+visually indistinguishable from a hand-built one.
+
+## C4 Model (`data/categories/c4-model.js`, `core/c4Context.js`, `modals/c4ContextModal.js`, `canvas.js#createC4ContextDiagram`)
+
+The category is pure data (6 components: Person, Software System, both
+"external" variants, Container, Component) using the well-known official
+C4 color palette as each component's `color`/`fill`. `core/c4Context.js#layoutC4Context`
+is a pure layout helper — the named system centered, a row of people
+above it, a row of external systems below it, both rows independently
+evenly-spaced and horizontally centered on the system — mirroring the
+`sequenceDiagram.js#layoutLifelines` precedent of keeping layout math pure
+and DOM-free. `canvas.js#createC4ContextDiagram` is the only C4-specific
+canvas action: it creates the system/person/external-system nodes plus an
+edge from each person to the system and from the system to each external
+system, as one dispatch. Deliberately scoped to a Context-diagram wizard
+only — a true multi-level C4 drill-down (Context → Container → Component
+→ Code, each zooming into the previous) was considered and rejected as
+disproportionate scope for what this batch needed: a Container or
+Component diagram is built exactly like any other diagram here, by
+dragging the matching shapes onto the canvas and connecting them, with no
+enforced abstraction-level state machine tying levels together.
 
 ## Security notes
 

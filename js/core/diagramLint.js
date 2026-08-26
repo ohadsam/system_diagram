@@ -37,11 +37,18 @@ export function computeDiagramLint(nodes, edges, replicationPairs, resolveDef) {
     const toCat = defFor(toNode)?.categoryId;
     const isClientDbPair = (fromCat === 'client' && toCat === 'databases') || (fromCat === 'databases' && toCat === 'client');
     if (isClientDbPair) {
+      // Whichever side is actually the client stays the edge's `from` after
+      // the fix — canvas.js#applyLintAutoFix re-derives the client/db ends
+      // from these ids rather than assuming edge.from is always the client,
+      // since fromCat/toCat above already handled either direction.
+      const clientId = fromCat === 'client' ? fromNode.id : toNode.id;
+      const dbId = fromCat === 'client' ? toNode.id : fromNode.id;
       findings.push({
         id: `client-to-db-${edge.id}`,
         severity: 'warning',
         message: `"${fromNode.text}" connects directly to "${toNode.text}" — a client talking straight to a database usually means no service layer to enforce business logic, validation, or access control.`,
         nodeIds: [fromNode.id, toNode.id],
+        fix: { type: 'insert-service-layer', edgeId: edge.id, clientId, dbId },
       });
     }
   }
@@ -84,6 +91,7 @@ export function computeDiagramLint(nodes, edges, replicationPairs, resolveDef) {
         severity: 'warning',
         message: `The replicated instances (${names.join(', ')}) have no load balancer or API gateway routing traffic to them.`,
         nodeIds: [...memberIds],
+        fix: { type: 'add-load-balancer', memberIds: [...memberIds] },
       });
     }
   }

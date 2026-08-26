@@ -25,11 +25,11 @@ Or open `index.html` directly in a browser.
 
 ## Features
 
-- **Huge component library** — 550+ predefined components across 25
+- **Huge component library** — 580+ predefined components across 26
   categories (AWS, Databases, Cache, Messaging, Monitoring, DevOps,
   Containers, Networking, Security, Servers, Client/Frontend, Frontend &
-  Backend frameworks, Storage, Logging, AI/ML, Cloud providers, Basic
-  shapes, and more), searchable and alphabetically sorted, with the most
+  Backend frameworks, Storage, Logging, AI/ML, Cloud providers, C4 Model,
+  Basic shapes, and more), searchable and alphabetically sorted, with the most
   commonly-used component in each category (PostgreSQL, Docker, S3, Kafka,
   React, ...) subtly highlighted with a ★ badge — a "★ Popular only"
   toggle narrows the list down to just those.
@@ -285,6 +285,40 @@ Or open `index.html` directly in a browser.
 - **🌐 Language / RTL** — a Tools-menu toggle switches the toolbar,
   sidebar, and common dialogs to Hebrew with a right-to-left layout. The
   component library and this guide stay in English for now.
+- **Configurable storage backend** — everything this app stores (saved
+  projects, backups, My Components, settings) lives in `localStorage` by
+  default; "🗄️ Backup & Restore" (File menu) can switch it to IndexedDB
+  instead (a larger quota, useful for many/large saved projects).
+  Switching always copies your data into the new backend first without
+  deleting it from the old one, so switching back is always safe.
+- **🔺 Export SVG** — exports the diagram as a scalable vector image, next
+  to the existing PNG/PDF export options.
+- **🔎 Search All Projects** — finds text across every saved project in
+  this browser at once (File menu), with a snippet preview per match and a
+  one-click "Load".
+- **Comments upgrades** — a 💬 badge on the toolbar tracks how many
+  comments are still unresolved; a "Comments" list (Tools menu) shows every
+  comment on the diagram with one click to jump to it; and typing `@name`
+  in a reply highlights it as a mention.
+- **🔧 Lint auto-fix** — some "🔍 Check Diagram" findings now offer a
+  one-click fix: inserting a service layer between a client and a database
+  it talks to directly, or a load balancer in front of unrouted replicas.
+- **🚀 Getting Started checklist** — a small dismissible card (Help menu)
+  tracking a few first steps for anyone just getting oriented.
+- **🖼️ Template Gallery** — browse every Reference Architecture and
+  Design Pattern visually (Create menu), each with a small preview
+  thumbnail.
+- **Offline support (PWA)** — this app keeps working, including autosave,
+  without a connection once it's been loaded once, and can be installed
+  like a native app.
+- **📥 Import from SQL** — paste `CREATE TABLE` statements (Create menu)
+  and get a real ER diagram: one entity node per table with its columns,
+  and a labeled connector per foreign key.
+- **C4 Model** — a dedicated component category (Person, Software System,
+  external variants, Container, Component) using the standard C4 color
+  notation, plus a "🧩 C4 Context Diagram" wizard (Create menu) that
+  bootstraps a System Context diagram from a system name and its
+  users/external systems.
 
 See [`help.html`](help.html) for the full interactive user guide.
 
@@ -310,7 +344,7 @@ js/
   toolbar/  global actions + contextual style/arrow editors
   panel/    the right-hand details panel + AI design review panel
   modals/   custom component/shape, save-as, load, confirm dialogs
-  io/       localStorage, JSON, PNG/PDF export
+  io/       localStorage/IndexedDB, JSON, PNG/PDF/SVG export
   hints/    the guided-tour hints
   utils/    small shared DOM/color/form helpers
 vendor/     vendored html2canvas + jsPDF (export only)

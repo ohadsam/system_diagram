@@ -111,7 +111,7 @@ test('Backup & Restore exports a full backup and restores it into a fresh canvas
   await expect.poll(() => nodeCount(page)).toBe(1);
 
   await openToolbarGroup(page, 'File');
-  await page.locator('#toolbar button[title="Backup & restore everything"]').click();
+  await page.locator('#toolbar button', { hasText: 'Backup & Restore' }).click();
   await expect(page.locator('.backup-modal')).toBeVisible();
   const [download] = await Promise.all([
     page.waitForEvent('download'),
@@ -124,7 +124,7 @@ test('Backup & Restore exports a full backup and restores it into a fresh canvas
   await startNewDiagram(page);
 
   await openToolbarGroup(page, 'File');
-  await page.locator('#toolbar button[title="Backup & restore everything"]').click();
+  await page.locator('#toolbar button', { hasText: 'Backup & Restore' }).click();
   const fileChooserPromise = page.waitForEvent('filechooser');
   await page.locator('.backup-modal button', { hasText: 'Restore full backup…' }).click();
   const fileChooser = await fileChooserPromise;

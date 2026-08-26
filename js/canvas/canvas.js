@@ -8,6 +8,8 @@ import { setKioskMode } from '../core/kioskMode.js';
 import { buildReplicationPair } from '../core/replication.js';
 import { computeAutoLayout } from '../core/autoLayout.js';
 import { layoutLifelines, distributeLifelineColumns, distributeMessages, layoutImportedSequenceDiagram, GAP as LIFELINE_GAP } from '../core/sequenceDiagram.js';
+import { layoutErTables } from '../core/erDiagramLayout.js';
+import { layoutC4Context } from '../core/c4Context.js';
 import { scaleNodes } from '../core/scaleDiagram.js';
 import { applyDiagramTheme, DIAGRAM_THEMES } from '../core/diagramTheme.js';
 import { initMinimap } from './minimap.js';
@@ -42,6 +44,7 @@ let nodeLayer = null;
 let edgeLayer = null;
 let edgeHandleLayer = null;
 let groupBgLayer = null;
+let replicationSyncLayer = null;
 let marqueeEl = null;
 let guideLayer = null;
 let commentLayer = null;
@@ -78,6 +81,15 @@ export function initCanvas(root) {
   contentEl = el('div', { class: 'canvas-content' });
   groupBgLayer = el('div', { class: 'group-bg-layer' });
   edgeLayer = svgEl('svg', { class: 'edge-layer' });
+  // A child of edgeLayer (not its own top-level layer) purely so it rides
+  // along with edgeLayer's own .flow-simulation-on class and
+  // pause/unpauseAnimations() calls (see setFlowSimulationEnabled) instead
+  // of needing its own parallel toggle — the moving dots between a
+  // replication pair's mirrored members are conceptually the same "ambient
+  // traffic" visualization as an edge's flow-dot, just without a real edge
+  // object backing them (see renderReplicationSyncPaths).
+  replicationSyncLayer = svgEl('g', { class: 'replication-sync-layer' });
+  edgeLayer.appendChild(replicationSyncLayer);
   nodeLayer = el('div', { class: 'node-layer' });
   edgeHandleLayer = svgEl('svg', { class: 'edge-handle-layer' });
   contentEl.appendChild(groupBgLayer);
@@ -345,6 +357,7 @@ function render(state) {
     if (p.frozen) { frozenGroupIds.add(p.groupA); frozenGroupIds.add(p.groupB); }
   }
   renderGroupBackgrounds(state.nodes, replicatedGroupIds);
+  renderReplicationSyncPaths(state.nodes, state.replicationPairs);
   for (const node of state.nodes) {
     let elRef = nodeElements.get(node.id);
     if (!elRef) {
@@ -422,6 +435,51 @@ export function setFlowSimulationEnabled(enabled) {
     // pauseAnimations/unpauseAnimations (SMIL) isn't implemented in every
     // engine — the .flow-simulation-on CSS class above still controls
     // visibility either way, just without the pause-when-off cost saving.
+  }
+}
+
+/** Draws one animated dot traveling back and forth between each replication
+ * pair member's mirrored counterpart — a Live Replication pair has no real
+ * edge between its two sides (mirroring is a data relationship, not a drawn
+ * connector), so this synthesizes its own invisible-unless-flow-simulation
+ * path rather than reusing connector.js#createEdgeEl. Rides inside
+ * .edge-layer (see initCanvas's `replicationSyncLayer`) purely so it shares
+ * that layer's existing .flow-simulation-on visibility/pause toggle — see
+ * setFlowSimulationEnabled above — with no separate state of its own to
+ * keep in sync. Goes both ways (`keyPoints`/`keyTimes` round-trip) rather
+ * than only A->B, since this app's replication is bidirectional regardless
+ * of which cosmetic label (Active-Active/Active-Passive/...) a pair uses —
+ * see modals/replicationModal.js. Cheap enough to just clear-and-rebuild
+ * every render() the same way renderGroupBackgrounds() already does,
+ * rather than diffing — a diagram rarely has more than a couple of pairs. */
+function renderReplicationSyncPaths(nodes, replicationPairs) {
+  if (!replicationSyncLayer) return;
+  clear(replicationSyncLayer);
+  if (!replicationPairs || !replicationPairs.length) return;
+  const nodesById = new Map(nodes.map((n) => [n.id, n]));
+  for (const pair of replicationPairs) {
+    for (const member of pair.members || []) {
+      const a = nodesById.get(member.a);
+      const b = nodesById.get(member.b);
+      if (!a || !b) continue;
+      const pathId = `repl-sync-${member.a}-${member.b}`;
+      const ax = a.x + a.w / 2;
+      const ay = a.y + a.h / 2;
+      const bx = b.x + b.w / 2;
+      const by = b.y + b.h / 2;
+      const path = svgEl('path', { class: 'replication-sync-path', id: pathId, d: `M ${ax} ${ay} L ${bx} ${by}` });
+      replicationSyncLayer.appendChild(path);
+
+      const dot = svgEl('circle', { class: 'replication-sync-dot', r: 4 });
+      const motion = svgEl('animateMotion', {
+        dur: '2.4s', repeatCount: 'indefinite', calcMode: 'linear', keyPoints: '0;1;0', keyTimes: '0;0.5;1',
+      });
+      const mpath = svgEl('mpath', { href: `#${pathId}` });
+      mpath.setAttributeNS('http://www.w3.org/1999/xlink', 'href', `#${pathId}`);
+      motion.appendChild(mpath);
+      dot.appendChild(motion);
+      replicationSyncLayer.appendChild(dot);
+    }
   }
 }
 
@@ -1371,6 +1429,84 @@ export function createSequenceDiagramFromMermaid(parsed) {
   return newNodes.length;
 }
 
+/** Turns parsed SQL DDL (io/sqlDdlImport.js#parseSqlDdl) into a real ER
+ * diagram — one `rows`-shaped "entity" node per table (see
+ * data/categories/design-patterns.js's own `entity()` helper for the same
+ * convention its 3 built-in ER templates already use, so an imported
+ * diagram matches them visually) and one labeled edge per foreign key.
+ * Returns the number of tables created (0 if `parsed` was falsy/empty), so
+ * modals/importSqlModal.js can tell a genuine no-op from a real import. */
+export function createErDiagramFromDdl(parsed) {
+  if (!parsed?.tables?.length) return 0;
+  const entityDef = resolveComponentDef('shape-server-rows');
+  const point = screenCenterCanvasPoint();
+  const state = store.getState();
+  let z = nextZIndex(state);
+
+  const placed = layoutErTables(parsed.tables, point.x, point.y);
+  const nodeIdByTable = new Map();
+  const newNodes = placed.map((table) => {
+    const rows = table.columns.map((c) => `${c.isPrimaryKey ? '🔑 ' : ''}${c.name}: ${c.type}`);
+    const node = createNode(entityDef, table.x, table.y, { zIndex: z++, text: table.name, icon: '🗂️', rows, w: table.w, h: table.h });
+    nodeIdByTable.set(table.name, node.id);
+    return node;
+  });
+
+  const newEdges = parsed.foreignKeys
+    .map((fk) => {
+      const fromId = nodeIdByTable.get(fk.fromTable);
+      const toId = nodeIdByTable.get(fk.toTable);
+      if (!fromId || !toId) return null;
+      return createEdge(fromId, toId, { label: `${fk.fromColumn} → ${fk.toColumn}` });
+    })
+    .filter(Boolean);
+
+  store.dispatch((draft) => {
+    draft.nodes.push(...newNodes);
+    draft.edges.push(...newEdges);
+  });
+  store.select(newNodes.map((n) => n.id), []);
+  showToast(`Imported ${newNodes.length} table(s) and ${newEdges.length} relationship(s).`, 'success', 3200);
+  return newNodes.length;
+}
+
+/** Creates a C4 System Context diagram (see modals/c4ContextModal.js): one
+ * central "Software System" box, a row of Person/Actor boxes above it, a
+ * row of External Software System boxes below it, and an edge from each
+ * person/external system to the central system. Only the Context diagram
+ * has a dedicated wizard — a Container or Component diagram is built the
+ * same way as any other diagram, by dragging the matching shapes from the
+ * "C4 Model" sidebar category and connecting them. */
+export function createC4ContextDiagram(systemName, people, externalSystems) {
+  const systemDef = resolveComponentDef('c4-system');
+  const personDef = resolveComponentDef('c4-person');
+  const externalDef = resolveComponentDef('c4-system-external');
+  if (!systemDef || !personDef || !externalDef) return 0;
+
+  const point = screenCenterCanvasPoint();
+  const state = store.getState();
+  let z = nextZIndex(state);
+
+  const layout = layoutC4Context(systemName, people, externalSystems, point.x, point.y, systemDef.defaultSize);
+  const systemNode = createNode(systemDef, layout.system.x, layout.system.y, { zIndex: z++, text: layout.system.text });
+  const peopleNodes = layout.people.map((p) => createNode(personDef, p.x, p.y, { zIndex: z++, text: p.text }));
+  const externalNodes = layout.externalSystems.map((s) => createNode(externalDef, s.x, s.y, { zIndex: z++, text: s.text }));
+
+  const newEdges = [
+    ...peopleNodes.map((n) => createEdge(n.id, systemNode.id, {})),
+    ...externalNodes.map((n) => createEdge(systemNode.id, n.id, {})),
+  ];
+  const newNodes = [systemNode, ...peopleNodes, ...externalNodes];
+
+  store.dispatch((draft) => {
+    draft.nodes.push(...newNodes);
+    draft.edges.push(...newEdges);
+  });
+  store.select(newNodes.map((n) => n.id), []);
+  showToast(`Created a C4 Context diagram with ${newNodes.length} boxes.`, 'success', 3200);
+  return newNodes.length;
+}
+
 /** Quick "add one more participant" for an existing sequence diagram (right-
  * click a lifeline → "➕ Add lifeline to the right") — faster than re-running
  * the wizard or dragging a fresh one in from Add Shape when you just need
@@ -1546,6 +1682,55 @@ export function applyAiEditPatch(patch) {
     for (const id of patch.removeNodeIds) removeNodeFromProject(draft, id);
     for (const id of patch.removeEdgeIds) removeEdgeFromProject(draft, id);
   });
+}
+
+/**
+ * One-click remediation for the two Check Diagram findings that have an
+ * unambiguous, mechanical fix (see core/diagramLint.js#computeDiagramLint's
+ * `fix` field) — the third built-in check ("orphan component") and every
+ * custom rule (io/customLintRules.js) intentionally have none, since there's
+ * no single correct way to guess what an unconnected/policy-violating
+ * component *should* connect to. Both fixes are a single dispatch (one undo
+ * step), following the same "build the new node/edge outside dispatch, push
+ * inside it" shape applyAiEditPatch above already uses.
+ */
+export function applyLintAutoFix(fix) {
+  if (!fix) return;
+  const state = store.getState();
+
+  if (fix.type === 'insert-service-layer') {
+    const clientNode = state.nodes.find((n) => n.id === fix.clientId);
+    const dbNode = state.nodes.find((n) => n.id === fix.dbId);
+    if (!clientNode || !dbNode) return;
+    const midX = Math.round((clientNode.x + dbNode.x) / 2);
+    const midY = Math.round((clientNode.y + dbNode.y) / 2);
+    const serviceNode = createNode(null, midX, midY, { text: 'Service Layer', icon: '⚙️' });
+    const newEdge = createEdge(serviceNode.id, fix.dbId, {});
+    store.dispatch((draft) => {
+      draft.nodes.push(serviceNode);
+      const edge = draft.edges.find((e) => e.id === fix.edgeId);
+      // Redirects the existing client->db edge into client->service, and
+      // adds a new service->db edge — the client's original edge id (and
+      // any style/label it already had) survives, now pointing at the
+      // service layer instead of straight at the database.
+      if (edge) edge.to = serviceNode.id;
+      draft.edges.push(newEdge);
+    });
+    return;
+  }
+
+  if (fix.type === 'add-load-balancer') {
+    const members = state.nodes.filter((n) => fix.memberIds.includes(n.id));
+    if (!members.length) return;
+    const avgX = Math.round(members.reduce((sum, n) => sum + n.x, 0) / members.length);
+    const minY = Math.min(...members.map((n) => n.y)) - 160;
+    const lbNode = createNode(null, avgX, minY, { text: 'Load Balancer', icon: '⚖️' });
+    const newEdges = fix.memberIds.map((id) => createEdge(lbNode.id, id, {}));
+    store.dispatch((draft) => {
+      draft.nodes.push(lbNode);
+      draft.edges.push(...newEdges);
+    });
+  }
 }
 
 export function deleteSelection() {

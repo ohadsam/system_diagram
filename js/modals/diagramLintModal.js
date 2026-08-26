@@ -9,10 +9,16 @@ import { openModal } from './modal.js';
 import { el, clear } from '../utils/dom.js';
 import * as store from '../core/store.js';
 import { computeDiagramLint, computeCustomLint } from '../core/diagramLint.js';
-import { resolveComponentDef } from '../canvas/canvas.js';
+import { resolveComponentDef, applyLintAutoFix } from '../canvas/canvas.js';
 import { centerOn } from '../canvas/viewport.js';
 import { getCustomLintRules } from '../io/customLintRules.js';
 import { openCustomLintRulesModal } from './customLintRulesModal.js';
+import { showToast } from '../utils/toast.js';
+
+const FIX_LABEL = {
+  'insert-service-layer': 'Insert a service layer between the client and the database',
+  'add-load-balancer': 'Add a load balancer routing to every replicated instance',
+};
 
 function selectAndCenter(nodeIds) {
   const state = store.getState();
@@ -51,6 +57,7 @@ export function openDiagramLintModal() {
         } else {
           const list = el('div', { class: 'diagram-lint-list' });
           for (const finding of findings) {
+            const row = el('div', { class: 'diagram-lint-row' });
             const item = el('button', {
               type: 'button',
               class: 'diagram-lint-item',
@@ -58,7 +65,22 @@ export function openDiagramLintModal() {
             });
             item.appendChild(el('span', { class: 'diagram-lint-item-icon', text: '⚠️', 'aria-hidden': 'true' }));
             item.appendChild(el('span', { class: 'diagram-lint-item-text', text: finding.message }));
-            list.appendChild(item);
+            row.appendChild(item);
+            if (finding.fix) {
+              row.appendChild(el('button', {
+                type: 'button',
+                class: 'btn btn-secondary btn-sm diagram-lint-fix-btn',
+                title: FIX_LABEL[finding.fix.type] || 'Auto-fix',
+                text: '🔧 Auto-fix',
+                onClick: (e) => {
+                  e.stopPropagation();
+                  applyLintAutoFix(finding.fix);
+                  showToast('Fixed — Ctrl/Cmd+Z to undo.', 'success', 2000);
+                  renderBody();
+                },
+              }));
+            }
+            list.appendChild(row);
           }
           body.appendChild(list);
         }

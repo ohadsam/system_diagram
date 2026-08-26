@@ -170,6 +170,67 @@ Gateway, Circuit Breaker, and Saga Coordinator now suggest a relevant new templa
 SSO, Identity Provider, and API Key each gained one more curated pairing alongside their existing
 ones.
 
+## v1.33.0 (2026-08-26)
+
+A 12-feature batch spanning storage, search, comments, diagram lint, replication visualization,
+onboarding, templates, offline support, SQL import, and a new C4 Model notation.
+
+**Configurable storage backend** — `io/storage.js` now supports IndexedDB as an alternate backend
+to the default `localStorage`, behind a synchronous read/write facade: an in-memory cache is
+populated once at boot (`initStorageBackend()`) so every existing synchronous call site keeps
+working unmodified. "🗄️ Backup & Restore" (renamed "Backup & Storage" internally) gained a
+backend picker and a "Switch & copy data…" action (`switchStorageBackend()`) that always copies
+every entry from the current backend into the new one — nothing is ever deleted from the source,
+so switching is fully reversible.
+
+**🔺 Export SVG** (`io/exportSvg.js`) — a vector export alongside PNG/PDF. Every CSS custom
+property used by the exported subtree is resolved to its live concrete value and inlined into a
+flat `:root {...}` block, since a saved `.svg` file becomes its own document when reopened (where
+the original page's selector-based theme rules no longer apply).
+
+**🔎 Search All Projects** (`io/globalProjectSearch.js` + `modals/globalSearchModal.js`) — searches
+node/edge text and comments across every saved project in this browser at once, with a snippet
+per match and a one-click "Load".
+
+**Comments upgrades** — a `toolbar-count-badge` on the new "💬 Comments" button tracks unresolved
+count; `modals/commentsListModal.js` lists every comment (unresolved-first) with a jump-to-it
+"Open" button; and `core/mentions.js#splitMentions` renders an `@handle` in a reply as a
+highlighted `.mention-chip` (built as real DOM text nodes, no `innerHTML`).
+
+**🔧 Lint auto-fix** — `core/diagramLint.js` findings can now carry a `fix` descriptor;
+`canvas.js#applyLintAutoFix` handles `insert-service-layer` (client→db findings) and
+`add-load-balancer` (unrouted-replicas findings) as one dispatched action each.
+
+**Replication sync direction** — Live Replication pairs have no real edge to animate, so
+`canvas.js#renderReplicationSyncPaths` synthesizes a bidirectional dashed path + traveling dot
+(SMIL `animateMotion` with `keyPoints="0;1;0"`) as a child of the existing `.edge-layer`, riding
+its pre-existing Flow Simulation pause/resume and visibility toggle for free.
+
+**🚀 Getting Started checklist** (`hints/onboardingChecklistWidget.js`) — a small dismissible
+card tracking a few first steps, reopenable from the Help menu at any time.
+
+**🖼️ Template Gallery** (`modals/templateGalleryModal.js`) — a visual browser for Reference
+Architectures and Design Patterns, each rendered as a small SVG preview thumbnail
+(`core/patternThumbnailLayout.js`, a DOM-free geometry helper).
+
+**Offline support (PWA)** — `manifest.json` + `sw.js` (a stale-while-revalidate service worker,
+appropriate for a no-build-step app with no generated asset manifest) let the app keep working,
+including autosave, without a connection once loaded once.
+
+**📥 Import from SQL** (`io/sqlDdlImport.js` + `modals/importSqlModal.js`) — a regex-based
+`CREATE TABLE` parser (with paren-depth-aware splitting so `DECIMAL(10,2)` and multi-column
+`FOREIGN KEY (a, b)` clauses parse correctly) turns pasted DDL into a real ER diagram: one
+"entity" node per table (the same `rows`-shape convention this library's own ER templates use)
+and a labeled edge per foreign key.
+
+**C4 Model** — a new component category (`data/categories/c4-model.js`: Person, Software System,
+External Software System, Container, External Container, Component) using the standard C4 color
+notation, plus a "🧩 C4 Context Diagram" wizard (`core/c4Context.js` + `modals/c4ContextModal.js`)
+that lays out a central system with a row of people above and external systems below, each
+connected to the center. Only a Context-diagram wizard exists — Container/Component diagrams are
+built the same way as any other diagram, by dragging the matching shapes and connecting them; no
+enforced multi-level drill-down state was added.
+
 ## v1.32.0 (2026-08-26)
 
 Five independent additions: an ambient traffic visualization, a conversational way to edit an

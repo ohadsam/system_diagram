@@ -151,6 +151,18 @@ this repo" quick-start.
 | Change Custom Lint Rules | `js/io/customLintRules.js` (storage — `{id, name, type, categoryA, categoryB, max, enabled}`, `RULE_TYPES`) + `js/core/diagramLint.js#computeCustomLint` (pure evaluator, same findings shape as the built-in `computeDiagramLint`) + `js/modals/customLintRulesModal.js` (the rule builder, category dropdowns sourced from `data/index.js#CATEGORIES`) + `js/modals/diagramLintModal.js` (concatenates both finding arrays) |
 | Change threaded comment replies | `js/core/project.js#createReply` (`{id, text, createdAt}`, nested in a comment's `replies` array — not a new top-level project collection) + `js/canvas/canvas.js#addCommentReply`/`#deleteCommentReply` + `js/modals/commentModal.js` (the thread UI — subscribes to `store.subscribe('change', ...)` and uses `rerenderPreservingUiState` so typing a reply doesn't lose focus on the dispatch-triggered rebuild) |
 | Change the Language/RTL toggle or add a translated string | `js/io/i18n.js` (`t(key)`, the `en`/`he` string tables, `getLanguage`/`setLanguage`, `applyLanguageToDocument`) + `js/io/uiPrefs.js` (`language` field, `LANGUAGES`) + the toolbar's language button in `js/toolbar/toolbar.js#buildToolsGroupButtons` (calls `window.location.reload()` after switching — see "Common pitfalls" below for why). A new `[dir="rtl"]` override is only needed for an element using literal `left`/`right` under `position: fixed`/`absolute` — plain flex-row layout mirrors automatically, see docs/ARCHITECTURE.md's "Language / RTL" section. |
+| Change the storage backend (localStorage vs IndexedDB) | `js/io/storage.js` (`STORAGE_BACKENDS`, `getStorageBackend`/`switchStorageBackend`, the `idbCache` sync facade) + `js/io/indexedDbStore.js` (raw `IDBRequest` wrappers) + `main.js#boot`'s `await initStorageBackend()` (must stay the very first statement) + `js/modals/backupModal.js` (the picker + "Switch & copy data…" button). **Read** docs/ARCHITECTURE.md's own section before changing the cache-population timing — every other module's `readJSON`/`writeJSON` call assumes the cache is already populated by the time it runs. |
+| Change SVG export | `js/io/exportSvg.js` (`collectResolvedRootVariables`, `buildSvgString`) — resolves every CSS custom property to its live value at export time rather than exporting the original selector rules, since a saved `.svg` becomes its own document with its own `:root` on reopen |
+| Change "Search All Projects" | `js/io/globalProjectSearch.js#searchSavedProjects` (pure, reads every saved project via the existing `io/projects.js` list) + `js/modals/globalSearchModal.js` (search input + results + "Load") |
+| Change the Comments unresolved badge/list, or mentions | `js/core/project.js#countUnresolvedComments` (pure) + `js/toolbar/toolbar.js` (the `commentsBadge` span, `store.subscribe('change', ...)`) + `js/modals/commentsListModal.js` (the list, unresolved-first) + `js/core/mentions.js#splitMentions` (pure `@handle` splitter) + `js/modals/commentModal.js#appendTextWithMentions` (renders it as real DOM nodes, never `innerHTML`) |
+| Change a Diagram Lint finding's auto-fix | `js/core/diagramLint.js` (add a `fix: {type, ...}` to the finding) + `js/canvas/canvas.js#applyLintAutoFix` (handle the new `type`, build everything before one `store.dispatch`) + `js/modals/diagramLintModal.js` (`FIX_LABEL` map, the "🔧 Auto-fix" button) |
+| Change the Replication sync-direction visualization | `js/canvas/canvas.js#renderReplicationSyncPaths` (rebuilt every `render()`, same pattern as `renderGroupBackgrounds`) + the `replicationSyncLayer` `<g>` created as a child of `edgeLayer` in `initCanvas` (rides its `.flow-simulation-on` toggle for free) + `css/connector.css`'s `.replication-sync-path`/`.replication-sync-dot` rules |
+| Change the Getting Started checklist | `js/core/onboardingChecklist.js#computeOnboardingProgress` (pure) + `js/io/onboardingChecklist.js` (dismissed-flag storage) + `js/hints/onboardingChecklistWidget.js` (the card, re-renders on every store `change` while open) |
+| Change the Template Gallery | `js/modals/templateGalleryModal.js` (`GALLERY_CATEGORIES` — Reference Architectures + Design Patterns only) + `js/core/patternThumbnailLayout.js#computePatternThumbnailLayout` (pure geometry, deliberately separate from `sidebar/patternPreview.js`'s existing lifeline-only hover-preview) |
+| Change offline/PWA support | `sw.js` (repo root — stale-while-revalidate, no precache list since this app has no build step to generate one from) + `manifest.json` + `js/io/serviceWorker.js#registerServiceWorker` (called from `main.js#boot`, no-ops silently if unsupported) |
+| Change "Import from SQL" (ER diagram from `CREATE TABLE` DDL) | `js/io/sqlDdlImport.js#parseSqlDdl` (pure regex parser — `splitTopLevel`/`extractBalancedParens` are the paren-depth-aware helpers that make `DECIMAL(10,2)` and multi-column `FOREIGN KEY (a, b)` parse correctly) + `js/core/erDiagramLayout.js#layoutErTables` (pure grid layout) + `js/canvas/canvas.js#createErDiagramFromDdl` (reuses the `shape-server-rows` "entity" convention) + `js/modals/importSqlModal.js` (the wizard) |
+| Add/change a C4 Model component | `js/data/categories/c4-model.js` — plain `c(...)`, using the standard C4 color palette (`PERSON`/`SYSTEM`/`SYSTEM_EXT`/`CONTAINER`/`CONTAINER_EXT`/`COMPONENT` constants at the top of the file) |
+| Change the C4 Context Diagram wizard | `js/core/c4Context.js#layoutC4Context` (pure — system centered, people row above, external-systems row below) + `js/canvas/canvas.js#createC4ContextDiagram` (creates the nodes + person→system/system→external edges as one dispatch) + `js/modals/c4ContextModal.js` (dynamic person/external-system row editor, same pattern as `sequenceDiagramModal.js`'s participant list) |
 
 ## Running things locally
 
@@ -752,3 +764,26 @@ npm test
   instead, which is simpler and can't leave half the UI in the old
   language. Follow the same pattern for any future setting that needs a
   full-chrome text change.
+- **A new `[hidden]` element needs an explicit `[hidden] { display: none }`
+  override the moment its own rule sets any `display` value** — same root
+  cause as the existing `.toolbar-row-context[hidden]` gotcha above, hit
+  again by the new Comments unresolved-count badge: `.toolbar-count-badge`
+  set `display: inline-block` unconditionally, which (per the cascade,
+  since a class selector beats the UA stylesheet's `[hidden]` rule) kept
+  the badge visibly showing "0" even while `hidden` was set. Caught by an
+  e2e assertion, not by eye — a `hidden`-attribute element rendering
+  because of its own `display` rule doesn't look obviously wrong in a
+  quick visual pass. Check this immediately for any new toggleable element
+  that sets its own `display`.
+- **Don't build DOM-render laziness for a collapsed sidebar category —
+  other code (and tests) rely on every `.sidebar-item` actually existing
+  in the DOM regardless of open/closed state**, with visibility purely
+  CSS-driven (`[data-open="false"] .category-list { display: none }`).
+  Skipping the item-row build for a closed category (to save render work)
+  was tried and reverted in this batch: it silently broke
+  `tests/e2e/library-search.spec.js`'s "every category collapsed" count
+  (and anything else that queries `.sidebar-item` without first opening
+  every category) even though nothing about what a user *sees* changed.
+  If sidebar render performance ever needs real work, it has to preserve
+  "every item's DOM node exists at all times," not just "every item is
+  visually correct."

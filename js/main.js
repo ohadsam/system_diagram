@@ -14,9 +14,11 @@ import {
   isAnimationPlaying, isAnimationFrozen, nextStep, prevStep, setFrozen,
 } from './core/animationPlayback.js';
 import { initAutosave, restoreAutosavedProject } from './io/autosave.js';
+import { initStorageBackend } from './io/storage.js';
 import { loadProjectFromHash } from './io/shareLink.js';
 import { openCustomComponentModal } from './modals/customComponentModal.js';
 import { initHints } from './hints/hints.js';
+import { initOnboardingChecklistWidget } from './hints/onboardingChecklistWidget.js';
 import { saveNamedProject } from './io/projects.js';
 import { showToast } from './utils/toast.js';
 import { checkWhatsNew, markVersionSeen } from './io/whatsNew.js';
@@ -28,6 +30,7 @@ import { initTheme } from './io/theme.js';
 import { isKioskMode, setKioskMode } from './core/kioskMode.js';
 import { initKioskModeUi } from './toolbar/kioskModeUi.js';
 import { initDuplicateTabWarning } from './io/duplicateTabWarning.js';
+import { registerServiceWorker } from './io/serviceWorker.js';
 
 function isTypingTarget(elRef) {
   if (!elRef) return false;
@@ -150,6 +153,13 @@ function initKeyboardShortcuts() {
 }
 
 async function boot() {
+  // Must resolve before anything else touches storage: a no-op when the
+  // default 'localStorage' backend is active, but when the opt-in
+  // IndexedDB backend is active this loads its contents into storage.js's
+  // in-memory cache first — see io/storage.js's header comment for why
+  // every other module can keep reading storage synchronously either way.
+  await initStorageBackend();
+
   // Already applied synchronously by index.html's inline <head> script
   // (before this module even loaded) — called again here so the rest of
   // the app (the toolbar's theme toggle) can rely on io/theme.js's applied
@@ -185,6 +195,8 @@ async function boot() {
 
   initKeyboardShortcuts();
   requestAnimationFrame(() => initHints());
+  requestAnimationFrame(() => initOnboardingChecklistWidget());
+  registerServiceWorker();
 
   const whatsNew = checkWhatsNew();
   markVersionSeen();

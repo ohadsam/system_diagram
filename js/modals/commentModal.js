@@ -9,6 +9,17 @@ import { field, checkbox } from '../utils/formControls.js';
 import * as store from '../core/store.js';
 import { updateCommentText, toggleCommentResolved, deleteComment, addCommentReply, deleteCommentReply } from '../canvas/canvas.js';
 import { confirmAction } from './confirmModal.js';
+import { splitMentions } from '../core/mentions.js';
+
+/** Appends `text` into `container` as plain text nodes, except an
+ * `@handle`-shaped segment (see core/mentions.js) which becomes a small
+ * highlighted <span> — no innerHTML anywhere, per this app's security rule. */
+function appendTextWithMentions(container, text) {
+  for (const segment of splitMentions(text)) {
+    if (segment.mention) container.appendChild(el('span', { class: 'mention-chip', text: segment.text }));
+    else container.appendChild(document.createTextNode(segment.text));
+  }
+}
 
 window.addEventListener('sdb:open-comment', (e) => openCommentModal(e.detail.commentId));
 
@@ -40,7 +51,9 @@ export function openCommentModal(commentId) {
           const thread = el('div', { class: 'comment-thread' });
           for (const reply of comment.replies) {
             const row = el('div', { class: 'comment-reply' });
-            row.appendChild(el('span', { class: 'comment-reply-text', text: reply.text }));
+            const replyTextEl = el('span', { class: 'comment-reply-text' });
+            appendTextWithMentions(replyTextEl, reply.text);
+            row.appendChild(replyTextEl);
             row.appendChild(el('button', {
               type: 'button', class: 'comment-reply-remove', 'aria-label': 'Delete reply', title: 'Delete reply', text: '✕',
               onClick: () => deleteCommentReply(commentId, reply.id),

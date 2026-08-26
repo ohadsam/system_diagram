@@ -259,6 +259,13 @@ export function createReply(text = '') {
   };
 }
 
+/** How many pinned comments still need attention — the toolbar's "💬
+ * Comments" badge (toolbar/toolbar.js) and modals/commentsListModal.js's
+ * default filter both use this single definition. */
+export function countUnresolvedComments(comments) {
+  return (comments || []).filter((c) => !c.resolved).length;
+}
+
 /**
  * Clones a whole project as an independent copy: fresh project id and
  * timestamps, "(Copy)" appended to the name, and every node/edge/

@@ -568,3 +568,24 @@ body.kiosk-mode .kiosk-exit-btn {
 .anim-draw-swatch.active {
   border-color: var(--color-text);
 }
+
+/* [hidden] override needed since this rule's own display: inline-block
+   would otherwise beat the UA stylesheet's [hidden] { display: none } —
+   same gotcha as .toolbar-row-context[hidden] above. */
+.toolbar-count-badge[hidden] {
+  display: none;
+}
+
+.toolbar-count-badge {
+  display: inline-block;
+  min-width: 16px;
+  padding: 0 4px;
+  margin-left: 4px;
+  border-radius: var(--radius-round);
+  background: var(--color-danger);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}

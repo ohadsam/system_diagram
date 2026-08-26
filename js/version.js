@@ -2,9 +2,26 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.32.0';
+export const APP_VERSION = '1.33.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.33.0',
+    date: '2026-08-26',
+    highlights: [
+      'Storage backend: everything this app stores (saved projects, backups, My Components, settings) can now live in IndexedDB instead of localStorage — configurable from "🗄️ Backup & Restore" (File menu), defaulting to localStorage. Switching always copies your data into the new backend first without deleting it from the old one, so you can switch back at any time.',
+      'New "🔺 Export SVG" (File menu) — exports the diagram as a scalable vector image that stays crisp at any zoom, unlike PNG.',
+      'New "🔎 Search All Projects" (File menu) — finds text across every saved project in this browser, not just the one currently open, with a snippet preview per match and a one-click "Load".',
+      'Comments: a new 💬 Comments badge on the toolbar shows how many are still unresolved, and a new "Comments" list (Tools menu) shows every comment on the diagram at a glance, jump straight to one, or type @name in a reply to highlight a mention.',
+      '"🔍 Check Diagram" findings can now offer a one-click "🔧 Auto-fix" — inserting a service layer between a client talking straight to a database, or a load balancer in front of unrouted replicas.',
+      'Flow Simulation now also shows a small traveling dot along a Live Replication pair, in both directions, since replication has no drawn connector of its own to animate.',
+      'New "🚀 Getting Started" checklist (Help menu) — a small dismissible card tracking a few first steps (add a component, connect two, save your diagram) for anyone just getting oriented.',
+      'New "🖼️ Template Gallery" (Create menu) — browse every Reference Architecture and Design Pattern visually, each with a small preview thumbnail, instead of scanning the sidebar list.',
+      'This app now works offline and can be installed as an app (PWA) — once you\'ve loaded it once, it keeps working (and autosaves) without a connection, and reconnects to sync in the background.',
+      'New "📥 Import from SQL" (Create menu) — paste CREATE TABLE statements and get a real ER diagram: one entity node per table with its columns, and a labeled connector per foreign key.',
+      'New "C4 Model" component category (Person, Software System, external variants, Container, Component, using the standard C4 color notation) plus a "🧩 C4 Context Diagram" wizard (Create menu) that bootstraps a System Context diagram from a system name and its users/external systems.',
+    ],
+  },
   {
     version: '1.32.0',
     date: '2026-08-26',

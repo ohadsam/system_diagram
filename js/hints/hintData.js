@@ -28,4 +28,7 @@ export const HINTS = [
   { id: 'hint-flow-simulation', target: '.toolbar-row-main', placement: 'bottom', text: '💫 Tools → Flow Simulation animates small dots flowing along every connector in its direction — a quick visual of which way data moves.' },
   { id: 'hint-ai-edit', target: '.toolbar-row-main', placement: 'bottom', text: '💬 Create → Edit with AI lets you describe a change in plain language, then paste the AI\'s reply back in and preview it before applying — your existing layout stays untouched otherwise.' },
   { id: 'hint-language-toggle', target: '.toolbar-row-main', placement: 'bottom', text: '🌐 Tools → Language switches the toolbar, sidebar and dialogs to Hebrew with a right-to-left layout.' },
+  { id: 'hint-global-search', target: '.toolbar-row-main', placement: 'bottom', text: '🔎 File → Search All Projects finds text across every saved project in this browser at once — not just the one currently open.' },
+  { id: 'hint-template-gallery', target: '.toolbar-row-main', placement: 'bottom', text: '🖼️ Create → Template Gallery browses every Reference Architecture and Design Pattern visually, with a preview thumbnail for each.' },
+  { id: 'hint-c4-context', target: '.toolbar-row-main', placement: 'bottom', text: '🧩 Create → C4 Context Diagram bootstraps a C4 Model System Context diagram from a system name and its users/external systems.' },
 ];

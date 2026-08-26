@@ -44,3 +44,94 @@
   color: var(--color-inverse-surface-text);
   border-color: var(--color-inverse-surface);
 }
+
+/* "Getting started" checklist card (hints/onboardingChecklistWidget.js) —
+   a standing progress card rather than a one-at-a-time coach mark like
+   .hint-bubble above, so it gets its own fixed corner (bottom-left) away
+   from the minimap (bottom-right, css/canvas.css) and the toast stack
+   (css/base.css). */
+.onboarding-checklist-card {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: var(--z-hint);
+  width: 260px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-3);
+}
+
+.onboarding-checklist-close {
+  float: right;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  line-height: 1;
+  padding: 2px;
+}
+
+.onboarding-checklist-title {
+  margin: 0 0 var(--space-2);
+  font-size: 13px;
+}
+
+.onboarding-checklist-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.onboarding-checklist-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+}
+
+.onboarding-checklist-item.is-done {
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+}
+
+.onboarding-checklist-check {
+  flex: 0 0 auto;
+}
+
+/* RTL mirror (see io/i18n.js's header comment) — a literal `left` on a
+   position: fixed element doesn't flip on its own under `direction: rtl`. */
+[dir="rtl"] .onboarding-checklist-card {
+  left: auto;
+  right: 16px;
+}
+
+/* At desktop widths #sidebar is a normal flex column (not the mobile
+   overlay drawer below), permanently occupying the left edge (or, under
+   RTL, the right edge — flex-row order mirrors for free under `direction:
+   rtl`, see io/i18n.js's header comment) — so a plain `left/right: 16px`
+   here would sit the card on top of the sidebar's own bottom content,
+   same class of bug as the "floating overlay blocks clicks on whatever it
+   visually covers" pitfall documented in docs/AI_AGENT_GUIDE.md. Shift it
+   just past the sidebar's width instead, on whichever side that
+   corresponds to. */
+@media (min-width: 901px) {
+  .onboarding-checklist-card {
+    left: calc(var(--sidebar-width) + 16px);
+  }
+
+  [dir="rtl"] .onboarding-checklist-card {
+    left: auto;
+    right: calc(var(--sidebar-width) + 16px);
+  }
+}
+
+[dir="rtl"] .onboarding-checklist-close {
+  float: left;
+}
