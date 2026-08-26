@@ -13,6 +13,15 @@
   opacity: 0.15;
 }
 
+/* Diagram Animation — canvas.js#applyAnimationVisibility toggles this on
+   any edge not yet reached during playback (see core/animationPlayback.js).
+   Reuses .edge's own existing opacity transition above for the reveal
+   fade-in rather than defining a second one here. */
+.edge.anim-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
 .edge:hover .edge-line {
   filter: brightness(0.75);
 }

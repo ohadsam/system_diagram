@@ -267,6 +267,34 @@
   vector-effect: non-scaling-stroke;
 }
 
+/* Diagram Animation's editing-time order badges (see
+   canvas.js#renderAnimationBadges) — same layer pattern as .comment-layer
+   just above: pointer-events: none on the layer so it never intercepts a
+   click meant for a node/edge/the canvas background underneath. */
+.anim-badge-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.anim-badge {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #fff;
+  border: 2px solid var(--color-surface);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-sm);
+}
+
 .marquee {
   position: absolute;
   border: 1px solid var(--color-primary);

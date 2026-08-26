@@ -69,6 +69,7 @@
   --panel-collapsed-width: 36px;
   --ai-panel-width: 380px;
   --outline-panel-width: 260px;
+  --animation-panel-width: 300px;
 
   --z-canvas: 1;
   --z-panel: 25;
@@ -99,6 +100,13 @@
      is hidden — it must win over literally everything else still capable of
      rendering, including a toast, so it's the highest value in the scale. */
   --z-kiosk-exit: 90;
+  /* Diagram Animation playback (core/animationPlayback.js) reuses kiosk
+     mode as its base, then layers its own chrome on top: the free-draw
+     canvas must sit above the diagram but below both the playback controls
+     and the kiosk exit button above, so Prev/Next/Draw/Exit all stay
+     clickable while actively drawing. */
+  --z-anim-draw: 89;
+  --z-anim-controls: 91;
 }
 
 /* Dark theme — see js/io/uiPrefs.js (`theme: 'system'|'light'|'dark'`) and

@@ -1,13 +1,18 @@
 // App entry point: wires every module together. See docs/ARCHITECTURE.md.
 import * as store from './core/store.js';
 import { createEmptyProject } from './core/project.js';
-import { initCanvas, deleteSelection, duplicateSelection } from './canvas/canvas.js';
+import { initCanvas, deleteSelection, duplicateSelection, stopAnimationPlayback } from './canvas/canvas.js';
 import { hideContextMenu } from './canvas/contextMenu.js';
 import { initSidebar, configureSidebar } from './sidebar/sidebar.js';
 import { initToolbar } from './toolbar/toolbar.js';
 import { initDetailsPanel, close as closeDetailsPanel } from './panel/detailsPanel.js';
 import { initAiReviewPanel, close as closeAiReviewPanel } from './panel/aiReviewPanel.js';
 import { initOutlinePanel } from './panel/outlinePanel.js';
+import { initAnimationPanel } from './panel/animationPanel.js';
+import { initAnimationOverlay } from './canvas/animationOverlay.js';
+import {
+  isAnimationPlaying, isAnimationFrozen, nextStep, prevStep, setFrozen,
+} from './core/animationPlayback.js';
 import { initAutosave, restoreAutosavedProject } from './io/autosave.js';
 import { loadProjectFromHash } from './io/shareLink.js';
 import { openCustomComponentModal } from './modals/customComponentModal.js';
@@ -51,6 +56,36 @@ function initKeyboardShortcuts() {
       return;
     }
     if (isTypingTarget(document.activeElement)) return;
+    if (isAnimationPlaying()) {
+      // Diagram Animation playback takes over the keyboard entirely while
+      // presenting — none of the normal editing shortcuts below make sense
+      // with the toolbar/sidebar hidden (kiosk mode) and nothing meant to
+      // be interacted with except the animation itself.
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        // One level at a time: exit drawing first if that's active, only
+        // stop the whole presentation on a second Escape.
+        if (isAnimationFrozen()) setFrozen(false);
+        else stopAnimationPlayback();
+        return;
+      }
+      if (!isAnimationFrozen() && (e.key === 'ArrowRight' || e.key.toLowerCase() === 'n')) {
+        e.preventDefault();
+        nextStep();
+        return;
+      }
+      if (!isAnimationFrozen() && (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'p')) {
+        e.preventDefault();
+        prevStep();
+        return;
+      }
+      if (e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        setFrozen(!isAnimationFrozen());
+        return;
+      }
+      return;
+    }
     if ((e.key === 'Delete' || e.key === 'Backspace') && !mod) {
       e.preventDefault();
       deleteSelection();
@@ -141,9 +176,11 @@ async function boot() {
   initDetailsPanel(document.getElementById('details-panel'));
   initAiReviewPanel(document.getElementById('ai-review-panel'));
   initOutlinePanel(document.getElementById('outline-panel'));
+  initAnimationPanel(document.getElementById('animation-panel'));
 
   configureSidebar({ onEditCustomComponent: (def) => openCustomComponentModal({ editDef: def }) });
   initKioskModeUi();
+  initAnimationOverlay();
   initDuplicateTabWarning(showToast);
 
   initKeyboardShortcuts();

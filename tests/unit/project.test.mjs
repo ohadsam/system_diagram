@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   createEmptyProject, createNode, createEdge, removeNode, removeEdge, validateProject, nextZIndex, duplicateProject,
-  createVersionSnapshot, removeVersion, createComment,
+  createVersionSnapshot, removeVersion, createComment, createAnimationStep,
 } from '../../js/core/project.js';
 
 test('createEmptyProject has the expected shape', () => {
@@ -752,4 +752,119 @@ test('duplicateProject regenerates comment ids but keeps their content', () => {
   assert.equal(copy.comments[0].text, 'Original note');
   assert.equal(copy.comments[0].x, 10);
   assert.equal(copy.comments[0].y, 20);
+});
+
+test('createEmptyProject includes an empty animationSteps array', () => {
+  const p = createEmptyProject();
+  assert.deepEqual(p.animationSteps, []);
+});
+
+test('createAnimationStep defaults revealMode to "click" and delayMs to 2000', () => {
+  const step = createAnimationStep('node', 'node_1');
+  assert.equal(step.targetType, 'node');
+  assert.equal(step.targetId, 'node_1');
+  assert.equal(step.revealMode, 'click');
+  assert.equal(step.delayMs, 2000);
+  assert.ok(step.id.startsWith('anim_'));
+});
+
+test('validateProject keeps a well-formed animation step referencing a real node/edge, backfilling a missing id', () => {
+  const n1 = createNode(null, 0, 0);
+  const n2 = createNode(null, 100, 0);
+  const e1 = createEdge(n1.id, n2.id);
+  const result = validateProject({
+    nodes: [n1, n2],
+    edges: [e1],
+    animationSteps: [
+      { targetType: 'node', targetId: n1.id, revealMode: 'auto', delayMs: 1500 },
+      { id: 'anim_keep', targetType: 'edge', targetId: e1.id, revealMode: 'click', delayMs: 500 },
+    ],
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.project.animationSteps.length, 2);
+  assert.ok(result.project.animationSteps[0].id, 'a missing id is backfilled rather than dropping the step');
+  assert.equal(result.project.animationSteps[0].revealMode, 'auto');
+  assert.equal(result.project.animationSteps[0].delayMs, 1500);
+  assert.equal(result.project.animationSteps[1].id, 'anim_keep');
+});
+
+test('validateProject drops an animation step referencing a node/edge that does not exist, and clamps invalid revealMode/delayMs', () => {
+  const n1 = createNode(null, 0, 0);
+  const result = validateProject({
+    nodes: [n1],
+    edges: [],
+    animationSteps: [
+      { targetType: 'node', targetId: n1.id, revealMode: 'bogus', delayMs: -5 },
+      { targetType: 'node', targetId: 'no-such-node', revealMode: 'auto', delayMs: 1000 },
+      { targetType: 'edge', targetId: 'no-such-edge', revealMode: 'auto', delayMs: 1000 },
+      { targetType: 'nonsense', targetId: n1.id },
+    ],
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.project.animationSteps.length, 1, 'only the step referencing a real, existing node survives');
+  assert.equal(result.project.animationSteps[0].revealMode, 'click', 'an invalid revealMode falls back to the default');
+  assert.equal(result.project.animationSteps[0].delayMs, 2000, 'a non-positive delayMs falls back to the default');
+});
+
+test('removeNode cascades to any animation step referencing the node or one of its cascade-deleted edges', () => {
+  const p = createEmptyProject();
+  const n1 = createNode(null, 0, 0);
+  const n2 = createNode(null, 100, 0);
+  const n3 = createNode(null, 200, 0);
+  p.nodes.push(n1, n2, n3);
+  const e1 = createEdge(n1.id, n2.id);
+  p.edges.push(e1);
+  p.animationSteps.push(
+    createAnimationStep('node', n1.id),
+    createAnimationStep('edge', e1.id),
+    createAnimationStep('node', n3.id),
+  );
+  removeNode(p, n1.id);
+  assert.equal(p.animationSteps.length, 1, 'the step for the deleted node and the step for its cascade-deleted edge are both dropped');
+  assert.equal(p.animationSteps[0].targetId, n3.id);
+});
+
+test('removeEdge drops only the animation step referencing that edge', () => {
+  const p = createEmptyProject();
+  const n1 = createNode(null, 0, 0);
+  const n2 = createNode(null, 100, 0);
+  p.nodes.push(n1, n2);
+  const e1 = createEdge(n1.id, n2.id);
+  const e2 = createEdge(n2.id, n1.id);
+  p.edges.push(e1, e2);
+  p.animationSteps.push(createAnimationStep('edge', e1.id), createAnimationStep('edge', e2.id));
+  removeEdge(p, e1.id);
+  assert.equal(p.animationSteps.length, 1);
+  assert.equal(p.animationSteps[0].targetId, e2.id);
+});
+
+test('duplicateProject remaps animation step targetIds onto the copy\'s freshly-regenerated node/edge ids', () => {
+  const p = createEmptyProject();
+  const n1 = createNode(null, 0, 0);
+  const n2 = createNode(null, 100, 0);
+  p.nodes.push(n1, n2);
+  const e1 = createEdge(n1.id, n2.id);
+  p.edges.push(e1);
+  p.animationSteps.push(createAnimationStep('node', n1.id, { revealMode: 'auto', delayMs: 3000 }), createAnimationStep('edge', e1.id));
+
+  const copy = duplicateProject(p);
+  assert.equal(copy.animationSteps.length, 2);
+  assert.notEqual(copy.animationSteps[0].id, p.animationSteps[0].id);
+  assert.equal(copy.animationSteps[0].targetId, copy.nodes[0].id);
+  assert.equal(copy.animationSteps[0].revealMode, 'auto');
+  assert.equal(copy.animationSteps[0].delayMs, 3000);
+  assert.equal(copy.animationSteps[1].targetId, copy.edges[0].id);
+});
+
+test('duplicateProject drops an animation step whose target did not survive the copy', () => {
+  const p = createEmptyProject();
+  const n1 = createNode(null, 0, 0);
+  const n2 = createNode(null, 100, 0);
+  p.nodes.push(n1, n2);
+  const danglingEdge = createEdge(n1.id, n2.id);
+  // Not pushed into p.edges — simulates a since-deleted edge an older
+  // build's animation step still references.
+  p.animationSteps.push(createAnimationStep('edge', danglingEdge.id));
+  const copy = duplicateProject(p);
+  assert.deepEqual(copy.animationSteps, []);
 });

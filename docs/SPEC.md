@@ -1183,6 +1183,32 @@ than a bare step number. The current position is marked "You are here";
 clicking any other entry jumps straight to that point in one action instead
 of pressing undo/redo repeatedly.
 
+### 4.36 Diagram Animation
+"🎞️ Diagram Animation" (Tools menu) builds an ordered, numbered reveal
+sequence out of any components and connectors already on the canvas,
+regardless of diagram type. A side panel ("Diagram Animation") lists every
+item currently in the sequence with its order number and name, plus a
+per-item "Auto" (reveal automatically after a configurable delay, default
+2s) / "Click" (reveal only on the next click/keypress) setting and ▲/▼
+reorder controls; an "Add more" section lists everything not yet included,
+each with a one-click "+ Add". Right-clicking a component or connector also
+offers a quick "Add to Animation"/"Remove from Animation" toggle. While
+editing (not currently playing), a small numbered badge appears directly on
+the canvas over every item in the sequence, showing its order.
+
+"▶️ Play Animation" enters a presentation view — reusing Presenter Mode's
+chrome-hiding — that hides every not-yet-revealed item and reveals them one
+at a time per the configured order/timing. Floating playback controls
+(prev/next/step counter) appear at the bottom of the screen; the → arrow key
+(or N) advances a step, ← (or P) goes back one, and a plain click anywhere
+on the canvas also advances a pending "Click" step. Escape exits playback
+and returns to the normal editing view. A 🖊️ "freeze" toggle (or the D key)
+pauses advancement and opens a full-screen transparent drawing layer with a
+small color palette, so the presenter can annotate the frozen diagram live;
+"Done" clears the markup and resumes. The animation's own sequence and
+per-step settings export/import as a standalone JSON file, independent of
+the diagram itself.
+
 ## 5. Non-functional requirements
 
 - **Security**: no `eval`/`innerHTML` with unsanitized input, no inline

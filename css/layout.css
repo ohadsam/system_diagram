@@ -93,14 +93,39 @@
   width: var(--outline-panel-width);
 }
 
+#animation-panel {
+  flex: 0 0 0;
+  width: 0;
+  overflow: hidden;
+  border-left: 1px solid var(--color-border);
+  background: var(--color-surface);
+  transition: width 0.18s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+#animation-panel.open {
+  flex: 0 0 var(--animation-panel-width);
+  width: var(--animation-panel-width);
+}
+
 /* Presenter/Kiosk clean mode (see core/kioskMode.js) — hides every piece of
    chrome around the canvas so it fills the whole viewport. #canvas-viewport
    needs no rule of its own: it's already the sole `flex: 1 1 auto` item in
-   .app-body, so it fills whatever space the hidden siblings stop claiming. */
+   .app-body, so it fills whatever space the hidden siblings stop claiming.
+   #animation-panel is included here too — Diagram Animation playback (see
+   core/animationPlayback.js) reuses this same kiosk-mode chrome-hiding as
+   its base, so the editing panel must disappear the moment playback starts,
+   same as every other piece of editing chrome. .suggestion-banner is also
+   hidden here: it's a fixed bottom-of-screen toast (js/canvas/suggestions.js)
+   that otherwise visually collides with the animation playback controls,
+   which occupy that same screen area during a presentation. */
 body.kiosk-mode #toolbar,
 body.kiosk-mode #sidebar,
 body.kiosk-mode #details-panel,
 body.kiosk-mode #outline-panel,
-body.kiosk-mode #ai-review-panel {
+body.kiosk-mode #ai-review-panel,
+body.kiosk-mode #animation-panel,
+body.kiosk-mode .suggestion-banner {
   display: none;
 }

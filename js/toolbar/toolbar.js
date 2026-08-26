@@ -48,6 +48,7 @@ import { openScaleDiagramModal } from '../modals/scaleDiagramModal.js';
 import { openDiagramThemeModal } from '../modals/diagramThemeModal.js';
 import { setMinimapVisible } from '../canvas/minimap.js';
 import { toggleOutlinePanel } from '../panel/outlinePanel.js';
+import { toggleAnimationPanel } from '../panel/animationPanel.js';
 import { initProjectTabsBar } from './projectTabsBar.js';
 import { openAddTabModal } from '../modals/addTabModal.js';
 import { openCommandPaletteModal } from '../modals/commandPaletteModal.js';
@@ -560,7 +561,14 @@ function buildToolsGroupButtons() {
     onClick: toggleKioskMode,
   });
   onKioskModeChange((active) => presenterModeBtn.classList.toggle('active', active));
-  return [gridBtn, minimapBtn, focusModeBtn, alignGuidesBtn, themeBtn, aiReviewBtn, outlineBtn, lintBtn, costBtn, autoArrangeBtn, distributeBtn, scaleBtn, diagramThemeBtn, presenterModeBtn];
+  const animationBtn = el('button', {
+    type: 'button',
+    class: 'btn',
+    title: 'Diagram Animation: build a numbered reveal sequence out of components and connectors, then play it back step by step',
+    text: '🎞️ Diagram Animation',
+    onClick: toggleAnimationPanel,
+  });
+  return [gridBtn, minimapBtn, focusModeBtn, alignGuidesBtn, themeBtn, aiReviewBtn, outlineBtn, lintBtn, costBtn, autoArrangeBtn, distributeBtn, scaleBtn, diagramThemeBtn, presenterModeBtn, animationBtn];
 }
 
 function buildHelpGroupButtons() {

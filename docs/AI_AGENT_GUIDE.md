@@ -144,6 +144,8 @@ this repo" quick-start.
 | Change Presenter Mode | `js/core/kioskMode.js` (on/off pub-sub, deliberately not persisted) + `js/toolbar/kioskModeUi.js` (the floating exit button — the only chrome left once the toolbar itself is hidden) + `css/layout.css`'s `body.kiosk-mode` rules + `main.js#initKeyboardShortcuts` (Escape also exits it) |
 | Change large-diagram rendering perf (off-screen culling) | `css/node.css`'s `.node-body { content-visibility: auto; }` + the `.canvas-viewport.exporting .node-body` override that forces it back off during PNG/PDF capture. **Read** docs/ARCHITECTURE.md's "Large-diagram rendering performance" section before moving this rule onto `.node` itself or onto anything `.node-external-label` is nested inside — see "Common pitfalls" below. |
 | Change the duplicate-tab warning | `js/io/duplicateTabWarning.js` (`initDuplicateTabWarning` — a `BroadcastChannel`, not a localStorage lock flag; returns a `dispose()` used only by its own unit test) |
+| Change Diagram Animation (editing) | `js/core/project.js` (`animationSteps` schema, `createAnimationStep`, `validateAnimationSteps`, cascade-cleanup in `removeNode`/`removeEdge`) + `js/canvas/canvas.js`'s "Diagram Animation" section (add/remove/reorder/patch, all ordinary `store.dispatch` calls — undo/redo and JSON export/import cover it for free) + `js/panel/animationPanel.js` (the side panel) + `js/io/exportAnimation.js` (standalone export/import, separate from project JSON) |
+| Change Diagram Animation (playback) | `js/core/animationPlayback.js` (the step-through state machine — pub-sub, own snapshot, not store-backed) + `js/canvas/animationOverlay.js` (floating prev/next/freeze+draw controls, mounted once at boot) + `js/canvas/canvas.js`'s `startAnimationPlayback`/`stopAnimationPlayback` (the join point with Presenter Mode — always exit via `stopAnimationPlayback()`, never `setKioskMode(false)` directly, or the playback timers desync from the chrome). **Read** docs/ARCHITECTURE.md's "Diagram Animation" section first — it also explains why `renderAnimationBadges`/`applyAnimationVisibility` need their own `onAnimationChange` subscription in `initCanvas`, separate from the normal store-driven `render()`. |
 
 ## Running things locally
 
@@ -688,3 +690,26 @@ npm test
   on/off-screen relevance the real renderer would) — don't remove it as
   "unnecessary" without re-verifying PNG/PDF export of a diagram with
   off-screen content first.
+- **`body.kiosk-mode`'s hidden-chrome list (`css/layout.css`) is a hand-
+  -maintained selector list, not "everything fixed-position."** Adding
+  Diagram Animation's floating playback controls surfaced a case that had
+  been there all along but never mattered until now: the Smart Suggestions
+  `.suggestion-banner` toast wasn't on that list, so it could render right
+  on top of the new bottom-of-screen controls during a presentation. Any
+  new fixed/absolute-positioned toast, banner, or overlay needs adding to
+  that same `body.kiosk-mode` selector list explicitly — it does not
+  disappear automatically just because Presenter/Kiosk Mode is "supposed to"
+  hide all non-canvas chrome.
+- **A feature whose start/stop never goes through `store.dispatch()` won't
+  trigger the normal store-driven `render()`.** Diagram Animation's playback
+  (`core/animationPlayback.js`) is deliberately its own pub-sub, not part of
+  project state — starting/stopping it only touches kiosk mode and its own
+  module state, never the store. Anything in `canvas.js` that needs to
+  react to playback starting/stopping (the on-canvas order badges in
+  `renderAnimationBadges`, the `.anim-hidden` toggle in
+  `applyAnimationVisibility`) has to be wired to `onAnimationChange`
+  directly in `initCanvas`, not assumed to run again just because it's also
+  called from `render()` — otherwise it only ever updates on the *next*
+  unrelated store change, which can be arbitrarily far in the future (e.g.
+  the order badges silently staying gone after a presentation ends until
+  the next edit).

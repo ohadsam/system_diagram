@@ -6,6 +6,8 @@
 // bare canvas.
 import { el } from '../utils/dom.js';
 import { isKioskMode, setKioskMode, onKioskModeChange } from '../core/kioskMode.js';
+import { isAnimationPlaying } from '../core/animationPlayback.js';
+import { stopAnimationPlayback } from '../canvas/canvas.js';
 
 export function initKioskModeUi() {
   document.body.classList.toggle('kiosk-mode', isKioskMode());
@@ -15,7 +17,11 @@ export function initKioskModeUi() {
     class: 'kiosk-exit-btn',
     title: 'Exit Presenter Mode (Esc)',
     text: '✕ Exit Presenter Mode',
-    onClick: () => setKioskMode(false),
+    // Diagram Animation playback (canvas.js#startAnimationPlayback) turns
+    // kiosk mode on as its base — exiting must stop the animation's own
+    // state machine too, not just hide the chrome back on, or its timers
+    // and revealed-step position would keep running invisibly underneath.
+    onClick: () => { if (isAnimationPlaying()) stopAnimationPlayback(); else setKioskMode(false); },
   });
   document.body.appendChild(btn);
 

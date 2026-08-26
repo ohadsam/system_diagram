@@ -27,6 +27,11 @@ export const REPLICATION_MODES = ['active-active', 'active-passive', 'primary-re
 // rendering. Deliberately just one condition per box (no alt/else divider
 // line) — see data/categories/sequence-templates.js's fragment shapes.
 export const FRAGMENT_TYPES = ['alt', 'opt', 'loop', 'par', 'critical', 'break', 'ref'];
+// How a Diagram Animation step reveals during playback — see
+// core/animationPlayback.js and docs/ARCHITECTURE.md's "Diagram Animation"
+// section. 'auto' fires on its own after `delayMs`; 'click' waits for the
+// presenter to advance manually (mouse click or a keyboard shortcut).
+export const ANIMATION_REVEAL_MODES = ['auto', 'click'];
 
 export function createEmptyProject(name = 'Untitled Diagram') {
   const now = new Date().toISOString();
@@ -56,6 +61,23 @@ export function createEmptyProject(name = 'Untitled Diagram') {
     // core/project.js#createComment). Part of the project itself, same
     // "travels with export/import/backup" reasoning as `versions` above.
     comments: [],
+    // Diagram Animation — an ordered "build" sequence of nodes/edges to
+    // progressively reveal during playback (see canvas.js#startAnimationPlayback
+    // and docs/ARCHITECTURE.md's "Diagram Animation" section). Order is just
+    // the array position (no separate order field to keep in sync); an item
+    // never added here is always visible, animated or not.
+    animationSteps: [],
+  };
+}
+
+export function createAnimationStep(targetType, targetId, overrides = {}) {
+  return {
+    id: nextId('anim'),
+    targetType,
+    targetId,
+    revealMode: 'click',
+    delayMs: 2000,
+    ...overrides,
   };
 }
 
@@ -260,6 +282,17 @@ export function duplicateProject(project) {
     // so — unlike versions/presentations above — they do carry over; only
     // their ids are regenerated, same "never shares identity" contract.
     comments: (project.comments || []).map((c) => ({ ...c, id: nextId('comment') })),
+    // Same reasoning as comments: the animation sequence is content, not
+    // history, so it carries over — remapped onto the copy's own fresh
+    // node/edge ids, dropping any step whose target didn't survive the
+    // copy (filtered out above, e.g. an edge whose node no longer exists).
+    animationSteps: (project.animationSteps || [])
+      .filter((s) => (s.targetType === 'node' ? nodeIdMap.has(s.targetId) : edgeIdMap.has(s.targetId)))
+      .map((s) => ({
+        ...s,
+        id: nextId('anim'),
+        targetId: s.targetType === 'node' ? nodeIdMap.get(s.targetId) : edgeIdMap.get(s.targetId),
+      })),
   };
 }
 
@@ -299,12 +332,17 @@ export function nextZIndex(project) {
 }
 
 export function removeNode(project, nodeId) {
+  const removedEdgeIds = new Set(project.edges.filter((e) => e.from === nodeId || e.to === nodeId).map((e) => e.id));
   project.nodes = project.nodes.filter((n) => n.id !== nodeId);
   project.edges = project.edges.filter((e) => e.from !== nodeId && e.to !== nodeId);
+  project.animationSteps = (project.animationSteps || []).filter((s) => !(
+    (s.targetType === 'node' && s.targetId === nodeId) || (s.targetType === 'edge' && removedEdgeIds.has(s.targetId))
+  ));
 }
 
 export function removeEdge(project, edgeId) {
   project.edges = project.edges.filter((e) => e.id !== edgeId);
+  project.animationSteps = (project.animationSteps || []).filter((s) => !(s.targetType === 'edge' && s.targetId === edgeId));
 }
 
 export function touch(project) {
@@ -491,6 +529,26 @@ function validatePresentations(rawPresentations, versions) {
     }));
 }
 
+/** Validates `project.animationSteps` — a step whose target node/edge
+ * doesn't exist (deleted by an older build that didn't cascade the removal,
+ * or an imported animation file applied to the wrong diagram — see
+ * io/exportAnimation.js) is dropped rather than kept as a dangling
+ * reference, same "never a broken reference" contract as
+ * validatePresentations above. */
+function validateAnimationSteps(rawSteps, nodeIds, edgeIds) {
+  if (!Array.isArray(rawSteps)) return [];
+  return rawSteps
+    .filter((s) => s && typeof s === 'object' && (s.targetType === 'node' || s.targetType === 'edge') && typeof s.targetId === 'string')
+    .filter((s) => (s.targetType === 'node' ? nodeIds.has(s.targetId) : edgeIds.has(s.targetId)))
+    .map((s) => ({
+      id: typeof s.id === 'string' && s.id ? s.id : nextId('anim'),
+      targetType: s.targetType,
+      targetId: s.targetId,
+      revealMode: ANIMATION_REVEAL_MODES.includes(s.revealMode) ? s.revealMode : 'click',
+      delayMs: Number.isFinite(s.delayMs) && s.delayMs > 0 ? s.delayMs : 2000,
+    }));
+}
+
 /**
  * Validate an arbitrary parsed-JSON value as a project, returning
  * { ok: true, project } with unknown/invalid fields coerced to safe
@@ -507,6 +565,7 @@ export function validateProject(input) {
     const versions = validateVersions(input.versions);
     const presentations = validatePresentations(input.presentations, versions);
     const comments = validateComments(input.comments);
+    const animationSteps = validateAnimationSteps(input.animationSteps, new Set(nodes.map((n) => n.id)), new Set(edges.map((e) => e.id)));
 
     const project = {
       formatVersion: FORMAT_VERSION,
@@ -525,6 +584,7 @@ export function validateProject(input) {
       versions,
       presentations,
       comments,
+      animationSteps,
     };
     return { ok: true, project };
   } catch (err) {

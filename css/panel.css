@@ -430,3 +430,180 @@ body.resizing-details-panel {
   text-align: center;
   margin-top: var(--space-3);
 }
+
+/* Diagram Animation panel — same header/search/body structure as the
+   Outline panel just above (see panel/animationPanel.js). */
+.animation-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  flex: 0 0 auto;
+}
+
+.animation-header h2 {
+  flex: 1 1 auto;
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.animation-close {
+  font-size: 14px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  flex: 0 0 auto;
+}
+
+.animation-close:hover {
+  background: var(--color-surface-alt);
+}
+
+.animation-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: var(--space-3) var(--space-4) var(--space-4);
+}
+
+.animation-play-btn {
+  width: 100%;
+  justify-content: center;
+}
+
+.animation-io-row {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.animation-io-row .btn {
+  flex: 1 1 0;
+}
+
+.animation-empty-hint {
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+  text-align: center;
+  margin: var(--space-2) 0 0;
+}
+
+.animation-section {
+  margin-top: var(--space-4);
+}
+
+.animation-section h3 {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-muted);
+  margin: 0 0 var(--space-2);
+}
+
+.animation-step-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.animation-step-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+}
+
+.animation-step-order {
+  flex: 0 0 auto;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.animation-step-icon {
+  flex: 0 0 auto;
+  font-size: 13px;
+}
+
+.animation-step-label {
+  flex: 1 1 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.animation-step-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1 1 auto;
+}
+
+.animation-step-controls select {
+  font-size: 11.5px;
+  padding: 2px 4px;
+}
+
+.animation-step-delay {
+  width: 52px;
+  font-size: 11.5px;
+  padding: 2px 4px;
+  text-align: center;
+}
+
+.animation-step-move,
+.animation-step-remove {
+  flex: 0 0 auto;
+  font-size: 11px;
+  padding: 2px 5px;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+}
+
+.animation-step-move:hover,
+.animation-step-remove:hover {
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+}
+
+.animation-search {
+  width: 100%;
+  margin-bottom: var(--space-2);
+}
+
+.animation-add-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.animation-add-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 4px var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.animation-add-row:hover {
+  background: var(--color-surface-alt);
+}
+
+.animation-add-row .animation-step-label {
+  flex: 1 1 auto;
+}

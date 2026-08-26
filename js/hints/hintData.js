@@ -24,4 +24,5 @@ export const HINTS = [
   { id: 'hint-history-timeline', target: '.toolbar-row-main', placement: 'bottom', text: '🕘 File → Undo History shows a visual timeline of every edit — click any past step to jump straight there instead of pressing undo repeatedly.' },
   { id: 'hint-project-tabs', target: '.toolbar-row-main', placement: 'bottom', text: '🗂️ File → Open in New Tab... opens another saved diagram (or a new blank one) alongside your current one — a tab strip appears above the toolbar to switch between them.' },
   { id: 'hint-presenter-mode', target: '.toolbar-row-main', placement: 'bottom', text: '🖥️ Tools → Presenter Mode hides all the editing chrome for a clean, full-screen view of just the canvas — press Esc or the floating Exit button to come back.' },
+  { id: 'hint-diagram-animation', target: '.toolbar-row-main', placement: 'bottom', text: '🎞️ Tools → Diagram Animation lets you number components and connectors into a reveal sequence, then play it back step by step — advance with →, go back with ←, or freeze (D) to draw on top and explain.' },
 ];

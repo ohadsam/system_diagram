@@ -2,7 +2,9 @@
 // store, and owns pan/zoom/marquee-selection. See docs/ARCHITECTURE.md
 // "Canvas rendering".
 import * as store from '../core/store.js';
-import { createEdge, nextZIndex, removeNode as removeNodeFromProject, removeEdge as removeEdgeFromProject, createNode, duplicateProject, createVersionSnapshot, removeVersion as removeVersionFromProject, createComment } from '../core/project.js';
+import { createEdge, nextZIndex, removeNode as removeNodeFromProject, removeEdge as removeEdgeFromProject, createNode, duplicateProject, createVersionSnapshot, removeVersion as removeVersionFromProject, createComment, createAnimationStep } from '../core/project.js';
+import { onAnimationChange, isAnimationPlaying, getAnimationPlaybackState, startPlayback, stopPlayback } from '../core/animationPlayback.js';
+import { setKioskMode } from '../core/kioskMode.js';
 import { buildReplicationPair } from '../core/replication.js';
 import { computeAutoLayout } from '../core/autoLayout.js';
 import { layoutLifelines, distributeLifelineColumns, distributeMessages, layoutImportedSequenceDiagram, GAP as LIFELINE_GAP } from '../core/sequenceDiagram.js';
@@ -42,10 +44,12 @@ let groupBgLayer = null;
 let marqueeEl = null;
 let guideLayer = null;
 let commentLayer = null;
+let animBadgeLayer = null;
 
 const nodeElements = new Map();
 const edgeElements = new Map();
 const groupBgElements = new Map();
+const animBadgeElements = new Map();
 // Session-only opt-out ("✕" on a group's own background) — a group that
 // dissolves (drops below 2 members) naturally falls out of
 // computeGroupBounds() and is cleaned up in render() below regardless of
@@ -84,6 +88,12 @@ export function initCanvas(root) {
   // to be pinned near.
   commentLayer = el('div', { class: 'comment-layer' });
   contentEl.appendChild(commentLayer);
+  // Diagram Animation's order badges (edit-time only, see
+  // renderAnimationBadges) — its own layer for the same reason
+  // commentLayer/guideLayer are: read-only, canvas-space overlays that must
+  // never intercept clicks meant for a node/edge/the canvas background.
+  animBadgeLayer = el('div', { class: 'anim-badge-layer' });
+  contentEl.appendChild(animBadgeLayer);
   viewportEl.appendChild(contentEl);
 
   marqueeEl = el('div', { class: 'marquee', hidden: true });
@@ -119,6 +129,19 @@ export function initCanvas(root) {
   render(store.getState());
 
   initMinimap(viewportEl);
+
+  // Starting/stopping/stepping playback never touches project data (it's
+  // pure core/animationPlayback.js state), so it never fires the store's
+  // own 'change' event — render() alone would leave the order badges gone
+  // forever after a presentation ends, since nothing else would ever call
+  // it again. Re-running both here keeps badges and hidden-state in sync
+  // with every animation change, not just data edits.
+  onAnimationChange(() => {
+    const state = store.getState();
+    const nodesById = new Map(state.nodes.map((n) => [n.id, n]));
+    renderAnimationBadges(state, nodesById);
+    applyAnimationVisibility(state);
+  });
 }
 
 function wireWheel() {
@@ -350,6 +373,8 @@ function render(state) {
   syncWaypointHandles(state, store.getSelection());
   renderCommentPins(state.comments || []);
   applyFocusDimming(store.getSelection());
+  renderAnimationBadges(state, nodesById);
+  applyAnimationVisibility(state);
 }
 
 // ---- Focus Mode ----
@@ -534,6 +559,158 @@ export function deletePresentation(presentationId) {
   store.dispatch((draft) => {
     draft.presentations = (draft.presentations || []).filter((p) => p.id !== presentationId);
   });
+}
+
+// ---- Diagram Animation ----
+// An ordered "build" sequence of nodes/edges to progressively reveal during
+// playback — see core/project.js's `animationSteps` field,
+// core/animationPlayback.js (the playback state machine), and
+// panel/animationPanel.js (the editing UI). Order is just array position;
+// an item never added here is always visible, animated or not.
+
+export function getAnimationSteps() {
+  return store.getState().animationSteps || [];
+}
+
+/** No-op if `targetId` is already in the sequence — called from both the
+ * panel's "add" button and the node/edge context menu, either of which
+ * could otherwise add the same item twice in a row. */
+export function addAnimationStep(targetType, targetId) {
+  if (getAnimationSteps().some((s) => s.targetType === targetType && s.targetId === targetId)) return null;
+  const step = createAnimationStep(targetType, targetId);
+  store.dispatch((draft) => {
+    draft.animationSteps = [...(draft.animationSteps || []), step];
+  });
+  return step;
+}
+
+export function removeAnimationStep(stepId) {
+  if (!stepId) return;
+  store.dispatch((draft) => {
+    draft.animationSteps = (draft.animationSteps || []).filter((s) => s.id !== stepId);
+  });
+}
+
+/** Moves a step earlier (`direction: -1`) or later (`direction: 1`) in the
+ * sequence. No-op (not even a wasted undo entry) if the move would go past
+ * either end — checked before dispatching, same convention as
+ * `revertToVersion`'s not-found guard above. */
+export function reorderAnimationStep(stepId, direction) {
+  const steps = getAnimationSteps();
+  const idx = steps.findIndex((s) => s.id === stepId);
+  const targetIdx = idx + direction;
+  if (idx === -1 || targetIdx < 0 || targetIdx >= steps.length) return;
+  const next = [...steps];
+  [next[idx], next[targetIdx]] = [next[targetIdx], next[idx]];
+  store.dispatch((draft) => { draft.animationSteps = next; });
+}
+
+/** Patches one step's own settings (`revealMode`/`delayMs`) — the panel's
+ * per-row controls call this on every change. */
+export function updateAnimationStepSettings(stepId, patch) {
+  store.dispatch((draft) => {
+    draft.animationSteps = (draft.animationSteps || []).map((s) => (s.id === stepId ? { ...s, ...patch } : s));
+  });
+}
+
+/** Bulk-replaces the whole sequence — used by io/exportAnimation.js's
+ * import flow, which always replaces rather than merges (see its own
+ * header comment for why). */
+export function setAnimationSteps(steps) {
+  store.dispatch((draft) => {
+    draft.animationSteps = steps;
+  });
+}
+
+/** Small numbered badges over every node/edge currently in the animation
+ * sequence — editing-time-only feedback so the order is visible directly on
+ * the diagram, not just in the side panel. Purely a read-only overlay (its
+ * own layer, `pointer-events: none` — see css/canvas.css) computed from
+ * project data, same reasoning as connector.js's sequence-number badges;
+ * kept as a separate layer rather than added to node.js/connector.js so
+ * this feature never has to touch those two already-complex, heavily
+ * tested files. Hidden entirely while playback is running — it's an
+ * authoring aid, not something the audience should see. */
+function renderAnimationBadges(state, nodesById) {
+  const steps = state.animationSteps || [];
+  if (!steps.length || isAnimationPlaying()) {
+    for (const [, elRef] of animBadgeElements) elRef.remove();
+    animBadgeElements.clear();
+    return;
+  }
+  const seen = new Set();
+  steps.forEach((step, index) => {
+    let pos = null;
+    if (step.targetType === 'node') {
+      const n = nodesById.get(step.targetId);
+      if (n) pos = { x: n.x, y: n.y + n.h };
+    } else {
+      const edge = state.edges.find((e) => e.id === step.targetId);
+      const fromNode = edge && nodesById.get(edge.from);
+      const toNode = edge && nodesById.get(edge.to);
+      if (fromNode && toNode) {
+        const a = sideAnchor(fromNode, edge.fromSide, edge.fromOffset ?? 0.5);
+        const b = sideAnchor(toNode, edge.toSide, edge.toOffset ?? 0.5);
+        pos = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      }
+    }
+    if (!pos) return;
+    seen.add(step.id);
+    let elRef = animBadgeElements.get(step.id);
+    if (!elRef) {
+      elRef = el('div', { class: 'anim-badge' });
+      animBadgeElements.set(step.id, elRef);
+      animBadgeLayer.appendChild(elRef);
+    }
+    elRef.textContent = String(index + 1);
+    elRef.style.left = `${pos.x - 11}px`;
+    elRef.style.top = `${pos.y - 11}px`;
+  });
+  for (const [id, elRef] of animBadgeElements) {
+    if (!seen.has(id)) {
+      elRef.remove();
+      animBadgeElements.delete(id);
+    }
+  }
+}
+
+/** Toggles `.anim-hidden` on every node/edge element per the current
+ * playback position (see core/animationPlayback.js) — re-run on every
+ * playback change (next/prev/freeze) via `onAnimationChange`, and on every
+ * normal store `render()` too so a live edit during playback (rare, but
+ * kiosk mode doesn't block canvas interaction) doesn't leave a stale class
+ * behind. A no-op, fully-visible pass when nothing is playing. */
+function applyAnimationVisibility(state) {
+  if (!isAnimationPlaying()) {
+    for (const [, elRef] of nodeElements) elRef.classList.remove('anim-hidden');
+    for (const [, elRef] of edgeElements) elRef.classList.remove('anim-hidden');
+    return;
+  }
+  const { steps, revealedCount } = getAnimationPlaybackState();
+  const hidden = new Set(steps.slice(revealedCount).map((s) => `${s.targetType}:${s.targetId}`));
+  for (const [id, elRef] of nodeElements) elRef.classList.toggle('anim-hidden', hidden.has(`node:${id}`));
+  for (const [id, elRef] of edgeElements) elRef.classList.toggle('anim-hidden', hidden.has(`edge:${id}`));
+}
+
+/** Enters Diagram Animation playback — reuses Presenter Mode's chrome-
+ * hiding (see core/kioskMode.js) as the base, then layers the reveal-by-
+ * reveal state machine on top (core/animationPlayback.js). Clears the
+ * selection first since nothing should read as "selected" during a
+ * presentation. */
+export function startAnimationPlayback() {
+  const steps = getAnimationSteps();
+  if (!steps.length) {
+    showToast('Add at least one step to the animation before playing.', 'error');
+    return;
+  }
+  store.select([], []);
+  setKioskMode(true);
+  startPlayback(steps);
+}
+
+export function stopAnimationPlayback() {
+  stopPlayback();
+  setKioskMode(false);
 }
 
 /** One subtle bounding box behind every multi-member group — a regular
@@ -1626,8 +1803,19 @@ function openNodeContextMenu(nodeId, evt) {
       onClick: () => window.dispatchEvent(new CustomEvent('sdb:open-replication', { detail: { nodeId } })),
     });
   }
-  items.push('separator', { label: 'Delete', icon: '🗑️', danger: true, onClick: () => { store.select([nodeId], []); deleteSelection(); } });
+  items.push('separator', animationMenuItem('node', nodeId));
+  items.push({ label: 'Delete', icon: '🗑️', danger: true, onClick: () => { store.select([nodeId], []); deleteSelection(); } });
   showContextMenu(evt.clientX, evt.clientY, items);
+}
+
+/** Shared node/edge context-menu entry for Diagram Animation — toggles
+ * whether this item is part of the animation's reveal sequence, without
+ * requiring the animation panel to be open first. */
+function animationMenuItem(targetType, targetId) {
+  const inAnimation = getAnimationSteps().some((s) => s.targetType === targetType && s.targetId === targetId);
+  return inAnimation
+    ? { label: 'Remove from Animation', icon: '🎞️', onClick: () => removeAnimationStep(getAnimationSteps().find((s) => s.targetType === targetType && s.targetId === targetId)?.id) }
+    : { label: 'Add to Animation', icon: '🎞️', onClick: () => addAnimationStep(targetType, targetId) };
 }
 
 function openEdgeContextMenu(edgeId, evt) {
@@ -1661,6 +1849,7 @@ function openEdgeContextMenu(edgeId, evt) {
     'separator',
     { label: 'Duplicate', icon: '⧉', onClick: () => { store.select([], [edgeId]); duplicateSelection(); } },
     'separator',
+    animationMenuItem('edge', edgeId),
     { label: 'Delete connector', icon: '🗑️', danger: true, onClick: () => { store.select([], [edgeId]); deleteSelection(); } },
   );
   showContextMenu(evt.clientX, evt.clientY, items);

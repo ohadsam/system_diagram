@@ -2,9 +2,19 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.29.0';
+export const APP_VERSION = '1.30.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.30.0',
+    date: '2026-08-26',
+    highlights: [
+      'New "🎞️ Diagram Animation" (Tools menu) — build a numbered reveal sequence out of any components and connectors on the canvas, in a side panel showing each item\'s name and order; set each step to reveal automatically after a delay or only on a click/right-arrow. Right-click a component or connector for a quick "Add to Animation"/"Remove from Animation" shortcut, and a small numbered badge shows its place in the sequence right on the canvas.',
+      '"▶️ Play Animation" enters a presentation view (reusing Presenter Mode\'s clean, chrome-free look) and reveals the sequence step by step — advance with →/N/a click, go back with ←/P, and Esc exits cleanly.',
+      'Freeze the animation mid-presentation (D, or the 🖊️ button) to draw freely on top of the frozen diagram — handy for pointing things out live — then hit Done to clear the markup and resume.',
+      'Export/import a diagram\'s animation sequence as its own JSON file, independent of the diagram itself, so a build order can be reused or shared separately.',
+    ],
+  },
   {
     version: '1.29.0',
     date: '2026-08-25',

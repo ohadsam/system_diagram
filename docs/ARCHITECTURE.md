@@ -20,9 +20,12 @@ index.html ──► js/main.js
                  ├─ panel/detailsPanel.js
                  ├─ panel/aiReviewPanel.js
                  ├─ panel/outlinePanel.js (searchable canvas table-of-contents)
+                 ├─ panel/animationPanel.js (Diagram Animation's step list/editor)
                  ├─ core/kioskMode.js    (Presenter Mode's on/off pub-sub)
+                 ├─ core/animationPlayback.js (Diagram Animation's step-through state machine)
+                 ├─ canvas/animationOverlay.js (Diagram Animation's floating playback controls + draw layer)
                  ├─ modals/*.js          (incl. modals/generateDesignModal.js, modals/replicationModal.js, modals/sequenceDiagramModal.js)
-                 ├─ io/*.js              (localStorage, file, image/pdf export, incl. io/projectTabs.js, io/duplicateTabWarning.js)
+                 ├─ io/*.js              (localStorage, file, image/pdf export, incl. io/projectTabs.js, io/duplicateTabWarning.js, io/exportAnimation.js)
                  └─ hints/hints.js
 ```
 
@@ -2741,6 +2744,80 @@ always-in-the-DOM `.kiosk-exit-btn` (shown only via `body.kiosk-mode
 is the highest value in the app's z-index scale (`css/variables.css`) since
 this button must stay clickable over literally everything else still able
 to render, including a toast.
+
+## Diagram Animation (`core/animationPlayback.js`, `panel/animationPanel.js`, `canvas/animationOverlay.js`, `io/exportAnimation.js`)
+
+An ordered "build" sequence over `project.animationSteps` (see
+`core/project.js`) — each step is `{ id, targetType: 'node'|'edge', targetId,
+revealMode: 'auto'|'click', delayMs }`, order is just array position. Editing
+(add/remove/reorder/patch settings, all in `canvas/canvas.js`'s "Diagram
+Animation" section) goes through ordinary `store.dispatch` calls, so
+undo/redo, JSON export/import, `duplicateProject`, and cascade-delete on
+node/edge removal (`removeNode`/`removeEdge` in `core/project.js`) all cover
+it for free — no animation-specific persistence code needed anywhere except
+the schema itself.
+
+Playback is a separate concern, deliberately not store-backed:
+`core/animationPlayback.js` is a tiny pub-sub (same shape as
+`core/kioskMode.js`/`canvas/toolMode.js`) holding its own snapshot of
+`{ playing, steps, revealedCount, frozen }` plus a `setTimeout` handle for
+the current auto-step. It's a snapshot rather than a live store read because
+canvas.js keeps rendering normally during playback (kiosk mode only hides
+chrome, it doesn't freeze interaction), so the sequence needs to stay stable
+for the whole presentation even if the diagram were edited mid-playback.
+`startAnimationPlayback()` (`canvas/canvas.js`) is the join point: it clears
+selection, turns on Presenter Mode's existing `setKioskMode(true)`, then
+hands the current steps to `startPlayback()` — reusing "hide all the chrome"
+rather than reimplementing it. Exiting must go through
+`stopAnimationPlayback()` (not `setKioskMode(false)` directly) so the
+playback state machine's timers/position reset in lockstep with the chrome
+reappearing; both `toolbar/kioskModeUi.js`'s exit button and
+`main.js#initKeyboardShortcuts`'s Escape handler check `isAnimationPlaying()`
+to route there instead.
+
+`canvas/canvas.js` renders two purely-derived, non-persisted layers on top
+of the normal node/edge rendering: small numbered `.anim-badge` order badges
+(own overlay layer + `Map<id, element>`, same diff-by-id pattern as
+`commentPins.js`/`minimap.js` — kept out of `node.js`/`connector.js`
+entirely so this feature never touches those already-complex files) shown
+only while editing, and a `.anim-hidden` class toggle on `nodeElements`/
+`edgeElements` driven by `getAnimationPlaybackState()` while playing. Both
+are re-run from an `onAnimationChange` subscription in `initCanvas` (not
+just from the normal store-driven `render()`) since starting/stopping
+playback never dispatches to the store — without that separate
+subscription, the order badges would never reappear after a presentation
+ends.
+
+`canvas/animationOverlay.js` mounts the floating prev/next/step-indicator
+controls and the freeze-and-draw overlay once at boot (visibility toggled
+via `onAnimationChange`, never created/destroyed per session). A capture-
+-phase `document` click listener advances a pending "click" step for a click
+anywhere outside those controls — the reveal-mode setting describes *how* a
+step appears, not a dedicated button the presenter has to aim for. Freezing
+(`setFrozen(true)`, also bound to the D key) pauses any pending auto-timer
+without changing position and opens a full-viewport transparent `<canvas>`
+for freehand annotation; resuming always restarts the current step's full
+delay rather than tracking a partial remaining time, and the draw canvas is
+cleared on the way out of each freeze so no stale marks flash on the diagram
+first. `prevStep()` never re-arms an auto-timer on its own — going back
+always requires a manual step forward again, so a correction never "runs
+away" forward a moment later.
+
+`io/exportAnimation.js` exports/imports the sequence as its own JSON file,
+independent of the diagram — `parseAnimationFile` re-validates every step
+against the *current* diagram's actual node/edge ids (silently dropping and
+counting anything orphaned) rather than trusting the file, and always
+assigns fresh step ids rather than reusing the ones in the file.
+
+Because kiosk mode's chrome-hiding wasn't originally scoped to every
+bottom-of-screen fixed element, adding a second one here (the playback
+controls) surfaced a pre-existing gap: the Smart Suggestions
+`.suggestion-banner` toast (`canvas/suggestions.js`) wasn't in the
+`body.kiosk-mode` hidden-chrome list in `css/layout.css` and could render
+directly on top of the new controls. Fixed by adding it to that same list —
+worth remembering if a future feature adds another fixed-position toast or
+banner: it needs adding there too, not just to whatever list existed when it
+was written.
 
 ## Large-diagram rendering performance (`css/node.css`)
 

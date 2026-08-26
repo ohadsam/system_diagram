@@ -170,6 +170,24 @@ Gateway, Circuit Breaker, and Saga Coordinator now suggest a relevant new templa
 SSO, Identity Provider, and API Key each gained one more curated pairing alongside their existing
 ones.
 
+## v1.30.0 (2026-08-26)
+
+**Diagram Animation** ("🎞️ Diagram Animation", Tools menu) — number any components and connectors
+on the canvas into an ordered reveal sequence, editable from a new side panel that lists each
+item's order and name, with per-step ▲/▼ reordering and an Auto (timed) / Click reveal-mode
+choice. Right-click a component or connector for a quick "Add to Animation"/"Remove from
+Animation" toggle, and small numbered badges show the current order directly on the canvas while
+editing.
+
+"▶️ Play Animation" enters a Presenter-Mode-style clean view and reveals the sequence step by
+step: →/N or a plain click advances, ←/P goes back, Esc exits. Freeze mid-presentation (D key, or
+the 🖊️ button) to draw freely over the frozen diagram — useful for pointing things out live — then
+"Done" clears the markup and resumes. The sequence and its per-step settings export/import as a
+standalone JSON file, independent of the diagram itself.
+
+Fixed in review: the pre-existing Smart Suggestions toast wasn't hidden by Presenter/Kiosk Mode,
+so it could render on top of the new playback controls — added it to the same chrome-hiding list.
+
 ## v1.29.0 (2026-08-25)
 
 A 7-feature batch: a canvas table-of-contents, a visual undo/redo timeline, Terraform export,

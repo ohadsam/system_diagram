@@ -400,3 +400,104 @@
 body.kiosk-mode .kiosk-exit-btn {
   display: flex;
 }
+
+/* Diagram Animation playback controls (canvas/animationOverlay.js) — shown
+   only while core/animationPlayback.js reports `playing: true` (toggled via
+   JS, same "always in the DOM, hidden by default" approach as
+   .kiosk-exit-btn above, not a body-class selector since visibility here
+   tracks playback state rather than kiosk mode specifically — kiosk mode
+   stays on for the whole presentation, this only appears during it). */
+.anim-playback-controls {
+  display: none;
+  position: fixed;
+  left: 50%;
+  bottom: var(--space-4);
+  transform: translateX(-50%);
+  z-index: var(--z-anim-controls);
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-round);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-lg);
+}
+
+.anim-playback-controls.visible {
+  display: flex;
+}
+
+.anim-playback-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text);
+}
+
+.anim-playback-btn:hover:not(:disabled) {
+  background: var(--color-surface-alt);
+}
+
+.anim-playback-btn.active {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.anim-step-indicator {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  min-width: 44px;
+  text-align: center;
+}
+
+/* The free-draw annotation layer (see canvas/animationOverlay.js) — a
+   full-viewport transparent canvas for the presenter to mark up the frozen
+   diagram live. Ephemeral: never part of project data, cleared every time
+   it's closed. */
+.anim-draw-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-anim-draw);
+}
+
+.anim-draw-overlay.visible {
+  display: block;
+}
+
+.anim-draw-canvas {
+  position: absolute;
+  inset: 0;
+  cursor: crosshair;
+}
+
+.anim-draw-toolbar {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--space-4) * 2 + 48px);
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-round);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-lg);
+}
+
+.anim-draw-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--color-border);
+}
+
+.anim-draw-swatch.active {
+  border-color: var(--color-text);
+}

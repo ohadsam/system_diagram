@@ -261,6 +261,11 @@ Or open `index.html` directly in a browser.
   them back.
 - **Duplicate-tab warning** — opening this app in a second browser tab
   shows a warning, since both share the same autosave/saved-project storage.
+- **🎞️ Diagram Animation** — number components and connectors into an
+  ordered reveal sequence from a side panel (auto-timed or click-to-reveal
+  per step), then play it back step by step in a clean presentation view —
+  advance/go back with the keyboard, freeze to draw over the diagram live,
+  and export/import the sequence as its own file.
 
 See [`help.html`](help.html) for the full interactive user guide.
 
