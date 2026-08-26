@@ -2,7 +2,7 @@
 // store, and owns pan/zoom/marquee-selection. See docs/ARCHITECTURE.md
 // "Canvas rendering".
 import * as store from '../core/store.js';
-import { createEdge, nextZIndex, removeNode as removeNodeFromProject, removeEdge as removeEdgeFromProject, createNode, duplicateProject, createVersionSnapshot, removeVersion as removeVersionFromProject, createComment, createAnimationStep } from '../core/project.js';
+import { createEdge, nextZIndex, removeNode as removeNodeFromProject, removeEdge as removeEdgeFromProject, createNode, duplicateProject, createVersionSnapshot, removeVersion as removeVersionFromProject, createComment, createAnimationStep, createAnimation } from '../core/project.js';
 import { onAnimationChange, isAnimationPlaying, getAnimationPlaybackState, startPlayback, stopPlayback } from '../core/animationPlayback.js';
 import { setKioskMode } from '../core/kioskMode.js';
 import { buildReplicationPair } from '../core/replication.js';
@@ -50,6 +50,20 @@ const nodeElements = new Map();
 const edgeElements = new Map();
 const groupBgElements = new Map();
 const animBadgeElements = new Map();
+// Which `${targetType}:${targetId}` keys were revealed as of the *previous*
+// applyAnimationVisibility() pass — diffed against the current pass to spot
+// a target crossing from hidden to revealed, which gets a one-shot
+// `.anim-just-revealed` pulse (see applyAnimationVisibility).
+let previouslyRevealedAnimKeys = new Set();
+// The active animation's own `autoFocus` setting, captured once at
+// startAnimationPlayback() (not re-read live) so it can't flip mid-
+// -presentation if something edited the project underneath it — same
+// snapshot reasoning core/animationPlayback.js documents for its own
+// `steps`. How many steps had already been auto-focused, so
+// maybeAutoFocusOnReveal() only frames what's *newly* revealed since the
+// last change, not the whole sequence again on every tick.
+let animationPlaybackAutoFocus = false;
+let animationAutoFocusedCount = 0;
 // Session-only opt-out ("✕" on a group's own background) — a group that
 // dissolves (drops below 2 members) naturally falls out of
 // computeGroupBounds() and is cleaned up in render() below regardless of
@@ -141,6 +155,7 @@ export function initCanvas(root) {
     const nodesById = new Map(state.nodes.map((n) => [n.id, n]));
     renderAnimationBadges(state, nodesById);
     applyAnimationVisibility(state);
+    maybeAutoFocusOnReveal(state, nodesById);
   });
 }
 
@@ -562,24 +577,99 @@ export function deletePresentation(presentationId) {
 }
 
 // ---- Diagram Animation ----
-// An ordered "build" sequence of nodes/edges to progressively reveal during
-// playback — see core/project.js's `animationSteps` field,
-// core/animationPlayback.js (the playback state machine), and
-// panel/animationPanel.js (the editing UI). Order is just array position;
-// an item never added here is always visible, animated or not.
+// Any number of named, independently-playable reveal sequences over this
+// project's own nodes/edges — see core/project.js's `animations`/
+// `activeAnimationId` fields, core/animationPlayback.js (the playback state
+// machine), and panel/animationPanel.js (the editing UI, including the
+// animation switcher). A step's `targets` array is normally one item, but
+// can hold several — a "reveal together" group, all sharing one order
+// number — see addAnimationStep. Order is just array position; an item
+// never added to any step of the active animation is always visible,
+// animated or not.
 
-export function getAnimationSteps() {
-  return store.getState().animationSteps || [];
+export function getAnimations() {
+  return store.getState().animations || [];
 }
 
-/** No-op if `targetId` is already in the sequence — called from both the
- * panel's "add" button and the node/edge context menu, either of which
- * could otherwise add the same item twice in a row. */
-export function addAnimationStep(targetType, targetId) {
-  if (getAnimationSteps().some((s) => s.targetType === targetType && s.targetId === targetId)) return null;
-  const step = createAnimationStep(targetType, targetId);
+export function getActiveAnimationId() {
+  return store.getState().activeAnimationId;
+}
+
+export function getActiveAnimation() {
+  const id = getActiveAnimationId();
+  return getAnimations().find((a) => a.id === id) || null;
+}
+
+export function getAnimationSteps() {
+  return getActiveAnimation()?.steps || [];
+}
+
+export function createNewAnimation(name) {
+  const animation = createAnimation(name);
   store.dispatch((draft) => {
-    draft.animationSteps = [...(draft.animationSteps || []), step];
+    draft.animations = [...(draft.animations || []), animation];
+    draft.activeAnimationId = animation.id;
+  });
+  return animation;
+}
+
+export function renameAnimation(animationId, name) {
+  const trimmed = (name || '').trim();
+  if (!trimmed) return;
+  store.dispatch((draft) => {
+    const a = (draft.animations || []).find((x) => x.id === animationId);
+    if (a) a.name = trimmed;
+  });
+}
+
+/** No confirmation here — panel/animationPanel.js's delete button owns
+ * asking first, same division of labor as removeVersionFromProject/its own
+ * modal callers. Falls back to whatever animation is now first in the list
+ * (or none) if the deleted one was active. */
+export function deleteAnimation(animationId) {
+  store.dispatch((draft) => {
+    draft.animations = (draft.animations || []).filter((a) => a.id !== animationId);
+    if (draft.activeAnimationId === animationId) {
+      draft.activeAnimationId = draft.animations[0]?.id ?? null;
+    }
+  });
+}
+
+export function setActiveAnimation(animationId) {
+  store.dispatch((draft) => { draft.activeAnimationId = animationId; });
+}
+
+export function setAnimationAutoFocus(animationId, autoFocus) {
+  store.dispatch((draft) => {
+    const a = (draft.animations || []).find((x) => x.id === animationId);
+    if (a) a.autoFocus = !!autoFocus;
+  });
+}
+
+/** Adds one target (a plain `{targetType, targetId}`) or several at once
+ * (an array — a "reveal together" group, e.g. from a multi-selection's
+ * right-click "Add Selection to Animation") as a single new step. Silently
+ * drops any target already somewhere in the active animation (so
+ * re-triggering an add on an already-included item, or a group add that
+ * partially overlaps an existing step, can never create a duplicate
+ * reference); returns null and creates nothing if that leaves zero targets.
+ * Creates the project's first animation implicitly if none exists yet —
+ * the panel's "New Animation" button is only needed for a *second* one. */
+export function addAnimationStep(targetsInput) {
+  const requested = Array.isArray(targetsInput) ? targetsInput : [targetsInput];
+  const active = getActiveAnimation();
+  const already = new Set((active?.steps || []).flatMap((s) => s.targets.map((t) => `${t.targetType}:${t.targetId}`)));
+  const targets = requested.filter((t) => !already.has(`${t.targetType}:${t.targetId}`));
+  if (!targets.length) return null;
+  const step = createAnimationStep(targets);
+  store.dispatch((draft) => {
+    if (!draft.animations.length) {
+      const fresh = createAnimation('Animation 1');
+      draft.animations = [fresh];
+      draft.activeAnimationId = fresh.id;
+    }
+    const a = draft.animations.find((x) => x.id === draft.activeAnimationId) || draft.animations[0];
+    a.steps.push(step);
   });
   return step;
 }
@@ -587,8 +677,28 @@ export function addAnimationStep(targetType, targetId) {
 export function removeAnimationStep(stepId) {
   if (!stepId) return;
   store.dispatch((draft) => {
-    draft.animationSteps = (draft.animationSteps || []).filter((s) => s.id !== stepId);
+    const a = (draft.animations || []).find((x) => x.id === draft.activeAnimationId);
+    if (a) a.steps = a.steps.filter((s) => s.id !== stepId);
   });
+}
+
+/** Removes one target from within a (possibly grouped) step, dropping the
+ * whole step once that leaves it with no targets — the context menu's
+ * "Remove from Animation" and a per-target ✕ in the panel's grouped-step
+ * row both call this rather than removeAnimationStep, since either could be
+ * acting on just one member of a multi-target group. */
+export function removeAnimationTarget(stepId, targetType, targetId) {
+  store.dispatch((draft) => {
+    const a = (draft.animations || []).find((x) => x.id === draft.activeAnimationId);
+    if (!a) return;
+    a.steps = a.steps
+      .map((s) => (s.id === stepId ? { ...s, targets: s.targets.filter((t) => !(t.targetType === targetType && t.targetId === targetId)) } : s))
+      .filter((s) => s.targets.length);
+  });
+}
+
+function findAnimationStepForTarget(targetType, targetId) {
+  return getAnimationSteps().find((s) => s.targets.some((t) => t.targetType === targetType && t.targetId === targetId)) || null;
 }
 
 /** Moves a step earlier (`direction: -1`) or later (`direction: 1`) in the
@@ -602,37 +712,46 @@ export function reorderAnimationStep(stepId, direction) {
   if (idx === -1 || targetIdx < 0 || targetIdx >= steps.length) return;
   const next = [...steps];
   [next[idx], next[targetIdx]] = [next[targetIdx], next[idx]];
-  store.dispatch((draft) => { draft.animationSteps = next; });
+  store.dispatch((draft) => {
+    const a = (draft.animations || []).find((x) => x.id === draft.activeAnimationId);
+    if (a) a.steps = next;
+  });
 }
 
-/** Patches one step's own settings (`revealMode`/`delayMs`) — the panel's
- * per-row controls call this on every change. */
+/** Patches one step's own settings (`revealMode`/`delayMs`/`notes`) — the
+ * panel's per-row controls call this on every change. */
 export function updateAnimationStepSettings(stepId, patch) {
   store.dispatch((draft) => {
-    draft.animationSteps = (draft.animationSteps || []).map((s) => (s.id === stepId ? { ...s, ...patch } : s));
+    const a = (draft.animations || []).find((x) => x.id === draft.activeAnimationId);
+    if (a) a.steps = a.steps.map((s) => (s.id === stepId ? { ...s, ...patch } : s));
   });
 }
 
-/** Bulk-replaces the whole sequence — used by io/exportAnimation.js's
- * import flow, which always replaces rather than merges (see its own
- * header comment for why). */
-export function setAnimationSteps(steps) {
+/** Bulk-replaces the whole animations collection — used by
+ * io/exportAnimation.js's import flow, which always replaces rather than
+ * merges (see its own header comment for why). */
+export function setAnimations(animations, activeAnimationId) {
   store.dispatch((draft) => {
-    draft.animationSteps = steps;
+    draft.animations = animations;
+    draft.activeAnimationId = activeAnimationId ?? (animations[0]?.id ?? null);
   });
 }
 
-/** Small numbered badges over every node/edge currently in the animation
- * sequence — editing-time-only feedback so the order is visible directly on
- * the diagram, not just in the side panel. Purely a read-only overlay (its
- * own layer, `pointer-events: none` — see css/canvas.css) computed from
- * project data, same reasoning as connector.js's sequence-number badges;
- * kept as a separate layer rather than added to node.js/connector.js so
- * this feature never has to touch those two already-complex, heavily
- * tested files. Hidden entirely while playback is running — it's an
- * authoring aid, not something the audience should see. */
+/** Small numbered badges over every node/edge currently in the active
+ * animation's sequence — editing-time-only feedback so the order is visible
+ * directly on the diagram, not just in the side panel. Purely a read-only
+ * overlay (its own layer, `pointer-events: none` — see css/canvas.css)
+ * computed from project data, same reasoning as connector.js's sequence-
+ * -number badges; kept as a separate layer rather than added to
+ * node.js/connector.js so this feature never has to touch those two
+ * already-complex, heavily tested files. Hidden entirely while playback is
+ * running — it's an authoring aid, not something the audience should see.
+ * A grouped (multi-target) step draws the *same* order number over every
+ * one of its targets, one badge element each — keyed by
+ * `${step.id}:${targetType}:${targetId}` rather than just `step.id` so
+ * every target in a group gets its own DOM element. */
 function renderAnimationBadges(state, nodesById) {
-  const steps = state.animationSteps || [];
+  const steps = getAnimationSteps();
   if (!steps.length || isAnimationPlaying()) {
     for (const [, elRef] of animBadgeElements) elRef.remove();
     animBadgeElements.clear();
@@ -640,45 +759,70 @@ function renderAnimationBadges(state, nodesById) {
   }
   const seen = new Set();
   steps.forEach((step, index) => {
-    let pos = null;
-    if (step.targetType === 'node') {
-      const n = nodesById.get(step.targetId);
-      // Capped at a typical component's own height (84, see
-      // project.js#createNode's default) rather than the node's actual
-      // height, so the badge stays near the readable label/icon instead of
-      // sliding arbitrarily far down an unusually tall shape — a sequence
-      // diagram's lifeline (default 640px tall) being the concrete case
-      // this matters for. A no-op for every ordinary component, which is
-      // never taller than the cap anyway.
-      if (n) pos = { x: n.x, y: n.y + Math.min(n.h, 84) };
-    } else {
-      const edge = state.edges.find((e) => e.id === step.targetId);
-      const fromNode = edge && nodesById.get(edge.from);
-      const toNode = edge && nodesById.get(edge.to);
-      if (fromNode && toNode) {
-        const a = sideAnchor(fromNode, edge.fromSide, edge.fromOffset ?? 0.5);
-        const b = sideAnchor(toNode, edge.toSide, edge.toOffset ?? 0.5);
-        pos = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    step.targets.forEach((target) => {
+      let pos = null;
+      if (target.targetType === 'node') {
+        const n = nodesById.get(target.targetId);
+        // Capped at a typical component's own height (84, see
+        // project.js#createNode's default) rather than the node's actual
+        // height, so the badge stays near the readable label/icon instead
+        // of sliding arbitrarily far down an unusually tall shape — a
+        // sequence diagram's lifeline (default 640px tall) being the
+        // concrete case this matters for. A no-op for every ordinary
+        // component, which is never taller than the cap anyway.
+        if (n) pos = { x: n.x, y: n.y + Math.min(n.h, 84) };
+      } else {
+        const edge = state.edges.find((e) => e.id === target.targetId);
+        const fromNode = edge && nodesById.get(edge.from);
+        const toNode = edge && nodesById.get(edge.to);
+        if (fromNode && toNode) {
+          const a = sideAnchor(fromNode, edge.fromSide, edge.fromOffset ?? 0.5);
+          const b = sideAnchor(toNode, edge.toSide, edge.toOffset ?? 0.5);
+          pos = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+        }
       }
-    }
-    if (!pos) return;
-    seen.add(step.id);
-    let elRef = animBadgeElements.get(step.id);
-    if (!elRef) {
-      elRef = el('div', { class: 'anim-badge' });
-      animBadgeElements.set(step.id, elRef);
-      animBadgeLayer.appendChild(elRef);
-    }
-    elRef.textContent = String(index + 1);
-    elRef.style.left = `${pos.x - 11}px`;
-    elRef.style.top = `${pos.y - 11}px`;
+      if (!pos) return;
+      const key = `${step.id}:${target.targetType}:${target.targetId}`;
+      seen.add(key);
+      let elRef = animBadgeElements.get(key);
+      if (!elRef) {
+        elRef = el('div', { class: 'anim-badge' });
+        animBadgeElements.set(key, elRef);
+        animBadgeLayer.appendChild(elRef);
+      }
+      elRef.textContent = String(index + 1);
+      elRef.style.left = `${pos.x - 11}px`;
+      elRef.style.top = `${pos.y - 11}px`;
+    });
   });
-  for (const [id, elRef] of animBadgeElements) {
-    if (!seen.has(id)) {
+  for (const [key, elRef] of animBadgeElements) {
+    if (!seen.has(key)) {
       elRef.remove();
-      animBadgeElements.delete(id);
+      animBadgeElements.delete(key);
     }
   }
+}
+
+// How long the reveal-pulse CSS animation runs (see css/canvas.css's
+// .anim-just-revealed keyframes) — the class is removed again after this so
+// it can be re-added (and replay) the next time the same element happens to
+// be revealed again (e.g. jumping backward then forward past it).
+const REVEAL_PULSE_MS = 700;
+
+/** Gives a node/edge a brief one-shot pulse the moment it crosses from
+ * hidden to revealed — `revealedKeys` is the *current* pass's revealed set,
+ * `previouslyRevealedAnimKeys` (module-level) is the *previous* pass's, so
+ * only an actual hidden→revealed transition qualifies, never a step
+ * backward or an unrelated re-render while already revealed. */
+function applyRevealPulse(elRef, key, revealedKeys) {
+  if (!revealedKeys.has(key) || previouslyRevealedAnimKeys.has(key)) return;
+  elRef.classList.remove('anim-just-revealed');
+  // Force a reflow so re-adding the class restarts the CSS animation even
+  // if this exact element was mid-pulse a moment ago (e.g. rapid
+  // next/prev/next clicking landing back on the same target).
+  void elRef.offsetWidth;
+  elRef.classList.add('anim-just-revealed');
+  setTimeout(() => elRef.classList.remove('anim-just-revealed'), REVEAL_PULSE_MS);
 }
 
 /** Toggles `.anim-hidden` on every node/edge element per the current
@@ -686,17 +830,84 @@ function renderAnimationBadges(state, nodesById) {
  * playback change (next/prev/freeze) via `onAnimationChange`, and on every
  * normal store `render()` too so a live edit during playback (rare, but
  * kiosk mode doesn't block canvas interaction) doesn't leave a stale class
- * behind. A no-op, fully-visible pass when nothing is playing. */
+ * behind. A no-op, fully-visible pass when nothing is playing. Also drives
+ * the reveal-pulse (see applyRevealPulse) by diffing this pass's revealed
+ * set against the previous one. */
 function applyAnimationVisibility(state) {
   if (!isAnimationPlaying()) {
-    for (const [, elRef] of nodeElements) elRef.classList.remove('anim-hidden');
-    for (const [, elRef] of edgeElements) elRef.classList.remove('anim-hidden');
+    for (const [, elRef] of nodeElements) elRef.classList.remove('anim-hidden', 'anim-just-revealed');
+    for (const [, elRef] of edgeElements) elRef.classList.remove('anim-hidden', 'anim-just-revealed');
+    previouslyRevealedAnimKeys = new Set();
     return;
   }
   const { steps, revealedCount } = getAnimationPlaybackState();
-  const hidden = new Set(steps.slice(revealedCount).map((s) => `${s.targetType}:${s.targetId}`));
-  for (const [id, elRef] of nodeElements) elRef.classList.toggle('anim-hidden', hidden.has(`node:${id}`));
-  for (const [id, elRef] of edgeElements) elRef.classList.toggle('anim-hidden', hidden.has(`edge:${id}`));
+  const hidden = new Set(steps.slice(revealedCount).flatMap((s) => s.targets).map((t) => `${t.targetType}:${t.targetId}`));
+  const revealedKeys = new Set(steps.slice(0, revealedCount).flatMap((s) => s.targets).map((t) => `${t.targetType}:${t.targetId}`));
+  for (const [id, elRef] of nodeElements) {
+    const key = `node:${id}`;
+    elRef.classList.toggle('anim-hidden', hidden.has(key));
+    applyRevealPulse(elRef, key, revealedKeys);
+  }
+  for (const [id, elRef] of edgeElements) {
+    const key = `edge:${id}`;
+    elRef.classList.toggle('anim-hidden', hidden.has(key));
+    applyRevealPulse(elRef, key, revealedKeys);
+  }
+  previouslyRevealedAnimKeys = revealedKeys;
+}
+
+function computeAnimationTargetsBounds(targets, state, nodesById) {
+  const xs = [];
+  const ys = [];
+  for (const t of targets) {
+    if (t.targetType === 'node') {
+      const n = nodesById.get(t.targetId);
+      if (n) { xs.push(n.x, n.x + n.w); ys.push(n.y, n.y + n.h); }
+    } else {
+      const edge = state.edges.find((e) => e.id === t.targetId);
+      const fromNode = edge && nodesById.get(edge.from);
+      const toNode = edge && nodesById.get(edge.to);
+      if (fromNode && toNode) {
+        const a = sideAnchor(fromNode, edge.fromSide, edge.fromOffset ?? 0.5);
+        const b = sideAnchor(toNode, edge.toSide, edge.toOffset ?? 0.5);
+        xs.push(a.x, b.x);
+        ys.push(a.y, b.y);
+      }
+    }
+  }
+  if (!xs.length) return null;
+  const minX = Math.min(...xs);
+  const minY = Math.min(...ys);
+  return { x: minX, y: minY, w: Math.max(Math.max(...xs) - minX, 1), h: Math.max(Math.max(...ys) - minY, 1) };
+}
+
+// Extra breathing room around a freshly-revealed step's own bounds when
+// auto-focus frames it — a bare fitToContent(bounds, 0) would zoom in tight
+// enough that the item touches the screen edges.
+const AUTO_FOCUS_PADDING = 120;
+
+/** When the active animation's `autoFocus` is on, pans/zooms the canvas to
+ * frame whatever the *most recent* forward move just revealed — a single
+ * step, or every step jumped over at once (see
+ * core/animationPlayback.js#jumpToStep). Never fires on a step backward or
+ * on an unrelated change (a freeze toggle, autoplay/loop toggling) since
+ * those don't advance `revealedCount`. Uses the playback's own captured
+ * `steps` snapshot, not the live (possibly since-edited) active animation,
+ * consistent with core/animationPlayback.js holding its own snapshot. */
+function maybeAutoFocusOnReveal(state, nodesById) {
+  const playbackState = getAnimationPlaybackState();
+  if (!playbackState.playing || !animationPlaybackAutoFocus) {
+    animationAutoFocusedCount = 0;
+    return;
+  }
+  if (playbackState.revealedCount <= animationAutoFocusedCount) {
+    animationAutoFocusedCount = playbackState.revealedCount;
+    return;
+  }
+  const newlyRevealedSteps = playbackState.steps.slice(animationAutoFocusedCount, playbackState.revealedCount);
+  animationAutoFocusedCount = playbackState.revealedCount;
+  const bounds = computeAnimationTargetsBounds(newlyRevealedSteps.flatMap((s) => s.targets), state, nodesById);
+  if (bounds) viewport.fitToContent(bounds, AUTO_FOCUS_PADDING);
 }
 
 /** Enters Diagram Animation playback — reuses Presenter Mode's chrome-
@@ -705,17 +916,21 @@ function applyAnimationVisibility(state) {
  * selection first since nothing should read as "selected" during a
  * presentation. */
 export function startAnimationPlayback() {
-  const steps = getAnimationSteps();
+  const animation = getActiveAnimation();
+  const steps = animation?.steps || [];
   if (!steps.length) {
     showToast('Add at least one step to the animation before playing.', 'error');
     return;
   }
+  animationPlaybackAutoFocus = !!animation.autoFocus;
+  animationAutoFocusedCount = 0;
   store.select([], []);
   setKioskMode(true);
   startPlayback(steps);
 }
 
 export function stopAnimationPlayback() {
+  animationPlaybackAutoFocus = false;
   stopPlayback();
   setKioskMode(false);
 }
@@ -1811,18 +2026,43 @@ function openNodeContextMenu(nodeId, evt) {
     });
   }
   items.push('separator', animationMenuItem('node', nodeId));
+  const groupItem = selectionAnimationMenuItem('node', nodeId);
+  if (groupItem) items.push(groupItem);
   items.push({ label: 'Delete', icon: '🗑️', danger: true, onClick: () => { store.select([nodeId], []); deleteSelection(); } });
   showContextMenu(evt.clientX, evt.clientY, items);
 }
 
 /** Shared node/edge context-menu entry for Diagram Animation — toggles
  * whether this item is part of the animation's reveal sequence, without
- * requiring the animation panel to be open first. */
+ * requiring the animation panel to be open first. Removing acts on just
+ * this one target even if it's grouped into a multi-target step alongside
+ * others (see removeAnimationTarget). */
 function animationMenuItem(targetType, targetId) {
-  const inAnimation = getAnimationSteps().some((s) => s.targetType === targetType && s.targetId === targetId);
-  return inAnimation
-    ? { label: 'Remove from Animation', icon: '🎞️', onClick: () => removeAnimationStep(getAnimationSteps().find((s) => s.targetType === targetType && s.targetId === targetId)?.id) }
-    : { label: 'Add to Animation', icon: '🎞️', onClick: () => addAnimationStep(targetType, targetId) };
+  const step = findAnimationStepForTarget(targetType, targetId);
+  return step
+    ? { label: 'Remove from Animation', icon: '🎞️', onClick: () => removeAnimationTarget(step.id, targetType, targetId) }
+    : { label: 'Add to Animation', icon: '🎞️', onClick: () => addAnimationStep({ targetType, targetId }) };
+}
+
+/** Offered only when the right-clicked item is part of a *current*
+ * multi-selection (2+ items) — groups the whole selection into one new
+ * step that reveals together, sharing a single order number (see
+ * addAnimationStep and css/canvas.css's shared-badge styling). Returns null
+ * (nothing pushed) for a single-item selection, where the plain
+ * animationMenuItem() above already covers it one at a time. */
+function selectionAnimationMenuItem(targetType, targetId) {
+  const sel = store.getSelection();
+  const count = sel.nodeIds.length + sel.edgeIds.length;
+  const inSelection = targetType === 'node' ? sel.nodeIds.includes(targetId) : sel.edgeIds.includes(targetId);
+  if (count < 2 || !inSelection) return null;
+  return {
+    label: `Add Selection to Animation (${count} items, one step)`,
+    icon: '🎞️',
+    onClick: () => addAnimationStep([
+      ...sel.nodeIds.map((id) => ({ targetType: 'node', targetId: id })),
+      ...sel.edgeIds.map((id) => ({ targetType: 'edge', targetId: id })),
+    ]),
+  };
 }
 
 function openEdgeContextMenu(edgeId, evt) {
@@ -1857,8 +2097,10 @@ function openEdgeContextMenu(edgeId, evt) {
     { label: 'Duplicate', icon: '⧉', onClick: () => { store.select([], [edgeId]); duplicateSelection(); } },
     'separator',
     animationMenuItem('edge', edgeId),
-    { label: 'Delete connector', icon: '🗑️', danger: true, onClick: () => { store.select([], [edgeId]); deleteSelection(); } },
   );
+  const groupItem = selectionAnimationMenuItem('edge', edgeId);
+  if (groupItem) items.push(groupItem);
+  items.push({ label: 'Delete connector', icon: '🗑️', danger: true, onClick: () => { store.select([], [edgeId]); deleteSelection(); } });
   showContextMenu(evt.clientX, evt.clientY, items);
 }
 

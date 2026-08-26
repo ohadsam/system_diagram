@@ -2747,62 +2747,143 @@ to render, including a toast.
 
 ## Diagram Animation (`core/animationPlayback.js`, `panel/animationPanel.js`, `canvas/animationOverlay.js`, `io/exportAnimation.js`)
 
-An ordered "build" sequence over `project.animationSteps` (see
-`core/project.js`) — each step is `{ id, targetType: 'node'|'edge', targetId,
-revealMode: 'auto'|'click', delayMs }`, order is just array position. Editing
-(add/remove/reorder/patch settings, all in `canvas/canvas.js`'s "Diagram
-Animation" section) goes through ordinary `store.dispatch` calls, so
-undo/redo, JSON export/import, `duplicateProject`, and cascade-delete on
+Any number of named, independently-playable "build" sequences over
+`project.animations`/`activeAnimationId` (see `core/project.js`). Each
+animation is `{ id, name, steps, autoFocus }`; each step is
+`{ id, targets: [{targetType:'node'|'edge', targetId}, ...], revealMode:
+'auto'|'click', delayMs, notes }` — `targets` is normally one element, but
+holding several lets a step reveal a "group" together under one shared
+order number (see `addAnimationStep` below). Order is just array position.
+Editing (add/remove/reorder/patch settings, all in `canvas/canvas.js`'s
+"Diagram Animation" section) goes through ordinary `store.dispatch` calls,
+so undo/redo, JSON export/import, `duplicateProject`, and cascade-delete on
 node/edge removal (`removeNode`/`removeEdge` in `core/project.js`) all cover
 it for free — no animation-specific persistence code needed anywhere except
-the schema itself.
+the schema itself. A pre-v1.30 project's old single-sequence, single-target
+`animationSteps` array is migrated by `validateProject` into one "Animation
+1" the first time such a project loads — see `validateAnimations`'s header
+comment.
+
+`canvas.js#addAnimationStep(targetsInput)` takes either a single
+`{targetType, targetId}` (the common case — a right-click "Add to
+Animation", or the panel's per-row "+ Add") or an array of them (a "reveal
+together" group — a multi-selection's right-click "Add Selection to
+Animation", or checking several rows in the panel's "Add more" list and
+clicking "Add Selected as one step"). It creates the project's first
+animation implicitly the moment something is actually added if none exists
+yet — the panel's own "+ New" button is only needed for a deliberate
+*second*, separately-named animation, so a brand-new diagram never has to
+create an animation explicitly before adding its first step.
+`removeAnimationTarget(stepId, targetType, targetId)` removes one target
+from within a (possibly grouped) step, dropping the whole step only once
+every target is gone — the context menu's "Remove from Animation" and the
+panel's per-target ✕ chip both call this rather than `removeAnimationStep`,
+since either could be acting on just one member of a group.
+
+**Right-click and multi-selection.** `node.js`/`connector.js`'s
+`pointerdown` handler used to unconditionally collapse the selection down to
+just the right-clicked item before its own `contextmenu` event fired (a
+right-click's mousedown is still a `pointerdown`) — harmless before this
+feature, since nothing needed to build a context menu around the *existing*
+multi-selection. Diagram Animation's group-reveal does, so both handlers now
+skip that collapse when the right-clicked item is already part of the
+current multi-selection (checked via the element's own `.selected` class,
+already accurate at render time) — right-clicking something *not* already
+selected still selects just it, same as before. `canvas.js`'s
+`selectionAnimationMenuItem` reads `store.getSelection()` when building the
+menu to offer "Add Selection to Animation (N items, one step)" only when 2+
+items are selected and the right-clicked one is among them.
 
 Playback is a separate concern, deliberately not store-backed:
 `core/animationPlayback.js` is a tiny pub-sub (same shape as
 `core/kioskMode.js`/`canvas/toolMode.js`) holding its own snapshot of
-`{ playing, steps, revealedCount, frozen }` plus a `setTimeout` handle for
-the current auto-step. It's a snapshot rather than a live store read because
-canvas.js keeps rendering normally during playback (kiosk mode only hides
-chrome, it doesn't freeze interaction), so the sequence needs to stay stable
-for the whole presentation even if the diagram were edited mid-playback.
-`startAnimationPlayback()` (`canvas/canvas.js`) is the join point: it clears
-selection, turns on Presenter Mode's existing `setKioskMode(true)`, then
-hands the current steps to `startPlayback()` — reusing "hide all the chrome"
-rather than reimplementing it. Exiting must go through
-`stopAnimationPlayback()` (not `setKioskMode(false)` directly) so the
-playback state machine's timers/position reset in lockstep with the chrome
-reappearing; both `toolbar/kioskModeUi.js`'s exit button and
+`{ playing, steps, revealedCount, frozen, autoPlayAll, loop }` plus a
+`setTimeout` handle for the current auto-step or loop-restart pause. It's a
+snapshot rather than a live store read because canvas.js keeps rendering
+normally during playback (kiosk mode only hides chrome, it doesn't freeze
+interaction), so the sequence needs to stay stable for the whole
+presentation even if the diagram were edited mid-playback.
+`startAnimationPlayback()` (`canvas/canvas.js`) is the join point: it reads
+the *active* animation, clears selection, turns on Presenter Mode's existing
+`setKioskMode(true)`, then hands that animation's `steps` to `startPlayback()`
+— reusing "hide all the chrome" rather than reimplementing it. Exiting must
+go through `stopAnimationPlayback()` (not `setKioskMode(false)` directly) so
+the playback state machine's timers/position reset in lockstep with the
+chrome reappearing; both `toolbar/kioskModeUi.js`'s exit button and
 `main.js#initKeyboardShortcuts`'s Escape handler check `isAnimationPlaying()`
-to route there instead.
+to route there instead. `jumpToStep(n)` (the progress dots) reaches the same
+end state as repeated `nextStep()`/`prevStep()` calls in one move — a jump
+forward across several auto-timed steps still lands correctly since
+`scheduleCurrent()` only ever looks at `steps[revealedCount]`, whatever
+`revealedCount` was just set to. `autoPlayAll`/`loop` are live, session-only
+presenter choices (the overlay's ⏩/🔁 buttons) — deliberately *not*
+persisted like a step's own `revealMode`/`delayMs` or an animation's
+`autoFocus`, reset on every `startPlayback`/`stopPlayback` same as `frozen`.
+With `autoPlayAll` on, `scheduleCurrent()` arms a timer for the next step
+regardless of its own `revealMode`, using that step's own `delayMs`. With
+`loop` on, reaching the end (`revealedCount >= steps.length`) arms a short
+(1.2s) pause before resetting `revealedCount` to 0 and re-scheduling, rather
+than just stopping.
 
 `canvas/canvas.js` renders two purely-derived, non-persisted layers on top
 of the normal node/edge rendering: small numbered `.anim-badge` order badges
-(own overlay layer + `Map<id, element>`, same diff-by-id pattern as
+(own overlay layer + `Map<key, element>`, same diff-by-id pattern as
 `commentPins.js`/`minimap.js` — kept out of `node.js`/`connector.js`
 entirely so this feature never touches those already-complex files) shown
 only while editing, and a `.anim-hidden` class toggle on `nodeElements`/
-`edgeElements` driven by `getAnimationPlaybackState()` while playing. The
-whole feature works identically for any node/edge shape — a lifeline, a
-flowchart decision diamond, a fragment box, an ordinary component — since
-`animationSteps` only ever stores a `targetType`/`targetId`, never a shape.
-The one place shape actually mattered: a node's badge position used to be
-its bottom-left corner (`n.y + n.h`), which put the badge nowhere near the
-readable content on an unusually tall shape like a sequence-diagram lifeline
-(640px default height) — `renderAnimationBadges` caps the offset at 84
-(`project.js#createNode`'s default component height) so the badge stays
+`edgeElements` driven by `getAnimationPlaybackState()` while playing. A
+grouped step draws the *same* order number over every one of its targets —
+each gets its own badge element keyed by `${step.id}:${targetType}:${targetId}`
+rather than just `step.id`, so every target in a group gets a DOM element of
+its own. The whole feature works identically for any node/edge shape — a
+lifeline, a flowchart decision diamond, a fragment box, an ordinary
+component — since a target only ever stores a `targetType`/`targetId`, never
+a shape. The one place shape actually mattered: a node's badge position used
+to be its bottom-left corner (`n.y + n.h`), which put the badge nowhere near
+the readable content on an unusually tall shape like a sequence-diagram
+lifeline (640px default height) — `renderAnimationBadges` caps the offset at
+84 (`project.js#createNode`'s default component height) so the badge stays
 just below the visible label/title on any shape, ordinary or not. Both
-are re-run from an `onAnimationChange` subscription in `initCanvas` (not
-just from the normal store-driven `render()`) since starting/stopping
-playback never dispatches to the store — without that separate
-subscription, the order badges would never reappear after a presentation
-ends.
+badges and visibility are re-run from an `onAnimationChange` subscription in
+`initCanvas` (not just from the normal store-driven `render()`) since
+starting/stopping playback never dispatches to the store — without that
+separate subscription, the order badges would never reappear after a
+presentation ends.
+
+**Reveal pulse.** `applyAnimationVisibility` also diffs the current pass's
+revealed-target set (`${targetType}:${targetId}` keys) against the previous
+pass's (`previouslyRevealedAnimKeys`, module-level in `canvas.js`) to spot a
+target crossing from hidden to revealed; that element gets a transient
+`.anim-just-revealed` class (a CSS ring-pulse on a node via `box-shadow`, a
+`filter: drop-shadow()` pulse on an edge since `box-shadow` doesn't render
+on SVG shapes — see `css/node.css`/`css/connector.css`) removed again after
+700ms via `setTimeout`, so it can replay the next time the same target
+happens to be revealed again (e.g. jumping backward then forward past it). A
+step backward, or an unrelated re-render while already revealed, never
+re-triggers it — only an actual hidden→revealed transition qualifies.
+
+**Auto-focus.** When the active animation's `autoFocus` is on,
+`maybeAutoFocusOnReveal` (in `initCanvas`'s `onAnimationChange` subscription)
+pans/zooms the canvas (`canvas/viewport.js#fitToContent`) to frame whatever
+the *most recent forward move* just revealed — one step, or every step
+jumped over at once via a progress-dot click. It never fires on a step
+backward or on an unrelated playback change (freeze toggle, autoplay/loop
+toggling) since those don't advance `revealedCount`. `autoFocus`'s own value
+is captured once into a module-level flag at `startAnimationPlayback()`
+(not re-read live) so it can't flip mid-presentation if something edited the
+project underneath it — same snapshot reasoning `core/animationPlayback.js`
+documents for its own `steps`.
 
 `canvas/animationOverlay.js` mounts the floating prev/next/step-indicator
-controls and the freeze-and-draw overlay once at boot (visibility toggled
-via `onAnimationChange`, never created/destroyed per session). A capture-
--phase `document` click listener advances a pending "click" step for a click
+controls, the progress-dots row, the presenter-notes readout, and the
+freeze-and-draw overlay once at boot (visibility toggled via
+`onAnimationChange`, never created/destroyed per session). A capture-phase
+`document` click listener advances a pending "click" step for a click
 anywhere outside those controls — the reveal-mode setting describes *how* a
-step appears, not a dedicated button the presenter has to aim for. Freezing
+step appears, not a dedicated button the presenter has to aim for. The
+notes readout shows `steps[revealedCount - 1]`'s own `notes` (the
+most-recently-revealed step, i.e. whatever the presenter is currently
+talking about) and is hidden entirely when that step has none. Freezing
 (`setFrozen(true)`, also bound to the D key) pauses any pending auto-timer
 without changing position and opens a full-viewport transparent `<canvas>`
 for freehand annotation; resuming always restarts the current step's full
@@ -2812,21 +2893,27 @@ first. `prevStep()` never re-arms an auto-timer on its own — going back
 always requires a manual step forward again, so a correction never "runs
 away" forward a moment later.
 
-`io/exportAnimation.js` exports/imports the sequence as its own JSON file,
-independent of the diagram — `parseAnimationFile` re-validates every step
-against the *current* diagram's actual node/edge ids (silently dropping and
-counting anything orphaned) rather than trusting the file, and always
-assigns fresh step ids rather than reusing the ones in the file.
+`io/exportAnimation.js` exports/imports the *whole* `animations` collection
+(every named animation, its steps, groups, and notes) as its own JSON file,
+independent of the diagram's own JSON export — `parseAnimationFile`
+re-validates every target against the *current* diagram's actual node/edge
+ids (silently dropping and counting anything orphaned, dropping a step
+entirely once every target is gone) rather than trusting the file, and
+always assigns fresh animation/step ids rather than reusing the ones in the
+file; `activeAnimationName` is matched by name on import (falling back to
+the first animation) since ids never survive the round trip. A pre-v1.30
+export (a flat `steps` array, one target per step, no `animations` key) is
+still parsed, wrapped into one "Animation 1" the same way an old project's
+`animationSteps` field is.
 
 Because kiosk mode's chrome-hiding wasn't originally scoped to every
-bottom-of-screen fixed element, adding a second one here (the playback
-controls) surfaced a pre-existing gap: the Smart Suggestions
-`.suggestion-banner` toast (`canvas/suggestions.js`) wasn't in the
-`body.kiosk-mode` hidden-chrome list in `css/layout.css` and could render
-directly on top of the new controls. Fixed by adding it to that same list —
-worth remembering if a future feature adds another fixed-position toast or
-banner: it needs adding there too, not just to whatever list existed when it
-was written.
+bottom-of-screen fixed element, adding the playback controls surfaced a
+pre-existing gap: the Smart Suggestions `.suggestion-banner` toast
+(`canvas/suggestions.js`) wasn't in the `body.kiosk-mode` hidden-chrome list
+in `css/layout.css` and could render directly on top of them. Fixed by
+adding it to that same list — worth remembering if a future feature adds
+another fixed-position toast or banner: it needs adding there too, not just
+to whatever list existed when it was written.
 
 ## Large-diagram rendering performance (`css/node.css`)
 

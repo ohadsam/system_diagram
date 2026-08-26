@@ -32,6 +32,12 @@ export const FRAGMENT_TYPES = ['alt', 'opt', 'loop', 'par', 'critical', 'break',
 // section. 'auto' fires on its own after `delayMs`; 'click' waits for the
 // presenter to advance manually (mouse click or a keyboard shortcut).
 export const ANIMATION_REVEAL_MODES = ['auto', 'click'];
+// Safety cap on how many named animations one project can hold, and how
+// many targets one step can group together — generous enough that no real
+// use ever hits it, just a backstop against a malformed/hostile import file
+// ballooning into an unusable project (see validateAnimations below).
+export const MAX_ANIMATIONS_PER_PROJECT = 50;
+export const MAX_TARGETS_PER_ANIMATION_STEP = 50;
 
 export function createEmptyProject(name = 'Untitled Diagram') {
   const now = new Date().toISOString();
@@ -61,22 +67,51 @@ export function createEmptyProject(name = 'Untitled Diagram') {
     // core/project.js#createComment). Part of the project itself, same
     // "travels with export/import/backup" reasoning as `versions` above.
     comments: [],
-    // Diagram Animation — an ordered "build" sequence of nodes/edges to
-    // progressively reveal during playback (see canvas.js#startAnimationPlayback
-    // and docs/ARCHITECTURE.md's "Diagram Animation" section). Order is just
-    // the array position (no separate order field to keep in sync); an item
-    // never added here is always visible, animated or not.
-    animationSteps: [],
+    // Diagram Animation — any number of named, independently-playable
+    // reveal sequences over this project's own nodes/edges (see
+    // canvas.js#startAnimationPlayback and docs/ARCHITECTURE.md's "Diagram
+    // Animation" section). `activeAnimationId` is just "which one the panel
+    // is currently editing/would play" — an empty `animations` array (or an
+    // id that doesn't resolve) means nothing is animated, same as before
+    // this was a collection.
+    animations: [],
+    activeAnimationId: null,
   };
 }
 
-export function createAnimationStep(targetType, targetId, overrides = {}) {
+/** One entry in a step's `targets` array — deliberately a plain
+ * `{targetType, targetId}` pair rather than its own class/factory, since
+ * it's never created or read on its own (always as part of a step's
+ * `targets` list). */
+export function createAnimationStep(targets, overrides = {}) {
   return {
     id: nextId('anim'),
-    targetType,
-    targetId,
+    // A single {targetType, targetId} is normalized into a one-element
+    // array — the common case (an ordinary, non-grouped step) — so every
+    // caller and every render/playback path only ever has to deal with one
+    // shape: "a step reveals a list of targets together."
+    targets: Array.isArray(targets) ? targets : [targets],
     revealMode: 'click',
     delayMs: 2000,
+    // Presenter-only free text shown during playback (see
+    // canvas/animationOverlay.js) — never part of the diagram content
+    // itself, purely a reminder of what to say at this step.
+    notes: '',
+    ...overrides,
+  };
+}
+
+/** A named, independently-playable reveal sequence — see `animations`
+ * above. `autoFocus` is a per-animation authoring choice (not a live
+ * playback toggle like the overlay's Autoplay/Loop buttons): pan+zoom the
+ * canvas to frame whatever a step just revealed, saved with the diagram
+ * since it's part of how that specific sequence is meant to be presented. */
+export function createAnimation(name, overrides = {}) {
+  return {
+    id: nextId('animset'),
+    name: (name || '').trim() || 'Animation',
+    steps: [],
+    autoFocus: false,
     ...overrides,
   };
 }
@@ -282,18 +317,32 @@ export function duplicateProject(project) {
     // so — unlike versions/presentations above — they do carry over; only
     // their ids are regenerated, same "never shares identity" contract.
     comments: (project.comments || []).map((c) => ({ ...c, id: nextId('comment') })),
-    // Same reasoning as comments: the animation sequence is content, not
-    // history, so it carries over — remapped onto the copy's own fresh
-    // node/edge ids, dropping any step whose target didn't survive the
-    // copy (filtered out above, e.g. an edge whose node no longer exists).
-    animationSteps: (project.animationSteps || [])
-      .filter((s) => (s.targetType === 'node' ? nodeIdMap.has(s.targetId) : edgeIdMap.has(s.targetId)))
-      .map((s) => ({
-        ...s,
-        id: nextId('anim'),
-        targetId: s.targetType === 'node' ? nodeIdMap.get(s.targetId) : edgeIdMap.get(s.targetId),
-      })),
+    // Same reasoning as comments: animations are content, not history, so
+    // they carry over — every step's targets remapped onto the copy's own
+    // fresh node/edge ids, dropping any target whose node/edge didn't
+    // survive the copy (filtered out above) and dropping the whole step if
+    // that leaves it with no targets left. `activeAnimationId` follows the
+    // same animation through its own id remap rather than being dropped.
+    ...remapAnimations(project.animations, project.activeAnimationId, nodeIdMap, edgeIdMap),
   };
+}
+
+function remapAnimations(rawAnimations, activeAnimationId, nodeIdMap, edgeIdMap) {
+  let newActiveAnimationId = null;
+  const animations = (rawAnimations || []).map((a) => {
+    const newId = nextId('animset');
+    if (a.id === activeAnimationId) newActiveAnimationId = newId;
+    const steps = (a.steps || [])
+      .map((s) => {
+        const targets = (s.targets || [])
+          .filter((t) => (t.targetType === 'node' ? nodeIdMap.has(t.targetId) : edgeIdMap.has(t.targetId)))
+          .map((t) => ({ targetType: t.targetType, targetId: t.targetType === 'node' ? nodeIdMap.get(t.targetId) : edgeIdMap.get(t.targetId) }));
+        return targets.length ? { ...s, id: nextId('anim'), targets } : null;
+      })
+      .filter(Boolean);
+    return { ...a, id: newId, steps };
+  });
+  return { animations, activeAnimationId: newActiveAnimationId };
 }
 
 /** Captures the project's current nodes/edges/replicationPairs as a new
@@ -331,18 +380,34 @@ export function nextZIndex(project) {
   return project.nodes.reduce((max, n) => Math.max(max, n.zIndex || 0), 0) + 1;
 }
 
+/** Strips any animation-step target referencing a removed node/edge id,
+ * dropping a step entirely once that leaves it with zero targets — same
+ * "never a dangling reference" contract removeVersion/duplicateProject
+ * follow for their own cascades. An animation itself is kept even if it
+ * ends up with zero steps (an empty named animation isn't a broken
+ * reference, just an empty one — no different from a freshly-created one
+ * the user hasn't added steps to yet). */
+function removeAnimationTargets(project, isRemoved) {
+  project.animations = (project.animations || []).map((a) => ({
+    ...a,
+    steps: (a.steps || [])
+      .map((s) => ({ ...s, targets: (s.targets || []).filter((t) => !isRemoved(t)) }))
+      .filter((s) => s.targets.length),
+  }));
+}
+
 export function removeNode(project, nodeId) {
   const removedEdgeIds = new Set(project.edges.filter((e) => e.from === nodeId || e.to === nodeId).map((e) => e.id));
   project.nodes = project.nodes.filter((n) => n.id !== nodeId);
   project.edges = project.edges.filter((e) => e.from !== nodeId && e.to !== nodeId);
-  project.animationSteps = (project.animationSteps || []).filter((s) => !(
-    (s.targetType === 'node' && s.targetId === nodeId) || (s.targetType === 'edge' && removedEdgeIds.has(s.targetId))
+  removeAnimationTargets(project, (t) => (
+    (t.targetType === 'node' && t.targetId === nodeId) || (t.targetType === 'edge' && removedEdgeIds.has(t.targetId))
   ));
 }
 
 export function removeEdge(project, edgeId) {
   project.edges = project.edges.filter((e) => e.id !== edgeId);
-  project.animationSteps = (project.animationSteps || []).filter((s) => !(s.targetType === 'edge' && s.targetId === edgeId));
+  removeAnimationTargets(project, (t) => t.targetType === 'edge' && t.targetId === edgeId);
 }
 
 export function touch(project) {
@@ -529,24 +594,73 @@ function validatePresentations(rawPresentations, versions) {
     }));
 }
 
-/** Validates `project.animationSteps` — a step whose target node/edge
- * doesn't exist (deleted by an older build that didn't cascade the removal,
- * or an imported animation file applied to the wrong diagram — see
+/** Validates one step's `targets` array — a target whose node/edge doesn't
+ * exist (deleted by an older build that didn't cascade the removal, or an
+ * imported animation file applied to the wrong diagram — see
  * io/exportAnimation.js) is dropped rather than kept as a dangling
  * reference, same "never a broken reference" contract as
- * validatePresentations above. */
-function validateAnimationSteps(rawSteps, nodeIds, edgeIds) {
-  if (!Array.isArray(rawSteps)) return [];
-  return rawSteps
-    .filter((s) => s && typeof s === 'object' && (s.targetType === 'node' || s.targetType === 'edge') && typeof s.targetId === 'string')
-    .filter((s) => (s.targetType === 'node' ? nodeIds.has(s.targetId) : edgeIds.has(s.targetId)))
-    .map((s) => ({
-      id: typeof s.id === 'string' && s.id ? s.id : nextId('anim'),
-      targetType: s.targetType,
-      targetId: s.targetId,
-      revealMode: ANIMATION_REVEAL_MODES.includes(s.revealMode) ? s.revealMode : 'click',
-      delayMs: Number.isFinite(s.delayMs) && s.delayMs > 0 ? s.delayMs : 2000,
-    }));
+ * validatePresentations above. Exported for io/exportAnimation.js's import
+ * flow, which validates a freshly-parsed file's targets the same way. */
+export function validateAnimationTargets(rawTargets, nodeIds, edgeIds) {
+  if (!Array.isArray(rawTargets)) return [];
+  return rawTargets
+    .filter((t) => t && typeof t === 'object' && (t.targetType === 'node' || t.targetType === 'edge') && typeof t.targetId === 'string')
+    .filter((t) => (t.targetType === 'node' ? nodeIds.has(t.targetId) : edgeIds.has(t.targetId)))
+    .slice(0, MAX_TARGETS_PER_ANIMATION_STEP)
+    .map((t) => ({ targetType: t.targetType, targetId: t.targetId }));
+}
+
+function validateAnimationStep(raw, nodeIds, edgeIds) {
+  if (!raw || typeof raw !== 'object') return null;
+  const targets = validateAnimationTargets(raw.targets, nodeIds, edgeIds);
+  if (!targets.length) return null;
+  return {
+    id: typeof raw.id === 'string' && raw.id ? raw.id : nextId('anim'),
+    targets,
+    revealMode: ANIMATION_REVEAL_MODES.includes(raw.revealMode) ? raw.revealMode : 'click',
+    delayMs: Number.isFinite(raw.delayMs) && raw.delayMs > 0 ? raw.delayMs : 2000,
+    notes: typeof raw.notes === 'string' ? raw.notes : '',
+  };
+}
+
+function validateAnimation(raw, nodeIds, edgeIds) {
+  const steps = Array.isArray(raw.steps)
+    ? raw.steps.map((s) => validateAnimationStep(s, nodeIds, edgeIds)).filter(Boolean)
+    : [];
+  return {
+    id: typeof raw.id === 'string' && raw.id ? raw.id : nextId('animset'),
+    name: typeof raw.name === 'string' && raw.name.trim() ? raw.name : 'Animation',
+    steps,
+    autoFocus: raw.autoFocus === true,
+  };
+}
+
+/** Validates `project.animations`/`activeAnimationId` — also the one place
+ * a pre-v1.30 project's old flat `animationSteps` array (single sequence,
+ * one target per step) gets migrated into today's collection-of-named-
+ * -animations shape: wrapped into one "Animation 1" whose steps each carry
+ * a one-element `targets` array. Never throws, same contract as every
+ * other validate* helper here. */
+function validateAnimations(input, nodeIds, edgeIds) {
+  if (!Array.isArray(input.animations) && Array.isArray(input.animationSteps)) {
+    const legacyTargets = input.animationSteps
+      .filter((s) => s && typeof s === 'object' && (s.targetType === 'node' || s.targetType === 'edge') && typeof s.targetId === 'string');
+    const steps = legacyTargets
+      .map((s) => validateAnimationStep({ ...s, targets: [{ targetType: s.targetType, targetId: s.targetId }] }, nodeIds, edgeIds))
+      .filter(Boolean);
+    if (!steps.length) return { animations: [], activeAnimationId: null };
+    const migrated = createAnimation('Animation 1', { steps });
+    return { animations: [migrated], activeAnimationId: migrated.id };
+  }
+
+  const animations = (Array.isArray(input.animations) ? input.animations : [])
+    .filter((a) => a && typeof a === 'object')
+    .slice(0, MAX_ANIMATIONS_PER_PROJECT)
+    .map((a) => validateAnimation(a, nodeIds, edgeIds));
+  const activeAnimationId = animations.some((a) => a.id === input.activeAnimationId)
+    ? input.activeAnimationId
+    : (animations[0]?.id ?? null);
+  return { animations, activeAnimationId };
 }
 
 /**
@@ -565,7 +679,7 @@ export function validateProject(input) {
     const versions = validateVersions(input.versions);
     const presentations = validatePresentations(input.presentations, versions);
     const comments = validateComments(input.comments);
-    const animationSteps = validateAnimationSteps(input.animationSteps, new Set(nodes.map((n) => n.id)), new Set(edges.map((e) => e.id)));
+    const { animations, activeAnimationId } = validateAnimations(input, new Set(nodes.map((n) => n.id)), new Set(edges.map((e) => e.id)));
 
     const project = {
       formatVersion: FORMAT_VERSION,
@@ -584,7 +698,8 @@ export function validateProject(input) {
       versions,
       presentations,
       comments,
-      animationSteps,
+      animations,
+      activeAnimationId,
     };
     return { ok: true, project };
   } catch (err) {

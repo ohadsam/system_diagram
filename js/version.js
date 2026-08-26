@@ -2,9 +2,23 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.30.0';
+export const APP_VERSION = '1.31.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.31.0',
+    date: '2026-08-26',
+    highlights: [
+      'Diagram Animation: a diagram can now hold several named, independent animations at once (a switcher in the panel — "+ New"/✎ Rename/🗑 Delete) instead of just one sequence.',
+      'Diagram Animation: group several components/connectors into a single step that reveals them all together under one order number — check items in "Add more" and click "Add Selected", or right-click a multi-selection and choose "Add Selection to Animation".',
+      'Diagram Animation: each step can carry a presenter-only note (📝), shown during playback but never part of the diagram itself.',
+      'Diagram Animation: a per-animation "Auto-focus" toggle pans/zooms the canvas to frame each step as it reveals during playback.',
+      'Diagram Animation: floating progress dots during playback jump straight to any step, and two new toggles — ⏩ Autoplay-to-end and 🔁 Loop — run the whole sequence unattended.',
+      'Diagram Animation: a newly-revealed item briefly pulses during playback so it draws the eye.',
+      'Diagram Animation\'s standalone export/import now covers every named animation on a diagram at once (old single-sequence export files still import correctly).',
+      'Right-clicking an item that\'s part of a current multi-selection no longer collapses that selection first — useful beyond Diagram Animation too, anywhere a context-menu action should act on the whole selection.',
+    ],
+  },
   {
     version: '1.30.0',
     date: '2026-08-26',

@@ -414,17 +414,25 @@ body.kiosk-mode .kiosk-exit-btn {
   bottom: var(--space-4);
   transform: translateX(-50%);
   z-index: var(--z-anim-controls);
+  flex-direction: column;
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-round);
+  border-radius: var(--radius-lg);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   box-shadow: var(--shadow-lg);
+  max-width: min(90vw, 480px);
 }
 
 .anim-playback-controls.visible {
   display: flex;
+}
+
+.anim-playback-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 .anim-playback-btn {
@@ -436,6 +444,7 @@ body.kiosk-mode .kiosk-exit-btn {
   align-items: center;
   justify-content: center;
   color: var(--color-text);
+  flex-shrink: 0;
 }
 
 .anim-playback-btn:hover:not(:disabled) {
@@ -453,6 +462,59 @@ body.kiosk-mode .kiosk-exit-btn {
   color: var(--color-text-muted);
   min-width: 44px;
   text-align: center;
+}
+
+/* One dot per step (see canvas/animationOverlay.js#renderDots) — click any
+   dot to jump straight there via core/animationPlayback.js#jumpToStep,
+   rather than stepping through one at a time. Wraps and scrolls instead of
+   ever forcing the whole floating control bar wider than its max-width. */
+.anim-progress-dots {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 5px;
+  max-width: 100%;
+  max-height: 44px;
+  overflow-y: auto;
+}
+
+.anim-progress-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-border);
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.anim-progress-dot:hover {
+  background: var(--color-text-muted);
+}
+
+.anim-progress-dot.revealed {
+  background: var(--color-primary);
+}
+
+.anim-progress-dot.current {
+  outline: 2px solid var(--color-primary-soft);
+  outline-offset: 1px;
+}
+
+/* Presenter-only reminder for the most recently revealed step (see
+   core/project.js#createAnimationStep's `notes` field) — hidden entirely
+   when that step has no notes, rather than reserving empty space. */
+.anim-step-notes {
+  display: none;
+  max-width: 100%;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+  text-align: center;
+  white-space: pre-wrap;
+}
+
+.anim-step-notes.visible {
+  display: block;
 }
 
 /* The free-draw annotation layer (see canvas/animationOverlay.js) — a

@@ -1184,30 +1184,51 @@ clicking any other entry jumps straight to that point in one action instead
 of pressing undo/redo repeatedly.
 
 ### 4.36 Diagram Animation
-"🎞️ Diagram Animation" (Tools menu) builds an ordered, numbered reveal
-sequence out of any components and connectors already on the canvas,
-regardless of diagram type. A side panel ("Diagram Animation") lists every
-item currently in the sequence with its order number and name, plus a
-per-item "Auto" (reveal automatically after a configurable delay, default
-2s) / "Click" (reveal only on the next click/keypress) setting and ▲/▼
-reorder controls; an "Add more" section lists everything not yet included,
-each with a one-click "+ Add". Right-clicking a component or connector also
-offers a quick "Add to Animation"/"Remove from Animation" toggle. While
-editing (not currently playing), a small numbered badge appears directly on
-the canvas over every item in the sequence, showing its order.
+"🎞️ Diagram Animation" (Tools menu) builds any number of named, ordered,
+numbered reveal sequences out of any components and connectors already on
+the canvas, regardless of diagram type. A side panel ("Diagram Animation")
+holds a switcher (dropdown + "+ New"/✎ Rename/🗑 Delete) for choosing which
+named animation is currently being edited or played — a diagram can carry
+several independent sequences (e.g. "Normal flow" vs "Failure scenario")
+without them interfering with each other. The active one lists every item
+in its sequence with its order number and name, a per-step "Auto" (reveal
+automatically after a configurable delay, default 2s) / "Click" (reveal
+only on the next click/keypress) setting, ▲/▼ reorder controls, an optional
+free-text presenter note (📝, never part of the diagram content itself, only
+shown during playback), and an "Auto-focus" toggle that pans/zooms the
+canvas to frame each step as it reveals. An "Add more" section lists
+everything not yet included, each with a one-click "+ Add", plus a checkbox
+per item and an "Add Selected as one step" button for grouping several items
+into a single "reveal together" step sharing one order number. Right-
+-clicking a component or connector offers a quick "Add to Animation"/"Remove
+from Animation" toggle; right-clicking within an existing multi-selection
+instead offers "Add Selection to Animation" to group the whole selection
+into one step in a single action. While editing (not currently playing), a
+small numbered badge appears directly on the canvas over every item in the
+sequence (every target in a grouped step shares the same number), and a
+newly-revealed item briefly pulses during playback to draw the eye.
 
 "▶️ Play Animation" enters a presentation view — reusing Presenter Mode's
 chrome-hiding — that hides every not-yet-revealed item and reveals them one
 at a time per the configured order/timing. Floating playback controls
-(prev/next/step counter) appear at the bottom of the screen; the → arrow key
-(or N) advances a step, ← (or P) goes back one, and a plain click anywhere
-on the canvas also advances a pending "Click" step. Escape exits playback
-and returns to the normal editing view. A 🖊️ "freeze" toggle (or the D key)
-pauses advancement and opens a full-screen transparent drawing layer with a
-small color palette, so the presenter can annotate the frozen diagram live;
-"Done" clears the markup and resumes. The animation's own sequence and
-per-step settings export/import as a standalone JSON file, independent of
-the diagram itself.
+(prev/next/step counter, a row of clickable progress dots for jumping
+straight to any step, and the current step's presenter note if it has one)
+appear at the bottom of the screen; the → arrow key (or N) advances a step,
+← (or P) goes back one, and a plain click anywhere on the canvas also
+advances a pending "Click" step. Two session-only toggles — ⏩ "Autoplay to
+the end" (forces every remaining step to auto-advance regardless of its own
+Auto/Click setting) and 🔁 "Loop" (restarts from the beginning after a short
+pause once every step is revealed) — support running the whole sequence
+unattended, e.g. on a kiosk display. Escape exits playback and returns to
+the normal editing view. A 🖊️ "freeze" toggle (or the D key) pauses
+advancement and opens a full-screen transparent drawing layer with a small
+color palette, so the presenter can annotate the frozen diagram live; "Done"
+clears the markup and resumes. Every animation's sequence, groupings, notes,
+and auto-focus setting are ordinary project data — they travel automatically
+with the diagram's own JSON export/import and full backup — and also
+export/import independently as a standalone JSON file (covering every named
+animation on the diagram at once) for reusing or sharing just the
+"script" separately from the diagram itself.
 
 ## 5. Non-functional requirements
 

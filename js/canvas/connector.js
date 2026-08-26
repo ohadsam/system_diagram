@@ -74,6 +74,10 @@ export function createEdgeEl(edge) {
   g.appendChild(seqBadge);
 
   const select = (e) => {
+    // See node.js's matching pointerdown handler for why a right-click
+    // (button 2) on an already-selected edge preserves the current
+    // multi-selection instead of collapsing it before 'contextmenu' fires.
+    if (e.button === 2 && g.classList.contains('selected')) return;
     e.stopPropagation();
     g.focus({ preventScroll: true });
     handlers.onSelect(edge.id, e.shiftKey || e.metaKey || e.ctrlKey);
@@ -81,7 +85,6 @@ export function createEdgeEl(edge) {
   g.addEventListener('pointerdown', select);
   g.addEventListener('contextmenu', (e) => {
     e.preventDefault();
-    handlers.onSelect(edge.id, false);
     handlers.onContextMenu(edge.id, e);
   });
   return g;

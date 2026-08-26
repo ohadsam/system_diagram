@@ -170,6 +170,46 @@ Gateway, Circuit Breaker, and Saga Coordinator now suggest a relevant new templa
 SSO, Identity Provider, and API Key each gained one more curated pairing alongside their existing
 ones.
 
+## v1.31.0 (2026-08-26)
+
+Expands Diagram Animation with everything short of a full rewrite: multiple named animations per
+diagram, grouped "reveal together" steps, per-step presenter notes, auto-focus pan/zoom, a
+progress-dot scrubber, and unattended Autoplay/Loop modes.
+
+**Multiple animations** — the panel gained a switcher (dropdown + "+ New"/✎ Rename/🗑 Delete) so
+one diagram can carry several independent, separately-playable sequences (e.g. "Normal flow" vs
+"Failure scenario") instead of just one.
+
+**Group-reveal** — a step can now hold several targets that reveal together under one shared order
+number: check items in the panel's "Add more" list and click "Add Selected as one step", or
+right-click a multi-selection on the canvas and choose "Add Selection to Animation". Removing one
+target from a grouped step (its own ✕ chip) leaves the rest of the group intact.
+
+**Presenter notes** — each step can carry a short free-text reminder (📝 toggle in the panel),
+shown in the playback controls for whichever step was just revealed — never part of the diagram
+itself.
+
+**Auto-focus** — a per-animation toggle pans/zooms the canvas to frame each step as it reveals,
+using the same "fit to content" mechanism as the toolbar's own Fit-to-Screen action.
+
+**Playback controls** — a row of clickable progress dots jumps straight to any step instead of
+stepping through one at a time; ⏩ "Autoplay to the end" forces every remaining step to auto-advance
+regardless of its own Auto/Click setting; 🔁 "Loop" restarts from the beginning after a short pause
+once the sequence finishes — together enough for an unattended kiosk display. A newly-revealed item
+also gets a brief pulse so it draws the eye.
+
+**Export/import** — the standalone animation file now covers every named animation on the diagram
+at once (a pre-v1.31 single-sequence export still imports correctly), and everything above is
+ordinary project data, so it travels automatically with the diagram's own JSON export/import and
+full backup too.
+
+Fixed in review: right-clicking an item that was part of a current multi-selection used to
+collapse that selection down to just the one item before the context menu even opened (a
+right-click's own `pointerdown` fired first) — group-reveal via right-click needed the selection
+preserved, so both `node.js` and `connector.js` now only collapse when the right-clicked item
+*isn't* already selected. This also fixes the same experience for any other context-menu action
+someone might reasonably expect to act on a multi-selection.
+
 ## v1.30.0 (2026-08-26)
 
 **Diagram Animation** ("🎞️ Diagram Animation", Tools menu) — number any components and connectors

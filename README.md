@@ -261,11 +261,14 @@ Or open `index.html` directly in a browser.
   them back.
 - **Duplicate-tab warning** — opening this app in a second browser tab
   shows a warning, since both share the same autosave/saved-project storage.
-- **🎞️ Diagram Animation** — number components and connectors into an
-  ordered reveal sequence from a side panel (auto-timed or click-to-reveal
-  per step), then play it back step by step in a clean presentation view —
-  advance/go back with the keyboard, freeze to draw over the diagram live,
-  and export/import the sequence as its own file.
+- **🎞️ Diagram Animation** — build any number of named reveal sequences
+  (a switcher lets one diagram carry several independent animations) out of
+  components and connectors, grouping several into one step that reveals
+  together when useful, each with an optional presenter note. Play it back
+  step by step in a clean presentation view with progress-dot jumping,
+  auto-focus pan/zoom, and Autoplay/Loop for an unattended display — or
+  freeze to draw over the diagram live. Export/import every animation as
+  its own file, independent of the diagram.
 
 See [`help.html`](help.html) for the full interactive user guide.
 

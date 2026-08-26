@@ -247,3 +247,218 @@ test('works on any shape regardless of diagram type — a sequence-diagram lifel
   await expect(page.locator('.node[data-shape="diamond"]')).not.toHaveClass(/anim-hidden/);
   await expect(page.locator('.edge')).not.toHaveClass(/anim-hidden/);
 });
+
+test('multiple named animations: New/Rename/Delete keep separate sequences that don\'t interfere with each other', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await addComponentByName(page, 'Redis Cache');
+  await openAnimationPanel(page);
+  await page.locator('.animation-add-row', { hasText: 'API Gateway' }).locator('button', { hasText: '+ Add' }).click();
+  await expect(page.locator('.animation-step-row')).toHaveCount(1);
+
+  await page.locator('.animation-switcher button', { hasText: '+ New' }).click();
+  await page.locator('.prompt-modal input').fill('Failure scenario');
+  await page.locator('.prompt-modal button[type="submit"]').click();
+  // The new animation is now active and starts empty — the previous one's
+  // step isn't visible here even though the underlying component still is.
+  await expect(page.locator('.animation-step-row')).toHaveCount(0);
+  await page.locator('.animation-add-row', { hasText: 'Redis Cache' }).locator('button', { hasText: '+ Add' }).click();
+  await expect(page.locator('.animation-step-row')).toHaveCount(1);
+  await expect(page.locator('.animation-step-row')).toContainText('Redis Cache');
+
+  // Switching back shows the first animation's own step again, untouched.
+  await page.locator('.animation-switcher select').selectOption({ index: 0 });
+  await expect(page.locator('.animation-step-row')).toHaveCount(1);
+  await expect(page.locator('.animation-step-row')).toContainText('API Gateway');
+
+  await page.locator('.animation-switcher button[title="Rename this animation"]').click();
+  await page.locator('.prompt-modal input').fill('Normal flow');
+  await page.locator('.prompt-modal button[type="submit"]').click();
+  await expect(page.locator('.animation-switcher select')).toContainText('Normal flow');
+
+  await page.locator('.animation-switcher button[title="Delete this animation"]').click();
+  await page.locator('.confirm-modal button', { hasText: 'Delete' }).click();
+  // Deleting the active one falls back to the remaining animation.
+  await expect(page.locator('.animation-step-row')).toContainText('Redis Cache');
+});
+
+test('a step\'s presenter notes are editable, shown during playback, and never visible to a plain diagram viewer', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await openAnimationPanel(page);
+  await page.locator('.animation-add-row', { hasText: 'API Gateway' }).locator('button', { hasText: '+ Add' }).click();
+
+  await expect(page.locator('.animation-step-notes-row')).toHaveCount(0);
+  await page.locator('.animation-step-notes-toggle').click();
+  await page.locator('.animation-step-notes-input').fill('Mention rate limiting here');
+  await expect(page.locator('.animation-step-notes-toggle')).toHaveClass(/has-notes/);
+
+  await page.locator('.animation-play-btn').click();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('.anim-step-notes')).toHaveText('Mention rate limiting here');
+});
+
+test('group-reveal: checking several items and "Add Selected" creates one step that reveals them together under one order number', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await addComponentByName(page, 'Redis Cache');
+  await addComponentByName(page, 'PostgreSQL');
+  await openAnimationPanel(page);
+
+  await page.locator('.animation-add-row', { hasText: 'API Gateway' }).locator('.animation-add-row-check').check();
+  await page.locator('.animation-add-row', { hasText: 'Redis Cache' }).locator('.animation-add-row-check').check();
+  await expect(page.locator('.animation-add-selected-btn')).toHaveText('+ Add Selected (2) as one step');
+  await page.locator('.animation-add-selected-btn').click();
+
+  await expect(page.locator('.animation-step-row')).toHaveCount(1);
+  await expect(page.locator('.animation-step-row')).toContainText('API Gateway, Redis Cache');
+  await expect(page.locator('.animation-step-target-chip')).toHaveCount(2);
+
+  // Both targets share the same order badge number.
+  await expect(page.locator('.anim-badge')).toHaveCount(2);
+  await expect(page.locator('.anim-badge').first()).toHaveText('1');
+  await expect(page.locator('.anim-badge').nth(1)).toHaveText('1');
+
+  await page.locator('.animation-play-btn').click();
+  await expect(page.locator('.node', { hasText: 'API Gateway' })).toHaveClass(/anim-hidden/);
+  await expect(page.locator('.node', { hasText: 'Redis Cache' })).toHaveClass(/anim-hidden/);
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('.node', { hasText: 'API Gateway' })).not.toHaveClass(/anim-hidden/);
+  await expect(page.locator('.node', { hasText: 'Redis Cache' })).not.toHaveClass(/anim-hidden/);
+});
+
+test('group-reveal via right-click: "Add Selection to Animation" on a multi-selection groups it into one step', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await addComponentByName(page, 'Redis Cache');
+  await page.locator('.node', { hasText: 'API Gateway' }).click();
+  await page.locator('.node', { hasText: 'Redis Cache' }).click({ modifiers: ['Control'] });
+  await page.locator('.node', { hasText: 'Redis Cache' }).click({ button: 'right' });
+  await page.locator('.context-menu-item', { hasText: 'Add Selection to Animation' }).click();
+
+  await openAnimationPanel(page);
+  await expect(page.locator('.animation-step-row')).toHaveCount(1);
+  await expect(page.locator('.animation-step-target-chip')).toHaveCount(2);
+});
+
+test('removing one target from a grouped step via its chip leaves the rest of the group intact', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await addComponentByName(page, 'Redis Cache');
+  await openAnimationPanel(page);
+  await page.locator('.animation-add-row', { hasText: 'API Gateway' }).locator('.animation-add-row-check').check();
+  await page.locator('.animation-add-row', { hasText: 'Redis Cache' }).locator('.animation-add-row-check').check();
+  await page.locator('.animation-add-selected-btn').click();
+  await expect(page.locator('.animation-step-target-chip')).toHaveCount(2);
+
+  await page.locator('.animation-step-target-chip', { hasText: 'API Gateway' }).locator('.animation-step-target-remove').click();
+  await expect(page.locator('.animation-step-row')).toHaveCount(1, { timeout: 2000 });
+  await expect(page.locator('.animation-step-targets')).toHaveCount(0, { timeout: 2000 }); // back to a single-target step, chips row hidden
+  await expect(page.locator('.animation-step-row')).toContainText('Redis Cache');
+});
+
+test('progress dots jump straight to any step during playback', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await addComponentByName(page, 'Redis Cache');
+  await addComponentByName(page, 'PostgreSQL');
+  await openAnimationPanel(page);
+  for (const name of ['API Gateway', 'Redis Cache', 'PostgreSQL']) {
+    await page.locator('.animation-add-row', { hasText: name }).locator('button', { hasText: '+ Add' }).click();
+  }
+  await page.locator('.animation-play-btn').click();
+
+  await expect(page.locator('.anim-progress-dot')).toHaveCount(3);
+  await page.locator('.anim-progress-dot').nth(2).click();
+  await expect(page.locator('.anim-step-indicator')).toHaveText('3 / 3');
+  await expect(page.locator('.node', { hasText: 'PostgreSQL' })).not.toHaveClass(/anim-hidden/);
+
+  await page.locator('.anim-progress-dot').first().click();
+  await expect(page.locator('.anim-step-indicator')).toHaveText('1 / 3');
+  await expect(page.locator('.node', { hasText: 'PostgreSQL' })).toHaveClass(/anim-hidden/);
+});
+
+test('Autoplay-to-end forces a "Click" step to advance on its own, and Loop restarts from the beginning', async ({ page }) => {
+  await addComponentByName(page, 'Redis Cache');
+  await addComponentByName(page, 'PostgreSQL');
+  await openAnimationPanel(page);
+  await page.locator('.animation-add-row', { hasText: 'Redis Cache' }).locator('button', { hasText: '+ Add' }).click();
+  await page.locator('.animation-add-row', { hasText: 'PostgreSQL' }).locator('button', { hasText: '+ Add' }).click();
+  // Both stay "Click" (the default) — Autoplay must override that.
+  await page.locator('.animation-play-btn').click();
+
+  await page.locator('[aria-label="Auto-play to the end"]').click();
+  await expect(page.locator('.anim-step-indicator')).toHaveText('2 / 2', { timeout: 5000 });
+
+  await page.locator('[aria-label="Loop"]').click();
+  await expect(page.locator('.anim-step-indicator')).toHaveText('0 / 2', { timeout: 5000 });
+});
+
+test('auto-focus pans/zooms the canvas to frame each newly-revealed step', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await openAnimationPanel(page);
+  await page.locator('.animation-add-row', { hasText: 'API Gateway' }).locator('button', { hasText: '+ Add' }).click();
+  await page.locator('.field-checkbox', { hasText: 'Auto-focus' }).locator('input').check();
+
+  // Move the component far from the current view so a real pan is
+  // observable, then play — the node should end up framed on screen.
+  await page.locator('.animation-close').click();
+  const node = page.locator('.node', { hasText: 'API Gateway' });
+  const box = await node.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 900, box.y + 700, { steps: 10 });
+  await page.mouse.up();
+
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.locator('.toolbar-dropdown-trigger', { hasText: 'Tools' }).click();
+  await page.locator('.toolbar-dropdown-panel button', { hasText: 'Diagram Animation' }).click();
+  await page.locator('.animation-play-btn').click();
+  await page.keyboard.press('ArrowRight');
+
+  await expect(node).not.toHaveClass(/anim-hidden/);
+  const framedBox = await node.boundingBox();
+  const viewport = page.viewportSize();
+  expect(framedBox.x).toBeGreaterThan(-50);
+  expect(framedBox.x).toBeLessThan(viewport.width + 50);
+  expect(framedBox.y).toBeGreaterThan(-50);
+  expect(framedBox.y).toBeLessThan(viewport.height + 50);
+});
+
+test('a revealed item gets a one-shot pulse class that clears itself shortly after', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await openAnimationPanel(page);
+  await page.locator('.animation-add-row', { hasText: 'API Gateway' }).locator('button', { hasText: '+ Add' }).click();
+  await page.locator('.animation-play-btn').click();
+
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('.node', { hasText: 'API Gateway' })).toHaveClass(/anim-just-revealed/);
+  await expect(page.locator('.node', { hasText: 'API Gateway' })).not.toHaveClass(/anim-just-revealed/, { timeout: 2000 });
+});
+
+test('a full project JSON export/import round-trips animations, groups, and notes intact', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await addComponentByName(page, 'Redis Cache');
+  await openAnimationPanel(page);
+  await page.locator('.animation-add-row', { hasText: 'API Gateway' }).locator('.animation-add-row-check').check();
+  await page.locator('.animation-add-row', { hasText: 'Redis Cache' }).locator('.animation-add-row-check').check();
+  await page.locator('.animation-add-selected-btn').click();
+  await page.locator('.animation-step-notes-toggle').click();
+  await page.locator('.animation-step-notes-input').fill('Grouped intro');
+  await page.locator('.animation-close').click();
+
+  await page.locator('.toolbar-dropdown-trigger', { hasText: 'File' }).click();
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.locator('.toolbar-dropdown-panel button', { hasText: 'Export JSON' }).click(),
+  ]);
+  const path = await download.path();
+
+  await page.reload();
+  await dismissHints(page);
+  await page.locator('.toolbar-dropdown-trigger', { hasText: 'File' }).click();
+  const fileChooserPromise = page.waitForEvent('filechooser');
+  await page.locator('.toolbar-dropdown-panel button', { hasText: 'Import JSON' }).click();
+  const fileChooser = await fileChooserPromise;
+  await fileChooser.setFiles(path);
+
+  await openAnimationPanel(page);
+  await expect(page.locator('.animation-step-row')).toHaveCount(1);
+  await expect(page.locator('.animation-step-target-chip')).toHaveCount(2);
+  await page.locator('.animation-step-notes-toggle').click();
+  await expect(page.locator('.animation-step-notes-input')).toHaveValue('Grouped intro');
+});

@@ -1,7 +1,8 @@
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  startPlayback, stopPlayback, nextStep, prevStep, setFrozen,
+  startPlayback, stopPlayback, nextStep, prevStep, jumpToStep, setFrozen,
+  setAutoPlayAll, isAutoPlayAll, setLoop, isLoopEnabled,
   isAnimationPlaying, isAnimationFrozen, getAnimationPlaybackState, onAnimationChange,
 } from '../../js/core/animationPlayback.js';
 
@@ -13,12 +14,17 @@ beforeEach(() => {
   stopPlayback();
 });
 
+// The playback state machine only ever reads a step's own revealMode/
+// delayMs — it's deliberately agnostic to `targets` (single or grouped),
+// same reasoning core/project.js#createAnimationStep documents — so these
+// fixtures carry a `targets` array for realism but it's never asserted on
+// here.
 function clickStep(delayMs = 1000) {
-  return { id: `s${Math.random()}`, targetType: 'node', targetId: `n${Math.random()}`, revealMode: 'click', delayMs };
+  return { id: `s${Math.random()}`, targets: [{ targetType: 'node', targetId: `n${Math.random()}` }], revealMode: 'click', delayMs };
 }
 
 function autoStep(delayMs) {
-  return { id: `s${Math.random()}`, targetType: 'node', targetId: `n${Math.random()}`, revealMode: 'auto', delayMs };
+  return { id: `s${Math.random()}`, targets: [{ targetType: 'node', targetId: `n${Math.random()}` }], revealMode: 'auto', delayMs };
 }
 
 test('isAnimationPlaying is false before any playback starts', () => {
@@ -61,16 +67,81 @@ test('nextStep/prevStep are no-ops while not playing', () => {
   assert.equal(isAnimationPlaying(), false);
 });
 
-test('stopPlayback resets playing/steps/revealedCount/frozen', () => {
+test('stopPlayback resets playing/steps/revealedCount/frozen/autoPlayAll/loop', () => {
   startPlayback([clickStep()]);
   nextStep();
   setFrozen(true);
+  setAutoPlayAll(true);
+  setLoop(true);
   stopPlayback();
   const state = getAnimationPlaybackState();
   assert.equal(state.playing, false);
   assert.deepEqual(state.steps, []);
   assert.equal(state.revealedCount, 0);
   assert.equal(state.frozen, false);
+  assert.equal(state.autoPlayAll, false);
+  assert.equal(state.loop, false);
+});
+
+test('startPlayback also resets a stale autoPlayAll/loop from a previous session', () => {
+  startPlayback([clickStep()]);
+  setAutoPlayAll(true);
+  setLoop(true);
+  stopPlayback();
+  startPlayback([clickStep()]);
+  assert.equal(isAutoPlayAll(), false);
+  assert.equal(isLoopEnabled(), false);
+});
+
+test('jumpToStep moves straight to a given position, forward or backward', () => {
+  startPlayback([clickStep(), clickStep(), clickStep()]);
+  jumpToStep(2);
+  assert.equal(getAnimationPlaybackState().revealedCount, 2);
+  jumpToStep(0);
+  assert.equal(getAnimationPlaybackState().revealedCount, 0);
+});
+
+test('jumpToStep clamps out-of-range targets and is a no-op while not playing', () => {
+  startPlayback([clickStep(), clickStep()]);
+  jumpToStep(99);
+  assert.equal(getAnimationPlaybackState().revealedCount, 2);
+  jumpToStep(-5);
+  assert.equal(getAnimationPlaybackState().revealedCount, 0);
+  stopPlayback();
+  jumpToStep(1);
+  assert.equal(getAnimationPlaybackState().revealedCount, 0);
+});
+
+test('setAutoPlayAll forces a "click" step to auto-advance using its own delay', (t, done) => {
+  startPlayback([clickStep(20), clickStep()]);
+  setAutoPlayAll(true);
+  setTimeout(() => {
+    assert.equal(getAnimationPlaybackState().revealedCount, 1, 'the click step advanced on its own once autoplay was enabled');
+    done();
+  }, 60);
+});
+
+test('setLoop restarts from the beginning after a short pause once the end is reached', (t, done) => {
+  // A single "click" step (rather than "auto") so that once it loops back
+  // to revealedCount 0, nothing schedules a further auto-advance on its
+  // own — isolating the assertion to just the loop-restart behavior itself.
+  startPlayback([clickStep()]);
+  nextStep(); // now at the end (revealedCount === steps.length)
+  setLoop(true);
+  assert.equal(getAnimationPlaybackState().revealedCount, 1, 'still at the end immediately after enabling loop');
+  setTimeout(() => {
+    assert.equal(getAnimationPlaybackState().revealedCount, 0, 'looped back to the start after the short restart pause');
+    done();
+  }, 1400);
+});
+
+test('without loop enabled, reaching the end just stops — no restart', (t, done) => {
+  startPlayback([clickStep()]);
+  nextStep();
+  setTimeout(() => {
+    assert.equal(getAnimationPlaybackState().revealedCount, 1, 'stays at the end without loop');
+    done();
+  }, 1400);
 });
 
 test('an "auto" step reveals itself on its own after its delay', (t, done) => {

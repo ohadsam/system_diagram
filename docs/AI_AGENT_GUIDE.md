@@ -144,8 +144,8 @@ this repo" quick-start.
 | Change Presenter Mode | `js/core/kioskMode.js` (on/off pub-sub, deliberately not persisted) + `js/toolbar/kioskModeUi.js` (the floating exit button — the only chrome left once the toolbar itself is hidden) + `css/layout.css`'s `body.kiosk-mode` rules + `main.js#initKeyboardShortcuts` (Escape also exits it) |
 | Change large-diagram rendering perf (off-screen culling) | `css/node.css`'s `.node-body { content-visibility: auto; }` + the `.canvas-viewport.exporting .node-body` override that forces it back off during PNG/PDF capture. **Read** docs/ARCHITECTURE.md's "Large-diagram rendering performance" section before moving this rule onto `.node` itself or onto anything `.node-external-label` is nested inside — see "Common pitfalls" below. |
 | Change the duplicate-tab warning | `js/io/duplicateTabWarning.js` (`initDuplicateTabWarning` — a `BroadcastChannel`, not a localStorage lock flag; returns a `dispose()` used only by its own unit test) |
-| Change Diagram Animation (editing) | `js/core/project.js` (`animationSteps` schema, `createAnimationStep`, `validateAnimationSteps`, cascade-cleanup in `removeNode`/`removeEdge`) + `js/canvas/canvas.js`'s "Diagram Animation" section (add/remove/reorder/patch, all ordinary `store.dispatch` calls — undo/redo and JSON export/import cover it for free) + `js/panel/animationPanel.js` (the side panel) + `js/io/exportAnimation.js` (standalone export/import, separate from project JSON) |
-| Change Diagram Animation (playback) | `js/core/animationPlayback.js` (the step-through state machine — pub-sub, own snapshot, not store-backed) + `js/canvas/animationOverlay.js` (floating prev/next/freeze+draw controls, mounted once at boot) + `js/canvas/canvas.js`'s `startAnimationPlayback`/`stopAnimationPlayback` (the join point with Presenter Mode — always exit via `stopAnimationPlayback()`, never `setKioskMode(false)` directly, or the playback timers desync from the chrome). **Read** docs/ARCHITECTURE.md's "Diagram Animation" section first — it also explains why `renderAnimationBadges`/`applyAnimationVisibility` need their own `onAnimationChange` subscription in `initCanvas`, separate from the normal store-driven `render()`. |
+| Change Diagram Animation (editing) | `js/core/project.js` (`animations`/`activeAnimationId` schema, `createAnimation`/`createAnimationStep`, `validateAnimations` — also where a pre-v1.30 project's legacy flat `animationSteps` gets migrated, cascade-cleanup in `removeNode`/`removeEdge`) + `js/canvas/canvas.js`'s "Diagram Animation" section (`getAnimations`/`getActiveAnimation`/`createNewAnimation`/`renameAnimation`/`deleteAnimation`/`setActiveAnimation`, `addAnimationStep` — accepts a single target or an array for a "reveal together" group, `removeAnimationTarget` for one target within a step, all ordinary `store.dispatch` calls — undo/redo and JSON export/import cover it for free) + `js/panel/animationPanel.js` (the side panel, incl. the animation switcher and the "Add Selected as one step" bulk-group flow) + `js/io/exportAnimation.js` (standalone export/import of the whole `animations` collection, separate from project JSON, with legacy-format read support) |
+| Change Diagram Animation (playback) | `js/core/animationPlayback.js` (the step-through state machine — pub-sub, own snapshot incl. `autoPlayAll`/`loop`, not store-backed; `jumpToStep(n)` for the progress dots) + `js/canvas/animationOverlay.js` (floating prev/next/progress-dots/notes-readout/autoplay+loop-toggle/freeze+draw controls, mounted once at boot) + `js/canvas/canvas.js`'s `startAnimationPlayback`/`stopAnimationPlayback` (the join point with Presenter Mode — always exit via `stopAnimationPlayback()`, never `setKioskMode(false)` directly, or the playback timers desync from the chrome) and `maybeAutoFocusOnReveal` (pans/zooms to a newly-revealed step when the active animation's `autoFocus` is on). **Read** docs/ARCHITECTURE.md's "Diagram Animation" section first — it also explains why `renderAnimationBadges`/`applyAnimationVisibility` need their own `onAnimationChange` subscription in `initCanvas`, separate from the normal store-driven `render()`, and why `node.js`/`connector.js`'s right-click handler now preserves an existing multi-selection instead of always collapsing it. |
 
 ## Running things locally
 
@@ -713,3 +713,18 @@ npm test
   unrelated store change, which can be arbitrarily far in the future (e.g.
   the order badges silently staying gone after a presentation ends until
   the next edit).
+- **A right-click's own `pointerdown` fires *before* its `contextmenu`
+  event.** `node.js`/`connector.js` used to unconditionally call
+  `handlers.onSelect(id, false)` on every `pointerdown` including a right
+  mouse button's — which meant right-clicking an item inside an existing
+  multi-selection always collapsed that selection down to just the one item
+  *before* `openNodeContextMenu`/`openEdgeContextMenu` ever ran, so a
+  context-menu action could never see the original multi-selection no
+  matter what the `contextmenu` handler itself checked. Diagram Animation's
+  "Add Selection to Animation" needed the multi-selection to survive a
+  right-click, so both `pointerdown` handlers now skip that collapse when
+  `e.button === 2` and the target element already has the `.selected` class
+  (accurate at render time — see `updateNodeEl`/`updateEdgeEl`). Right-
+  -clicking something *not* already selected still selects just it, same as
+  before. Worth remembering for any future feature that wants a context
+  menu to act on "whatever's currently selected."

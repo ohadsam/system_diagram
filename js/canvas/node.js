@@ -32,11 +32,18 @@ export function createNodeEl(node) {
 
   root.addEventListener('pointerdown', (e) => {
     if (e.target.closest('.conn-point, .resize-handle, .node-info-btn, .node-menu-btn, .node-suggestion-badge, .row-item, .node-add-row')) return;
+    // A right-click's own pointerdown (button 2) fires before its
+    // 'contextmenu' event — on a node that's already part of a multi-
+    // -selection, it must not collapse that selection first, or a
+    // context-menu action meant to act on the whole group (e.g. Diagram
+    // Animation's "Add Selection to Animation") would only ever see the one
+    // right-clicked item. Right-clicking something *not* already selected
+    // still selects just it, same as before.
+    if (e.button === 2 && root.classList.contains('selected')) return;
     handlers.onSelect(node.id, e.shiftKey || e.metaKey || e.ctrlKey, e);
   });
   root.addEventListener('contextmenu', (e) => {
     e.preventDefault();
-    handlers.onSelect(node.id, false);
     handlers.onContextMenu(node.id, e);
   });
   root.addEventListener('keydown', (e) => {

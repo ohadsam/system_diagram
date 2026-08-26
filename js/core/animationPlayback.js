@@ -1,23 +1,35 @@
 // Diagram Animation playback — a small state machine (same pub-sub shape as
 // canvas/toolMode.js / core/kioskMode.js) that steps through a snapshot of
-// `project.animationSteps` one reveal at a time. Deliberately holds its own
-// snapshot rather than reading live from the store on every tick: canvas.js
-// still renders normally during playback (kiosk mode only hides chrome, it
-// doesn't freeze the canvas), so a snapshot keeps "which steps exist and in
-// what order" stable for the whole presentation even if something about the
-// project were to change mid-playback.
+// the active animation's steps one reveal at a time. Deliberately holds its
+// own snapshot rather than reading live from the store on every tick:
+// canvas.js still renders normally during playback (kiosk mode only hides
+// chrome, it doesn't freeze the canvas), so a snapshot keeps "which steps
+// exist and in what order" stable for the whole presentation even if
+// something about the project were to change mid-playback.
 //
 // `revealedCount` is how many steps have been revealed so far — the next
 // one to reveal is `steps[revealedCount]`. Going backward (prevStep) never
 // re-arms an auto-timer on its own; the presenter must advance manually
 // after going back, so stepping back never "runs away" forward again on its
 // own a moment later.
+//
+// `autoPlayAll`/`loop` are live, session-only presenter choices (the
+// overlay's Autoplay/Loop buttons) — deliberately NOT part of the saved
+// animation like a step's own revealMode/delayMs or an animation's
+// autoFocus: they describe how *this particular showing* should run, reset
+// on every stop/start, same as `frozen`.
 let playing = false;
 let steps = [];
 let revealedCount = 0;
 let frozen = false;
+let autoPlayAll = false;
+let loop = false;
 let timerHandle = null;
 const listeners = new Set();
+
+// Brief pause before looping back to the start, so restarting doesn't feel
+// like a jarring instant cut.
+const LOOP_RESTART_DELAY_MS = 1200;
 
 function clearTimer() {
   if (timerHandle != null) {
@@ -31,15 +43,26 @@ function notify() {
   listeners.forEach((fn) => fn(snapshot));
 }
 
-/** Arms an auto-advance timer for the next not-yet-revealed step, if it's
- * an 'auto' step and playback isn't frozen — a 'click' step (or the
- * sequence already being fully revealed) leaves nothing scheduled, waiting
- * for a manual `nextStep()` instead. */
+/** Arms the next timer: an auto-advance for the next not-yet-revealed step
+ * (if it's an 'auto' step, or `autoPlayAll` is forcing every step to
+ * advance on its own regardless of its own revealMode), or — once every
+ * step is revealed and `loop` is on — a restart back to the beginning.
+ * Frozen or not playing leaves nothing scheduled either way. */
 function scheduleCurrent() {
   clearTimer();
-  if (!playing || frozen || revealedCount >= steps.length) return;
+  if (!playing || frozen) return;
+  if (revealedCount >= steps.length) {
+    if (loop && steps.length) {
+      timerHandle = setTimeout(() => {
+        revealedCount = 0;
+        notify();
+        scheduleCurrent();
+      }, LOOP_RESTART_DELAY_MS);
+    }
+    return;
+  }
   const step = steps[revealedCount];
-  if (step.revealMode === 'auto') {
+  if (step.revealMode === 'auto' || autoPlayAll) {
     timerHandle = setTimeout(() => nextStep(), step.delayMs);
   }
 }
@@ -50,6 +73,8 @@ export function startPlayback(newSteps) {
   steps = [...newSteps];
   revealedCount = 0;
   frozen = false;
+  autoPlayAll = false;
+  loop = false;
   notify();
   scheduleCurrent();
 }
@@ -60,6 +85,8 @@ export function stopPlayback() {
   steps = [];
   revealedCount = 0;
   frozen = false;
+  autoPlayAll = false;
+  loop = false;
   notify();
 }
 
@@ -78,6 +105,19 @@ export function prevStep() {
   notify();
 }
 
+/** Jumps straight to a given position (e.g. clicking a progress dot) rather
+ * than stepping one at a time — same end state `nextStep`/`prevStep` would
+ * reach, just in one move. A no-op if already there. */
+export function jumpToStep(targetRevealedCount) {
+  if (!playing) return;
+  const clamped = Math.max(0, Math.min(steps.length, targetRevealedCount));
+  if (clamped === revealedCount) return;
+  clearTimer();
+  revealedCount = clamped;
+  notify();
+  scheduleCurrent();
+}
+
 /** Pausing (freezing) cancels any pending auto-advance without changing
  * position — for the presenter's free-draw annotation overlay (see
  * canvas/animationOverlay.js), which wouldn't make sense with the diagram
@@ -93,6 +133,28 @@ export function setFrozen(next) {
   notify();
 }
 
+/** Forces every remaining step to auto-advance on its own (using its own
+ * delayMs) regardless of whether it's set to 'auto' or 'click' — for
+ * running the whole sequence unattended (e.g. a kiosk display) without
+ * having to change every step's own setting first. */
+export function setAutoPlayAll(next) {
+  const value = !!next;
+  if (autoPlayAll === value) return;
+  autoPlayAll = value;
+  scheduleCurrent();
+  notify();
+}
+
+/** Once every step is revealed, restart from the beginning after a short
+ * pause instead of just stopping — for a looping unattended display. */
+export function setLoop(next) {
+  const value = !!next;
+  if (loop === value) return;
+  loop = value;
+  scheduleCurrent();
+  notify();
+}
+
 export function isAnimationPlaying() {
   return playing;
 }
@@ -101,12 +163,20 @@ export function isAnimationFrozen() {
   return frozen;
 }
 
+export function isAutoPlayAll() {
+  return autoPlayAll;
+}
+
+export function isLoopEnabled() {
+  return loop;
+}
+
 export function getAnimationPlaybackState() {
-  return { playing, steps, revealedCount, frozen };
+  return { playing, steps, revealedCount, frozen, autoPlayAll, loop };
 }
 
 /** `fn(state)` is called whenever playback starts/stops or the revealed
- * position/freeze state changes. */
+ * position/freeze/autoPlayAll/loop state changes. */
 export function onAnimationChange(fn) {
   listeners.add(fn);
   return () => listeners.delete(fn);
