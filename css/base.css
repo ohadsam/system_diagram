@@ -187,6 +187,14 @@ mark {
   z-index: var(--z-toast);
 }
 
+/* Mirrors to the opposite corner under RTL (see io/i18n.js's header
+   comment) — a literal `right` doesn't flip on its own the way flexbox's
+   direction-aware axes do. */
+[dir="rtl"] .toast-container {
+  right: auto;
+  left: var(--space-4);
+}
+
 .toast {
   background: var(--color-inverse-bg);
   color: var(--color-inverse-text);

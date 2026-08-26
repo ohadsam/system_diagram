@@ -213,8 +213,10 @@
       <li><a href="#ai-review">AI Design Review</a></li>
       <li><a href="#check-diagram">Check Diagram</a></li>
       <li><a href="#generate-design">Generate Design from Spec</a></li>
+      <li><a href="#ai-edit">Edit with AI</a></li>
       <li><a href="#replication">Live Replication</a></li>
       <li><a href="#sequence-diagram">Sequence Diagrams</a></li>
+      <li><a href="#language">Language &amp; RTL</a></li>
       <li><a href="#shortcuts">Keyboard shortcuts</a></li>
       <li><a href="#faq">FAQ</a></li>
     </ul>
@@ -320,6 +322,7 @@
       <p>Turn on "🧭 Minimap" (Tools menu) for a small overview panel in the canvas's corner — every component as a tiny rect, plus a "you are here" box for the current view. Click or drag anywhere on it to jump the main view there instantly, handy for a large diagram you'd otherwise have to scroll/zoom around to navigate. "🔦 Focus Mode" (Tools menu) dims every component <em>except</em> the current selection and whatever's directly connected to it, so you can trace one part of a busy diagram without the rest fighting for attention — turn it off to bring everything back to full brightness. Both are purely visual and remembered as a preference; neither changes your saved diagram.</p>
       <h3>💬 Pinned comments</h3>
       <p>Right-click empty canvas and choose "Add comment here" to drop a small pin at that spot and open it for editing right away. Click any existing pin to reopen it — edit its note, or check "Mark as resolved" to change its look (a ✓ instead of the speech-bubble icon, dimmed) without deleting it. A pin's "Delete" button removes it (undoable, like everything else). Comments aren't attached to any component — they're independent notes anywhere on the diagram — but they're always included when you use "Fit to screen" or export to PNG/PDF, so a pin never gets left out of frame.</p>
+      <p>Open a pin and scroll below its note for a small <strong>reply thread</strong> — type in the box and press "Reply" to add a threaded response, e.g. discussing a design decision back and forth without editing the original note itself. Each reply shows its own delete button; the thread travels with the comment through export/import, duplicate project, and full backup, same as everything else about a pin.</p>
       <h3>📋 Outline panel</h3>
       <p>Click "📋 Outline" (Tools menu) for a searchable, collapsible list of every component and connector currently on the canvas, grouped into two sections — handy as a quick table of contents on a large diagram. Click any entry to select and center it on the canvas; the reverse works too — select something on the canvas and its row lights up in the Outline panel automatically. Type in the search box to filter the list down by name.</p>
       <h3>🖥️ Presenter Mode</h3>
@@ -330,6 +333,8 @@
       <p>Turn on "🔎 Auto-focus" (per animation, next to the Play button) to have the view automatically pan and zoom to frame whatever a step reveals — handy for a large diagram where the next item might be off-screen.</p>
       <p>Click "▶️ Play Animation" to start the presentation: it hides the editing chrome (like Presenter Mode) and shows only the items already revealed, one step at a time. Advance with the <kbd>→</kbd> arrow key (or <kbd>N</kbd>), or just click anywhere on the canvas, or click any of the small progress dots at the bottom to jump straight to that step; go back with <kbd>←</kbd> (or <kbd>P</kbd>); <kbd>Esc</kbd> exits back to normal editing. A newly-revealed item gets a brief highlight pulse so it's easy to spot. Two extra buttons in the playback bar support an unattended showing: "⏩" (Autoplay to the end) makes every remaining step advance on its own regardless of its Auto/Click setting, and "🔁" (Loop) restarts from the beginning a moment after the sequence finishes. Press <kbd>D</kbd> (or the 🖊️ button) to freeze the presentation and draw freely on top of it with a small color palette — useful for circling or pointing at something live — then click "Done" to clear your markup and pick the animation back up where it left off.</p>
       <p>"Export Animation"/"Import Animation" in the panel save or load every named animation on the diagram at once as its own JSON file, separate from the diagram itself — handy for reusing the same reveal order(s) across a copy of the diagram, or sharing just the "script" with someone else. Everything above (animations, groups, notes, auto-focus) is otherwise just part of the diagram itself, so it also travels automatically with the diagram's own JSON export/import and full backup.</p>
+      <h3>💫 Flow Simulation</h3>
+      <p>Click "💫 Flow Simulation" (Tools menu) to toggle small animated dots flowing along every connector in its arrow direction — a quick, purely visual way to see which way data/requests move through the diagram at a glance, handy when presenting or just re-reading an unfamiliar diagram. It's a live view setting, not part of the diagram itself: it stays on across a reload (remembered like Dark Mode), but it's never saved into the project JSON or shown in an export.</p>
     </section>
 
     <section id="styling">
@@ -452,6 +457,8 @@
         <li>A <a href="#replication">Live Replication</a> pair with no load balancer or API gateway routing traffic to either side.</li>
       </ul>
       <p>Each finding is clickable — it closes the dialog and selects/centers the component(s) involved so you can fix it right away.</p>
+      <h3>⚙️ Custom Lint Rules</h3>
+      <p>Click "⚙️ Manage Custom Rules" at the bottom of the Check Diagram dialog to define your own checks on top of the built-in ones, for conventions specific to your team or project. Three rule types are available: <strong>"Requires connection"</strong> (every component in category A must connect to at least one component in category B — e.g. every Database must reach a Backup Service), <strong>"Forbidden connection"</strong> (no component in category A may connect directly to category B — e.g. Client/Frontend straight to Databases, your own stricter version of the built-in check above), and <strong>"Max count"</strong> (no more than N components from a given category — e.g. flag a diagram with more than one Load Balancer). Give each rule a short name, toggle it on/off without deleting it, or remove it entirely. Custom rules run alongside the built-in checks every time you open Check Diagram, and are saved in this browser (not part of the diagram's own JSON), so they apply across every project you open here.</p>
     </section>
 
     <section id="generate-design">
@@ -465,6 +472,17 @@
       <p><span class="mock-node">🧠 Generate Design <small style="opacity:.7">spec → tailored prompt → paste AI reply → diagram</small></span></p>
       <div class="tip">🛡️ A reply that isn't quite right doesn't lose your work: an unusable paste shows an inline error and keeps your text so you can fix and retry, and if the AI ignores the layout instructions its components get automatically spread out on a grid instead of landing in an unreadable pile.</div>
       <div class="tip">🔀 If your spec is fundamentally about a step-by-step interaction (e.g. "walk through the login handshake"), the prompt also offers the AI a <a href="#sequence-diagram">sequence diagram</a> as an alternative to a component graph — lifelines and time-ordered messages instead of boxes and arrows.</div>
+    </section>
+
+    <section id="ai-edit">
+      <h2><span class="icon-badge">💬</span> Edit with AI</h2>
+      <p>Click "💬 Edit with AI" ("✨ Create" menu) to change your <strong>existing</strong> diagram by describing the change in plain language, instead of clicking through it by hand — the incremental sibling of Generate Design above (which replaces the whole canvas): a 3-step wizard, same honest way, <strong>no API key or setup required</strong>.</p>
+      <ol>
+        <li><strong>Describe the change</strong> — e.g. "add a Redis cache between the API Gateway and the database" or "rename Order Service to Order API and make it a hexagon shape".</li>
+        <li><strong>Copy the prompt to your AI</strong> — a ready-made prompt built from your instruction plus your current diagram's JSON, asking for a small patch back (not a whole new diagram). Click Claude / ChatGPT / Gemini / Copilot to copy the prompt and open that provider in a new tab, or copy it manually.</li>
+        <li><strong>Paste the AI's result and preview</strong> — paste its reply back in and click "Preview changes" for a plain-English list of exactly what will be added, changed, or removed before anything touches your diagram. Click "Apply changes" to make it real in one step (<kbd>Ctrl/Cmd</kbd>+<kbd>Z</kbd> undoes the whole patch at once), or go back and try a different instruction/reply if the preview isn't what you wanted.</li>
+      </ol>
+      <div class="tip">🛡️ A patch can only add, update, or remove — it never renames an existing component's internal id or silently moves it, so it can't desync an edge, an animation step, or a saved version that refers to that component. An unusable or unrecognizable reply shows an inline error (or an empty preview) and keeps your text so you can fix and retry.</div>
     </section>
 
     <section id="replication">
@@ -519,6 +537,12 @@
 
       <h3>Import from Mermaid</h3>
       <p>"Create" → "📥 Import from Mermaid" is the reverse — paste Mermaid <code>sequenceDiagram</code> text (participant declarations are optional) and it becomes a real, grouped diagram: participants become lifelines, and each message becomes a connector, reading arrow styles, <code>activate</code>/<code>deactivate</code>, <code>destroy</code>, and <code>alt</code>/<code>opt</code>/<code>loop</code>/<code>par</code> blocks. Best-effort, not a guaranteed lossless round-trip.</p>
+    </section>
+
+    <section id="language">
+      <h2><span class="icon-badge">🌐</span> Language &amp; RTL</h2>
+      <p>Click "🌐 Language" (Tools menu) to switch the app's own chrome — toolbar menus, undo/redo/select/hand-tool labels, the sidebar search box, and the shared Cancel button — between English and Hebrew, with the whole layout mirroring to right-to-left automatically (toolbar, sidebar, dialogs). The page reloads once when you switch, so everything comes back fully consistent.</p>
+      <div class="tip">🧩 The component library itself (all ~200 predefined component names/descriptions) and this help guide stay in English regardless of the chosen language — translating that much content is a separate, much bigger project. Anything you type yourself — component names, labels, notes, comments — is of course never translated and appears exactly as you typed it either way.</div>
     </section>
 
     <section id="shortcuts">

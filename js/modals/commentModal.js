@@ -4,48 +4,84 @@
 // existing pin, via the same `sdb:open-*` window-event convention every
 // other canvas-triggered modal in this app uses.
 import { openModal } from './modal.js';
-import { el } from '../utils/dom.js';
+import { el, clear, rerenderPreservingUiState } from '../utils/dom.js';
 import { field, checkbox } from '../utils/formControls.js';
 import * as store from '../core/store.js';
-import { updateCommentText, toggleCommentResolved, deleteComment } from '../canvas/canvas.js';
+import { updateCommentText, toggleCommentResolved, deleteComment, addCommentReply, deleteCommentReply } from '../canvas/canvas.js';
 import { confirmAction } from './confirmModal.js';
 
 window.addEventListener('sdb:open-comment', (e) => openCommentModal(e.detail.commentId));
 
 export function openCommentModal(commentId) {
-  const comment = store.getState().comments.find((c) => c.id === commentId);
-  if (!comment) return;
+  let unsubscribe = null;
 
   openModal({
     title: 'Comment',
     className: 'comment-modal',
     render: (body, api) => {
-      const textarea = el('textarea', {
-        class: 'comment-modal-text',
-        placeholder: 'Leave a note about this part of the diagram…',
-        rows: 4,
-        'data-focus-key': 'comment-text',
-        onInput: (e) => updateCommentText(commentId, e.target.value),
-      });
-      textarea.value = comment.text;
-      body.appendChild(field('Note', textarea));
+      const buildContents = () => {
+        clear(body);
+        const comment = store.getState().comments.find((c) => c.id === commentId);
+        if (!comment) { api.close(); return; }
 
-      body.appendChild(checkbox(comment.resolved, (v) => toggleCommentResolved(commentId), 'Mark as resolved'));
+        const textarea = el('textarea', {
+          class: 'comment-modal-text',
+          placeholder: 'Leave a note about this part of the diagram…',
+          rows: 4,
+          'data-focus-key': 'comment-text',
+          onInput: (e) => updateCommentText(commentId, e.target.value),
+        });
+        textarea.value = comment.text;
+        body.appendChild(field('Note', textarea));
 
-      const actions = el('div', { class: 'modal-actions' });
-      actions.appendChild(el('button', {
-        type: 'button',
-        class: 'btn btn-danger',
-        text: '🗑️ Delete',
-        onClick: async () => {
-          const ok = await confirmAction({ title: 'Delete comment?', message: 'This removes the pin and its note. This can be undone with Ctrl+Z.' });
-          if (!ok) return;
-          deleteComment(commentId);
-          api.close();
-        },
-      }));
-      actions.appendChild(el('button', { type: 'button', class: 'btn btn-primary', text: 'Done', onClick: () => api.close() }));
-      body.appendChild(actions);
+        body.appendChild(checkbox(comment.resolved, () => toggleCommentResolved(commentId), 'Mark as resolved'));
+
+        if (comment.replies.length) {
+          const thread = el('div', { class: 'comment-thread' });
+          for (const reply of comment.replies) {
+            const row = el('div', { class: 'comment-reply' });
+            row.appendChild(el('span', { class: 'comment-reply-text', text: reply.text }));
+            row.appendChild(el('button', {
+              type: 'button', class: 'comment-reply-remove', 'aria-label': 'Delete reply', title: 'Delete reply', text: '✕',
+              onClick: () => deleteCommentReply(commentId, reply.id),
+            }));
+            thread.appendChild(row);
+          }
+          body.appendChild(thread);
+        }
+
+        const replyInput = el('input', {
+          type: 'text',
+          class: 'comment-reply-input',
+          placeholder: 'Add a reply…',
+          'data-focus-key': 'comment-reply-input',
+          onKeydown: (e) => {
+            if (e.key !== 'Enter' || !e.target.value.trim()) return;
+            addCommentReply(commentId, e.target.value);
+            e.target.value = '';
+          },
+        });
+        body.appendChild(field('Reply', replyInput));
+
+        const actions = el('div', { class: 'modal-actions' });
+        actions.appendChild(el('button', {
+          type: 'button',
+          class: 'btn btn-danger',
+          text: '🗑️ Delete',
+          onClick: async () => {
+            const ok = await confirmAction({ title: 'Delete comment?', message: 'This removes the pin, its note, and every reply. This can be undone with Ctrl+Z.' });
+            if (!ok) return;
+            deleteComment(commentId);
+            api.close();
+          },
+        }));
+        actions.appendChild(el('button', { type: 'button', class: 'btn btn-primary', text: 'Done', onClick: () => api.close() }));
+        body.appendChild(actions);
+      };
+
+      buildContents();
+      unsubscribe = store.subscribe('change', () => rerenderPreservingUiState(body, buildContents, '.comment-reply-input'));
     },
+    onClose: () => unsubscribe?.(),
   });
 }

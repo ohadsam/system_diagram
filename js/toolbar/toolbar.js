@@ -16,7 +16,7 @@ import { createEmptyProject } from '../core/project.js';
 import { el, clear, rerenderPreservingUiState } from '../utils/dom.js';
 import {
   deleteSelection, duplicateSelection, groupSelection, ungroupSelection, selectionHasGroup, duplicateProjectAsNew,
-  getSelectionScreenRect, autoArrangeAll, distributeSequenceDiagram, setFocusMode,
+  getSelectionScreenRect, autoArrangeAll, distributeSequenceDiagram, setFocusMode, setFlowSimulationEnabled,
 } from '../canvas/canvas.js';
 import { getBaseToolMode, setToolMode, onToolModeChange } from '../canvas/toolMode.js';
 import { onViewportChange, centerOn } from '../canvas/viewport.js';
@@ -36,6 +36,7 @@ import { openDefaultSettingsModal } from '../modals/defaultSettingsModal.js';
 import { openBackupModal } from '../modals/backupModal.js';
 import { openWhatsNewModal } from '../modals/whatsNewModal.js';
 import { openReplicationModal } from '../modals/replicationModal.js';
+import { openAiEditModal } from '../modals/aiEditModal.js';
 import { openSequenceDiagramModal } from '../modals/sequenceDiagramModal.js';
 import { openImportSequenceMermaidModal } from '../modals/importSequenceMermaidModal.js';
 import { openExportDiagramModal } from '../modals/exportDiagramModal.js';
@@ -67,7 +68,8 @@ import { openGenerateDesignModal } from '../modals/generateDesignModal.js';
 import { confirmAction } from '../modals/confirmModal.js';
 import { showToast } from '../utils/toast.js';
 import { resetHints, areHintsEnabled, setHintsEnabled } from '../hints/hints.js';
-import { getUiPrefs, saveUiPrefs, onUiPrefsChange, THEME_MODES } from '../io/uiPrefs.js';
+import { getUiPrefs, saveUiPrefs, onUiPrefsChange, THEME_MODES, LANGUAGES } from '../io/uiPrefs.js';
+import { t, getLanguage, setLanguage } from '../io/i18n.js';
 import { setTheme } from '../io/theme.js';
 import { isKioskMode, toggleKioskMode, onKioskModeChange } from '../core/kioskMode.js';
 import { onSuggestionsVisibilityChange } from '../canvas/suggestions.js';
@@ -115,13 +117,13 @@ export function initToolbar(root) {
   row1.appendChild(buildCommandPaletteGroup());
   row1.appendChild(buildNavToolGroup());
   row1.appendChild(buildQuickCreateGroup());
-  row1.appendChild(buildToolbarDropdown('File', '🗂️', 'File: new, save, load, duplicate, import/export, backup', buildFileGroupButtons()));
-  row1.appendChild(buildToolbarDropdown('Create', '✨', 'Create: custom component, generated design, replication, defaults', buildCreateGroupButtons()));
+  row1.appendChild(buildToolbarDropdown(t('toolbar.file'), '🗂️', t('toolbar.file.title'), buildFileGroupButtons()));
+  row1.appendChild(buildToolbarDropdown(t('toolbar.create'), '✨', t('toolbar.create.title'), buildCreateGroupButtons()));
   const spacer = el('div', { class: 'toolbar-spacer' });
   row1.appendChild(spacer);
   row1.appendChild(renderZoomControls());
-  row1.appendChild(buildToolbarDropdown('Tools', '🛠️', 'Tools: grid, AI Design Review', buildToolsGroupButtons()));
-  row1.appendChild(buildToolbarDropdown('Help', '❓', 'Help: user guide, hints, what\'s new', buildHelpGroupButtons()));
+  row1.appendChild(buildToolbarDropdown(t('toolbar.tools'), '🛠️', t('toolbar.tools.title'), buildToolsGroupButtons()));
+  row1.appendChild(buildToolbarDropdown(t('toolbar.help'), '❓', t('toolbar.help.title'), buildHelpGroupButtons()));
   // Appended last (not before the spacer): at common desktop widths this
   // row already has zero slack (the row-main children's combined width
   // sits right at the container edge — see git history around the canvas
@@ -214,8 +216,8 @@ function buildBrand() {
 }
 
 function buildHistoryGroup() {
-  undoBtn = el('button', { type: 'button', class: 'btn btn-icon', title: 'Undo (Ctrl+Z)', 'aria-label': 'Undo', text: '↶', onClick: () => store.undo() });
-  redoBtn = el('button', { type: 'button', class: 'btn btn-icon', title: 'Redo (Ctrl+Shift+Z)', 'aria-label': 'Redo', text: '↷', onClick: () => store.redo() });
+  undoBtn = el('button', { type: 'button', class: 'btn btn-icon', title: `${t('toolbar.undo')} (Ctrl+Z)`, 'aria-label': t('toolbar.undo'), text: '↶', onClick: () => store.undo() });
+  redoBtn = el('button', { type: 'button', class: 'btn btn-icon', title: `${t('toolbar.redo')} (Ctrl+Shift+Z)`, 'aria-label': t('toolbar.redo'), text: '↷', onClick: () => store.redo() });
   return group(undoBtn, redoBtn);
 }
 
@@ -242,11 +244,11 @@ function buildCommandPaletteGroup() {
  * which of these is pressed; releasing it restores whichever was active. */
 function buildNavToolGroup() {
   const selectBtn = el('button', {
-    type: 'button', class: 'btn btn-icon', title: 'Select tool (V): click to select, drag empty space to marquee-select', 'aria-label': 'Select tool', text: '🖱️',
+    type: 'button', class: 'btn btn-icon', title: `${t('toolbar.selectTool')} (V): click to select, drag empty space to marquee-select`, 'aria-label': t('toolbar.selectTool'), text: '🖱️',
     onClick: () => setToolMode('select'),
   });
   const handBtn = el('button', {
-    type: 'button', class: 'btn btn-icon', title: 'Hand tool (H, or hold Space): drag anywhere to pan the canvas without moving components', 'aria-label': 'Hand tool', text: '✋',
+    type: 'button', class: 'btn btn-icon', title: `${t('toolbar.handTool')} (H, or hold Space): drag anywhere to pan the canvas without moving components`, 'aria-label': t('toolbar.handTool'), text: '✋',
     onClick: () => setToolMode('hand'),
   });
   const sync = () => {
@@ -426,11 +428,17 @@ function buildCreateGroupButtons() {
     },
   });
   const generateDesignBtn = el('button', { type: 'button', class: 'btn', title: 'Generate a design from a spec, with AI help', text: '🧠 Generate Design', onClick: openGenerateDesignModal });
+  const aiEditBtn = el('button', {
+    type: 'button', class: 'btn',
+    title: 'Edit with AI: describe a change in plain language and apply it as a patch to the current diagram, with AI help',
+    text: '💬 Edit with AI',
+    onClick: openAiEditModal,
+  });
   const replicateBtn = el('button', { type: 'button', class: 'btn', title: 'Replicate: link components to auto-mirror across two sides', text: '🔁 Replicate', onClick: openReplicationModal });
   const sequenceDiagramBtn = el('button', { type: 'button', class: 'btn', title: 'Create a sequence/communication-flow diagram: titled lifelines with messages between them', text: '🔀 Sequence Diagram', onClick: openSequenceDiagramModal });
   const importMermaidBtn = el('button', { type: 'button', class: 'btn', title: 'Import a sequence diagram from pasted Mermaid sequenceDiagram text', text: '📥 Import from Mermaid', onClick: openImportSequenceMermaidModal });
   const defaultsBtn = el('button', { type: 'button', class: 'btn', title: 'Default settings for new components', text: '🎛️ Default Settings', onClick: openDefaultSettingsModal });
-  return [newComponentBtn, generateDesignBtn, replicateBtn, sequenceDiagramBtn, importMermaidBtn, defaultsBtn];
+  return [newComponentBtn, generateDesignBtn, aiEditBtn, replicateBtn, sequenceDiagramBtn, importMermaidBtn, defaultsBtn];
 }
 
 function buildToolsGroupButtons() {
@@ -507,6 +515,18 @@ function buildToolsGroupButtons() {
     },
   });
 
+  const LANGUAGE_LABEL = { en: 'English', he: 'עברית' };
+  const languageBtn = el('button', {
+    type: 'button', class: 'btn',
+    title: `${t('toolbar.language')}: ${LANGUAGE_LABEL[getLanguage()]} (click to switch — reloads the page)`,
+    text: `🌐 ${t('toolbar.language')}: ${LANGUAGE_LABEL[getLanguage()]}`,
+    onClick: () => {
+      const nextIndex = (LANGUAGES.indexOf(getLanguage()) + 1) % LANGUAGES.length;
+      setLanguage(LANGUAGES[nextIndex]);
+      window.location.reload();
+    },
+  });
+
   const aiReviewBtn = el('button', { type: 'button', class: 'btn', title: 'AI Design Review', text: '🤖 AI Design Review', onClick: toggleAiReviewPanel });
   const outlineBtn = el('button', {
     type: 'button', class: 'btn',
@@ -568,7 +588,20 @@ function buildToolsGroupButtons() {
     text: '🎞️ Diagram Animation',
     onClick: toggleAnimationPanel,
   });
-  return [gridBtn, minimapBtn, focusModeBtn, alignGuidesBtn, themeBtn, aiReviewBtn, outlineBtn, lintBtn, costBtn, autoArrangeBtn, distributeBtn, scaleBtn, diagramThemeBtn, presenterModeBtn, animationBtn];
+  const flowSimBtn = el('button', {
+    type: 'button',
+    class: `btn${prefs.flowSimulation ? ' active' : ''}`,
+    title: 'Flow Simulation: animate small dots continuously flowing along every connector in its direction, to visualize traffic',
+    text: '💫 Flow Simulation',
+    onClick: () => {
+      const next = !flowSimBtn.classList.contains('active');
+      saveUiPrefs({ flowSimulation: next });
+      flowSimBtn.classList.toggle('active', next);
+      setFlowSimulationEnabled(next);
+    },
+  });
+  requestAnimationFrame(() => setFlowSimulationEnabled(prefs.flowSimulation));
+  return [gridBtn, minimapBtn, focusModeBtn, alignGuidesBtn, themeBtn, languageBtn, aiReviewBtn, outlineBtn, lintBtn, costBtn, autoArrangeBtn, distributeBtn, scaleBtn, diagramThemeBtn, presenterModeBtn, animationBtn, flowSimBtn];
 }
 
 function buildHelpGroupButtons() {

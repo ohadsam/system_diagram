@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createNode, createEdge } from '../../js/core/project.js';
-import { computeDiagramLint } from '../../js/core/diagramLint.js';
+import { computeDiagramLint, computeCustomLint } from '../../js/core/diagramLint.js';
 
 function fakeResolveDef(catByDefId) {
   return (defId) => catByDefId[defId] || null;
@@ -94,4 +94,51 @@ test('computeDiagramLint does not flag a replication pair that has a load balanc
 test('computeDiagramLint returns no findings for an empty diagram', () => {
   const resolveDef = fakeResolveDef({});
   assert.deepEqual(computeDiagramLint([], [], [], resolveDef), []);
+});
+
+// ---- computeCustomLint (io/customLintRules.js's rule engine — see that
+// file's header for the parameterized rule schema) ----
+
+test('computeCustomLint requires-connection flags a node with no matching connection, and clears once one exists', () => {
+  const cache = createNode(null, 0, 0, { text: 'Redis', defId: 'cache-redis' });
+  const backend = createNode(null, 200, 0, { text: 'API', defId: 'srv-node' });
+  const resolveDef = fakeResolveDef({ 'cache-redis': { categoryId: 'cache' }, 'srv-node': { categoryId: 'backend-frameworks' } });
+  const rule = { id: 'r1', name: 'Cache needs backend', type: 'requires-connection', categoryA: 'cache', categoryB: 'backend-frameworks', enabled: true };
+
+  const noEdges = computeCustomLint([cache, backend], [], [rule], resolveDef);
+  assert.equal(noEdges.length, 1);
+  assert.ok(noEdges[0].message.includes('Redis'));
+
+  const withEdge = computeCustomLint([cache, backend], [createEdge(cache.id, backend.id, {})], [rule], resolveDef);
+  assert.equal(withEdge.length, 0);
+});
+
+test('computeCustomLint forbidden-connection flags either direction of a forbidden pair', () => {
+  const client = createNode(null, 0, 0, { text: 'Web', defId: 'fe-react' });
+  const queue = createNode(null, 200, 0, { text: 'Queue', defId: 'mq-kafka' });
+  const resolveDef = fakeResolveDef({ 'fe-react': { categoryId: 'client' }, 'mq-kafka': { categoryId: 'messaging' } });
+  const rule = { id: 'r2', name: 'No client-to-queue', type: 'forbidden-connection', categoryA: 'client', categoryB: 'messaging', enabled: true };
+
+  const forward = computeCustomLint([client, queue], [createEdge(client.id, queue.id, {})], [rule], resolveDef);
+  assert.equal(forward.length, 1);
+  const backward = computeCustomLint([client, queue], [createEdge(queue.id, client.id, {})], [rule], resolveDef);
+  assert.equal(backward.length, 1);
+});
+
+test('computeCustomLint max-count flags only once the limit is exceeded', () => {
+  const resolveDef = fakeResolveDef({ 'db-postgres': { categoryId: 'databases' } });
+  const rule = { id: 'r3', name: 'At most 2 DBs', type: 'max-count', categoryA: 'databases', max: 2, enabled: true };
+  const dbs = (n) => Array.from({ length: n }, (_, i) => createNode(null, i * 100, 0, { text: `DB${i}`, defId: 'db-postgres' }));
+
+  assert.equal(computeCustomLint(dbs(2), [], [rule], resolveDef).length, 0);
+  const over = computeCustomLint(dbs(3), [], [rule], resolveDef);
+  assert.equal(over.length, 1);
+  assert.ok(over[0].message.includes('3'));
+});
+
+test('computeCustomLint skips a disabled rule entirely', () => {
+  const cache = createNode(null, 0, 0, { text: 'Redis', defId: 'cache-redis' });
+  const resolveDef = fakeResolveDef({ 'cache-redis': { categoryId: 'cache' } });
+  const rule = { id: 'r4', name: 'Disabled', type: 'requires-connection', categoryA: 'cache', categoryB: 'backend-frameworks', enabled: false };
+  assert.deepEqual(computeCustomLint([cache], [], [rule], resolveDef), []);
 });

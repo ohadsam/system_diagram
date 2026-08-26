@@ -2,7 +2,7 @@
 // store, and owns pan/zoom/marquee-selection. See docs/ARCHITECTURE.md
 // "Canvas rendering".
 import * as store from '../core/store.js';
-import { createEdge, nextZIndex, removeNode as removeNodeFromProject, removeEdge as removeEdgeFromProject, createNode, duplicateProject, createVersionSnapshot, removeVersion as removeVersionFromProject, createComment, createAnimationStep, createAnimation } from '../core/project.js';
+import { createEdge, nextZIndex, removeNode as removeNodeFromProject, removeEdge as removeEdgeFromProject, createNode, duplicateProject, createVersionSnapshot, removeVersion as removeVersionFromProject, createComment, createReply, createAnimationStep, createAnimation } from '../core/project.js';
 import { onAnimationChange, isAnimationPlaying, getAnimationPlaybackState, startPlayback, stopPlayback } from '../core/animationPlayback.js';
 import { setKioskMode } from '../core/kioskMode.js';
 import { buildReplicationPair } from '../core/replication.js';
@@ -18,6 +18,7 @@ import { buildCreationOverrides } from '../io/nodeDefaults.js';
 import { el, svgEl, clear } from '../utils/dom.js';
 import { rectsIntersect, pickBestSides, sideAnchor, computeAnchorOffset } from '../core/geometry.js';
 import { nextId } from '../core/id.js';
+import { sanitizeAddNode, sanitizeAddEdge, sanitizeNodeUpdateFields, sanitizeEdgeUpdateFields } from '../io/aiEditDesign.js';
 import { showToast } from '../utils/toast.js';
 import * as viewport from './viewport.js';
 import { createNodeEl, updateNodeEl, configureNodeHandlers } from './node.js';
@@ -405,6 +406,25 @@ export function setFocusMode(enabled) {
   applyFocusDimming(store.getSelection());
 }
 
+/** Toggles the ambient "traffic flow" dots (see connector.js#createEdgeEl's
+ * .flow-dot/<animateMotion>) app-wide. SMIL timing is paused/resumed at the
+ * .edge-layer's own SVGSVGElement level rather than per-edge, so this is
+ * O(1) regardless of how many connectors the diagram has, and every edge
+ * created afterward starts already in the right paused/running state
+ * simply by being appended into an already-paused-or-not layer. */
+export function setFlowSimulationEnabled(enabled) {
+  if (!edgeLayer) return;
+  edgeLayer.classList.toggle('flow-simulation-on', enabled);
+  try {
+    if (enabled) edgeLayer.unpauseAnimations();
+    else edgeLayer.pauseAnimations();
+  } catch {
+    // pauseAnimations/unpauseAnimations (SMIL) isn't implemented in every
+    // engine — the .flow-simulation-on CSS class above still controls
+    // visibility either way, just without the pause-when-off cost saving.
+  }
+}
+
 function applyFocusDimming(selection) {
   const active = focusModeEnabled && selection.nodeIds.length > 0;
   const { nodeIds: focusedNodeIds, edgeIds: focusedEdgeIds } = active
@@ -501,6 +521,26 @@ export function toggleCommentResolved(commentId) {
 export function deleteComment(commentId) {
   store.dispatch((draft) => {
     draft.comments = draft.comments.filter((x) => x.id !== commentId);
+  });
+}
+
+/** Appends a reply to a comment thread — see core/project.js#createReply.
+ * No-ops on blank text so a click on an empty reply box never commits an
+ * empty history entry (the same guard-before-dispatch discipline every
+ * other action here follows — store.dispatch always emits 'change'
+ * regardless of whether anything meaningful changed). */
+export function addCommentReply(commentId, text) {
+  if (!text || !text.trim()) return;
+  store.dispatch((draft) => {
+    const c = draft.comments.find((x) => x.id === commentId);
+    if (c) c.replies.push(createReply(text.trim()));
+  });
+}
+
+export function deleteCommentReply(commentId, replyId) {
+  store.dispatch((draft) => {
+    const c = draft.comments.find((x) => x.id === commentId);
+    if (c) c.replies = c.replies.filter((r) => r.id !== replyId);
   });
 }
 
@@ -1435,6 +1475,77 @@ export function addCustomShapeNode(shapeDef, centerPoint) {
 function screenCenterCanvasPoint() {
   const rect = viewportEl.getBoundingClientRect();
   return viewport.screenToCanvas(rect.left + rect.width / 2, rect.top + rect.height / 2);
+}
+
+/**
+ * Applies a normalized "AI edit" patch (see io/aiEditDesign.js#normalizePatch
+ * and the preview modals/aiEditModal.js shows before calling this) against
+ * the live project, as one atomic dispatch/undo step. New node/edge ids the
+ * patch declares are honored when they don't collide with anything already
+ * on the canvas; a collision (or a missing id) gets a fresh one instead,
+ * with every `addEdges`/`updateEdges` reference to that declared id
+ * transparently remapped — the same "don't drop content over an id
+ * mismatch" philosophy every other import path in this app follows. An
+ * add/update entry that still doesn't resolve to a real node (a
+ * hallucinated id the patch's own addNodes never actually created) is
+ * silently skipped, exactly as the preview already warned it would be.
+ */
+export function applyAiEditPatch(patch) {
+  const state = store.getState();
+  const liveNodeIds = new Set(state.nodes.map((n) => n.id));
+  const liveEdgeIds = new Set(state.edges.map((e) => e.id));
+  const idRemap = new Map(); // patch-declared id -> the id actually used
+
+  const newNodes = [];
+  for (const raw of patch.addNodes) {
+    const overrides = sanitizeAddNode(raw);
+    if (!overrides) continue;
+    const declaredId = overrides.id || null;
+    let finalId = declaredId;
+    if (!finalId || liveNodeIds.has(finalId)) finalId = nextId('node');
+    liveNodeIds.add(finalId);
+    if (declaredId && declaredId !== finalId) idRemap.set(declaredId, finalId);
+    newNodes.push(createNode(null, overrides.x ?? 0, overrides.y ?? 0, { ...overrides, id: finalId }));
+  }
+
+  const resolveNodeRef = (id) => idRemap.get(id) || id;
+
+  const newEdges = [];
+  for (const raw of patch.addEdges) {
+    const overrides = sanitizeAddEdge(raw);
+    if (!overrides) continue;
+    const from = resolveNodeRef(overrides.from);
+    const to = resolveNodeRef(overrides.to);
+    if (!liveNodeIds.has(from) || !liveNodeIds.has(to)) continue;
+    let finalId = overrides.id;
+    if (!finalId || liveEdgeIds.has(finalId)) finalId = nextId('edge');
+    liveEdgeIds.add(finalId);
+    newEdges.push(createEdge(from, to, { ...overrides, id: finalId }));
+  }
+
+  if (!newNodes.length && !newEdges.length && !patch.updateNodes.length && !patch.updateEdges.length
+    && !patch.removeNodeIds.length && !patch.removeEdgeIds.length) return;
+
+  store.dispatch((draft) => {
+    draft.nodes.push(...newNodes);
+    draft.edges.push(...newEdges);
+    for (const raw of patch.updateNodes) {
+      const node = draft.nodes.find((n) => n.id === raw.id);
+      const fields = sanitizeNodeUpdateFields(raw);
+      if (!node || !fields) continue;
+      Object.assign(node, fields);
+    }
+    for (const raw of patch.updateEdges) {
+      const edge = draft.edges.find((e) => e.id === raw.id);
+      const fields = sanitizeEdgeUpdateFields(raw);
+      if (!edge || !fields) continue;
+      if (fields.from) { const r = resolveNodeRef(fields.from); if (liveNodeIds.has(r)) fields.from = r; else delete fields.from; }
+      if (fields.to) { const r = resolveNodeRef(fields.to); if (liveNodeIds.has(r)) fields.to = r; else delete fields.to; }
+      Object.assign(edge, fields);
+    }
+    for (const id of patch.removeNodeIds) removeNodeFromProject(draft, id);
+    for (const id of patch.removeEdgeIds) removeEdgeFromProject(draft, id);
+  });
 }
 
 export function deleteSelection() {

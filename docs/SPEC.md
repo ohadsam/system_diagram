@@ -1107,14 +1107,22 @@ around the manual path.
 
 ### 4.27 Pinned Comments
 Right-clicking empty canvas offers "Add comment here", dropping a small
-pin (`project.comments`, each `{id, x, y, text, resolved}`) at that canvas
-point and immediately opening it for editing. Clicking an existing pin
-reopens the same editor to change its note or toggle "Mark as resolved"
-(shown with a checkmark and muted styling instead of the default speech-
-bubble icon). Comments are independent of every node/edge — not attached to
-a component, not included in duplicate-entire-canvas — but are included in
-"Fit to screen" and PNG/PDF export bounds so a pin is never cropped out of
-view.
+pin (`project.comments`, each `{id, x, y, text, resolved, replies}`) at
+that canvas point and immediately opening it for editing. Clicking an
+existing pin reopens the same editor to change its note or toggle "Mark as
+resolved" (shown with a checkmark and muted styling instead of the default
+speech-bubble icon). A comment's `replies` array (each `{id, text,
+createdAt}`) holds a lightweight discussion thread under the note — an
+input at the bottom of the editor adds a reply on Enter, and each reply has
+its own ✕ to remove it; replies are independent of the resolved/unresolved
+state. Comments (and their replies) are included in duplicate-project
+(with fresh ids on the copy), full-project JSON export/import, and full
+backup — dropped only from the standalone per-diagram-content copy
+operations that never touched comments to begin with. They're also
+included in "Fit to screen" and PNG/PDF export bounds so a pin is never
+cropped out of view. An older project's comment with no `replies` field
+(saved before this existed) validates to an empty array rather than being
+migrated destructively.
 
 ### 4.28 Accessibility
 A selected node can be nudged with the arrow keys (1px per press, 10px with
@@ -1229,6 +1237,87 @@ with the diagram's own JSON export/import and full backup — and also
 export/import independently as a standalone JSON file (covering every named
 animation on the diagram at once) for reusing or sharing just the
 "script" separately from the diagram itself.
+
+### 4.37 Flow Simulation
+"💫 Flow Simulation" (Tools menu, off by default) animates a small dot
+continuously riding every connector's own rendered path in its drawn
+direction — an SVG `<circle>` with a native `<animateMotion>`/`<mpath>`
+referencing that connector's `<path>` element by id, so the dot always
+tracks the path's current shape (including live edits) with no per-frame
+JS. Toggling it on/off flips a CSS class on the shared `.edge-layer` SVG
+root and calls that root's own `pauseAnimations()`/`unpauseAnimations()` —
+an O(1) operation regardless of how many connectors the diagram has, so a
+diagram that never enables it pays nothing for the feature. The dot is
+purely a live visualization, not persisted project data; the toggle itself
+is a persisted UI preference (`uiPrefs.flowSimulation`), same as the grid
+or minimap toggles.
+
+### 4.38 Edit with AI
+"💬 Edit with AI" (Create menu) is the incremental sibling of "🧠 Generate
+Design from Spec" (4.13): instead of replacing the whole canvas, it asks an
+AI for a small JSON *patch* against the diagram that's already there. Same
+3-step "prepare & hand off, no API key" wizard shape: (1) describe the
+change in plain language, (2) copy a generated prompt — embedding a trimmed
+JSON projection of the live diagram (ids, geometry, text; cosmetic fields
+omitted) plus the instruction — to your own AI chat, (3) paste the reply
+back. The expected reply is a patch object: `addNodes`/`addEdges` (new
+items, each given a short new id), `updateNodes`/`updateEdges` (an existing
+id plus only the fields being changed — never an id rename, never a
+position change via update), and `removeNodeIds`/`removeEdgeIds`. Before
+applying anything, a preview lists every addition/update/removal in
+human-readable form (component/connector names, not raw ids) and calls out
+any entry referencing an id the diagram doesn't have as a warning — that
+entry is silently skipped rather than applied. Applying a patch is one
+atomic dispatch: new node/edge ids that would collide with something
+already on the canvas are transparently remapped (and every reference to
+that declared id within the same patch follows the remap), so the whole
+patch is a single undoable step regardless of how many additions/updates/
+removals it contains.
+
+### 4.39 Custom Lint Rules
+"🔍 Check Diagram" (4.9's built-in structural checks) can be extended with
+team-authored rules via its "⚙️ Manage Custom Rules" button. A rule is
+parameterized, not free-form code, so it's always safe to evaluate: pick a
+type — **requires-connection** (every component in category A must have at
+least one connection, either direction, to a component in category B),
+**forbidden-connection** (no component in category A may connect directly,
+either direction, to one in category B), or **max-count** (no more than N
+components of category A may appear) — plus the category/categories and,
+for max-count, the limit. Rules are named (auto-named from their
+parameters if left blank), individually enabled/disabled without deleting
+them, and persisted in `localStorage` (`customLintRules`, capped at 50)
+independent of any one project, same as global node defaults. Every
+enabled rule is evaluated alongside the built-in checks each time "Check
+Diagram" runs, producing findings in the same `{severity, message,
+nodeIds}` shape so they render identically in the results list and are
+equally clickable to jump to the offending component(s).
+
+### 4.40 Threaded Comments
+See 4.27 — Pinned Comments now support a lightweight reply thread under
+each note.
+
+### 4.41 Language / RTL
+A "🌐 Language" toggle (Tools menu) switches the app's own UI chrome
+between English and Hebrew, applying `dir="rtl"`/`lang="he"` to `<html>`
+for Hebrew. The choice is a persisted UI preference
+(`uiPrefs.language`); since switching changes rendered text throughout the
+toolbar/sidebar/every open modal, the toggle reloads the page rather than
+attempting a partial live re-render of every already-built piece of UI.
+Translation is curated and deliberately scoped to the app's own chrome —
+toolbar group labels and their tooltips, the undo/redo/select/hand-tool
+labels, the sidebar search box, and the shared "Cancel" button used by
+every confirm/dismiss dialog — via a small `t(key)` lookup
+(`io/i18n.js`) that falls back to English (then to the key itself) on any
+miss, so an added-but-untranslated string never renders blank. The ~200
+predefined component names/descriptions and `help.html` are **not**
+translated — a separate, much larger content-translation project — and
+stay in English regardless of the chosen language. Most of the layout
+mirrors for free under `direction: rtl` (flexbox's row axis is direction-
+aware by spec, so the toolbar/sidebar/canvas arrangement flips without any
+RTL-specific CSS); the handful of `position: fixed`/`absolute` elements
+pinned with a literal `left`/`right` — the mobile sidebar/panel drawers,
+the toast stack, and the kiosk-mode exit button — get explicit
+`[dir="rtl"]` override rules alongside their normal (LTR) ones.
 
 ## 5. Non-functional requirements
 

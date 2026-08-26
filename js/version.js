@@ -2,9 +2,20 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.31.0';
+export const APP_VERSION = '1.32.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.32.0',
+    date: '2026-08-26',
+    highlights: [
+      '💫 Flow Simulation: a new toolbar toggle animates small dots continuously flowing along every connector in its direction, to visualize traffic at a glance.',
+      '💬 Edit with AI: describe a change in plain language ("add a Redis cache between the gateway and the database"), get a ready-to-paste prompt for your own AI chat, and preview + apply the returned patch as one undoable step — without disturbing the rest of your hand-placed layout.',
+      '🔍 Check Diagram now supports team-authored custom rules ("⚙️ Manage Custom Rules") — require a connection between two component categories, forbid one, or cap how many of a category can appear — checked alongside the built-in structural checks.',
+      'Pinned comments are now full discussion threads: add and remove replies under a note, which persist through export/import and duplicate-project.',
+      '🌐 A new Language toggle (Tools menu) switches the toolbar, sidebar, and common dialogs to Hebrew with a right-to-left layout — the component library and help guide stay in English for now.',
+    ],
+  },
   {
     version: '1.31.0',
     date: '2026-08-26',

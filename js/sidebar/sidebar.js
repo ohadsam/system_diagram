@@ -22,6 +22,7 @@ import { pickJSONFile } from '../io/fileIO.js';
 import { showToast } from '../utils/toast.js';
 import { getLibrarySettings, onLibrarySettingsChange } from '../io/librarySettings.js';
 import { getRecentComponentIds, onRecentComponentsChange } from '../io/recentComponents.js';
+import { t } from '../io/i18n.js';
 
 const CUSTOM_CATEGORY = { id: '__custom__', label: 'My Components', color: '#0F172A' };
 const FAVORITES_CATEGORY = { id: '__favorites__', label: 'Favorites', color: '#F59E0B' };
@@ -61,8 +62,8 @@ export function initSidebar(root) {
   const searchWrap = el('div', { class: 'sidebar-search' });
   searchInput = el('input', {
     type: 'search',
-    placeholder: 'Search components…',
-    'aria-label': 'Search components',
+    placeholder: t('sidebar.search.placeholder'),
+    'aria-label': t('sidebar.search.placeholder'),
     onInput: (e) => {
       query = e.target.value;
       renderList();
@@ -85,7 +86,7 @@ export function initSidebar(root) {
     },
   });
   popularBtn.appendChild(el('span', { text: '★', 'aria-hidden': 'true' }));
-  popularBtn.appendChild(el('span', { text: 'Popular only' }));
+  popularBtn.appendChild(el('span', { text: t('sidebar.popularOnly') }));
   rootEl.appendChild(popularBtn);
 
   listEl = el('div', { class: 'sidebar-categories' });

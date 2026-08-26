@@ -6,11 +6,13 @@
 // this is instant, offline, and deliberately narrow (only fires on a
 // handful of textbook, low-false-positive patterns).
 import { openModal } from './modal.js';
-import { el } from '../utils/dom.js';
+import { el, clear } from '../utils/dom.js';
 import * as store from '../core/store.js';
-import { computeDiagramLint } from '../core/diagramLint.js';
+import { computeDiagramLint, computeCustomLint } from '../core/diagramLint.js';
 import { resolveComponentDef } from '../canvas/canvas.js';
 import { centerOn } from '../canvas/viewport.js';
+import { getCustomLintRules } from '../io/customLintRules.js';
+import { openCustomLintRulesModal } from './customLintRulesModal.js';
 
 function selectAndCenter(nodeIds) {
   const state = store.getState();
@@ -24,36 +26,52 @@ function selectAndCenter(nodeIds) {
   store.select(nodeIds, []);
 }
 
-export function openDiagramLintModal() {
+function computeAllFindings() {
   const state = store.getState();
-  const findings = computeDiagramLint(state.nodes, state.edges, state.replicationPairs, resolveComponentDef);
+  const builtIn = computeDiagramLint(state.nodes, state.edges, state.replicationPairs, resolveComponentDef);
+  const custom = computeCustomLint(state.nodes, state.edges, getCustomLintRules(), resolveComponentDef);
+  return [...builtIn, ...custom];
+}
 
+export function openDiagramLintModal() {
   openModal({
     title: 'Check Diagram',
     className: 'diagram-lint-modal',
     render: (body, api) => {
-      body.appendChild(el('p', {
-        class: 'modal-hint',
-        text: 'A handful of quick, offline structural checks — not a full review (see "🤖 AI Design Review" for that). Click a finding to jump to it.',
-      }));
+      const renderBody = () => {
+        clear(body);
+        body.appendChild(el('p', {
+          class: 'modal-hint',
+          text: 'A handful of quick, offline structural checks — not a full review (see "🤖 AI Design Review" for that). Click a finding to jump to it.',
+        }));
 
-      if (!findings.length) {
-        body.appendChild(el('p', { class: 'diagram-lint-empty', text: '✅ No issues found.' }));
-        return;
-      }
+        const findings = computeAllFindings();
+        if (!findings.length) {
+          body.appendChild(el('p', { class: 'diagram-lint-empty', text: '✅ No issues found.' }));
+        } else {
+          const list = el('div', { class: 'diagram-lint-list' });
+          for (const finding of findings) {
+            const item = el('button', {
+              type: 'button',
+              class: 'diagram-lint-item',
+              onClick: () => { selectAndCenter(finding.nodeIds); api.close(); },
+            });
+            item.appendChild(el('span', { class: 'diagram-lint-item-icon', text: '⚠️', 'aria-hidden': 'true' }));
+            item.appendChild(el('span', { class: 'diagram-lint-item-text', text: finding.message }));
+            list.appendChild(item);
+          }
+          body.appendChild(list);
+        }
 
-      const list = el('div', { class: 'diagram-lint-list' });
-      for (const finding of findings) {
-        const item = el('button', {
-          type: 'button',
-          class: 'diagram-lint-item',
-          onClick: () => { selectAndCenter(finding.nodeIds); api.close(); },
-        });
-        item.appendChild(el('span', { class: 'diagram-lint-item-icon', text: '⚠️', 'aria-hidden': 'true' }));
-        item.appendChild(el('span', { class: 'diagram-lint-item-text', text: finding.message }));
-        list.appendChild(item);
-      }
-      body.appendChild(list);
+        const actions = el('div', { class: 'modal-actions' });
+        actions.appendChild(el('button', {
+          type: 'button', class: 'btn btn-secondary', text: '⚙️ Manage Custom Rules',
+          onClick: () => openCustomLintRulesModal({ onChange: renderBody }),
+        }));
+        body.appendChild(actions);
+      };
+
+      renderBody();
     },
   });
 }

@@ -398,6 +398,12 @@
   overflow-y: auto;
 }
 
+[dir="rtl"] .subdiagram-pin-host {
+  right: auto;
+  left: 12px;
+  align-items: flex-start;
+}
+
 .subdiagram-pin-panel {
   pointer-events: auto;
   width: min(420px, 90vw);

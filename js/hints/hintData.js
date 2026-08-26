@@ -25,4 +25,7 @@ export const HINTS = [
   { id: 'hint-project-tabs', target: '.toolbar-row-main', placement: 'bottom', text: '🗂️ File → Open in New Tab... opens another saved diagram (or a new blank one) alongside your current one — a tab strip appears above the toolbar to switch between them.' },
   { id: 'hint-presenter-mode', target: '.toolbar-row-main', placement: 'bottom', text: '🖥️ Tools → Presenter Mode hides all the editing chrome for a clean, full-screen view of just the canvas — press Esc or the floating Exit button to come back.' },
   { id: 'hint-diagram-animation', target: '.toolbar-row-main', placement: 'bottom', text: '🎞️ Tools → Diagram Animation lets you number components and connectors into a reveal sequence, then play it back step by step — advance with →, go back with ←, or freeze (D) to draw on top and explain.' },
+  { id: 'hint-flow-simulation', target: '.toolbar-row-main', placement: 'bottom', text: '💫 Tools → Flow Simulation animates small dots flowing along every connector in its direction — a quick visual of which way data moves.' },
+  { id: 'hint-ai-edit', target: '.toolbar-row-main', placement: 'bottom', text: '💬 Create → Edit with AI lets you describe a change in plain language, then paste the AI\'s reply back in and preview it before applying — your existing layout stays untouched otherwise.' },
+  { id: 'hint-language-toggle', target: '.toolbar-row-main', placement: 'bottom', text: '🌐 Tools → Language switches the toolbar, sidebar and dialogs to Hebrew with a right-to-left layout.' },
 ];

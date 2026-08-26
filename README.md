@@ -147,7 +147,15 @@ Or open `index.html` directly in a browser.
 - **🔍 Check Diagram** — instant, offline structural checks (no AI needed):
   flags a client talking straight to a database, a component with no
   connections, or a replication pair with no load balancer routing to it.
-  Click a finding to jump straight to it.
+  Click a finding to jump straight to it. "⚙️ Manage Custom Rules" lets a
+  team add its own parameterized checks — require a connection between two
+  categories, forbid one, or cap how many of a category can appear —
+  evaluated alongside the built-in checks.
+- **💬 Edit with AI** — the incremental sibling of Generate Design: describe
+  a change in plain language, get a prompt (with the same one-click AI
+  links) that embeds the current diagram, paste the reply back, and preview
+  the resulting patch — additions, updates, removals — before applying it
+  as one undoable step. Your hand-placed layout is left alone otherwise.
 - **🧠 Generate Design** — the reverse direction: paste or load a
   requirements spec, get a tailored prompt (with the same one-click AI
   links as above) that guides the AI to reply with a design in this app's
@@ -234,7 +242,8 @@ Or open `index.html` directly in a browser.
 - **Manual connector waypoints** — drag handles along a selected connector
   to add, move, or remove bend points, overriding its routing style.
 - **Pinned comments** — right-click empty canvas to drop a note pin
-  anywhere on the diagram; click a pin to edit it or mark it resolved.
+  anywhere on the diagram; click a pin to edit it, add/remove threaded
+  replies underneath, or mark it resolved.
 - **Accessibility** — arrow-key nudging for the selected component,
   accessible names on every icon-only toolbar button, and a visible
   keyboard focus ring throughout, including the command palette.
@@ -269,6 +278,13 @@ Or open `index.html` directly in a browser.
   auto-focus pan/zoom, and Autoplay/Loop for an unattended display — or
   freeze to draw over the diagram live. Export/import every animation as
   its own file, independent of the diagram.
+- **💫 Flow Simulation** — a Tools-menu toggle animates a small dot
+  continuously flowing along every connector in its direction, to
+  visualize traffic at a glance. Off by default; costs nothing when
+  disabled.
+- **🌐 Language / RTL** — a Tools-menu toggle switches the toolbar,
+  sidebar, and common dialogs to Hebrew with a right-to-left layout. The
+  component library and this guide stay in English for now.
 
 See [`help.html`](help.html) for the full interactive user guide.
 

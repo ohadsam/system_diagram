@@ -97,6 +97,31 @@
   }
 }
 
+/* RTL mirror of the mobile drawers above (see io/i18n.js's header comment
+   for why most layout mirrors for free under `direction: rtl` but a
+   `position: absolute`/`fixed` element pinned with a literal left/right
+   doesn't) — the library drawer opens from the right and every detail/
+   side panel opens from the left instead, matching the reading direction. */
+@media (max-width: 900px) {
+  [dir="rtl"] #sidebar {
+    left: auto;
+    right: 0;
+    transform: translateX(100%);
+  }
+
+  [dir="rtl"] #sidebar.open {
+    transform: translateX(0);
+  }
+
+  [dir="rtl"] #details-panel.open,
+  [dir="rtl"] #ai-review-panel.open,
+  [dir="rtl"] #outline-panel.open,
+  [dir="rtl"] #animation-panel.open {
+    right: auto;
+    left: 0;
+  }
+}
+
 @media (max-width: 600px) {
   .toolbar-brand {
     border-right: none;

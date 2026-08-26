@@ -146,6 +146,11 @@ this repo" quick-start.
 | Change the duplicate-tab warning | `js/io/duplicateTabWarning.js` (`initDuplicateTabWarning` — a `BroadcastChannel`, not a localStorage lock flag; returns a `dispose()` used only by its own unit test) |
 | Change Diagram Animation (editing) | `js/core/project.js` (`animations`/`activeAnimationId` schema, `createAnimation`/`createAnimationStep`, `validateAnimations` — also where a pre-v1.30 project's legacy flat `animationSteps` gets migrated, cascade-cleanup in `removeNode`/`removeEdge`) + `js/canvas/canvas.js`'s "Diagram Animation" section (`getAnimations`/`getActiveAnimation`/`createNewAnimation`/`renameAnimation`/`deleteAnimation`/`setActiveAnimation`, `addAnimationStep` — accepts a single target or an array for a "reveal together" group, `removeAnimationTarget` for one target within a step, all ordinary `store.dispatch` calls — undo/redo and JSON export/import cover it for free) + `js/panel/animationPanel.js` (the side panel, incl. the animation switcher and the "Add Selected as one step" bulk-group flow) + `js/io/exportAnimation.js` (standalone export/import of the whole `animations` collection, separate from project JSON, with legacy-format read support) |
 | Change Diagram Animation (playback) | `js/core/animationPlayback.js` (the step-through state machine — pub-sub, own snapshot incl. `autoPlayAll`/`loop`, not store-backed; `jumpToStep(n)` for the progress dots) + `js/canvas/animationOverlay.js` (floating prev/next/progress-dots/notes-readout/autoplay+loop-toggle/freeze+draw controls, mounted once at boot) + `js/canvas/canvas.js`'s `startAnimationPlayback`/`stopAnimationPlayback` (the join point with Presenter Mode — always exit via `stopAnimationPlayback()`, never `setKioskMode(false)` directly, or the playback timers desync from the chrome) and `maybeAutoFocusOnReveal` (pans/zooms to a newly-revealed step when the active animation's `autoFocus` is on). **Read** docs/ARCHITECTURE.md's "Diagram Animation" section first — it also explains why `renderAnimationBadges`/`applyAnimationVisibility` need their own `onAnimationChange` subscription in `initCanvas`, separate from the normal store-driven `render()`, and why `node.js`/`connector.js`'s right-click handler now preserves an existing multi-selection instead of always collapsing it. |
+| Change Flow Simulation (the ambient traffic dots) | `js/canvas/connector.js#createEdgeEl` (the `.flow-dot`/`<animateMotion>`/`<mpath>` per edge) + `js/canvas/canvas.js#setFlowSimulationEnabled` (the `.edge-layer.flow-simulation-on` class toggle + `pauseAnimations()`/`unpauseAnimations()`) + `css/connector.css` (`.flow-dot` visibility rules) — see docs/ARCHITECTURE.md's "Flow Simulation" section for why this is O(1) regardless of diagram size. |
+| Change Edit with AI (the incremental-patch AI feature) | `js/io/aiEditDesign.js` (`buildEditPrompt`, `normalizePatch`, `summarizePatch`, the `sanitize*` field allow-lists) + `js/modals/aiEditModal.js` (the 3-step wizard UI) + `js/canvas/canvas.js#applyAiEditPatch` (the atomic dispatch that actually mutates the project). Same "not an API integration" constraint as AI Design Review/Generate Design. **Read** docs/ARCHITECTURE.md's "Edit with AI" section before touching id-remapping or the update-field sanitizers — an update must never be able to rename an id or move a node via a patch. |
+| Change Custom Lint Rules | `js/io/customLintRules.js` (storage — `{id, name, type, categoryA, categoryB, max, enabled}`, `RULE_TYPES`) + `js/core/diagramLint.js#computeCustomLint` (pure evaluator, same findings shape as the built-in `computeDiagramLint`) + `js/modals/customLintRulesModal.js` (the rule builder, category dropdowns sourced from `data/index.js#CATEGORIES`) + `js/modals/diagramLintModal.js` (concatenates both finding arrays) |
+| Change threaded comment replies | `js/core/project.js#createReply` (`{id, text, createdAt}`, nested in a comment's `replies` array — not a new top-level project collection) + `js/canvas/canvas.js#addCommentReply`/`#deleteCommentReply` + `js/modals/commentModal.js` (the thread UI — subscribes to `store.subscribe('change', ...)` and uses `rerenderPreservingUiState` so typing a reply doesn't lose focus on the dispatch-triggered rebuild) |
+| Change the Language/RTL toggle or add a translated string | `js/io/i18n.js` (`t(key)`, the `en`/`he` string tables, `getLanguage`/`setLanguage`, `applyLanguageToDocument`) + `js/io/uiPrefs.js` (`language` field, `LANGUAGES`) + the toolbar's language button in `js/toolbar/toolbar.js#buildToolsGroupButtons` (calls `window.location.reload()` after switching — see "Common pitfalls" below for why). A new `[dir="rtl"]` override is only needed for an element using literal `left`/`right` under `position: fixed`/`absolute` — plain flex-row layout mirrors automatically, see docs/ARCHITECTURE.md's "Language / RTL" section. |
 
 ## Running things locally
 
@@ -728,3 +733,22 @@ npm test
   -clicking something *not* already selected still selects just it, same as
   before. Worth remembering for any future feature that wants a context
   menu to act on "whatever's currently selected."
+- **A patch's `updateNodes`/`updateEdges` must never be trusted with `id`
+  (or a node's `x`/`y`).** `io/aiEditDesign.js#sanitizeNodeUpdateFields`
+  strips `id`/`x`/`y` from an update entry even though the underlying
+  `sanitizeAddNode` it reuses would otherwise happily include them — an
+  update that could rename an id would desync every edge/animation-target/
+  version-snapshot already referencing it, and a position "update" isn't
+  what an *edit* patch is for. If you extend the sanitizers, keep this
+  narrower allow-list on the update path even as the add path grows.
+- **Toggling the language reloads the page on purpose — don't try to make
+  it a live re-render.** This app's UI chrome (toolbar, sidebar, every
+  modal, every panel) has no central re-render dispatcher; each piece
+  builds its own DOM once and patches it locally. A `t(key)`-driven
+  language switch would need every one of those pieces to know how to
+  rebuild its already-rendered strings, which doesn't exist and isn't worth
+  building for a rarely-toggled preference — `js/toolbar/toolbar.js`'s
+  language button calls `setLanguage()` then `window.location.reload()`
+  instead, which is simpler and can't leave half the UI in the old
+  language. Follow the same pattern for any future setting that needs a
+  full-chrome text change.

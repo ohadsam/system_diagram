@@ -9,6 +9,12 @@
   box-shadow: var(--shadow-lg);
   font-size: 13px;
   animation: hint-in 0.15s ease-out;
+  /* Hint copy (js/hints/hintData.js) is always English, even under the
+     Hebrew/RTL UI language (see io/i18n.js's header comment) — force LTR
+     here so the text reads normally instead of being right-aligned by an
+     RTL ancestor. */
+  direction: ltr;
+  text-align: left;
 }
 
 @keyframes hint-in {

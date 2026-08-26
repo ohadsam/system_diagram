@@ -24,8 +24,8 @@ index.html ──► js/main.js
                  ├─ core/kioskMode.js    (Presenter Mode's on/off pub-sub)
                  ├─ core/animationPlayback.js (Diagram Animation's step-through state machine)
                  ├─ canvas/animationOverlay.js (Diagram Animation's floating playback controls + draw layer)
-                 ├─ modals/*.js          (incl. modals/generateDesignModal.js, modals/replicationModal.js, modals/sequenceDiagramModal.js)
-                 ├─ io/*.js              (localStorage, file, image/pdf export, incl. io/projectTabs.js, io/duplicateTabWarning.js, io/exportAnimation.js)
+                 ├─ modals/*.js          (incl. modals/generateDesignModal.js, modals/replicationModal.js, modals/sequenceDiagramModal.js, modals/aiEditModal.js, modals/customLintRulesModal.js)
+                 ├─ io/*.js              (localStorage, file, image/pdf export, incl. io/projectTabs.js, io/duplicateTabWarning.js, io/exportAnimation.js, io/aiEditDesign.js, io/customLintRules.js, io/i18n.js)
                  └─ hints/hints.js
 ```
 
@@ -2528,17 +2528,31 @@ across an insert/remove that shifts every later index).
 
 ## Pinned Comments (`canvas/commentPins.js`, `modals/commentModal.js`, `project.comments`)
 
-A comment (`core/project.js#createComment`) is `{id, x, y, text, resolved}`
-— a plain canvas-space point, entirely independent of every node/edge (no
-`nodeId` it's attached to). `canvas/commentPins.js` renders them as small
-`<button>` pins in their own `.comment-layer`, appended inside
-`.canvas-content` (so pins pan/zoom with the diagram, unlike the minimap)
-but *last*, so a pin is never hidden behind a node. Diffed by id, the same
-"reuse existing DOM, add/remove only what changed" pattern the node/edge
-layers use. `modals/commentModal.js` follows the established `sdb:open-*`
-window-event convention (`sdb:open-comment`) other canvas-triggered-but-
-not-toolbar-button modals use (see `subDiagramModal.js`) to avoid a
-circular import between `canvas.js` and the modal.
+A comment (`core/project.js#createComment`) is `{id, x, y, text, resolved,
+replies}` — a plain canvas-space point, entirely independent of every
+node/edge (no `nodeId` it's attached to). `replies` (each
+`core/project.js#createReply`'s `{id, text, createdAt}`) is a lightweight
+discussion thread nested under the comment rather than a separate top-level
+collection — a reply never outlives its parent, so this sidesteps the need
+for any new cascade-delete/id-remap wiring anywhere else in the app; a
+reply just rides along with its comment through `duplicateProject`,
+`validateComments`, export/import, and full backup exactly the way the
+comment's other fields already did. `canvas/commentPins.js` renders
+comments as small `<button>` pins in their own `.comment-layer`, appended
+inside `.canvas-content` (so pins pan/zoom with the diagram, unlike the
+minimap) but *last*, so a pin is never hidden behind a node. Diffed by id,
+the same "reuse existing DOM, add/remove only what changed" pattern the
+node/edge layers use. `modals/commentModal.js` follows the established
+`sdb:open-*` window-event convention (`sdb:open-comment`) other
+canvas-triggered-but-not-toolbar-button modals use (see
+`subDiagramModal.js`) to avoid a circular import between `canvas.js` and
+the modal; it now subscribes to `store.subscribe('change', ...)` and
+rebuilds via `utils/dom.js#rerenderPreservingUiState` (the reply `<input>`
+carries a `data-focus-key` so typing a reply and pressing Enter — which
+dispatches, which fires 'change', which rebuilds the whole modal body —
+doesn't steal focus out from under the user, the same pattern
+`panel/animationPanel.js` established for a live-typing field inside a
+store-subscribed rebuild).
 
 Two review-caught gaps, both now fixed and regression-tested:
 
@@ -2914,6 +2928,150 @@ in `css/layout.css` and could render directly on top of them. Fixed by
 adding it to that same list — worth remembering if a future feature adds
 another fixed-position toast or banner: it needs adding there too, not just
 to whatever list existed when it was written.
+
+## Flow Simulation (`canvas/canvas.js#setFlowSimulationEnabled`, `canvas/connector.js`)
+
+Every edge's `<g class="edge">` (built once, in `connector.js#createEdgeEl`) carries a small
+`<circle class="flow-dot">` with a child `<animateMotion dur="2.4s" repeatCount="indefinite">`
+whose `<mpath>` references that same edge's `.edge-line` path by id
+(`edge-path-${edge.id}`). This is a live SVG reference, not a snapshot — when `updateEdgeEl`
+changes the path's `d` attribute (a drag, a routing change, anything), the dot's motion
+automatically re-samples the new shape with zero extra JS on the hot path. Deliberately a fixed
+duration for every edge rather than one scaled to path length (which would need
+`line.getTotalLength()` plus fragile SMIL-restart handling mid-drag) — a small, acceptable
+simplification.
+
+Toggling the feature (`setFlowSimulationEnabled(bool)`) doesn't touch each dot individually: it
+flips one CSS class on the shared `.edge-layer` SVG root (`.flow-simulation-on`, which is what
+actually shows/hides every `.flow-dot` via `css/connector.css`) and calls that root's own
+`pauseAnimations()`/`unpauseAnimations()` — the standard SMIL timeline control every `<svg>`
+element exposes for everything nested inside it. That makes the toggle O(1) regardless of diagram
+size, and means a diagram that never turns this on pays zero animation-tick cost for it. The
+toggle itself persists through `io/uiPrefs.js` (`flowSimulation`, default `false`) the same way
+`showGrid`/`showMinimap` do; `toolbar.js` calls `setFlowSimulationEnabled(prefs.flowSimulation)`
+once on startup to restore it. `.edge.anim-hidden .flow-dot` is force-hidden so a dot never
+"leaks" ahead of Diagram Animation hiding its own connector during playback.
+
+## Edit with AI (`io/aiEditDesign.js`, `modals/aiEditModal.js`, `canvas.js#applyAiEditPatch`)
+
+The incremental sibling of `io/aiGenerateDesign.js` (Generate Design from Spec) — same
+"prepare & hand off, no API key" mechanism (see `docs/SPEC.md` 4.12/4.13), but patches the live
+diagram instead of replacing it wholesale, so a user's hand-placed layout survives an edit.
+
+`buildEditPrompt({project, instruction})` embeds a **trimmed projection** of the live project
+(`id/x/y/w/h/shape/text/icon/fill/stroke` per node, `id/from/to/label/routing` per edge — no
+history/versions/animations/comments/etc.) plus the instruction, and asks for a JSON *patch*:
+`addNodes`/`addEdges` (brand-new items, each given a short new id like `"new1"`),
+`updateNodes`/`updateEdges` (an existing id plus only the changed fields), and
+`removeNodeIds`/`removeEdgeIds`. `extractPatchJSON` is a re-export of
+`aiGenerateDesign.js#extractProjectJSON` — the JSON-extraction logic (direct parse, then a
+fenced ```json block, then first-`{`-to-last-`}`) isn't project-shape-specific, so there was
+nothing to duplicate.
+
+`normalizePatch(raw)` never throws (same contract as every `validate*` helper in
+`core/project.js`) — it guarantees all six keys exist as the right container type and that every
+`updateNodes`/`updateEdges` entry at least has a non-empty string id, but does **not** validate
+individual field contents; that's `sanitizeAddNode`/`sanitizeAddEdge` (for `addNodes`/`addEdges`,
+only including a field in the returned overrides object when it individually type-checks — same
+per-field defaulting spirit as `core/project.js#validateContent`, scaled down to what
+`createNode`/`createEdge`'s own defaults don't already cover) and `sanitizeNodeUpdateFields`/
+`sanitizeEdgeUpdateFields` for updates. The update sanitizers are deliberately narrower: an update
+can never carry `id` (renaming an id would desync every edge/animation-target/version-snapshot
+referencing it) or, for a node, `x`/`y` (repositioning belongs to a drag gesture, not an AI
+edit that didn't ask to move anything).
+
+`summarizePatch(patch, project)` builds the human-readable preview `modals/aiEditModal.js` shows
+before applying anything — a list of `{kind: 'node'|'edge', type: 'add'|'update'|'remove', text}`
+rows (e.g. `"+ Redis Cache"`, `"~ Server: text"`, `"- connector e1"`) plus a `warnings` array for
+anything referencing an id neither the live project nor this same patch's own `addNodes` created
+— that entry is excluded from the preview and will be skipped on apply, never silently included.
+
+`canvas.js#applyAiEditPatch(patch)` does the actual mutation, as one atomic `store.dispatch` (one
+undo step no matter how many additions/updates/removals the patch contains): it builds every new
+node/edge via `createNode`/`createEdge` (so they get every default field those factories already
+provide), remapping a declared new id to a fresh `nextId()` on collision with anything already on
+the canvas (tracked in an `idRemap` Map so an `addEdges`/`updateEdges` entry referencing that
+same declared id still resolves correctly), then runs `removeNode`/`removeEdge` (the shared
+cascade-delete helpers) for the remove lists — inside the same dispatch, after the adds/updates,
+so an add-then-remove-elsewhere patch composes correctly.
+
+## Custom Lint Rules (`io/customLintRules.js`, `core/diagramLint.js#computeCustomLint`, `modals/customLintRulesModal.js`)
+
+Layered on top of `core/diagramLint.js`'s existing built-in checks (see that file's own header
+comment for why those are deliberately narrow) rather than merged into `computeDiagramLint` —
+these are user-authored policy, not this app's own textbook checks, and keeping them a separate
+function/module means the built-in checks' unit tests didn't need touching.
+
+A rule (`io/customLintRules.js#saveCustomLintRule`) is intentionally **parameterized, not
+free-form code** — `{id, name, type, categoryA, categoryB, max, enabled}` where `type` is one of
+`requires-connection` / `forbidden-connection` / `max-count` — so a rule is always cheap and safe
+to evaluate; there's no expression parser or sandboxed `eval` to secure. Persisted in
+`localStorage` under its own key (`customLintRules`, capped at 50 like other user-content lists in
+this app), independent of any one project, the same way `io/nodeDefaults.js`'s global defaults are.
+
+`computeCustomLint(nodes, edges, rules, resolveDef)` mirrors `computeDiagramLint`'s own
+signature/shape exactly (`{id, severity: 'warning', message, nodeIds}[]`) so
+`modals/diagramLintModal.js` just concatenates both arrays' findings into one list — a
+`requires-connection` rule flags each non-conforming node individually (one finding per node, so
+clicking a finding jumps to just that offender), `forbidden-connection` flags each violating edge
+(checking both directions, since "connects to" has no inherent direction here), and `max-count`
+produces a single finding covering every node in the over-the-limit category.
+`modals/customLintRulesModal.js` populates its category dropdowns from `data/index.js#CATEGORIES`
+directly — the same list the sidebar renders — so a rule can reference any real category without
+this module needing its own copy of category ids/labels.
+
+## Threaded Comments (`core/project.js#createReply`, `modals/commentModal.js`)
+
+See the Pinned Comments section above — a comment's `replies` array is content nested under an
+existing entity rather than a new top-level project collection, which is what let this ship
+without touching `duplicateProject`'s id-remapping loop's *shape* (only extending what it already
+walks), `validateComments`' migration story (an absent `replies` field just defaults to `[]`, the
+same "absence means empty" contract every other array field on a comment already has), or any
+export/backup format version bump — every surface that already serializes `project.comments`
+serializes the nested replies for free, since they're just more JSON on an object those surfaces
+already walk.
+
+## Language / RTL (`io/i18n.js`, `io/uiPrefs.js`)
+
+`io/i18n.js` is a small, curated `t(key)` lookup — two flat string tables (`en`/`he`) covering
+only the app's own chrome (toolbar group labels/tooltips, undo/redo/select/hand-tool labels,
+sidebar search, and the shared "Cancel" button used across every confirm/dismiss dialog). A
+miss falls back to English, then to the raw key, so a string present in one table but not yet
+added to the other never renders blank. `getLanguage()`/`setLanguage()` read/write
+`uiPrefs.language` (validated against `LANGUAGES = ['en', 'he']`, same pattern as `THEME_MODES`);
+`applyLanguageToDocument()` sets `<html lang>`/`<html dir>` and runs once at module import time
+(so the correct direction is set before `initToolbar`/`initSidebar` ever render a single string)
+and again on every `onUiPrefsChange` firing.
+
+Switching languages **reloads the page** (`toolbar.js`'s language-toggle button calls
+`setLanguage()` then `window.location.reload()`) rather than attempting a live partial re-render.
+This app's UI chrome is built by many independently-rendering pieces (toolbar, sidebar, every
+open modal, every panel) with no central re-render dispatcher; reload is a small UX cost that
+buys a guarantee that every rendered string is simultaneously and correctly in the new language,
+instead of a bespoke "rebuild yourself on language change" hook added to a dozen call sites for a
+feature that's toggled rarely.
+
+RTL layout leans on a genuine CSS fact rather than fighting it: flexbox's `row` axis is
+**direction-aware by spec** — a `display: flex; flex-direction: row` container under an ancestor
+with `direction: rtl` already visually reverses its children's order with zero extra CSS. Since
+this app's toolbar/sidebar/canvas/panel arrangement is built almost entirely from plain flex rows,
+setting `dir="rtl"` on `<html>` mirrors nearly the whole app for free (verified via screenshot —
+see the release-checklist notes for this batch). The exceptions are elements positioned with a
+literal physical `left`/`right` under `position: fixed`/`absolute`, which CSS direction has no
+effect on: the mobile sidebar/detail-panel slide-over drawers (`css/responsive.css`), the toast
+stack (`css/base.css`), the kiosk-mode exit button, and the sub-diagram drill-down pin host
+(`css/toolbar.css`/`css/canvas.css`) each get an explicit `[dir="rtl"]` override rule mirroring
+them to the opposite side, right next to their normal (LTR) declaration.
+
+A different, non-positional gotcha this same review pass caught: `direction: rtl` also affects
+plain *text* rendering, not just flex layout — so any element whose content is always English
+(regardless of the app's chosen language) still needs its own explicit `direction: ltr` or it
+inherits the document's RTL text alignment. The guided-tour hint bubbles (`css/hints.css`,
+content from `js/hints/hintData.js`, never translated) hit exactly this: under Hebrew mode their
+English copy was right-aligning and their Skip/Next buttons were swapping order along with it.
+Fixed with `direction: ltr; text-align: left` directly on `.hint-bubble` — worth checking for on
+any *other* always-English surface (e.g. a future feature with hardcoded English copy) rather than
+assuming "mostly mirrors for free" covers text content too.
 
 ## Large-diagram rendering performance (`css/node.css`)
 

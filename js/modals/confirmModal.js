@@ -1,5 +1,6 @@
 import { openModal } from './modal.js';
 import { el } from '../utils/dom.js';
+import { t } from '../io/i18n.js';
 
 /** @returns {Promise<boolean>} */
 export function confirmAction({ title = 'Are you sure?', message = '', confirmLabel = 'Delete', danger = true }) {
@@ -15,7 +16,7 @@ export function confirmAction({ title = 'Are you sure?', message = '', confirmLa
           el('button', {
             class: 'btn',
             type: 'button',
-            text: 'Cancel',
+            text: t('common.cancel'),
             onClick: () => {
               resolved = true;
               resolve(false);

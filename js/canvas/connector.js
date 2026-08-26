@@ -61,15 +61,29 @@ export function createEdgeEl(edge) {
   const tooltip = svgEl('title');
   g.appendChild(tooltip);
   const hit = svgEl('path', { class: 'edge-hit', fill: 'none', stroke: 'transparent', 'stroke-width': 16 });
-  const line = svgEl('path', { class: 'edge-line', fill: 'none' });
+  const line = svgEl('path', { class: 'edge-line', fill: 'none', id: `edge-path-${edge.id}` });
   const label = svgEl('text', { class: 'edge-label' });
   const seqBadge = svgEl('g', { class: 'edge-seq-badge' });
   const seqCircle = svgEl('circle', { r: 9 });
   const seqText = svgEl('text');
   seqBadge.appendChild(seqCircle);
   seqBadge.appendChild(seqText);
+  // Flow-simulation dot (see canvas.js#setFlowSimulationEnabled) — a small
+  // circle that rides the same path via <mpath>, a live reference that
+  // automatically follows the path's `d` whenever updateEdgeEl changes it,
+  // so no per-move JS upkeep is needed here. Hidden by CSS unless the
+  // .edge-layer carries .flow-simulation-on; its SMIL timing is paused at
+  // the layer level (edgeLayer.pauseAnimations()) so it costs nothing when
+  // the feature is off, however many edges the diagram has.
+  const flowDot = svgEl('circle', { class: 'flow-dot', r: 4 });
+  const flowMotion = svgEl('animateMotion', { dur: '2.4s', repeatCount: 'indefinite' });
+  const flowMpath = svgEl('mpath', { href: `#edge-path-${edge.id}` });
+  flowMpath.setAttributeNS('http://www.w3.org/1999/xlink', 'href', `#edge-path-${edge.id}`);
+  flowMotion.appendChild(flowMpath);
+  flowDot.appendChild(flowMotion);
   g.appendChild(hit);
   g.appendChild(line);
+  g.appendChild(flowDot);
   g.appendChild(label);
   g.appendChild(seqBadge);
 

@@ -261,6 +261,53 @@ body.resizing-details-panel {
   margin-top: var(--space-2);
 }
 
+.ai-edit-instruction,
+.ai-edit-response {
+  margin-top: var(--space-2);
+}
+
+.ai-edit-error {
+  color: var(--color-danger);
+  font-size: 13px;
+}
+
+.ai-edit-preview-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.ai-edit-preview-row {
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-family: var(--font-mono, monospace);
+}
+
+.ai-edit-preview-add {
+  background: rgba(22, 163, 74, 0.12);
+  color: var(--color-success);
+}
+
+.ai-edit-preview-update {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.ai-edit-preview-remove {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.ai-edit-warning {
+  color: var(--color-danger);
+  font-size: 13px;
+  margin-top: var(--space-2);
+}
+
 .replication-pair-list {
   display: flex;
   flex-direction: column;

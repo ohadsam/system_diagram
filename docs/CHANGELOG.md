@@ -170,6 +170,50 @@ Gateway, Circuit Breaker, and Saga Coordinator now suggest a relevant new templa
 SSO, Identity Provider, and API Key each gained one more curated pairing alongside their existing
 ones.
 
+## v1.32.0 (2026-08-26)
+
+Five independent additions: an ambient traffic visualization, a conversational way to edit an
+existing diagram with AI help, team-authored structural lint rules, threaded pinned comments, and
+a Hebrew/RTL localization of the core UI chrome.
+
+**💫 Flow Simulation** — a new Tools-menu toggle animates a small dot continuously flowing along
+every connector in its direction (an SVG `<animateMotion>` riding each edge's own path), so a
+glance at the diagram shows which way data actually moves. Off by default; paused at the
+`.edge-layer` level when disabled, so it costs nothing regardless of diagram size.
+
+**💬 Edit with AI** — the incremental sibling of "Generate Design from Spec": describe a change in
+plain language, get a prompt (embedding a trimmed JSON projection of the current diagram) to paste
+into your own AI chat, then paste the reply back. The app parses it as a small JSON patch
+(`addNodes`/`addEdges`/`updateNodes`/`updateEdges`/`removeNodeIds`/`removeEdgeIds`), shows a
+human-readable preview of exactly what will change (with warnings for anything referencing an
+unknown id), and applies it as one atomic, undoable dispatch — the rest of the diagram's hand-placed
+layout is untouched. Same "prepare & hand off, no API key" mechanism as every other AI feature here.
+
+**🔍 Custom Lint Rules** — "Check Diagram" gained an "⚙️ Manage Custom Rules" builder for
+team-specific structural policy: require a connection between two component categories, forbid a
+direct connection between two categories, or cap how many of a category can appear. Rules are
+parameterized (pick a type + category/categories, no free-form code), persisted in localStorage,
+individually enabled/disabled, and evaluated alongside the built-in checks every time.
+
+**Threaded comments** — pinned comments (Figma-style canvas annotations) now support replies: add
+and remove them under a note's own text, independent of the resolved/unresolved state. Replies
+round-trip through full-project JSON export/import, full backups, and duplicate-project (with
+fresh ids on copy, same as the parent comment).
+
+**🌐 Hebrew/RTL localization** — a new Language toggle (Tools menu) switches the toolbar group
+labels, undo/redo/select/hand-tool labels, sidebar search, and the shared "Cancel" button (used by
+every confirm/dismiss dialog) to Hebrew, and sets `dir="rtl"` on `<html>`. Most of the layout mirrors
+for free under `direction: rtl` (flexbox's row axis is direction-aware by spec); the few
+`position: fixed`/`absolute` elements pinned with a literal `left`/`right` (mobile drawers, the
+toast stack, the kiosk-mode exit button) get explicit `[dir="rtl"]` overrides. The ~200 predefined
+component names/descriptions and `help.html` deliberately stay in English — a separate, much
+larger content-translation project.
+
+Found during review: the guided-tour hint bubbles (always English, see `js/hints/hintData.js`)
+were inheriting `direction: rtl` from the document under the new Hebrew mode, right-aligning their
+English text and swapping their Skip/Next button order — `.hint-bubble` now forces `direction: ltr`
+regardless of the app's language setting.
+
 ## v1.31.0 (2026-08-26)
 
 Expands Diagram Animation with everything short of a full rewrite: multiple named animations per

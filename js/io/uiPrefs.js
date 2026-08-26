@@ -14,6 +14,7 @@ export const CONTEXT_ROW_MODES = ['floating', 'pinned-top', 'pinned-bottom'];
 // explicit override — see css/variables.css's dark-mode token block and
 // io/theme.js, which is what actually applies this to the page.
 export const THEME_MODES = ['system', 'light', 'dark'];
+export const LANGUAGES = ['en', 'he'];
 
 export const DEFAULT_UI_PREFS = {
   showGrid: false,
@@ -31,6 +32,15 @@ export const DEFAULT_UI_PREFS = {
   // canvas/canvas.js#applyFocusDimming. Off by default; only takes effect
   // once something is actually selected.
   focusMode: false,
+  // Animated dots flowing along every connector in its direction, to
+  // visualize traffic — see canvas/canvas.js#setFlowSimulationEnabled. Off
+  // by default, same reasoning as showGrid/showMinimap.
+  flowSimulation: false,
+  // UI chrome language — see io/i18n.js. Component library names,
+  // descriptions, and help.html are deliberately untranslated (a much
+  // larger, separate content-translation project); this only affects the
+  // toolbar/panels/modals' own copy.
+  language: 'en',
 };
 
 export function getUiPrefs() {
@@ -40,6 +50,7 @@ export function getUiPrefs() {
     ...stored,
     contextRowMode: CONTEXT_ROW_MODES.includes(stored.contextRowMode) ? stored.contextRowMode : DEFAULT_UI_PREFS.contextRowMode,
     theme: THEME_MODES.includes(stored.theme) ? stored.theme : DEFAULT_UI_PREFS.theme,
+    language: LANGUAGES.includes(stored.language) ? stored.language : DEFAULT_UI_PREFS.language,
   };
 }
 

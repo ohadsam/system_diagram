@@ -96,6 +96,25 @@
   fill: var(--color-danger);
 }
 
+/* Ambient "traffic flow" dot (see canvas/canvas.js#setFlowSimulationEnabled
+   and connector.js#createEdgeEl) — hidden unless the edge layer carries
+   .flow-simulation-on, and never hidden mid-animation on a component that's
+   currently hidden by Diagram Animation playback (.anim-hidden already
+   hides the whole edge group, but this is an explicit belt-and-suspenders
+   rule so a dot can never visually "leak" ahead of its own connector). */
+.flow-dot {
+  display: none;
+  pointer-events: none;
+  fill: var(--color-primary);
+  filter: drop-shadow(0 0 3px var(--color-primary));
+}
+.edge-layer.flow-simulation-on .flow-dot {
+  display: block;
+}
+.edge.anim-hidden .flow-dot {
+  display: none;
+}
+
 /* Drag-to-reconnect handles (canvas/edgeReconnect.js) — rendered in their
    own overlay layer stacked *above* .node-layer (see canvas/canvas.js),
    not as children of the edge's own <g> in .edge-layer: a handle sits

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   createEmptyProject, createNode, createEdge, removeNode, removeEdge, validateProject, nextZIndex, duplicateProject,
-  createVersionSnapshot, removeVersion, createComment, createAnimationStep, createAnimation,
+  createVersionSnapshot, removeVersion, createComment, createReply, createAnimationStep, createAnimation,
 } from '../../js/core/project.js';
 
 test('createEmptyProject has the expected shape', () => {
@@ -718,6 +718,18 @@ test('createComment defaults text to an empty string', () => {
   assert.equal(c.text, '');
 });
 
+test('createComment starts with an empty replies array', () => {
+  const c = createComment(0, 0, 'note');
+  assert.deepEqual(c.replies, []);
+});
+
+test('createReply builds a reply with the expected shape', () => {
+  const r = createReply('Use a queue here');
+  assert.equal(r.text, 'Use a queue here');
+  assert.ok(r.id);
+  assert.ok(r.createdAt);
+});
+
 test('validateProject keeps well-formed comments and drops one missing x/y', () => {
   const raw = {
     nodes: [],
@@ -743,15 +755,47 @@ test('validateProject defaults comments to an empty array when absent or malform
   assert.deepEqual(validateProject({ nodes: [], edges: [], comments: 'not-an-array' }).project.comments, []);
 });
 
-test('duplicateProject regenerates comment ids but keeps their content', () => {
+test('validateProject keeps well-formed replies and backfills a missing id, dropping a malformed entry', () => {
+  const raw = {
+    nodes: [],
+    edges: [],
+    comments: [
+      { id: 'c1', x: 0, y: 0, text: 'Thread', replies: [
+        { text: 'Reply with id', id: 'r1', createdAt: '2024-01-01T00:00:00.000Z' },
+        { text: 'Reply missing id' },
+        { notAText: true },
+        'garbage',
+      ] },
+    ],
+  };
+  const { project } = validateProject(raw);
+  const replies = project.comments[0].replies;
+  assert.equal(replies.length, 2);
+  assert.equal(replies[0].id, 'r1');
+  assert.equal(replies[0].createdAt, '2024-01-01T00:00:00.000Z');
+  assert.ok(replies[1].id, 'a missing reply id gets backfilled rather than dropping the reply');
+  assert.equal(replies[1].text, 'Reply missing id');
+});
+
+test('validateProject migrates a pre-threaded-replies comment (no replies field) to an empty array', () => {
+  const { project } = validateProject({ nodes: [], edges: [], comments: [{ id: 'c1', x: 0, y: 0, text: 'Old comment' }] });
+  assert.deepEqual(project.comments[0].replies, []);
+});
+
+test('duplicateProject regenerates comment ids but keeps their content, including replies', () => {
   const p = createEmptyProject();
-  p.comments.push(createComment(10, 20, 'Original note'));
+  const comment = createComment(10, 20, 'Original note');
+  comment.replies.push(createReply('First reply'));
+  p.comments.push(comment);
   const copy = duplicateProject(p);
   assert.equal(copy.comments.length, 1);
   assert.notEqual(copy.comments[0].id, p.comments[0].id);
   assert.equal(copy.comments[0].text, 'Original note');
   assert.equal(copy.comments[0].x, 10);
   assert.equal(copy.comments[0].y, 20);
+  assert.equal(copy.comments[0].replies.length, 1);
+  assert.equal(copy.comments[0].replies[0].text, 'First reply');
+  assert.notEqual(copy.comments[0].replies[0].id, p.comments[0].replies[0].id);
 });
 
 test('createEmptyProject includes an empty animations array and no active animation', () => {

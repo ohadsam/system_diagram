@@ -401,6 +401,11 @@ body.kiosk-mode .kiosk-exit-btn {
   display: flex;
 }
 
+[dir="rtl"] .kiosk-exit-btn {
+  right: auto;
+  left: var(--space-3);
+}
+
 /* Diagram Animation playback controls (canvas/animationOverlay.js) — shown
    only while core/animationPlayback.js reports `playing: true` (toggled via
    JS, same "always in the DOM, hidden by default" approach as

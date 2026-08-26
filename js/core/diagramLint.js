@@ -90,3 +90,72 @@ export function computeDiagramLint(nodes, edges, replicationPairs, resolveDef) {
 
   return findings;
 }
+
+/**
+ * Evaluates a team's own structural rules (io/customLintRules.js) against
+ * the current diagram — same shape/never-throws contract as
+ * computeDiagramLint above, kept as a separate function rather than merged
+ * into it since these are user-authored policy, not this app's own
+ * built-in textbook checks.
+ * @param {object[]} nodes
+ * @param {object[]} edges
+ * @param {object[]} rules io/customLintRules.js#getCustomLintRules()
+ * @param {(defId: string) => {categoryId?: string, name?: string}|null} resolveDef
+ * @returns {{id: string, severity: 'warning', message: string, nodeIds: string[]}[]}
+ */
+export function computeCustomLint(nodes, edges, rules, resolveDef) {
+  const findings = [];
+  const defFor = (node) => (node ? resolveDef(node.defId) : null);
+  const categoryOf = (node) => defFor(node)?.categoryId;
+
+  for (const rule of rules || []) {
+    if (!rule.enabled) continue;
+
+    if (rule.type === 'requires-connection') {
+      const subjects = nodes.filter((n) => categoryOf(n) === rule.categoryA);
+      for (const node of subjects) {
+        const hasMatch = edgesTouching(edges, node.id).some((e) => {
+          const otherId = e.from === node.id ? e.to : e.from;
+          const other = nodes.find((n) => n.id === otherId);
+          return categoryOf(other) === rule.categoryB;
+        });
+        if (!hasMatch) {
+          findings.push({
+            id: `custom-${rule.id}-${node.id}`,
+            severity: 'warning',
+            message: `${rule.name}: "${node.text}" has no connection to a matching component.`,
+            nodeIds: [node.id],
+          });
+        }
+      }
+    } else if (rule.type === 'forbidden-connection') {
+      for (const edge of edges) {
+        const fromNode = nodes.find((n) => n.id === edge.from);
+        const toNode = nodes.find((n) => n.id === edge.to);
+        const fromCat = categoryOf(fromNode);
+        const toCat = categoryOf(toNode);
+        const isForbiddenPair = (fromCat === rule.categoryA && toCat === rule.categoryB) || (fromCat === rule.categoryB && toCat === rule.categoryA);
+        if (isForbiddenPair) {
+          findings.push({
+            id: `custom-${rule.id}-${edge.id}`,
+            severity: 'warning',
+            message: `${rule.name}: "${fromNode.text}" connects directly to "${toNode.text}".`,
+            nodeIds: [fromNode.id, toNode.id],
+          });
+        }
+      }
+    } else if (rule.type === 'max-count') {
+      const matches = nodes.filter((n) => categoryOf(n) === rule.categoryA);
+      if (matches.length > rule.max) {
+        findings.push({
+          id: `custom-${rule.id}`,
+          severity: 'warning',
+          message: `${rule.name}: found ${matches.length}, more than the limit of ${rule.max}.`,
+          nodeIds: matches.map((n) => n.id),
+        });
+      }
+    }
+  }
+
+  return findings;
+}

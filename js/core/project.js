@@ -233,7 +233,11 @@ export function createEdge(fromNodeId, toNodeId, overrides = {}) {
 }
 
 /** A Figma-style pinned annotation: a free-floating note at a canvas point
- * (`x`,`y`), independent of any node — see canvas/commentPins.js. */
+ * (`x`,`y`), independent of any node — see canvas/commentPins.js. `text` is
+ * the thread's original note; `replies` (each `createReply`'s shape) lets a
+ * discussion build up under it without needing a separate top-level
+ * collection — a reply never outlives its parent comment, so nesting it
+ * here keeps deletion/export/import a single, already-solved problem. */
 export function createComment(x, y, text = '') {
   return {
     id: nextId('comment'),
@@ -241,6 +245,16 @@ export function createComment(x, y, text = '') {
     y,
     text,
     resolved: false,
+    createdAt: new Date().toISOString(),
+    replies: [],
+  };
+}
+
+/** One reply within a comment thread — see createComment's `replies`. */
+export function createReply(text = '') {
+  return {
+    id: nextId('reply'),
+    text,
     createdAt: new Date().toISOString(),
   };
 }
@@ -316,7 +330,7 @@ export function duplicateProject(project) {
     // Comments are diagram content (like nodes/edges), not editing history,
     // so — unlike versions/presentations above — they do carry over; only
     // their ids are regenerated, same "never shares identity" contract.
-    comments: (project.comments || []).map((c) => ({ ...c, id: nextId('comment') })),
+    comments: (project.comments || []).map((c) => ({ ...c, id: nextId('comment'), replies: (c.replies || []).map((r) => ({ ...r, id: nextId('reply') })) })),
     // Same reasoning as comments: animations are content, not history, so
     // they carry over — every step's targets remapped onto the copy's own
     // fresh node/edge ids, dropping any target whose node/edge didn't
@@ -565,6 +579,19 @@ function validateComments(rawComments) {
       text: typeof c.text === 'string' ? c.text : '',
       resolved: c.resolved === true,
       createdAt: typeof c.createdAt === 'string' ? c.createdAt : new Date().toISOString(),
+      // Older projects (before threaded replies existed) simply have no
+      // `replies` field — defaulting to [] here is the whole migration,
+      // same "absence just means empty" contract every other array field
+      // on this object already follows.
+      replies: Array.isArray(c.replies)
+        ? c.replies
+            .filter((r) => r && typeof r === 'object' && typeof r.text === 'string')
+            .map((r) => ({
+              id: typeof r.id === 'string' && r.id ? r.id : nextId('reply'),
+              text: r.text,
+              createdAt: typeof r.createdAt === 'string' ? r.createdAt : new Date().toISOString(),
+            }))
+        : [],
     }));
 }
 
