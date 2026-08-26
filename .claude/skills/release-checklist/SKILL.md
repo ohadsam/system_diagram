@@ -130,13 +130,28 @@ is "nothing to do":
   anchor is easy to introduce and easy to check: extract all `href="#..."` and `<section id="...">`
   values and diff them).
 
-## 6. Skills
+## 6. Skills — including a self-review of this checklist
 
-Check whether this repo's `.claude/skills/` need updating given the change — e.g. this skill file
-itself, if the checklist changed, or `.claude/skills/add-library-item/SKILL.md` if the component
-data schema (`js/data/schema.js`) changed. Create a new skill only for a genuinely recurring
-workflow, not a one-off task — skills cost a discovery/loading overhead, so a narrow one-shot
-instruction belongs in the conversation, not a new skill file.
+Check whether this repo's `.claude/skills/` need updating given the change — e.g.
+`.claude/skills/add-library-item/SKILL.md` if the component data schema (`js/data/schema.js`)
+changed.
+
+**Then, explicitly and every time, ask whether this checklist itself (this file) needs updating.**
+Do this last, after steps 1-5 are actually done — only with the whole batch behind you can you see
+whether it taught this checklist something new. Concretely: did anything found or built during
+this run reveal a recurring pattern, a new gotcha, a new subsystem worth its own check, or a step
+whose instructions turned out to be incomplete/wrong once actually followed? If so, add or edit a
+section here in the same way the existing ones read (concrete file paths, the "why", a real
+example from this repo's history) — this is exactly how the "Hebrew/RTL localization" step above
+came to exist: a batch that *added* RTL support was the first time anyone noticed this checklist
+had nothing telling a *future* batch to keep it in sync. If nothing this batch did calls for a
+checklist change, say so explicitly rather than skip the question silently — "nothing to update
+here" is a valid, expected answer most of the time, not a step to omit.
+
+Create a new skill only for a genuinely recurring workflow, not a one-off task — skills cost a
+discovery/loading overhead, so a narrow one-shot instruction belongs in the conversation, not a
+new skill file. Any resulting edit to this file is part of the same batch — commit it together
+with everything else in step 8, not as an afterthought later.
 
 ## 7. Tests
 
@@ -186,4 +201,6 @@ means main moved since the branch was cut and needs a real merge decision.
 - `npm run test:unit` and the Playwright e2e suite both pass with 0 failures.
 - Version bumped, What's New updated, hints reviewed, all six doc surfaces reviewed (even if some
   needed no change — say so).
+- This checklist itself explicitly reconsidered in light of this batch — updated if this run
+  surfaced a new recurring pattern/gotcha, or a stated "no update needed" otherwise.
 - `main` is pushed and fast-forwarded to include the batch.
