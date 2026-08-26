@@ -78,7 +78,42 @@ Check `js/hints/hintData.js`. If the change adds a genuinely new, non-obvious, d
 interaction (a new toolbar button, a new modal flow), add a hint entry pointing at it. Don't add
 one for an internal/behind-the-scenes change, or one already implied by an existing hint.
 
-## 4. Docs — all of them, every time
+## 4. Hebrew/RTL localization (`io/i18n.js`)
+
+This app has an opt-in Hebrew/RTL mode (Tools menu → 🌐 Language) covering a **deliberately
+narrow** surface: the toolbar dropdown group labels/tooltips (File/Create/Tools/Help),
+undo/redo/select/hand-tool labels, the sidebar search box, and the shared "Cancel" button. It does
+**not** cover the component library data or `help.html` — that's an explicit, separate
+much-larger project (see `io/i18n.js`'s header comment) and needs no action here. Every batch
+checks this the same way it checks Smart Suggestions or hints — explicitly, even when the answer
+is "nothing to do":
+
+- **Changed the text of an already-translated string?** (e.g. reworded a toolbar dropdown title,
+  renamed a button) — update its Hebrew counterpart in `STRINGS.he` to match, and re-verify the
+  `STRINGS.en` value is still byte-for-byte identical to whatever hardcoded text it mirrors
+  elsewhere. A silent mismatch here is easy to introduce and easy to miss in an English-language
+  review pass — exactly this happened during the batch that added this localization (the
+  `toolbar.handTool`/`toolbar.file.title` strings drifted from the real button text and only an
+  e2e failure caught it). Grep for the string's key across `.js` files to find every call site.
+- **Added a new toolbar dropdown group, or a new always-visible control in the same family as the
+  currently-translated set** (undo/redo/select/hand-tool)? Decide explicitly whether it joins the
+  translated surface too — not mandatory, the surface grows slowly on purpose, but say so either
+  way rather than silently leaving a new prominent string untranslated next to translated ones.
+- **Added a new `position: fixed`/`absolute` element positioned with a literal `left`/`right`** (a
+  new toast, floating button, drawer, panel)? It needs its own `[dir="rtl"]` override the same way
+  the existing ones do (`css/responsive.css`, `css/base.css`, `css/toolbar.css`, `css/canvas.css`)
+  — `direction: rtl` on `<html>` does nothing for physically-positioned offsets.
+- **Added a new UI surface whose text content is always English** (like the guided-tour hint
+  bubbles)? It needs its own `direction: ltr` rule the same way `.hint-bubble` does
+  (`css/hints.css`) or an RTL ancestor will silently right-align it and reverse any flex-row
+  button order inside it.
+- If anything above changed, screenshot it with the language switched to Hebrew — set
+  `localStorage['sdb:v1:prefs']` to include `"language":"he"` and reload (note the `sdb:v1:`
+  prefix from `io/storage.js`; without it the app never sees the override) — at desktop and mobile
+  width, confirm `document.documentElement.dir === 'rtl'`, and check for horizontal overflow same
+  as the rest of the UI/UX pass.
+
+## 5. Docs — all of them, every time
 
 - `docs/SPEC.md` — functional requirements; add/update the relevant numbered section.
 - `docs/ARCHITECTURE.md` — how it's built; update the module-tree diagram if a new top-level file
@@ -95,7 +130,7 @@ one for an internal/behind-the-scenes change, or one already implied by an exist
   anchor is easy to introduce and easy to check: extract all `href="#..."` and `<section id="...">`
   values and diff them).
 
-## 5. Skills
+## 6. Skills
 
 Check whether this repo's `.claude/skills/` need updating given the change — e.g. this skill file
 itself, if the checklist changed, or `.claude/skills/add-library-item/SKILL.md` if the component
@@ -103,7 +138,7 @@ data schema (`js/data/schema.js`) changed. Create a new skill only for a genuine
 workflow, not a one-off task — skills cost a discovery/loading overhead, so a narrow one-shot
 instruction belongs in the conversation, not a new skill file.
 
-## 6. Tests
+## 7. Tests
 
 - Add/extend unit tests (`tests/unit/*.test.mjs`) for any new pure logic — see existing tests in
   `tests/unit/replication.test.mjs` and `tests/unit/project.test.mjs` for the style (plain
@@ -121,7 +156,7 @@ PLAYWRIGHT_CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx 
 If the pinned chromium path above doesn't exist, find the installed one first:
 `find /opt/pw-browsers -maxdepth 2 -iname "chrome"`.
 
-## 7. Merge to main and push
+## 8. Merge to main and push
 
 This repo's convention (established across every batch) is a **fast-forward merge**, not a PR:
 
@@ -145,6 +180,9 @@ means main moved since the branch was cut and needs a real merge decision.
 
 - Code review ran 3 times — technical, functional, and UI/UX+mobile, as genuinely separate
   passes — and every finding was fixed, not just noted.
+- Hebrew/RTL surface (`io/i18n.js`) checked against this batch's changes — any changed/new string
+  in its scope translated (or explicitly deemed out of scope), any new fixed/absolute element or
+  always-English surface reviewed for an RTL override, even if the answer was "nothing to do".
 - `npm run test:unit` and the Playwright e2e suite both pass with 0 failures.
 - Version bumped, What's New updated, hints reviewed, all six doc surfaces reviewed (even if some
   needed no change — say so).
