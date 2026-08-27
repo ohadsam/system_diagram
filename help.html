@@ -213,6 +213,7 @@
       <li><a href="#ai-review">AI Design Review</a></li>
       <li><a href="#ai-direct-mode">Direct API mode &amp; getting an API key</a></li>
       <li><a href="#ai-local-mode">Local AI mode (no key at all)</a></li>
+      <li><a href="#ai-suggestions">AI-Powered Suggestions</a></li>
       <li><a href="#check-diagram">Check Diagram</a></li>
       <li><a href="#generate-design">Generate Design from Spec</a></li>
       <li><a href="#ai-edit">Edit with AI</a></li>
@@ -447,7 +448,7 @@
       <h2><span class="icon-badge">🤖</span> AI Design Review</h2>
       <p>Click "🤖" in the toolbar to open a side panel that helps you get a system-design review from a mainstream AI — <strong>no API key or setup required</strong> by default (see <a href="#ai-direct-mode">Direct API mode</a> below for the optional alternative that skips the copy/paste step).</p>
       <div class="tip">🔑 How it actually works: no AI provider (Claude, ChatGPT, Gemini, Copilot) offers key-free API access, and pulling results from Google's AI-powered search isn't possible either (blocked, and against Google's terms) — so instead of pretending otherwise, this panel prepares everything and hands it to <em>you</em> to paste in, using whichever AI account you're already signed into.</div>
-      <div class="tip">💬 The panel's top has a "🔍 Review" / "💬 Explain" toggle — Review (the default) asks for critique/feedback as below; Explain instead asks the AI for a plain-language walkthrough of what the diagram represents, handy for onboarding a teammate or sanity-checking a generated/imported diagram.</div>
+      <div class="tip">💬 The panel's top has a "🔍 Review" / "💬 Explain" toggle — Review (the default) asks for critique/feedback as below; Explain instead asks the AI for a plain-language walkthrough of what the diagram represents, handy for onboarding a teammate or sanity-checking a generated/imported diagram. A third "💡 Suggestions" option appears too once Direct API mode or Local AI mode is set up — see <a href="#ai-suggestions">AI-Powered Suggestions</a> below.</div>
       <ol>
         <li><strong>Optional: attach a spec</strong> — a plain-text or Markdown file whose content gets folded into the prompt, so the AI can compare your diagram against your requirements.</li>
         <li><strong>Review the prompt</strong> — auto-generated from your diagram (component names, counts), fully editable.</li>
@@ -482,6 +483,14 @@
       <p>This needs <strong>WebGPU</strong> — supported on recent Chrome/Edge on desktop, Chrome on Android, and newer Safari/Firefox builds. If your browser doesn't support it, Settings shows a clear warning and the preload button is disabled rather than letting you hit a confusing failure later.</p>
       <p>Once this mode is on, a "🧩 Send to Local AI" button appears right alongside the hand-off and Direct API buttons in AI Design Review, Generate Design from Spec, and Edit with AI — every option always stays available side by side, so a failed local attempt (unsupported browser, model still loading) is just a click away from the working hand-off fallback. Local AI mode is text-only: the diagram image in AI Design Review isn't sent to it, since these small models aren't multimodal.</p>
       <p>Expect noticeably lower quality and speed than Claude, ChatGPT, or Gemini — these are compact models chosen to actually run in a browser, not frontier-scale ones. Good for a quick sanity check or when you'd simply rather not use a hosted provider at all.</p>
+    </section>
+
+    <section id="ai-suggestions">
+      <h2><span class="icon-badge">💡</span> AI-Powered Suggestions</h2>
+      <p>Once <a href="#ai-direct-mode">Direct API mode</a> or <a href="#ai-local-mode">Local AI mode</a> is set up, <a href="#ai-review">AI Design Review</a>'s mode toggle gains a third option: <strong>💡 Suggestions</strong>. Unlike Review/Explain, this one is fully automatic — no copy/paste, no opening another tab — since clicking "⚡ Send directly" or "🧩 Send to Local AI" sends the request and brings the answer straight back into the panel.</p>
+      <p>The AI is asked for a short, specific list covering three things: concrete <strong>components</strong> worth adding that the diagram is missing (named specifically — "Redis Cache", not "add caching"), <strong>pricing</strong> considerations relevant to what's actually on the canvas, and other concrete <strong>improvements</strong> (reliability, security, scalability). Each one renders as a small card with a title and a one-line explanation, grouped by category — a suggested component that matches something already in this app's library gets a one-click <strong>"+ Add"</strong> button that drops it onto the canvas right away.</p>
+      <div class="tip">💡 An attached spec (the same optional file from step 1 of AI Design Review) is factored in here too — the AI is asked to call out anything the spec implies that the diagram doesn't cover yet.</div>
+      <div class="tip">⚠️ If the AI's reply isn't valid JSON (rare, but a model can ignore formatting instructions), the raw text shows up in a box with a "💡 Parse suggestions" button — edit and retry rather than losing the response. A "🔄 Ask again" link clears the current cards to request a fresh batch.</div>
     </section>
 
     <section id="check-diagram">

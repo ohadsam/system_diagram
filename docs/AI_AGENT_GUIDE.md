@@ -165,6 +165,7 @@ this repo" quick-start.
 | Change the C4 Context Diagram wizard | `js/core/c4Context.js#layoutC4Context` (pure — system centered, people row above, external-systems row below) + `js/canvas/canvas.js#createC4ContextDiagram` (creates the nodes + person→system/system→external edges as one dispatch) + `js/modals/c4ContextModal.js` (dynamic person/external-system row editor, same pattern as `sequenceDiagramModal.js`'s participant list) |
 | Change Direct API mode for AI providers (Settings) | `js/io/aiProviderKeys.js` (storage — `DIRECT_CAPABLE_PROVIDERS`, `HANDOFF_TO_DIRECT_ID`, mode-switch-wipes-keys logic) + `js/io/aiDirectCall.js` (pure `build*Request`/`parse*Response` per provider + `sendPromptDirect`'s one `fetch`) + `js/utils/aiProviderActions.js` (the shared "hand-off + optional ⚡ Send directly" button row, used by all three AI flows) + `js/modals/defaultSettingsModal.js#buildAiProvidersSection` (the Settings UI). **Read** docs/ARCHITECTURE.md's "Direct API Mode for AI Providers" section before assuming a new provider will just work — whether it does depends entirely on that provider's own CORS policy, not on anything this app controls. |
 | Change Local AI mode (in-browser inference, Settings) | `js/io/webllmEngine.js` (`isWebGpuSupported`, `generateLocal`, `preloadLocalModel` — lazily `import()`s the vendored `@mlc-ai/web-llm` engine) + `LOCAL_MODEL_CHOICES`/`setLocalModel`/`isLocalModeActive` in `js/io/aiProviderKeys.js` + `js/utils/aiProviderActions.js`'s "🧩 Send to Local AI" button + `js/modals/defaultSettingsModal.js#buildLocalAiSection` (model picker + preload button). **Read** docs/ARCHITECTURE.md's "Local AI Mode" section before touching `LOCAL_MODEL_CHOICES` — every id there was verified against the exact vendored build's own model catalog, not guessed, and re-vendoring a newer version needs the same verification (see `vendor/VENDOR.md`). |
+| Change AI-Powered Suggestions ("💡 Suggestions" mode in AI Design Review) | `js/io/aiReview.js` (`buildSuggestionsPrompt`, `extractSuggestionsArray`) + `js/core/aiSuggestionMatch.js#findComponentMatch` (best-effort AI-title-to-library-component matching) + `js/panel/aiReviewPanel.js`'s `'suggest'` mode (`suggestionsAvailable()`, `buildSuggestionsList`, the manual-parse fallback). **Read** docs/ARCHITECTURE.md's "AI-Powered Suggestions" section before assuming this mode should appear in Copy/Paste-only setups — it's deliberately gated on Direct API mode or Local AI mode actually being usable, since the whole point is skipping the copy/paste round trip. |
 
 ## Running things locally
 
@@ -839,3 +840,16 @@ npm test
   "recommended"), caught by an e2e assertion on the default button label
   rather than by reading the array. Reordering or relabeling this list
   needs both facts checked together, not just one.
+- **A new prompt-builder variant added alongside existing ones sharing the
+  same options object silently drops any field it doesn't destructure —
+  no error, just a feature that quietly does nothing.** While adding
+  `buildSuggestionsPrompt` next to `buildReviewPrompt`/`buildExplainPrompt`
+  (`io/aiReview.js`), the panel kept showing its "attach a spec" step in
+  every mode, but the new function's parameter list didn't include
+  `specText` — attaching a spec had zero effect on the Suggestions prompt,
+  with no error or warning anywhere, since JS object destructuring just
+  ignores keys you don't ask for. Caught by re-reading the new function
+  against the UI it's paired with, not by a test (nothing failed). Any
+  time a new sibling function is added next to others that share an
+  options shape, check it actually uses every field the *shared* UI still
+  offers for it, not just the fields exercised by its own first draft.

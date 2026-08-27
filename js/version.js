@@ -2,9 +2,16 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.35.0';
+export const APP_VERSION = '1.36.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.36.0',
+    date: '2026-08-27',
+    highlights: [
+      'New "💡 Suggestions" mode in AI Design Review — once Direct API mode or Local AI mode is set up, get automatic, specific suggestions for this diagram (missing/relevant components, pricing considerations, other improvements) with no copy/paste round trip. A suggested component that matches something in the library gets a one-click "+ Add" button.',
+    ],
+  },
   {
     version: '1.35.0',
     date: '2026-08-27',

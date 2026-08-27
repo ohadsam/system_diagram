@@ -14,20 +14,42 @@
 import * as store from '../core/store.js';
 import { el, clear } from '../utils/dom.js';
 import { nextId } from '../core/id.js';
-import { buildReviewPrompt, buildExplainPrompt } from '../io/aiReview.js';
+import { buildReviewPrompt, buildExplainPrompt, buildSuggestionsPrompt, extractSuggestionsArray } from '../io/aiReview.js';
 import { exportPNG, captureDiagramCanvas } from '../io/exportImage.js';
 import { showToast } from '../utils/toast.js';
 import { buildAiProviderActions } from '../utils/aiProviderActions.js';
+import { isDirectModeActive, isLocalModeActive, getConfiguredDirectProviders } from '../io/aiProviderKeys.js';
+import { findComponentMatch } from '../core/aiSuggestionMatch.js';
+import { ALL_COMPONENTS } from '../data/index.js';
+import { getCustomComponents } from '../io/customComponents.js';
+import { addComponentAtCenter } from '../canvas/canvas.js';
+
+const SUGGESTION_CATEGORY_META = {
+  component: { icon: '🧩', label: 'Suggested components' },
+  pricing: { icon: '💰', label: 'Pricing notes' },
+  improvement: { icon: '✨', label: 'Improvements' },
+};
 
 let rootEl = null;
 let isOpen = false;
 let specFileName = '';
 let specText = '';
 let promptOverride = null;
-let mode = 'review'; // 'review' | 'explain' — which prompt builder currentPrompt() uses
+let mode = 'review'; // 'review' | 'explain' | 'suggest' — which prompt builder currentPrompt() uses
 let savedReviews = [];
 let lastProjectId = null;
 let pasteBackTextarea = null; // set by buildPasteBack() each render; filled in by a successful direct send
+let parsedSuggestions = null; // array of {category, title, detail} once a 'suggest' response parses cleanly
+let suggestionsRawText = ''; // raw response text kept for manual re-parsing when auto-parse fails
+
+/** "AI Suggestions" only makes sense as an *automatic* round trip (see
+ * this file's header comment on why hand-off is the default elsewhere) —
+ * asking someone to hand-copy a JSON array in and out defeats the point.
+ * So it's only offered once a Direct API provider or Local AI model is
+ * actually usable; otherwise the mode toggle simply doesn't show it. */
+function suggestionsAvailable() {
+  return isLocalModeActive() || (isDirectModeActive() && getConfiguredDirectProviders().length > 0);
+}
 
 export function initAiReviewPanel(root) {
   rootEl = root;
@@ -46,6 +68,8 @@ export function initAiReviewPanel(root) {
     specText = '';
     promptOverride = null;
     savedReviews = [];
+    parsedSuggestions = null;
+    suggestionsRawText = '';
     if (isOpen) render();
   });
 }
@@ -78,6 +102,7 @@ function currentPrompt() {
     specText,
     hasSequenceDiagram: state.nodes.some((n) => n.shape === 'lifeline'),
   };
+  if (mode === 'suggest') return buildSuggestionsPrompt(args);
   return mode === 'explain' ? buildExplainPrompt(args) : buildReviewPrompt(args);
 }
 
@@ -135,6 +160,10 @@ async function copyImageToClipboard() {
 }
 
 function render() {
+  if (mode === 'suggest' && !suggestionsAvailable()) {
+    mode = 'review';
+    promptOverride = null;
+  }
   clear(rootEl);
 
   const header = el('div', { class: 'details-header' });
@@ -145,14 +174,18 @@ function render() {
 
   const body = el('div', { class: 'details-body ai-review-body' });
 
-  body.appendChild(el('p', { class: 'modal-hint', text: 'No API key or setup needed: this prepares a prompt and the diagram image, then opens your chosen AI\'s own website (where you\'re already signed in) so you can paste them in yourself. There\'s no automatic round trip — paste the AI\'s reply back below to keep it with your project.' }));
-
   body.appendChild(buildModeToggle());
+
+  if (mode === 'suggest') {
+    body.appendChild(el('p', { class: 'modal-hint', text: 'Uses your configured Direct API provider or Local AI model to analyze this diagram and suggest specific missing components, pricing considerations, and other improvements — automatically, with no copy/paste round trip.' }));
+  } else {
+    body.appendChild(el('p', { class: 'modal-hint', text: 'No API key or setup needed: this prepares a prompt and the diagram image, then opens your chosen AI\'s own website (where you\'re already signed in) so you can paste them in yourself. There\'s no automatic round trip — paste the AI\'s reply back below to keep it with your project.' }));
+  }
 
   body.appendChild(el('h3', { text: '1. Optional: attach a spec to compare against' }));
   body.appendChild(buildSpecAttach());
 
-  body.appendChild(el('h3', { text: mode === 'explain' ? '2. Explain prompt (editable)' : '2. Review prompt (editable)' }));
+  body.appendChild(el('h3', { text: mode === 'suggest' ? '2. Suggestions prompt (editable)' : mode === 'explain' ? '2. Explain prompt (editable)' : '2. Review prompt (editable)' }));
   const promptArea = el('textarea', {
     class: 'ai-review-prompt',
     rows: 8,
@@ -177,18 +210,28 @@ function render() {
   imageActions.appendChild(el('button', { type: 'button', class: 'btn btn-secondary', text: '📋 Copy image', onClick: copyImageToClipboard }));
   body.appendChild(imageActions);
 
-  body.appendChild(el('h3', { text: '4. Open your AI and paste both in — or send it directly' }));
+  body.appendChild(el('h3', { text: mode === 'suggest' ? '4. Send — automatic with Direct/Local AI' : '4. Open your AI and paste both in — or send it directly' }));
   body.appendChild(buildAiProviderActions({
     openProvider,
     getPrompt: currentPrompt,
     getImageBase64: currentImageBase64,
-    onDirectResult: (text) => { if (pasteBackTextarea) pasteBackTextarea.value = text; },
+    onDirectResult: (text) => {
+      if (mode !== 'suggest') { if (pasteBackTextarea) pasteBackTextarea.value = text; return; }
+      suggestionsRawText = text;
+      const result = extractSuggestionsArray(text);
+      if (result.ok) {
+        parsedSuggestions = result.data;
+      } else {
+        showToast("Got a response, but couldn't read it as a suggestions list — showing the raw reply below to parse manually.", 'error', 4500);
+      }
+      render();
+    },
   }));
 
-  body.appendChild(el('h3', { text: '5. Bring the response back here' }));
-  body.appendChild(buildPasteBack());
+  body.appendChild(el('h3', { text: mode === 'suggest' ? '5. Suggestions' : '5. Bring the response back here' }));
+  body.appendChild(mode === 'suggest' ? buildSuggestionsSection() : buildPasteBack());
 
-  if (savedReviews.length) {
+  if (mode !== 'suggest' && savedReviews.length) {
     body.appendChild(el('h3', { text: 'Saved this session' }));
     body.appendChild(buildSavedReviews());
   }
@@ -205,13 +248,91 @@ function render() {
 function buildModeToggle() {
   const wrap = el('div', { class: 'ai-review-mode-toggle' });
   const modes = [['review', '🔍 Review'], ['explain', '💬 Explain']];
+  if (suggestionsAvailable()) modes.push(['suggest', '💡 Suggestions']);
   for (const [value, label] of modes) {
     wrap.appendChild(el('button', {
       type: 'button',
       class: value === mode ? 'btn btn-primary' : 'btn',
       text: label,
-      onClick: () => { if (mode !== value) { mode = value; promptOverride = null; render(); } },
+      onClick: () => {
+        if (mode === value) return;
+        mode = value;
+        promptOverride = null;
+        parsedSuggestions = null;
+        suggestionsRawText = '';
+        render();
+      },
     }));
+  }
+  return wrap;
+}
+
+/** Step 5 in 'suggest' mode: the parsed suggestion cards once a response
+ * comes back clean, or a manual paste-and-parse fallback (same shape as
+ * buildPasteBack() below) for when auto-parse fails or a hand-off/manual
+ * response is used instead of a direct/local send. */
+function buildSuggestionsSection() {
+  const wrap = el('div', { class: 'ai-suggestions-wrap' });
+  if (parsedSuggestions && parsedSuggestions.length) {
+    wrap.appendChild(buildSuggestionsList(parsedSuggestions));
+    wrap.appendChild(el('button', {
+      type: 'button', class: 'btn-link', text: '🔄 Ask again',
+      onClick: () => { parsedSuggestions = null; suggestionsRawText = ''; render(); },
+    }));
+    return wrap;
+  }
+  const textarea = el('textarea', {
+    class: 'ai-review-response', rows: 6,
+    placeholder: "Suggestions appear here automatically after sending above — or paste a response here to parse it manually.",
+  });
+  textarea.value = suggestionsRawText;
+  wrap.appendChild(textarea);
+  wrap.appendChild(el('button', {
+    type: 'button', class: 'btn btn-primary', text: '💡 Parse suggestions',
+    onClick: () => {
+      const result = extractSuggestionsArray(textarea.value);
+      if (!result.ok) { showToast(result.error, 'error'); return; }
+      parsedSuggestions = result.data;
+      suggestionsRawText = textarea.value;
+      render();
+    },
+  }));
+  return wrap;
+}
+
+/** Renders parsed AI suggestions grouped by category, each with an
+ * "+ Add" button when a "component" suggestion's title matches something
+ * in this app's own library (io/aiSuggestionMatch.js) — placed at the
+ * canvas center via canvas.js#addComponentAtCenter, the same action a
+ * sidebar click uses, since a suggestion isn't anchored to any one
+ * existing node the way canvas/suggestions.js's post-placement banner is. */
+function buildSuggestionsList(items) {
+  const wrap = el('div', { class: 'ai-suggestions-list' });
+  const components = [...ALL_COMPONENTS, ...getCustomComponents()];
+  for (const categoryKey of Object.keys(SUGGESTION_CATEGORY_META)) {
+    const group = items.filter((item) => item.category === categoryKey);
+    if (!group.length) continue;
+    const meta = SUGGESTION_CATEGORY_META[categoryKey];
+    wrap.appendChild(el('div', { class: 'ai-suggestions-group-title', text: `${meta.icon} ${meta.label}` }));
+    for (const item of group) {
+      const row = el('div', { class: 'ai-suggestion-row' });
+      const text = el('div', { class: 'ai-suggestion-text' });
+      text.appendChild(el('div', { class: 'ai-suggestion-title', text: item.title }));
+      if (item.detail) text.appendChild(el('div', { class: 'ai-suggestion-detail', text: item.detail }));
+      row.appendChild(text);
+      if (categoryKey === 'component') {
+        const match = findComponentMatch(item.title, components);
+        if (match) {
+          row.appendChild(el('button', {
+            type: 'button', class: 'btn btn-secondary ai-suggestion-add-btn',
+            text: `+ Add ${match.name}`,
+            title: `Add "${match.name}" to the canvas`,
+            onClick: () => { addComponentAtCenter(match.id); showToast(`Added ${match.name}.`, 'success', 1600); },
+          }));
+        }
+      }
+      wrap.appendChild(row);
+    }
   }
   return wrap;
 }

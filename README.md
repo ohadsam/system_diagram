@@ -143,7 +143,12 @@ Or open `index.html` directly in a browser.
   account you're already signed into there. Optionally attach a spec file
   to compare against; paste the AI's reply back into the side panel to
   keep it with your project. A "💬 Explain" mode toggle asks instead for a
-  plain-language walkthrough of what the diagram represents.
+  plain-language walkthrough of what the diagram represents, and — once
+  Direct API mode or Local AI mode below is set up — a "💡 Suggestions"
+  mode gets automatic, specific suggestions for the diagram (missing
+  components, pricing notes, other improvements) with no copy/paste round
+  trip, each rendered as a card with a one-click "+ Add" when it matches
+  something in the library.
 - **⚡ Direct API mode (optional)** — Settings → "🤖 AI Providers" lets you
   save an API key for Claude, Gemini, or ChatGPT (or any other
   OpenAI-compatible endpoint) so AI Design Review/Generate Design/Edit with

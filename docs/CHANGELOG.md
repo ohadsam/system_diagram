@@ -110,6 +110,18 @@ Keep this in sync with `PLAN.md` as stages complete.
   field (with autocomplete) on custom components, grouping them into
   collapsible 📁 sub-groups in the sidebar.
 
+## v1.36.0 (2026-08-27)
+
+**💡 AI-Powered Suggestions** — a third mode in AI Design Review, alongside Review and Explain,
+offered once Direct API mode or Local AI mode is actually usable (this mode's whole point is
+skipping the copy/paste round trip, so it isn't offered in Copy/Paste-only setups). Sends the
+current diagram (and any attached spec) and asks for a short, specific list of suggestions —
+missing or complementary **components** (by name, e.g. "Redis Cache"), **pricing** considerations,
+and other **improvements** — rendered as grouped cards rather than a block of prose to read. A
+suggested component that matches something already in this app's own library gets a one-click
+"+ Add" button that drops it onto the canvas immediately. If the AI's reply isn't valid JSON, the
+raw response is shown with a "💡 Parse suggestions" retry button instead of being silently lost.
+
 ## v1.35.0 (2026-08-27)
 
 **🧩 Local AI mode** — a third AI sending mode alongside Copy/Paste and Direct API, added after

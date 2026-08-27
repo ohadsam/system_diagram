@@ -55,6 +55,81 @@ export function buildReviewPrompt({ projectName, nodeCount, edgeCount, component
   return lines.join('\n');
 }
 
+const SUGGESTION_CATEGORIES = ['component', 'pricing', 'improvement'];
+
+/** Distinct from Review/Explain above: instead of a free-form critique to
+ * paste back and read, asks for a strict, parseable JSON array so
+ * panel/aiReviewPanel.js can render actionable suggestion cards (a
+ * missing component with a one-click "add", pricing notes, other
+ * improvements) — this is what makes "automatic suggestions" through the
+ * Direct API / Local AI send buttons actually work, rather than just
+ * dumping another block of prose. Kept self-sufficient from the text
+ * summary alone (component names/counts): Local AI mode never attaches
+ * the diagram image (text-only), so the image — sent along for a
+ * Direct-mode call — is treated as a bonus, never a requirement. */
+export function buildSuggestionsPrompt({ projectName, nodeCount, edgeCount, componentNames = [], specText = '', hasSequenceDiagram = false }) {
+  const lines = [];
+  lines.push(`Here is a ${hasSequenceDiagram ? 'sequence/communication-flow' : 'system design / architecture'} diagram titled "${projectName || 'Untitled Diagram'}" (a diagram image may also be attached to this message — use it if present).`);
+  lines.push(`It has ${nodeCount} component${nodeCount === 1 ? '' : 's'} and ${edgeCount} connector${edgeCount === 1 ? '' : 's'}.`);
+  if (componentNames.length) {
+    lines.push(`Components: ${componentNames.join(', ')}.`);
+  }
+  lines.push('');
+  lines.push('Suggest concrete, specific improvements to this design. Respond with ONLY a JSON array (no prose before or after, no markdown code fence) of 3 to 8 objects, each shaped exactly like:');
+  lines.push('{"category": "component", "title": "short label", "detail": "one or two plain sentences"}');
+  lines.push('');
+  lines.push('Use these three categories, and cover more than one where relevant:');
+  lines.push('- "component": a specific, nameable missing or complementary component/service worth adding (e.g. "Redis Cache", "Dead Letter Queue", "Web Application Firewall") — a real thing with a real name, not a vague concept.');
+  lines.push('- "pricing": a cost/pricing consideration or optimization worth knowing about, specific to what\'s actually in this diagram.');
+  lines.push('- "improvement": any other concrete design improvement, risk, or best practice (reliability, security, scalability, maintainability).');
+  lines.push("Base every suggestion on the actual components and structure above — skip generic advice that doesn't apply to this specific diagram.");
+  if (specText.trim()) {
+    lines.push('');
+    lines.push("Also weigh this product/requirements spec — call out missing components or considerations the spec implies but the diagram doesn't yet cover:");
+    lines.push('--- SPEC START ---');
+    lines.push(specText.trim().slice(0, SPEC_TEXT_LIMIT));
+    lines.push('--- SPEC END ---');
+  }
+  return lines.join('\n');
+}
+
+/** Pulls a suggestions array out of raw AI response text — the same
+ * three-candidate strategy as io/aiGenerateDesign.js#extractProjectJSON
+ * (direct JSON.parse, a ```json fenced block, then the first-`[`-to-
+ * last-`]` substring), but for a JSON *array* of suggestion objects
+ * rather than a single project object. Never throws; drops malformed
+ * entries instead of failing the whole batch, and defaults an
+ * unrecognized/missing category to "improvement" so a slightly-off AI
+ * response still renders instead of being discarded whole. */
+export function extractSuggestionsArray(text) {
+  if (!text || !text.trim()) return { ok: false, error: "There's no response text to read yet." };
+
+  const candidates = [text.trim()];
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced) candidates.push(fenced[1].trim());
+  const first = text.indexOf('[');
+  const last = text.lastIndexOf(']');
+  if (first !== -1 && last > first) candidates.push(text.slice(first, last + 1));
+
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate);
+      if (!Array.isArray(parsed)) continue;
+      const items = parsed
+        .filter((item) => item && typeof item.title === 'string' && item.title.trim())
+        .map((item) => ({
+          category: SUGGESTION_CATEGORIES.includes(item.category) ? item.category : 'improvement',
+          title: item.title.trim(),
+          detail: typeof item.detail === 'string' ? item.detail.trim() : '',
+        }));
+      if (items.length) return { ok: true, data: items };
+    } catch {
+      // try the next candidate
+    }
+  }
+  return { ok: false, error: "Couldn't find a valid suggestions list in that text — make sure you copied the AI's whole reply." };
+}
+
 /** Same "prepare & hand off" shape as buildReviewPrompt above (see this
  * file's header comment for why), but asking for a plain-language summary
  * instead of a critique — for someone who wants to understand what a

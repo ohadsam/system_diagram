@@ -1479,6 +1479,38 @@ fallback one click away. Local AI mode is text-only: the diagram image
 (only ever attached by AI Design Review) is not sent to it, since the
 curated models here aren't multimodal.
 
+### 4.55 AI-Powered Suggestions
+A third mode ("💡 Suggestions") inside AI Design Review, alongside Review
+and Explain — offered only once Direct API mode or Local AI mode is
+actually usable (a configured provider key, or Local AI turned on), since
+this mode's whole point is an *automatic* round trip: asking someone to
+hand-copy a JSON array in and out would defeat the purpose the way the
+plain-text Review/Explain hand-off flow doesn't. The mode toggle simply
+doesn't offer "Suggestions" in Copy/Paste-only setups.
+
+The prompt asks the configured AI for a short, specific list of
+suggestions for the current diagram (and any attached spec — same
+optional attach step as Review/Explain), each tagged one of three
+categories: a concrete missing or complementary **component** worth
+adding (by name — "Redis Cache", "Web Application Firewall" — not a vague
+concept), a **pricing** consideration specific to what's actually in the
+diagram, or another concrete **improvement** (reliability, security,
+scalability, maintainability). Clicking "⚡ Send directly" or "🧩 Send to
+Local AI" sends it and renders the reply as grouped, readable cards —
+title, one-line detail, and (for a "component" suggestion whose name
+matches something in this app's own library) a one-click "+ Add" button
+that drops it onto the canvas at the current view center. A suggestion
+with no library match, or in the pricing/improvement categories, renders
+as plain text with no button — there's nothing to add automatically.
+
+If the AI's reply isn't valid JSON (a model ignoring the format
+instruction, a truncated response), the raw text is shown in a box with a
+"💡 Parse suggestions" button to retry after a manual edit, rather than
+losing the response outright — the same manual-paste affordance Review/
+Explain already offer, just repurposed as a fallback here instead of the
+primary path. A "🔄 Ask again" link clears the current cards to prepare a
+fresh request.
+
 ## 5. Non-functional requirements
 
 - **Security**: no `eval`/`innerHTML` with unsanitized input, no inline

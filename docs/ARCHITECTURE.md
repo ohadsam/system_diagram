@@ -2067,6 +2067,71 @@ boundary (Settings UI, the WebGPU-unsupported short-circuit end-to-end,
 button wiring/labels), leaving the real engine call itself un-mocked and
 therefore un-exercised in CI.
 
+## AI-Powered Suggestions (`buildSuggestionsPrompt`/`extractSuggestionsArray` in `io/aiReview.js`, `findComponentMatch` in `core/aiSuggestionMatch.js`, `panel/aiReviewPanel.js`'s `'suggest'` mode)
+
+A third `panel/aiReviewPanel.js` mode alongside `'review'`/`'explain'`,
+built directly on top of Direct API mode and Local AI mode above rather
+than as a new send mechanism — it reuses `utils/aiProviderActions.js`'s
+existing buttons unchanged and only adds a different prompt builder, a
+different response parser, and a different rendering of the result.
+
+- **Why gated on `suggestionsAvailable()`**: `'review'`/`'explain'` are
+  fine hand-off-only, since a human reads free-form prose either way. This
+  mode's payload is a JSON array the panel parses and turns into clickable
+  cards — asking someone to hand-copy that in and out would be worse than
+  the free-form flow it's supposed to improve on, so the mode toggle
+  itself doesn't offer `'suggest'` unless `isLocalModeActive()` or
+  (`isDirectModeActive()` with at least one configured provider) is true.
+  `render()` also defends against the settings changing out from under an
+  already-open panel (Direct mode's key cleared, Local AI turned off)
+  by force-switching back to `'review'` at the top of `render()` if
+  `mode === 'suggest'` but `suggestionsAvailable()` has since gone false —
+  otherwise the panel could get stuck showing suggestions UI with no way
+  to trigger it.
+- **`buildSuggestionsPrompt`** asks for a strict JSON array (no prose, no
+  fence) of `{category, title, detail}` objects, `category` one of
+  `"component"`/`"pricing"`/`"improvement"`. Deliberately does **not**
+  lean on the diagram image being present (unlike `buildReviewPrompt`/
+  `buildExplainPrompt`, which assume it): Local AI mode never attaches
+  one (text-only engine), so the prompt has to stand on the text summary
+  (component names/counts, plus the attached spec if any) alone — an
+  image sent along for a Direct-mode call is a bonus the prompt mentions,
+  never something later logic depends on.
+- **`extractSuggestionsArray`** mirrors `io/aiGenerateDesign.js`'s
+  `extractProjectJSON`'s three-candidate strategy (raw parse, a ` ```json `
+  fence, first-`[`-to-last-`]`) but for an array of suggestion objects
+  instead of a single project object — a second, deliberately near-
+  duplicate implementation rather than a shared generic "extract JSON from
+  AI text" helper, since a single-object parser and an array parser reject
+  different malformed shapes in ways that would need type-checking either
+  way; drops individual malformed entries instead of failing the whole
+  response, and defaults a missing/unrecognized `category` to
+  `"improvement"` so a slightly-off response still renders instead of
+  being discarded whole.
+- **`findComponentMatch(suggestedName, components)`** (a small standalone
+  pure module, not folded into `sidebar/search.js`, since it answers a
+  different question — "is there one clear match" vs. "list everything
+  that matches") is a best-effort heuristic, not a search ranker: an exact
+  normalized-name match wins outright; otherwise the first component whose
+  name contains the suggestion or vice versa, gated to a 3-character
+  minimum on both sides specifically so a short suggestion like "Cache"
+  doesn't substring-match half the library. A miss just means the
+  suggestion card renders with no "+ Add" button — never a crash, since
+  the AI is naming things in free text with no guaranteed relationship to
+  this app's own component ids.
+- **Adding a matched component** goes through
+  `canvas.js#addComponentAtCenter` — the same action a sidebar click
+  triggers — rather than `addRelatedComponent` (which `canvas/
+  suggestions.js`'s post-placement banner uses to place a companion next
+  to a specific anchor node and auto-connect it): an AI suggestion isn't
+  anchored to any one existing node, so there's no sensible "next to what"
+  or "connected to what" to infer.
+- **Manual parse fallback**: exactly like Review/Explain's paste-back
+  textarea, an unparseable response doesn't get silently dropped — the raw
+  text lands in a textarea with a "💡 Parse suggestions" button, so a
+  slightly-malformed reply (or one obtained by manually pasting from a
+  hand-off tab) can still be salvaged after a small edit.
+
 ## Generate Design from Spec (`io/aiGenerateDesign.js`, `modals/generateDesignModal.js`)
 
 The reverse direction of AI Design Review — see docs/SPEC.md 4.13. Same
