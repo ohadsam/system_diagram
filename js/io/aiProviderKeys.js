@@ -66,11 +66,23 @@ export const DIRECT_CAPABLE_PROVIDERS = [
 // has no entry, matching its absence from DIRECT_CAPABLE_PROVIDERS above.
 export const HANDOFF_TO_DIRECT_ID = { claude: 'anthropic', chatgpt: 'openai', gemini: 'gemini' };
 
+const AUTO_SUGGEST_MIN_CHANGES = 1;
+const AUTO_SUGGEST_MAX_CHANGES = 50;
+
 const DEFAULTS = {
   mode: 'handoff',
   providers: {}, // { [providerId]: { apiKey, model } }
   customProviders: [], // { id, name, baseUrl, apiKey, model }
   localModel: LOCAL_MODEL_CHOICES[0].id,
+  // io/autoSuggestWatcher.js: runs the "💡 Suggestions" flow in the
+  // background (no panel needed to be open) after this many distinct
+  // diagram edits pile up — deliberately change-count-based, not a timer,
+  // per how this was actually requested: someone idle for an hour without
+  // touching the diagram shouldn't get an unprompted API call, but someone
+  // who just added/edited a handful of components probably wants the
+  // check to happen. Off by default since it's an unattended trigger that
+  // can incur real cost in Direct API mode.
+  autoSuggest: { enabled: false, everyNChanges: 5 },
 };
 
 export function getAiProviderSettings() {
@@ -82,7 +94,27 @@ export function getAiProviderSettings() {
     providers: { ...(stored.providers || {}) },
     customProviders: Array.isArray(stored.customProviders) ? stored.customProviders : [],
     localModel: LOCAL_MODEL_CHOICES.some((m) => m.id === stored.localModel) ? stored.localModel : DEFAULTS.localModel,
+    autoSuggest: sanitizeAutoSuggest(stored.autoSuggest),
   };
+}
+
+function sanitizeAutoSuggest(value) {
+  const enabled = typeof value?.enabled === 'boolean' ? value.enabled : DEFAULTS.autoSuggest.enabled;
+  const raw = Number(value?.everyNChanges);
+  const everyNChanges = Number.isFinite(raw)
+    ? Math.min(AUTO_SUGGEST_MAX_CHANGES, Math.max(AUTO_SUGGEST_MIN_CHANGES, Math.round(raw)))
+    : DEFAULTS.autoSuggest.everyNChanges;
+  return { enabled, everyNChanges };
+}
+
+/** Settings' "Auto-suggest" toggle + "every N changes" field. Only ever
+ * meaningful alongside Direct API mode or Local AI mode (see
+ * isAutomaticSendConfigured() below) — but stored/settable
+ * regardless of current mode, same as `localModel`, so flipping it on
+ * ahead of configuring a provider isn't lost. */
+export function setAutoSuggestConfig(patch) {
+  const current = getAiProviderSettings();
+  return save({ ...current, autoSuggest: sanitizeAutoSuggest({ ...current.autoSuggest, ...patch }) });
 }
 
 function save(next) {
@@ -165,6 +197,17 @@ export function isDirectModeActive() {
 
 export function isLocalModeActive() {
   return getAiProviderSettings().mode === 'local';
+}
+
+/** Whether *some* automatic (no-copy-paste) send path is currently usable
+ * — Local AI mode, or Direct API mode with at least one provider actually
+ * configured. Shared by every feature that only makes sense as an
+ * automatic round trip: panel/aiReviewPanel.js's "💡 Suggestions" mode,
+ * io/autoSuggestWatcher.js's background trigger, modals/defaultSettingsModal.js's
+ * "🔁 Auto-suggest" warning, and modals/quickStartModal.js's setup nudge —
+ * previously four separate copies of the same one-line boolean. */
+export function isAutomaticSendConfigured() {
+  return isLocalModeActive() || (isDirectModeActive() && getConfiguredDirectProviders().length > 0);
 }
 
 /** Every provider actually usable for a direct call right now: Direct mode

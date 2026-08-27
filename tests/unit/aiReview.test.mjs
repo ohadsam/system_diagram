@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { AI_PROVIDERS, buildReviewPrompt, buildExplainPrompt, buildSuggestionsPrompt, extractSuggestionsArray } from '../../js/io/aiReview.js';
+import { AI_PROVIDERS, buildReviewPrompt, buildExplainPrompt, buildSuggestionsPrompt, extractSuggestionsArray, buildSecurityPrompt, extractSecurityFindings } from '../../js/io/aiReview.js';
 
 test('AI_PROVIDERS lists the well-known providers with a name/url/icon each', () => {
   assert.ok(AI_PROVIDERS.length >= 4);
@@ -160,4 +160,43 @@ test('extractSuggestionsArray fails cleanly on empty text, non-JSON text, or a J
   assert.equal(extractSuggestionsArray('   ').ok, false);
   assert.equal(extractSuggestionsArray('Sorry, I cannot help with that.').ok, false);
   assert.equal(extractSuggestionsArray('{"title":"not an array"}').ok, false);
+});
+
+test('buildSecurityPrompt asks for severity-tagged JSON focused on security, and folds in a spec', () => {
+  const prompt = buildSecurityPrompt({
+    projectName: 'My Architecture', nodeCount: 3, edgeCount: 2, componentNames: ['API Gateway', 'Postgres DB'],
+  });
+  assert.match(prompt, /My Architecture/);
+  assert.match(prompt, /API Gateway, Postgres DB/);
+  assert.match(prompt, /security reviewer/);
+  assert.match(prompt, /"severity"/);
+  assert.match(prompt, /encryption/);
+  assert.doesNotMatch(prompt, /SPEC START/, 'no spec block when no spec text is given');
+
+  const withSpec = buildSecurityPrompt({ projectName: 'X', nodeCount: 1, edgeCount: 0, specText: 'Must be PCI compliant.' });
+  assert.match(withSpec, /SPEC START/);
+  assert.match(withSpec, /PCI compliant/);
+  assert.doesNotThrow(() => buildSecurityPrompt({}));
+});
+
+test('extractSecurityFindings parses a plain JSON array response', () => {
+  const result = extractSecurityFindings('[{"severity":"high","title":"Public DB","detail":"No firewall in front of it."}]');
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.data, [{ severity: 'high', title: 'Public DB', detail: 'No firewall in front of it.' }]);
+});
+
+test('extractSecurityFindings defaults an unrecognized/missing severity to "medium"', () => {
+  const result = extractSecurityFindings('[{"title":"No severity given"},{"severity":"critical","title":"Weird severity"}]');
+  assert.equal(result.ok, true);
+  assert.equal(result.data[0].severity, 'medium');
+  assert.equal(result.data[1].severity, 'medium');
+});
+
+test('extractSecurityFindings parses a fenced ```json block and fails cleanly on non-JSON text', () => {
+  const fenced = extractSecurityFindings('```json\n[{"severity":"low","title":"Minor logging gap"}]\n```');
+  assert.equal(fenced.ok, true);
+  assert.equal(fenced.data[0].title, 'Minor logging gap');
+
+  assert.equal(extractSecurityFindings('').ok, false);
+  assert.equal(extractSecurityFindings('Sorry, no findings.').ok, false);
 });

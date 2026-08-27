@@ -15,6 +15,8 @@ import {
   updateAnimationStepSettings, setAnimations, startAnimationPlayback,
 } from '../canvas/canvas.js';
 import { exportAnimation, parseAnimationFile } from '../io/exportAnimation.js';
+import { exportAnimationToPptx } from '../io/exportAnimationPptx.js';
+import { exportAnimationToVideo } from '../io/exportAnimationVideo.js';
 import { pickJSONFile } from '../io/fileIO.js';
 import { confirmAction } from '../modals/confirmModal.js';
 import { promptText } from '../modals/promptModal.js';
@@ -174,6 +176,55 @@ function buildContents() {
     },
   }));
   body.appendChild(ioRow);
+
+  const exportRow = el('div', { class: 'animation-io-row' });
+  const pptxBtn = el('button', {
+    type: 'button',
+    class: 'btn btn-sm',
+    text: '🎬 Export to PPTX',
+    title: 'One slide per step, cumulatively revealing the diagram — each slide\'s speaker notes carry that step\'s intended timing (PowerPoint itself has no built-in way to auto-advance a slide from this app)',
+    disabled: !steps.length,
+    onClick: async () => {
+      pptxBtn.disabled = true;
+      pptxBtn.textContent = 'Exporting…';
+      try {
+        await exportAnimationToPptx(active);
+        showToast('Exported the animation to a .pptx.', 'success', 2200);
+      } catch (err) {
+        showToast(`Could not export: ${err.message || err}`, 'error', 4500);
+      } finally {
+        pptxBtn.disabled = !steps.length;
+        pptxBtn.textContent = '🎬 Export to PPTX';
+      }
+    },
+  });
+  exportRow.appendChild(pptxBtn);
+
+  const videoBtn = el('button', {
+    type: 'button',
+    class: 'btn btn-sm',
+    text: '🎥 Export to Video',
+    title: 'Plays the animation start to finish and saves it as a .webm video — a "Click" step holds for 2 seconds since there\'s no presenter to click for it',
+    disabled: !steps.length,
+    onClick: async () => {
+      videoBtn.disabled = true;
+      const originalLabel = videoBtn.textContent;
+      try {
+        const result = await exportAnimationToVideo(active, (done, total, phase) => {
+          videoBtn.textContent = phase === 'capturing' ? `Capturing ${done}/${total}…` : `Recording ${done}/${total}…`;
+        });
+        if (!result.ok) showToast(result.error, 'error', 4500);
+        else showToast('Exported the animation to a video.', 'success', 2200);
+      } catch (err) {
+        showToast(`Could not export: ${err.message || err}`, 'error', 4500);
+      } finally {
+        videoBtn.disabled = !steps.length;
+        videoBtn.textContent = originalLabel;
+      }
+    },
+  });
+  exportRow.appendChild(videoBtn);
+  body.appendChild(exportRow);
 
   body.appendChild(buildInAnimationSection(steps, state, nodesById));
   body.appendChild(buildAddMoreSection(steps, state, nodesById));

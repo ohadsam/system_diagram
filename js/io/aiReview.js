@@ -130,6 +130,81 @@ export function extractSuggestionsArray(text) {
   return { ok: false, error: "Couldn't find a valid suggestions list in that text — make sure you copied the AI's whole reply." };
 }
 
+const SECURITY_SEVERITIES = ['high', 'medium', 'low'];
+
+/** A focused variant of Suggestions above, asking specifically about
+ * security rather than general design improvements — public/internet
+ * exposure, missing encryption, missing auth boundaries, no WAF/firewall
+ * in front of a public endpoint, secrets handling, missing audit logging.
+ * Same strict-JSON-array shape as buildSuggestionsPrompt (so the same
+ * kind of parsing/rendering can apply), but tagged by severity rather
+ * than category, and — unlike Suggestions — offered even in hand-off-only
+ * setups: a security review is worth the copy/paste round trip the way
+ * Review/Explain already are; only Suggestions' whole point requires
+ * skipping it. */
+export function buildSecurityPrompt({ projectName, nodeCount, edgeCount, componentNames = [], specText = '', hasSequenceDiagram = false }) {
+  const lines = [];
+  lines.push(`Here is a ${hasSequenceDiagram ? 'sequence/communication-flow' : 'system design / architecture'} diagram titled "${projectName || 'Untitled Diagram'}" (a diagram image may also be attached to this message — use it if present).`);
+  lines.push(`It has ${nodeCount} component${nodeCount === 1 ? '' : 's'} and ${edgeCount} connector${edgeCount === 1 ? '' : 's'}.`);
+  if (componentNames.length) {
+    lines.push(`Components: ${componentNames.join(', ')}.`);
+  }
+  lines.push('');
+  lines.push('Act as a security reviewer. Respond with ONLY a JSON array (no prose before or after, no markdown code fence) of 3 to 10 objects, each shaped exactly like:');
+  lines.push('{"severity": "high", "title": "short label", "detail": "one or two plain sentences, ending with a concrete recommendation"}');
+  lines.push('');
+  lines.push('Use "high"/"medium"/"low" for severity. Focus specifically on security, not general design advice:');
+  lines.push('- Components exposed directly to the public internet with no gateway, firewall, or WAF in front of them.');
+  lines.push('- Missing encryption at rest or in transit where sensitive data is implied.');
+  lines.push('- Missing or unclear authentication/authorization boundaries between components.');
+  lines.push('- Secrets/credentials handling (hardcoded-looking config, no secrets manager where one is implied).');
+  lines.push('- Missing audit logging or monitoring on security-relevant paths.');
+  lines.push("Only report what this specific diagram's components and structure actually suggest — don't pad the list with generic security advice that doesn't apply here.");
+  if (specText.trim()) {
+    lines.push('');
+    lines.push('Also weigh this product/requirements spec for any security-relevant requirement (compliance, data sensitivity) the diagram may not be meeting:');
+    lines.push('--- SPEC START ---');
+    lines.push(specText.trim().slice(0, SPEC_TEXT_LIMIT));
+    lines.push('--- SPEC END ---');
+  }
+  return lines.join('\n');
+}
+
+/** Same three-candidate parsing strategy as extractSuggestionsArray, for
+ * buildSecurityPrompt's `{severity, title, detail}` shape instead of
+ * `{category, title, detail}` — kept as its own function rather than a
+ * parameterized shared one since the two field names/valid-value sets
+ * differ and a shared version would need to take both as parameters
+ * anyway, adding a layer of indirection for two ~20-line functions. */
+export function extractSecurityFindings(text) {
+  if (!text || !text.trim()) return { ok: false, error: "There's no response text to read yet." };
+
+  const candidates = [text.trim()];
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced) candidates.push(fenced[1].trim());
+  const first = text.indexOf('[');
+  const last = text.lastIndexOf(']');
+  if (first !== -1 && last > first) candidates.push(text.slice(first, last + 1));
+
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate);
+      if (!Array.isArray(parsed)) continue;
+      const items = parsed
+        .filter((item) => item && typeof item.title === 'string' && item.title.trim())
+        .map((item) => ({
+          severity: SECURITY_SEVERITIES.includes(item.severity) ? item.severity : 'medium',
+          title: item.title.trim(),
+          detail: typeof item.detail === 'string' ? item.detail.trim() : '',
+        }));
+      if (items.length) return { ok: true, data: items };
+    } catch {
+      // try the next candidate
+    }
+  }
+  return { ok: false, error: "Couldn't find a valid findings list in that text — make sure you copied the AI's whole reply." };
+}
+
 /** Same "prepare & hand off" shape as buildReviewPrompt above (see this
  * file's header comment for why), but asking for a plain-language summary
  * instead of a critique — for someone who wants to understand what a

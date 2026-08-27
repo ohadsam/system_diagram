@@ -193,6 +193,49 @@ test('exporting downloads a file, and importing it back restores the sequence', 
   await expect(page.locator('.animation-step-row')).toContainText('API Gateway');
 });
 
+test('exporting to PPTX downloads a .pptx file, one slide per step', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await addComponentByName(page, 'Redis Cache');
+  await openAnimationPanel(page);
+  await page.locator('.animation-add-row', { hasText: 'API Gateway' }).locator('button', { hasText: '+ Add' }).click();
+  await page.locator('.animation-add-row', { hasText: 'Redis Cache' }).locator('button', { hasText: '+ Add' }).click();
+
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.locator('.animation-io-row button', { hasText: 'Export to PPTX' }).click(),
+  ]);
+  expect(download.suggestedFilename()).toMatch(/\.pptx$/);
+  const path = await download.path();
+  expect(path).toBeTruthy();
+  await expect(page.locator('.toast-success', { hasText: 'Exported the animation to a .pptx' })).toBeVisible();
+});
+
+test('the PPTX/video export buttons stay disabled until the animation has at least one step', async ({ page }) => {
+  await openAnimationPanel(page);
+  await expect(page.locator('.animation-io-row button', { hasText: 'Export to PPTX' })).toBeDisabled();
+  await expect(page.locator('.animation-io-row button', { hasText: 'Export to Video' })).toBeDisabled();
+});
+
+test('exporting to video downloads a .webm file', async ({ page }) => {
+  test.setTimeout(30000);
+  await addComponentByName(page, 'API Gateway');
+  await openAnimationPanel(page);
+  await page.locator('.animation-add-row', { hasText: 'API Gateway' }).locator('button', { hasText: '+ Add' }).click();
+  // Auto mode + a short delay, so the test doesn't sit through the default
+  // 2s click-dwell the video export falls back to for a 'click' step.
+  await page.locator('.animation-step-row select').selectOption('auto');
+  await page.locator('.animation-step-delay').fill('0.5');
+
+  const [download] = await Promise.all([
+    page.waitForEvent('download', { timeout: 15000 }),
+    page.locator('.animation-io-row button', { hasText: 'Export to Video' }).click(),
+  ]);
+  expect(download.suggestedFilename()).toMatch(/\.webm$/);
+  const path = await download.path();
+  expect(path).toBeTruthy();
+  await expect(page.locator('.toast-success', { hasText: 'Exported the animation to a video' })).toBeVisible();
+});
+
 test('a connector can be added to the animation and reveals during playback like a component', async ({ page }) => {
   await addComponentByName(page, 'API Gateway');
   await addComponentByName(page, 'Redis Cache');

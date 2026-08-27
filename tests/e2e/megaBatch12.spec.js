@@ -94,7 +94,7 @@ test.describe('Comments', () => {
     await page.locator('.comment-modal button', { hasText: 'Done' }).click();
 
     await openToolbarGroup(page, 'Tools');
-    await expect(page.locator('#toolbar .toolbar-count-badge').first()).toHaveText('1');
+    await expect(page.locator('#toolbar .toolbar-comments-badge')).toHaveText('1');
 
     await page.locator('#toolbar button', { hasText: 'Comments' }).click();
     await expect(page.locator('.comments-list-row')).toHaveCount(1);

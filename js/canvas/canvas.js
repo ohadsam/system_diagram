@@ -931,6 +931,23 @@ function applyRevealPulse(elRef, key, revealedKeys) {
  * behind. A no-op, fully-visible pass when nothing is playing. Also drives
  * the reveal-pulse (see applyRevealPulse) by diffing this pass's revealed
  * set against the previous one. */
+/** For io/exportAnimationPptx.js and io/exportAnimationVideo.js: the same
+ * `.anim-hidden` mechanism applyAnimationVisibility uses for live playback,
+ * but driven directly by a caller-supplied revealed-keys set rather than
+ * core/animationPlayback.js's own state — a capture pass for exporting
+ * doesn't want to actually enter playback mode (its chrome, keyboard
+ * shortcuts, etc). clearAnimationExportVisibility() restores every
+ * node/edge to visible once the capture pass is done. */
+export function applyAnimationExportVisibility(revealedKeys) {
+  for (const [id, elRef] of nodeElements) elRef.classList.toggle('anim-hidden', !revealedKeys.has(`node:${id}`));
+  for (const [id, elRef] of edgeElements) elRef.classList.toggle('anim-hidden', !revealedKeys.has(`edge:${id}`));
+}
+
+export function clearAnimationExportVisibility() {
+  for (const [, elRef] of nodeElements) elRef.classList.remove('anim-hidden');
+  for (const [, elRef] of edgeElements) elRef.classList.remove('anim-hidden');
+}
+
 function applyAnimationVisibility(state) {
   if (!isAnimationPlaying()) {
     for (const [, elRef] of nodeElements) elRef.classList.remove('anim-hidden', 'anim-just-revealed');

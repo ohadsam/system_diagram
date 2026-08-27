@@ -69,8 +69,12 @@ import '../modals/subDiagramModal.js';
 // `sdb:open-comment` event (see canvas.js#addCommentAt/#addCommentAtCenter
 // and canvas/commentPins.js's pin click handler), not a toolbar button.
 import '../modals/commentModal.js';
-import { toggleAiReviewPanel } from '../panel/aiReviewPanel.js';
+import { toggleAiReviewPanel, openWithAutoSuggestions } from '../panel/aiReviewPanel.js';
+import { initAutoSuggestWatcher } from '../io/autoSuggestWatcher.js';
 import { openGenerateDesignModal } from '../modals/generateDesignModal.js';
+import { openImportFromImageModal } from '../modals/importFromImageModal.js';
+import { openQuickStartModal } from '../modals/quickStartModal.js';
+import { openCollaborationModal, isCollabConnected, onCollabStatusChange } from '../modals/collaborationModal.js';
 import { confirmAction } from '../modals/confirmModal.js';
 import { showToast } from '../utils/toast.js';
 import { resetHints, areHintsEnabled, setHintsEnabled } from '../hints/hints.js';
@@ -448,7 +452,9 @@ function buildCreateGroupButtons() {
       openCustomComponentModal({ seedFromNode });
     },
   });
+  const quickStartBtn = el('button', { type: 'button', class: 'btn', title: 'New to this app? Describe your system in plain words and let AI propose a starting diagram, with an explanation of its choices', text: '🪄 AI Quick Start', onClick: openQuickStartModal });
   const generateDesignBtn = el('button', { type: 'button', class: 'btn', title: 'Generate a design from a spec, with AI help', text: '🧠 Generate Design', onClick: openGenerateDesignModal });
+  const importFromImageBtn = el('button', { type: 'button', class: 'btn', title: 'Import a diagram from an image (screenshot, photo, or sketch), with AI help', text: '🖼️ Import from Image', onClick: openImportFromImageModal });
   const aiEditBtn = el('button', {
     type: 'button', class: 'btn',
     title: 'Edit with AI: describe a change in plain language and apply it as a patch to the current diagram, with AI help',
@@ -467,7 +473,7 @@ function buildCreateGroupButtons() {
     text: '🖼️ Template Gallery',
     onClick: openTemplateGalleryModal,
   });
-  return [newComponentBtn, generateDesignBtn, aiEditBtn, replicateBtn, sequenceDiagramBtn, importMermaidBtn, importSqlBtn, c4ContextBtn, templateGalleryBtn, defaultsBtn];
+  return [newComponentBtn, quickStartBtn, generateDesignBtn, importFromImageBtn, aiEditBtn, replicateBtn, sequenceDiagramBtn, importMermaidBtn, importSqlBtn, c4ContextBtn, templateGalleryBtn, defaultsBtn];
 }
 
 function buildToolsGroupButtons() {
@@ -556,8 +562,37 @@ function buildToolsGroupButtons() {
     },
   });
 
-  const aiReviewBtn = el('button', { type: 'button', class: 'btn', title: 'AI Design Review', text: '🤖 AI Design Review', onClick: toggleAiReviewPanel });
-  const commentsBadge = el('span', { class: 'toolbar-count-badge', hidden: true });
+  const autoSuggestBadge = el('span', { class: 'toolbar-count-badge toolbar-auto-suggest-badge', hidden: true, title: 'New AI suggestions ready — click to view' });
+  let pendingAutoSuggestFindings = null;
+  const aiReviewBtn = el('button', {
+    type: 'button', class: 'btn', title: 'AI Design Review', onClick: () => {
+      if (pendingAutoSuggestFindings) {
+        const findings = pendingAutoSuggestFindings;
+        pendingAutoSuggestFindings = null;
+        autoSuggestBadge.hidden = true;
+        openWithAutoSuggestions(findings);
+        return;
+      }
+      toggleAiReviewPanel();
+    },
+  }, [el('span', { text: '🤖 AI Design Review' }), autoSuggestBadge]);
+  initAutoSuggestWatcher((findings) => {
+    pendingAutoSuggestFindings = findings;
+    autoSuggestBadge.textContent = '💡';
+    autoSuggestBadge.hidden = false;
+  });
+  const collabBadge = el('span', { class: 'toolbar-count-badge toolbar-collab-badge', hidden: true, title: 'Live collaboration connected' });
+  const collabBtn = el('button', {
+    type: 'button', class: 'btn', title: 'Live Collaboration: work on this diagram with one other person in real time, no server or account needed',
+    onClick: openCollaborationModal,
+  }, [el('span', { text: '🤝 Collaborate' }), collabBadge]);
+  onCollabStatusChange((connected) => {
+    collabBadge.textContent = '🟢';
+    collabBadge.hidden = !connected;
+  });
+  collabBadge.hidden = !isCollabConnected();
+
+  const commentsBadge = el('span', { class: 'toolbar-count-badge toolbar-comments-badge', hidden: true });
   const commentsBtn = el('button', {
     type: 'button', class: 'btn',
     title: 'Comments: browse every pinned comment on this diagram, unresolved ones first',
@@ -643,7 +678,7 @@ function buildToolsGroupButtons() {
     },
   });
   requestAnimationFrame(() => setFlowSimulationEnabled(prefs.flowSimulation));
-  return [gridBtn, minimapBtn, focusModeBtn, alignGuidesBtn, themeBtn, languageBtn, aiReviewBtn, outlineBtn, commentsBtn, lintBtn, costBtn, autoArrangeBtn, distributeBtn, scaleBtn, diagramThemeBtn, presenterModeBtn, animationBtn, flowSimBtn];
+  return [gridBtn, minimapBtn, focusModeBtn, alignGuidesBtn, themeBtn, languageBtn, aiReviewBtn, outlineBtn, commentsBtn, collabBtn, lintBtn, costBtn, autoArrangeBtn, distributeBtn, scaleBtn, diagramThemeBtn, presenterModeBtn, animationBtn, flowSimBtn];
 }
 
 function buildHelpGroupButtons() {

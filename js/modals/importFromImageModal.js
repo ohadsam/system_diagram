@@ -1,30 +1,52 @@
-// "Generate Design from Spec" — a 3-step wizard: (1) provide a spec,
-// (2) get a schema-anchored prompt and hand it to an AI, (3) paste the
-// AI's JSON reply back in to load it as a real diagram. Same "prepare &
-// hand off, no API key" mechanism as modals/../panel/aiReviewPanel.js —
-// see docs/SPEC.md 4.13 for the full reasoning.
+// "Import Diagram from Image" — the reverse of "Generate Design from
+// Spec" (modals/generateDesignModal.js): a 3-step wizard that turns an
+// uploaded architecture diagram image (screenshot, exported image,
+// whiteboard photo, hand-drawn sketch) into a real editable diagram,
+// instead of turning spec text into one. Same "prepare & hand off, no API
+// key required" mechanism otherwise — see io/aiGenerateDesign.js's
+// buildImportFromImagePrompt header comment.
+//
+// Vision needs an actual multimodal request: Local AI mode is text-only
+// (utils/aiProviderActions.js never attaches an image to it), so this only
+// works automatically via Direct API mode with a vision-capable provider,
+// or by hand-off (open the provider, separately copy/attach the image
+// yourself — only one clipboard slot exists, so the prompt and image can't
+// both ride the same "copy" action, exactly like panel/aiReviewPanel.js's
+// separate "Get the diagram image" step).
 import { openModal } from './modal.js';
 import { el, clear } from '../utils/dom.js';
 import * as store from '../core/store.js';
 import { validateProject } from '../core/project.js';
-import { buildGenerateDesignPrompt, extractProjectJSON, autoArrangeIfNeeded } from '../io/aiGenerateDesign.js';
+import { buildImportFromImagePrompt, extractProjectJSON, autoArrangeIfNeeded } from '../io/aiGenerateDesign.js';
 import { showToast } from '../utils/toast.js';
 import { confirmAction } from './confirmModal.js';
 import { buildAiProviderActions } from '../utils/aiProviderActions.js';
+import { downloadBlob } from '../utils/download.js';
 import { offerAutoWalkthroughAnimation } from './autoAnimationPrompt.js';
 
-const STEP_TITLES = ['Your spec', 'Copy this prompt to your AI', "Paste the AI's result"];
+const STEP_TITLES = ['Attach an image', 'Copy this prompt to your AI', "Paste the AI's result"];
 
-export function openGenerateDesignModal() {
+function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(',')[1]);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+export function openImportFromImageModal() {
   let step = 1;
-  let specText = '';
+  let imageFile = null;
+  let imageBase64 = null;
+  let imageObjectUrl = null;
   let promptOverride = null;
   let responseText = '';
   let pasteError = '';
 
   function currentPrompt() {
     if (promptOverride !== null) return promptOverride;
-    return buildGenerateDesignPrompt({ specText });
+    return buildImportFromImagePrompt();
   }
 
   async function copyPromptToClipboard() {
@@ -40,12 +62,26 @@ export function openGenerateDesignModal() {
   async function openProvider(provider) {
     const copied = await copyPromptToClipboard();
     window.open(provider.url, '_blank', 'noopener');
-    if (copied) showToast(`Prompt copied — opened ${provider.name}. Paste it in and send.`, 'success', 3000);
+    if (copied) showToast(`Prompt copied — opened ${provider.name}. Attach the image below, paste the prompt, and send.`, 'success', 3600);
+  }
+
+  async function copyImageToClipboard() {
+    if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') {
+      showToast("This browser can't copy images — attach the file directly instead.", 'error');
+      return;
+    }
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ [imageFile.type]: imageFile })]);
+      showToast('Image copied — paste it into your AI chat.', 'success');
+    } catch {
+      showToast('Copy failed — attach the file directly instead.', 'error');
+    }
   }
 
   openModal({
-    title: 'Generate Design from Spec',
+    title: 'Import Diagram from Image',
     className: 'generate-design-modal',
+    onClose: () => { if (imageObjectUrl) URL.revokeObjectURL(imageObjectUrl); },
     render: (body, api) => {
       const renderStep = () => {
         clear(body);
@@ -57,36 +93,29 @@ export function openGenerateDesignModal() {
         else renderStep3();
 
         function renderStep1() {
-          body.appendChild(el('p', { class: 'modal-hint', text: "Paste your product/requirements spec below, or load it from a file — either way, the next step turns it into a ready-to-use prompt." }));
+          body.appendChild(el('p', { class: 'modal-hint', text: 'Attach an image of an architecture diagram — a screenshot, an exported image, a photo of a whiteboard, or a hand-drawn sketch — and the next step turns it into a ready-to-use prompt for a vision-capable AI.' }));
 
-          const fileInput = el('input', { type: 'file', accept: '.txt,.md,.markdown,text/plain', 'aria-label': 'Load spec from a file' });
+          const fileInput = el('input', { type: 'file', accept: 'image/*', 'aria-label': 'Attach a diagram image' });
           fileInput.addEventListener('change', async () => {
             const file = fileInput.files?.[0];
             if (!file) return;
-            specText = await file.text();
-            promptOverride = null;
+            imageFile = file;
+            imageBase64 = await readFileAsBase64(file);
+            if (imageObjectUrl) URL.revokeObjectURL(imageObjectUrl);
+            imageObjectUrl = URL.createObjectURL(file);
             renderStep();
           });
           body.appendChild(fileInput);
 
-          const textarea = el('textarea', {
-            class: 'ai-review-prompt generate-design-spec',
-            rows: 10,
-            placeholder: 'Paste or type your spec here…',
-            onInput: (e) => { specText = e.target.value; },
-          });
-          textarea.value = specText;
-          body.appendChild(textarea);
+          if (imageObjectUrl) {
+            body.appendChild(el('img', { src: imageObjectUrl, class: 'import-image-preview', alt: 'Attached diagram preview' }));
+          }
 
           const actions = el('div', { class: 'modal-actions' });
           actions.appendChild(el('button', { type: 'button', class: 'btn', text: 'Cancel', onClick: () => api.close() }));
           actions.appendChild(el('button', {
-            type: 'button', class: 'btn btn-primary', text: 'Next →',
-            onClick: () => {
-              if (!specText.trim()) { showToast('Add some spec text or load a file first.', 'error'); return; }
-              step = 2;
-              renderStep();
-            },
+            type: 'button', class: 'btn btn-primary', text: 'Next →', disabled: !imageFile,
+            onClick: () => { step = 2; renderStep(); },
           }));
           body.appendChild(actions);
         }
@@ -111,10 +140,18 @@ export function openGenerateDesignModal() {
           }));
           body.appendChild(promptActions);
 
+          body.appendChild(el('h3', { class: 'modal-subheading', text: 'Get the attached image' }));
+          const imageActions = el('div', { class: 'field-row' });
+          imageActions.appendChild(el('button', { type: 'button', class: 'btn btn-secondary', text: '⬇️ Download image', onClick: () => downloadBlob(imageFile, imageFile.name) }));
+          imageActions.appendChild(el('button', { type: 'button', class: 'btn btn-secondary', text: '📋 Copy image', onClick: copyImageToClipboard }));
+          body.appendChild(imageActions);
+          body.appendChild(el('p', { class: 'modal-hint', text: 'Works best with a vision-capable model (Claude, Gemini, ChatGPT). Local AI mode never sends the image — it\'s text-only.' }));
+
           body.appendChild(el('h3', { class: 'modal-subheading', text: 'Open your AI (copies the prompt and opens a new tab) — or send it directly' }));
           body.appendChild(buildAiProviderActions({
             openProvider,
             getPrompt: currentPrompt,
+            getImageBase64: () => imageBase64,
             onDirectResult: (text) => { responseText = text; pasteError = ''; step = 3; renderStep(); },
           }));
 
@@ -142,7 +179,7 @@ export function openGenerateDesignModal() {
           const actions = el('div', { class: 'modal-actions' });
           actions.appendChild(el('button', { type: 'button', class: 'btn', text: '← Back', onClick: () => { step = 2; renderStep(); } }));
           actions.appendChild(el('button', {
-            type: 'button', class: 'btn btn-primary', text: 'Generate design',
+            type: 'button', class: 'btn btn-primary', text: 'Import diagram',
             onClick: async () => {
               const extracted = extractProjectJSON(responseArea.value);
               if (!extracted.ok) { pasteError = extracted.error; renderStep(); return; }
@@ -158,14 +195,14 @@ export function openGenerateDesignModal() {
               if (currentHasContent) {
                 const proceed = await confirmAction({
                   title: 'Replace the current canvas?',
-                  message: 'This loads the generated design in place of what\'s on the canvas now. If you want to keep your current diagram, use "Save As" first — undo (Ctrl/Cmd+Z) can also bring it right back.',
+                  message: 'This loads the imported design in place of what\'s on the canvas now. If you want to keep your current diagram, use "Save As" first — undo (Ctrl/Cmd+Z) can also bring it right back.',
                   confirmLabel: 'Replace',
                   danger: false,
                 });
                 if (!proceed) return;
               }
               store.loadProject(project);
-              showToast(`Generated a design with ${project.nodes.length} component${project.nodes.length === 1 ? '' : 's'}.`, 'success', 2600);
+              showToast(`Imported a design with ${project.nodes.length} component${project.nodes.length === 1 ? '' : 's'}.`, 'success', 2600);
               api.close();
               offerAutoWalkthroughAnimation();
             },

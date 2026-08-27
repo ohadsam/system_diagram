@@ -10,7 +10,7 @@ import {
   getAiProviderSettings, setAiSendMode, setProviderCredentials,
   addCustomProvider, updateCustomProvider, removeCustomProvider,
   clearAllAiProviderKeys, isDirectModeActive, getConfiguredDirectProviders,
-  isLocalModeActive, setLocalModel,
+  isLocalModeActive, setLocalModel, setAutoSuggestConfig,
 } from '../../js/io/aiProviderKeys.js';
 
 function withStorage(fn) {
@@ -193,3 +193,39 @@ test('LOCAL_MODEL_CHOICES entries look like real WebLLM MLC model IDs', () => {
     assert.match(choice.sizeLabel, /GB/, `${choice.id} needs an approximate size label`);
   }
 });
+
+test('getAiProviderSettings defaults autoSuggest to disabled with a sane change threshold', () => withStorage(() => {
+  const { autoSuggest } = getAiProviderSettings();
+  assert.equal(autoSuggest.enabled, false);
+  assert.ok(autoSuggest.everyNChanges >= 1);
+}));
+
+test('setAutoSuggestConfig saves a partial patch, leaving the other field untouched', () => withStorage(() => {
+  setAutoSuggestConfig({ enabled: true });
+  let settings = getAiProviderSettings();
+  assert.equal(settings.autoSuggest.enabled, true);
+  assert.equal(settings.autoSuggest.everyNChanges, 5, 'unpatched field keeps its previous value');
+
+  setAutoSuggestConfig({ everyNChanges: 10 });
+  settings = getAiProviderSettings();
+  assert.equal(settings.autoSuggest.enabled, true, 'previously-set field survives an unrelated patch');
+  assert.equal(settings.autoSuggest.everyNChanges, 10);
+}));
+
+test('setAutoSuggestConfig clamps everyNChanges to a sane [1, 50] range', () => withStorage(() => {
+  setAutoSuggestConfig({ everyNChanges: 0 });
+  assert.equal(getAiProviderSettings().autoSuggest.everyNChanges, 1);
+
+  setAutoSuggestConfig({ everyNChanges: 999 });
+  assert.equal(getAiProviderSettings().autoSuggest.everyNChanges, 50);
+
+  setAutoSuggestConfig({ everyNChanges: 3.7 });
+  assert.equal(getAiProviderSettings().autoSuggest.everyNChanges, 4, 'rounds to the nearest integer');
+}));
+
+test('a corrupted/missing stored autoSuggest value falls back to the default shape', () => withStorage(() => {
+  globalThis.window.localStorage.setItem('sdb:v1:aiProviderKeys', JSON.stringify({ mode: 'handoff', autoSuggest: 'not-an-object' }));
+  const { autoSuggest } = getAiProviderSettings();
+  assert.equal(autoSuggest.enabled, false);
+  assert.equal(autoSuggest.everyNChanges, 5);
+}));

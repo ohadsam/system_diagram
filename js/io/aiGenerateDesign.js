@@ -47,6 +47,20 @@ const SEQUENCE_EXAMPLE_JSON = `{
   ]
 }`;
 
+/** Shared between buildGenerateDesignPrompt (spec → design) and
+ * buildImportFromImagePrompt (screenshot/sketch → design) below — both ask
+ * for the exact same node/edge JSON shape, so the shape/routing/styling
+ * rules are worth keeping in one place rather than hand-copied twice. */
+function buildComponentGraphRules() {
+  return [
+    `- Every node needs a unique "id" (short strings like "n1", "n2", ...) — edges' "from"/"to" must exactly match a node "id".`,
+    `- "shape" must be one of: ${PLACEABLE_SHAPES.join(', ')} (cylinder = database, diamond = decision/branch, cloud = external/third-party service, hexagon = message queue/broker, note = plain label).`,
+    '- Give each node a short, specific "text" label and a single relevant emoji as "icon". Choose "fill"/"stroke" hex colors that make sense together, or omit them for sensible defaults.',
+    '- Lay nodes out left-to-right or top-to-bottom by data flow, at least 220px apart horizontally and 140px apart vertically, so nothing overlaps.',
+    `- Edge "routing" must be one of: ${ROUTING_CHOICES.join(', ')}. Give each edge a short "label" describing the interaction (e.g. "reads", "publishes", "HTTPS").`,
+  ];
+}
+
 export function buildGenerateDesignPrompt({ specText = '' } = {}) {
   const lines = [];
   lines.push('Based on the product/requirements spec below, propose a system design / software architecture for it.');
@@ -57,11 +71,7 @@ export function buildGenerateDesignPrompt({ specText = '' } = {}) {
   lines.push('```');
   lines.push('');
   lines.push('Rules:');
-  lines.push(`- Every node needs a unique "id" (short strings like "n1", "n2", ...) — edges' "from"/"to" must exactly match a node "id".`);
-  lines.push(`- "shape" must be one of: ${PLACEABLE_SHAPES.join(', ')} (cylinder = database, diamond = decision/branch, cloud = external/third-party service, hexagon = message queue/broker, note = plain label).`);
-  lines.push('- Give each node a short, specific "text" label and a single relevant emoji as "icon". Choose "fill"/"stroke" hex colors that make sense together, or omit them for sensible defaults.');
-  lines.push('- Lay nodes out left-to-right or top-to-bottom by data flow, at least 220px apart horizontally and 140px apart vertically, so nothing overlaps.');
-  lines.push(`- Edge "routing" must be one of: ${ROUTING_CHOICES.join(', ')}. Give each edge a short "label" describing the interaction (e.g. "reads", "publishes", "HTTPS").`);
+  lines.push(...buildComponentGraphRules());
   lines.push('- Include every major component implied by the spec — don\'t skip databases, caches, queues, or external services — but don\'t over-fragment trivial ones either. Aim for roughly 6-20 components depending on complexity.');
   lines.push('');
   lines.push('If — and only if — the spec is fundamentally about a step-by-step interaction/flow between a handful of participants over time (e.g. "walk through the login handshake", "show the request lifecycle", "explain the checkout call sequence"), produce a SEQUENCE DIAGRAM instead of a component graph: one tall "lifeline" node per participant, and "messages" as edges between them timed by height. Most specs are NOT this — only switch to this shape when the ask is explicitly about the order of calls/responses, not the static architecture.');
@@ -77,6 +87,91 @@ export function buildGenerateDesignPrompt({ specText = '' } = {}) {
   lines.push('--- SPEC START ---');
   lines.push(specText.trim().slice(0, SPEC_TEXT_LIMIT) || '(no spec text provided — use your best judgement for a generic, reasonable example system)');
   lines.push('--- SPEC END ---');
+  return lines.join('\n');
+}
+
+/** The reverse of AI Design Review's direction, and a sibling of
+ * buildGenerateDesignPrompt above: instead of turning a text spec into a
+ * design, this asks a vision-capable AI to *read* an attached diagram
+ * image (screenshot, exported image, whiteboard photo, hand-drawn sketch)
+ * and reconstruct it as this app's own project JSON — modals/
+ * importFromImageModal.js's step 2 attaches the actual image the same way
+ * panel/aiReviewPanel.js attaches the diagram's own rendered PNG, via
+ * utils/aiProviderActions.js's `getImageBase64`. No sequence-diagram
+ * alternate shape here (unlike buildGenerateDesignPrompt) — recognizing a
+ * hand-drawn UML sequence diagram from a photo reliably enough to bother
+ * is a stretch goal, not this feature's actual use case (reconstructing an
+ * architecture diagram someone already has as an image, not a live
+ * canvas). */
+export function buildImportFromImagePrompt() {
+  const lines = [];
+  lines.push('The attached image shows a system design / architecture diagram — a screenshot, exported image, whiteboard photo, or hand-drawn sketch. Reconstruct it as a JSON project matching this exact schema (this is a real, complete example, not just a fragment):');
+  lines.push('```json');
+  lines.push(EXAMPLE_JSON);
+  lines.push('```');
+  lines.push('');
+  lines.push('Rules:');
+  lines.push(...buildComponentGraphRules());
+  lines.push("- Read every label/text actually visible in the image and use it verbatim for the matching node's \"text\" — don't paraphrase, translate, or invent components that aren't actually shown.");
+  lines.push('- Infer each shape from the image\'s own visual conventions where possible (a cylinder/barrel icon is almost always a database, a diamond is a decision, a cloud is an external/third-party service) — default to "rounded" when a shape in the image doesn\'t map cleanly to one of the choices above.');
+  lines.push('- Reconstruct the connections/arrows shown between components, including their direction and any visible labels.');
+  lines.push('');
+  lines.push('Respond with ONLY the JSON code block above — no text before or after it.');
+  return lines.join('\n');
+}
+
+// Same node/edge shape as EXAMPLE_JSON above, plus a "rationale" object —
+// used only by buildQuickStartPrompt/modals/quickStartModal.js, never
+// written into the project itself (core/project.js#validateProject builds
+// its output field-by-field from a fixed whitelist, so an unrecognized
+// "rationale" key is simply ignored there, not an error — the Quick Start
+// modal reads it straight off the same parsed response instead).
+const QUICK_START_EXAMPLE_JSON = `{
+  "name": "Example Order Service",
+  "nodes": [
+    { "id": "n1", "x": 40, "y": 40, "w": 160, "h": 84, "shape": "rounded", "text": "API Gateway", "icon": "🚪", "fill": "#EEF2FF", "stroke": "#4F46E5" },
+    { "id": "n2", "x": 320, "y": 40, "w": 160, "h": 84, "shape": "rounded", "text": "Order Service", "icon": "🧾", "fill": "#ECFDF5", "stroke": "#059669" },
+    { "id": "n3", "x": 320, "y": 220, "w": 160, "h": 84, "shape": "cylinder", "text": "Orders DB", "icon": "🗄️", "fill": "#FFF7ED", "stroke": "#EA580C" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "n1", "to": "n2", "label": "HTTPS", "routing": "orthogonal" },
+    { "id": "e2", "from": "n2", "to": "n3", "label": "reads/writes", "routing": "orthogonal" }
+  ],
+  "rationale": {
+    "overview": "A thin API Gateway fronts a single Order Service, which owns its own database — the smallest shape that keeps ordering logic and its data together while still being reachable from outside.",
+    "components": [
+      { "id": "n1", "why": "Gives external clients one stable entry point instead of exposing the Order Service directly." },
+      { "id": "n2", "why": "Owns the order-placement logic described — the one component actually named in the description." },
+      { "id": "n3", "why": "Orders need to be persisted somewhere, and a dedicated database keeps that data owned by the service that writes it." }
+    ]
+  }
+}`;
+
+/** Powers modals/quickStartModal.js — an approachable, guided variant of
+ * buildGenerateDesignPrompt above, aimed at someone describing their
+ * system in a sentence or two rather than pasting a formal spec. The one
+ * real difference: this also asks for a "rationale" explaining *why* each
+ * component and the overall shape were chosen, since Quick Start's whole
+ * point is to teach, not just generate — buildGenerateDesignPrompt has no
+ * equivalent because a formal spec's author usually already knows why
+ * their own components exist. */
+export function buildQuickStartPrompt({ description = '' } = {}) {
+  const lines = [];
+  lines.push('Someone described their system in their own words below. Propose a system design / software architecture for it.');
+  lines.push('');
+  lines.push('Respond with ONLY one JSON code block — no text before or after it — containing an object with exactly this shape (this is a real, complete example, not just a fragment):');
+  lines.push('```json');
+  lines.push(QUICK_START_EXAMPLE_JSON);
+  lines.push('```');
+  lines.push('');
+  lines.push('Rules:');
+  lines.push(...buildComponentGraphRules());
+  lines.push('- Include every major component the description implies — don\'t skip databases, caches, queues, or external services — but don\'t over-fragment trivial ones either. Aim for roughly 4-12 components for a short description like this.');
+  lines.push('- The "rationale" object is required: "overview" is 1-2 plain sentences on why this overall shape fits the description, and "components" has exactly one entry per node "id" with a one-sentence "why" explaining that specific choice. Write for someone learning system design, not an expert — plain language, no jargon left unexplained.');
+  lines.push('');
+  lines.push('--- DESCRIPTION START ---');
+  lines.push(description.trim().slice(0, SPEC_TEXT_LIMIT) || '(no description provided — use your best judgement for a generic, reasonable example system)');
+  lines.push('--- DESCRIPTION END ---');
   return lines.join('\n');
 }
 

@@ -104,3 +104,79 @@ test('"Download .tf file" downloads a file with Terraform content', async ({ pag
   const path = await download.path();
   expect(path).toBeTruthy();
 });
+
+test('"Copy as Pulumi" copies a resource declaration for a mapped AWS component', async ({ page }) => {
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await addComponentByName(page, 'S3');
+  await openExportDiagramModal(page);
+
+  await page.locator('.export-diagram-modal button', { hasText: '📋 Copy as Pulumi' }).click();
+  const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
+  expect(clipboardText).toContain('new aws.s3.Bucket');
+  expect(clipboardText).toContain('@pulumi/aws');
+});
+
+test('"Download index.ts" downloads a Pulumi program file', async ({ page }) => {
+  await addComponentByName(page, 'S3');
+  await openExportDiagramModal(page);
+
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.locator('.export-diagram-modal button', { hasText: 'Download index.ts' }).click(),
+  ]);
+  expect(download.suggestedFilename()).toMatch(/-pulumi\.ts$/);
+});
+
+test('"Copy as CloudFormation" copies a resource block for a mapped AWS component', async ({ page }) => {
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await addComponentByName(page, 'S3');
+  await openExportDiagramModal(page);
+
+  await page.locator('.export-diagram-modal button', { hasText: '📋 Copy as CloudFormation' }).click();
+  const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
+  expect(clipboardText).toContain('AWS::S3::Bucket');
+  expect(clipboardText).toContain('AWSTemplateFormatVersion');
+});
+
+test('"Download .yaml file" (CloudFormation) downloads a file', async ({ page }) => {
+  await addComponentByName(page, 'S3');
+  await openExportDiagramModal(page);
+
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.locator('.export-diagram-modal button', { hasText: 'Download .yaml file' }).first().click(),
+  ]);
+  expect(download.suggestedFilename()).toMatch(/-cloudformation\.yaml$/);
+});
+
+// Not addComponentByName('Pod') here — that search also matches "Podman"
+// (a substring match) and .first() isn't guaranteed to land on the exact
+// "Pod" component, so this clicks the sidebar item by its exact data-name.
+async function addPodComponent(page) {
+  await page.locator('.sidebar-search input').fill('Pod');
+  await page.waitForTimeout(150);
+  await page.locator('.sidebar-item[data-name="Pod"]').click();
+  await page.waitForTimeout(100);
+}
+
+test('"Copy as YAML" (Kubernetes) copies a Deployment+Service pair for a Pod component', async ({ page }) => {
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await addPodComponent(page);
+  await openExportDiagramModal(page);
+
+  await page.locator('.export-diagram-modal button', { hasText: '📋 Copy as YAML' }).click();
+  const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
+  expect(clipboardText).toContain('kind: Deployment');
+  expect(clipboardText).toContain('kind: Service');
+});
+
+test('"Download .yaml file" (Kubernetes) downloads a file', async ({ page }) => {
+  await addPodComponent(page);
+  await openExportDiagramModal(page);
+
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.locator('.export-diagram-modal button', { hasText: 'Download .yaml file' }).last().click(),
+  ]);
+  expect(download.suggestedFilename()).toMatch(/-k8s\.yaml$/);
+});

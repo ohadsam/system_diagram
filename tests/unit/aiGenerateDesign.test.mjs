@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildGenerateDesignPrompt, extractProjectJSON, autoArrangeIfNeeded } from '../../js/io/aiGenerateDesign.js';
+import { buildGenerateDesignPrompt, buildImportFromImagePrompt, buildQuickStartPrompt, extractProjectJSON, autoArrangeIfNeeded } from '../../js/io/aiGenerateDesign.js';
 
 test('buildGenerateDesignPrompt includes the spec text and a valid few-shot JSON example', () => {
   const prompt = buildGenerateDesignPrompt({ specText: 'Must support 10k concurrent users.' });
@@ -14,6 +14,47 @@ test('buildGenerateDesignPrompt includes the spec text and a valid few-shot JSON
 test('buildGenerateDesignPrompt never throws when specText is missing', () => {
   assert.doesNotThrow(() => buildGenerateDesignPrompt());
   assert.doesNotThrow(() => buildGenerateDesignPrompt({}));
+});
+
+test('buildImportFromImagePrompt includes a valid few-shot JSON example and asks the AI to read the attached image', () => {
+  const prompt = buildImportFromImagePrompt();
+  assert.match(prompt, /attached image/);
+  assert.match(prompt, /```json/);
+  const fenced = prompt.match(/```json\s*([\s\S]*?)```/);
+  assert.ok(fenced, 'prompt should contain a fenced JSON example');
+  assert.doesNotThrow(() => JSON.parse(fenced[1]), 'the few-shot example itself must be valid JSON');
+  assert.doesNotThrow(() => buildImportFromImagePrompt());
+});
+
+test('buildImportFromImagePrompt shares the same shape/routing rules as buildGenerateDesignPrompt, without a spec-text block', () => {
+  const importPrompt = buildImportFromImagePrompt();
+  const designPrompt = buildGenerateDesignPrompt({ specText: 'anything' });
+  assert.match(importPrompt, /"shape" must be one of:/);
+  assert.match(designPrompt, /"shape" must be one of:/);
+  assert.doesNotMatch(importPrompt, /SPEC START/, 'image import has no spec text to fold in');
+});
+
+test('buildQuickStartPrompt includes the plain-language description and a valid few-shot JSON example with a rationale', () => {
+  const prompt = buildQuickStartPrompt({ description: 'A blog where readers can leave comments.' });
+  assert.match(prompt, /A blog where readers can leave comments\./);
+  assert.match(prompt, /```json/);
+  const fenced = prompt.match(/```json\s*([\s\S]*?)```/);
+  assert.ok(fenced, 'prompt should contain a fenced JSON example');
+  const example = JSON.parse(fenced[1]);
+  assert.doesNotThrow(() => JSON.parse(fenced[1]), 'the few-shot example itself must be valid JSON');
+  assert.ok(example.rationale && typeof example.rationale.overview === 'string', 'example must model the required rationale.overview');
+  assert.ok(Array.isArray(example.rationale.components) && example.rationale.components.length > 0, 'example must model rationale.components');
+  for (const c of example.rationale.components) {
+    assert.ok(example.nodes.some((n) => n.id === c.id), 'each rationale component id must reference a real example node');
+    assert.equal(typeof c.why, 'string');
+  }
+});
+
+test('buildQuickStartPrompt never throws when description is missing, and shares the same shape/routing rules', () => {
+  assert.doesNotThrow(() => buildQuickStartPrompt());
+  assert.doesNotThrow(() => buildQuickStartPrompt({}));
+  const prompt = buildQuickStartPrompt({});
+  assert.match(prompt, /"shape" must be one of:/);
 });
 
 test('extractProjectJSON parses a raw JSON string directly', () => {

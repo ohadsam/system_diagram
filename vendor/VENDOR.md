@@ -1,10 +1,12 @@
 # Vendored libraries
 
-This app is otherwise 100% hand-written vanilla JS. These four files are
+This app is otherwise 100% hand-written vanilla JS. These five files are
 the only exceptions, and are loaded lazily — the first three only when the
 user actually clicks Export PNG/PDF or exports a presentation to
 PowerPoint, the fourth only when someone opts into Settings -> AI
-Providers -> Local AI (in-browser) — rather than on page load.
+Providers -> Local AI (in-browser), the fifth only when someone picks the
+"quick room code" connection method in the Live Collaboration modal —
+rather than on page load.
 
 They are vendored locally (not loaded from a CDN) so the app works fully
 offline/air-gapped on GitHub Pages with no third-party network dependency
@@ -16,6 +18,7 @@ or SRI-hash maintenance burden.
 | `jspdf.umd.min.js`       | jsPDF       | 2.5.2 | MIT | https://github.com/parallax/jsPDF |
 | `pptxgen.bundle.js`      | PptxGenJS   | 3.12.0 | MIT | https://github.com/gitbrent/PptxGenJS |
 | `web-llm.min.js`         | @mlc-ai/web-llm | 0.2.84 | Apache-2.0 | https://github.com/mlc-ai/web-llm |
+| `peerjs.min.js`          | PeerJS      | 1.5.4 | MIT | https://github.com/peers/peerjs |
 
 The first three are the official pre-built UMD/minified/bundled
 distributables from the package's npm `dist/` folder, copied unmodified.
@@ -53,3 +56,17 @@ elsewhere, minify `lib/index.js` the same way, and update the curated
 `LOCAL_MODEL_CHOICES` list in `js/io/aiProviderKeys.js` against whatever
 model IDs the new version's `prebuiltAppConfig.model_list` actually
 contains — don't assume old IDs still exist.
+
+`peerjs.min.js` is the official pre-built minified UMD distributable from
+the package's npm `dist/` folder (`dist/peerjs.min.js`), copied unmodified
+except for stripping its trailing `//# sourceMappingURL=...` comment (the
+matching `.map` file isn't vendored, so the reference would just be a
+broken request). It sets `window.Peer`. Used only by
+`js/collab/peerjsCollab.js` for the "quick room code" live-collaboration
+connection method (`js/collab/webrtcCollab.js`'s manual code-exchange
+method needs no library at all — just the browser's native
+`RTCPeerConnection`/`RTCDataChannel`); PeerJS's own free public broker
+(`0.peerjs.com`) is what lets two browsers find each other by a short room
+code with no signaling server of this app's own. To upgrade: `npm pack
+peerjs@<version>` elsewhere, take `dist/peerjs.min.js`, strip the same
+sourcemap comment, and replace here.

@@ -4,7 +4,7 @@
 // scattered toolbar toggles — see docs/SPEC.md 4.2.5.
 import { openModal } from './modal.js';
 import { el, clear } from '../utils/dom.js';
-import { field, checkbox, selectInput, textInput } from '../utils/formControls.js';
+import { field, checkbox, selectInput, textInput, numberInput } from '../utils/formControls.js';
 import { TEXT_POSITIONS, SUBCOMPONENTS_DISPLAY_MODES } from '../core/project.js';
 import { getNodeDefaults, saveNodeDefaults } from '../io/nodeDefaults.js';
 import { getLibrarySettings, saveLibrarySettings } from '../io/librarySettings.js';
@@ -12,7 +12,7 @@ import { getUiPrefs, saveUiPrefs, CONTEXT_ROW_MODES } from '../io/uiPrefs.js';
 import {
   AI_SEND_MODES, DIRECT_CAPABLE_PROVIDERS, LOCAL_MODEL_CHOICES, getAiProviderSettings, setAiSendMode,
   setProviderCredentials, addCustomProvider, updateCustomProvider, removeCustomProvider,
-  clearAllAiProviderKeys, setLocalModel,
+  clearAllAiProviderKeys, setLocalModel, setAutoSuggestConfig, isAutomaticSendConfigured,
 } from '../io/aiProviderKeys.js';
 import { isWebGpuSupported, preloadLocalModel } from '../io/webllmEngine.js';
 import * as store from '../core/store.js';
@@ -43,7 +43,7 @@ const AI_SEND_MODE_LABELS = {
   local: 'Local AI in your browser (no key, no account — see below)',
 };
 
-export function openDefaultSettingsModal() {
+export function openDefaultSettingsModal({ scrollToAiProviders = false } = {}) {
   const model = { ...getNodeDefaults() };
   const libraryModel = { ...getLibrarySettings() };
   const uiPrefsModel = { ...getUiPrefs() };
@@ -112,6 +112,15 @@ export function openDefaultSettingsModal() {
         form.appendChild(actions);
 
         body.appendChild(form);
+        if (scrollToAiProviders) {
+          // One-shot: only the modal's very first open (e.g. from Quick
+          // Start's "⚙️ Set up AI now" link) should jump straight to this
+          // section — a later re-render from within the same modal (any
+          // field's onChange calls renderForm()) shouldn't re-scroll out
+          // from under someone who has since scrolled elsewhere.
+          scrollToAiProviders = false;
+          requestAnimationFrame(() => form.querySelector('.ai-provider-settings')?.scrollIntoView({ block: 'start' }));
+        }
       };
 
       renderForm();
@@ -225,6 +234,41 @@ function buildAiProvidersSection(renderForm) {
       },
     }),
   ]));
+
+  wrap.appendChild(buildAutoSuggestSection(settings, renderForm));
+
+  return wrap;
+}
+
+/** "🔁 Auto-suggest" sub-section of "🤖 AI Providers" — configures
+ * io/autoSuggestWatcher.js: runs the "💡 Suggestions" flow (AI Design
+ * Review) in the background, with no panel open, once enough distinct
+ * diagram edits pile up. Deliberately not a timer — see
+ * io/aiProviderKeys.js#DEFAULTS.autoSuggest's header comment — and off by
+ * default since an unattended trigger can incur real cost in Direct API
+ * mode. Only actually fires once Direct API mode or Local AI mode is
+ * configured (io/aiProviderKeys.js#isAutomaticSendConfigured), but the
+ * toggle/count stay editable regardless, same as `localModel` above, so
+ * turning it on ahead of configuring a provider isn't lost. */
+function buildAutoSuggestSection(settings, renderForm) {
+  const wrap = el('div', { class: 'ai-auto-suggest-settings' });
+  wrap.appendChild(el('h4', { class: 'modal-subheading', text: '🔁 Auto-suggest' }));
+  wrap.appendChild(el('p', { class: 'modal-hint', text: 'Runs "💡 Suggestions" (AI Design Review) on its own in the background after this many diagram edits pile up — not on a timer, so idle time never triggers it. A "💡" badge appears on the AI Design Review toolbar button once a background check finds something; click it to view.' }));
+
+  if (!isAutomaticSendConfigured()) {
+    wrap.appendChild(el('p', { class: 'ai-auto-suggest-warning' }, [
+      el('span', { text: '⚠️ Has no effect yet — needs Direct API mode (with a configured provider) or Local AI mode above.' }),
+    ]));
+  }
+
+  wrap.appendChild(checkbox(settings.autoSuggest.enabled, (checked) => {
+    setAutoSuggestConfig({ enabled: checked });
+    renderForm();
+  }, 'Enabled'));
+
+  wrap.appendChild(field('Run after every N edits', numberInput(settings.autoSuggest.everyNChanges, 1, 50, 1, (value) => {
+    setAutoSuggestConfig({ everyNChanges: value });
+  })));
 
   return wrap;
 }

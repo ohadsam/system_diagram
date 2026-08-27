@@ -576,6 +576,14 @@ body.kiosk-mode .kiosk-exit-btn {
   display: none;
 }
 
+.toolbar-auto-suggest-badge {
+  background: var(--color-amber-text);
+}
+
+.toolbar-collab-badge {
+  background: var(--color-success);
+}
+
 .toolbar-count-badge {
   display: inline-block;
   min-width: 16px;

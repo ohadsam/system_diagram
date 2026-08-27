@@ -327,6 +327,14 @@ body.resizing-details-panel {
   margin-top: 0;
 }
 
+.ai-security-severity-high {
+  color: var(--color-danger);
+}
+
+.ai-security-severity-medium {
+  color: var(--color-amber-text);
+}
+
 .ai-suggestion-row {
   display: flex;
   align-items: center;
