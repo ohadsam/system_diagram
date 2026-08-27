@@ -152,6 +152,12 @@ Or open `index.html` directly in a browser.
   Keys are stored only in this browser (never in project files), with a
   clear security warning, a one-click "Clear API Keys" button, and an
   automatic wipe when you switch back to Copy/Paste mode.
+- **🧩 Local AI mode (optional, no key at all)** — the same Settings section
+  also offers running a small open model (Llama 3.2, Qwen2.5) entirely
+  inside your browser via WebGPU — no key, no account, nothing ever leaves
+  your device. The model downloads once (1.5-2.5 GB) and is cached by the
+  browser after that; a "⬇️ Preload model" button lets you fetch it ahead
+  of time instead of waiting on the first real send.
 - **🔍 Check Diagram** — instant, offline structural checks (no AI needed):
   flags a client talking straight to a database, a component with no
   connections, or a replication pair with no load balancer routing to it.
@@ -333,11 +339,12 @@ See [`help.html`](help.html) for the full interactive user guide.
 ## Tech stack
 
 Vanilla HTML/CSS/JavaScript (ES modules), no framework, no bundler. The
-only three runtime dependencies — `html2canvas` and `jsPDF` for PNG/PDF
-export, and `PptxGenJS` for the Presentations feature's `.pptx` export —
-are vendored locally in `vendor/` (see
-[`vendor/VENDOR.md`](vendor/VENDOR.md)), not loaded from a CDN, and only
-fetched lazily when you actually use the feature that needs them.
+only four runtime dependencies — `html2canvas` and `jsPDF` for PNG/PDF
+export, `PptxGenJS` for the Presentations feature's `.pptx` export, and
+`@mlc-ai/web-llm` for Local AI mode's in-browser inference — are vendored
+locally in `vendor/` (see [`vendor/VENDOR.md`](vendor/VENDOR.md)), not
+loaded from a CDN, and only fetched lazily when you actually use the
+feature that needs them.
 
 ## Project structure
 
@@ -355,7 +362,7 @@ js/
   io/       localStorage/IndexedDB, JSON, PNG/PDF/SVG export
   hints/    the guided-tour hints
   utils/    small shared DOM/color/form helpers
-vendor/     vendored html2canvas + jsPDF (export only)
+vendor/     vendored html2canvas + jsPDF + PptxGenJS (export) + web-llm (Local AI)
 tests/
   unit/     Node test-runner tests for pure logic
   e2e/      Playwright browser tests

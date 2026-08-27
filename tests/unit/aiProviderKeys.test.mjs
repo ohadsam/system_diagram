@@ -6,10 +6,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { installMemoryLocalStorage } from './testSupport.mjs';
 import {
-  AI_SEND_MODES, DIRECT_CAPABLE_PROVIDERS, HANDOFF_TO_DIRECT_ID,
+  AI_SEND_MODES, DIRECT_CAPABLE_PROVIDERS, HANDOFF_TO_DIRECT_ID, LOCAL_MODEL_CHOICES,
   getAiProviderSettings, setAiSendMode, setProviderCredentials,
   addCustomProvider, updateCustomProvider, removeCustomProvider,
   clearAllAiProviderKeys, isDirectModeActive, getConfiguredDirectProviders,
+  isLocalModeActive, setLocalModel,
 } from '../../js/io/aiProviderKeys.js';
 
 function withStorage(fn) {
@@ -126,8 +127,69 @@ test('getConfiguredDirectProviders lists configured built-ins (falling back to d
 }));
 
 test('AI_SEND_MODES and HANDOFF_TO_DIRECT_ID stay in sync with the built-in providers', () => {
-  assert.deepEqual(AI_SEND_MODES, ['handoff', 'direct']);
+  assert.deepEqual(AI_SEND_MODES, ['handoff', 'direct', 'local']);
   for (const directId of Object.values(HANDOFF_TO_DIRECT_ID)) {
     assert.ok(DIRECT_CAPABLE_PROVIDERS.some((p) => p.id === directId), `${directId} should be a DIRECT_CAPABLE_PROVIDERS entry`);
+  }
+});
+
+test('getAiProviderSettings defaults localModel to the first LOCAL_MODEL_CHOICES entry', () => withStorage(() => {
+  assert.equal(getAiProviderSettings().localModel, LOCAL_MODEL_CHOICES[0].id);
+}));
+
+test('setLocalModel saves a valid choice and ignores an unknown model id', () => withStorage(() => {
+  const secondChoice = LOCAL_MODEL_CHOICES[1].id;
+  setLocalModel(secondChoice);
+  assert.equal(getAiProviderSettings().localModel, secondChoice);
+
+  setLocalModel('not-a-real-model');
+  assert.equal(getAiProviderSettings().localModel, secondChoice, 'an invalid id should be ignored, not overwrite the saved choice');
+}));
+
+test('a stored localModel not in LOCAL_MODEL_CHOICES (e.g. after a library upgrade) falls back to the default', () => withStorage(() => {
+  setLocalModel(LOCAL_MODEL_CHOICES[1].id);
+  // Simulate a future re-curation removing that id from the choices list by writing it directly.
+  const raw = JSON.parse(globalThis.window.localStorage.getItem('sdb:v1:aiProviderKeys'));
+  raw.localModel = 'a-model-id-that-no-longer-exists';
+  globalThis.window.localStorage.setItem('sdb:v1:aiProviderKeys', JSON.stringify(raw));
+  assert.equal(getAiProviderSettings().localModel, LOCAL_MODEL_CHOICES[0].id);
+}));
+
+test('isLocalModeActive reflects the current mode', () => withStorage(() => {
+  assert.equal(isLocalModeActive(), false);
+  setAiSendMode('local');
+  assert.equal(isLocalModeActive(), true);
+  assert.equal(isDirectModeActive(), false);
+}));
+
+test('switching to local mode never touches provider keys, and switching away from local to handoff still wipes them if present', () => withStorage(() => {
+  setProviderCredentials('anthropic', { apiKey: 'sk-test-123' });
+  setAiSendMode('local');
+  assert.equal(getAiProviderSettings().providers.anthropic.apiKey, 'sk-test-123', 'switching to local should not touch saved keys');
+
+  setAiSendMode('handoff');
+  const settings = getAiProviderSettings();
+  assert.deepEqual(settings.providers, {}, 'switching away to handoff should still wipe keys regardless of which mode it came from');
+}));
+
+test('switching to handoff preserves the chosen local model instead of resetting it', () => withStorage(() => {
+  const secondChoice = LOCAL_MODEL_CHOICES[1].id;
+  setLocalModel(secondChoice);
+  setAiSendMode('local');
+  setAiSendMode('handoff');
+  assert.equal(getAiProviderSettings().localModel, secondChoice, 'the model choice is not a credential and should survive the mode-switch wipe');
+}));
+
+test('getConfiguredDirectProviders returns [] while in local mode too, not just handoff', () => withStorage(() => {
+  setProviderCredentials('anthropic', { apiKey: 'sk-test-123' });
+  setAiSendMode('local');
+  assert.deepEqual(getConfiguredDirectProviders(), []);
+}));
+
+test('LOCAL_MODEL_CHOICES entries look like real WebLLM MLC model IDs', () => {
+  for (const choice of LOCAL_MODEL_CHOICES) {
+    assert.match(choice.id, /-MLC$/, `${choice.id} should end in -MLC per WebLLM's naming convention`);
+    assert.ok(choice.name, `${choice.id} needs a display name`);
+    assert.match(choice.sizeLabel, /GB/, `${choice.id} needs an approximate size label`);
   }
 });

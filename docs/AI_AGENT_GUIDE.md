@@ -164,6 +164,7 @@ this repo" quick-start.
 | Add/change a C4 Model component | `js/data/categories/c4-model.js` — plain `c(...)`, using the standard C4 color palette (`PERSON`/`SYSTEM`/`SYSTEM_EXT`/`CONTAINER`/`CONTAINER_EXT`/`COMPONENT` constants at the top of the file) |
 | Change the C4 Context Diagram wizard | `js/core/c4Context.js#layoutC4Context` (pure — system centered, people row above, external-systems row below) + `js/canvas/canvas.js#createC4ContextDiagram` (creates the nodes + person→system/system→external edges as one dispatch) + `js/modals/c4ContextModal.js` (dynamic person/external-system row editor, same pattern as `sequenceDiagramModal.js`'s participant list) |
 | Change Direct API mode for AI providers (Settings) | `js/io/aiProviderKeys.js` (storage — `DIRECT_CAPABLE_PROVIDERS`, `HANDOFF_TO_DIRECT_ID`, mode-switch-wipes-keys logic) + `js/io/aiDirectCall.js` (pure `build*Request`/`parse*Response` per provider + `sendPromptDirect`'s one `fetch`) + `js/utils/aiProviderActions.js` (the shared "hand-off + optional ⚡ Send directly" button row, used by all three AI flows) + `js/modals/defaultSettingsModal.js#buildAiProvidersSection` (the Settings UI). **Read** docs/ARCHITECTURE.md's "Direct API Mode for AI Providers" section before assuming a new provider will just work — whether it does depends entirely on that provider's own CORS policy, not on anything this app controls. |
+| Change Local AI mode (in-browser inference, Settings) | `js/io/webllmEngine.js` (`isWebGpuSupported`, `generateLocal`, `preloadLocalModel` — lazily `import()`s the vendored `@mlc-ai/web-llm` engine) + `LOCAL_MODEL_CHOICES`/`setLocalModel`/`isLocalModeActive` in `js/io/aiProviderKeys.js` + `js/utils/aiProviderActions.js`'s "🧩 Send to Local AI" button + `js/modals/defaultSettingsModal.js#buildLocalAiSection` (model picker + preload button). **Read** docs/ARCHITECTURE.md's "Local AI Mode" section before touching `LOCAL_MODEL_CHOICES` — every id there was verified against the exact vendored build's own model catalog, not guessed, and re-vendoring a newer version needs the same verification (see `vendor/VENDOR.md`). |
 
 ## Running things locally
 
@@ -814,3 +815,27 @@ npm test
   whose `onChange`/`onBlur` affects a sibling element's derived state
   (not just its own value) needs to actually call the section's
   re-render function, not just persist the change.
+- **Playwright's `page.route()` does not intercept a dynamic `import()` of
+  a local ES module** in this repo's pinned Playwright/Chromium version —
+  confirmed with a throwaway debug script while building Local AI mode
+  (`io/webllmEngine.js`): even a catch-all `page.route('**/*', ...)`
+  registered before navigation let the real request for
+  `vendor/web-llm.min.js` through untouched, while the exact same
+  mechanism reliably intercepts a plain `fetch()` call (as
+  `io/aiDirectCall.js`'s tests already do). If a future feature also lazy
+  `import()`s a local module and needs e2e coverage of what happens after
+  a successful load, don't spend time trying to route-intercept the
+  import itself — test up to that boundary instead (this repo's own
+  `tests/e2e/ai-local-mode.spec.js` is the precedent), or restructure the
+  loader to go through a plain `fetch()` first if the success path
+  genuinely needs coverage.
+- **A curated list's default entry and its own "(recommended)" label can
+  silently disagree if the array order and the label text are edited
+  independently** — `LOCAL_MODEL_CHOICES[0]` is what `DEFAULTS.localModel`
+  actually defaults to, but the "(recommended)" text lives inside that
+  entry's own `name` string; while building Local AI mode these briefly
+  pointed at two different models (index 0 was the smallest/fastest one,
+  while a *different* entry further down was the one labeled
+  "recommended"), caught by an e2e assertion on the default button label
+  rather than by reading the array. Reordering or relabeling this list
+  needs both facts checked together, not just one.

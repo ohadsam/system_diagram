@@ -110,6 +110,23 @@ Keep this in sync with `PLAN.md` as stages complete.
   field (with autocomplete) on custom components, grouping them into
   collapsible 📁 sub-groups in the sidebar.
 
+## v1.35.0 (2026-08-27)
+
+**🧩 Local AI mode** — a third AI sending mode alongside Copy/Paste and Direct API, added after
+researching (and explicitly declining to build) username/password or SSO login as a way to avoid
+storing an API key at all: no legitimate version of that exists for any of the three remote
+providers. What genuinely does exist is running a small open model — Llama 3.2 3B, Qwen2.5 1.5B,
+or Qwen2.5 3B — entirely inside the browser via WebGPU, using the vendored `@mlc-ai/web-llm`
+engine (Apache-2.0). No key, no account, no server, and nothing about the prompt or diagram leaves
+the device. The model (1.5-2.5 GB) downloads once on first use from Hugging Face and is cached by
+the browser after that — the one feature in this otherwise fully offline-capable app that needs a
+connection the first time it's used. Settings → "🤖 AI Providers" gained a model picker and a
+"⬇️ Preload model" button; a browser without WebGPU sees a clear warning instead of a confusing
+failure. A "🧩 Send to Local AI" button appears additively next to every hand-off button across all
+three AI-assisted flows whenever this mode is active, exactly like the existing Direct API button —
+the hand-off option is never replaced, so a failed local generation always has a working fallback
+one click away.
+
 ## v1.34.0 (2026-08-27)
 
 **⚡ Direct API mode for AI providers** — every AI-assisted feature (AI Design Review, Generate

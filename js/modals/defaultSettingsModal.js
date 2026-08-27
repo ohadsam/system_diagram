@@ -10,10 +10,11 @@ import { getNodeDefaults, saveNodeDefaults } from '../io/nodeDefaults.js';
 import { getLibrarySettings, saveLibrarySettings } from '../io/librarySettings.js';
 import { getUiPrefs, saveUiPrefs, CONTEXT_ROW_MODES } from '../io/uiPrefs.js';
 import {
-  AI_SEND_MODES, DIRECT_CAPABLE_PROVIDERS, getAiProviderSettings, setAiSendMode,
+  AI_SEND_MODES, DIRECT_CAPABLE_PROVIDERS, LOCAL_MODEL_CHOICES, getAiProviderSettings, setAiSendMode,
   setProviderCredentials, addCustomProvider, updateCustomProvider, removeCustomProvider,
-  clearAllAiProviderKeys,
+  clearAllAiProviderKeys, setLocalModel,
 } from '../io/aiProviderKeys.js';
+import { isWebGpuSupported, preloadLocalModel } from '../io/webllmEngine.js';
 import * as store from '../core/store.js';
 import { showToast } from '../utils/toast.js';
 import { confirmAction } from './confirmModal.js';
@@ -39,6 +40,7 @@ const SUBCOMPONENTS_DISPLAY_LABELS = {
 const AI_SEND_MODE_LABELS = {
   handoff: 'Copy/Paste (default — no setup, no key ever leaves your clipboard)',
   direct: 'Direct API calls (uses the keys saved below)',
+  local: 'Local AI in your browser (no key, no account — see below)',
 };
 
 export function openDefaultSettingsModal() {
@@ -160,9 +162,11 @@ function buildAiProvidersSection(renderForm) {
       if (!ok) { renderForm(); return; }
     }
     setAiSendMode(next);
-    showToast(next === 'direct' ? 'Direct API calls enabled.' : 'Switched to Copy/Paste — every saved API key was deleted.', 'success');
+    showToast(next === 'direct' ? 'Direct API calls enabled.' : next === 'local' ? 'Local AI (in-browser) enabled.' : 'Switched to Copy/Paste — every saved API key was deleted.', 'success');
     renderForm();
   }, AI_SEND_MODE_LABELS)));
+
+  wrap.appendChild(buildLocalAiSection(settings, renderForm));
 
   for (const provider of DIRECT_CAPABLE_PROVIDERS) {
     const saved = settings.providers[provider.id];
@@ -221,6 +225,55 @@ function buildAiProvidersSection(renderForm) {
       },
     }),
   ]));
+
+  return wrap;
+}
+
+/** "🧩 Local AI (in-browser)" sub-section of "🤖 AI Providers" above —
+ * configures Local AI mode (io/webllmEngine.js): runs an open model
+ * entirely inside this browser via WebGPU, the one sending mode with no
+ * key/account/server at all. Shown regardless of which mode is currently
+ * selected (same as the provider key rows above it), so the model choice
+ * and an optional preload survive switching modes back and forth. */
+function buildLocalAiSection(settings, renderForm) {
+  const wrap = el('div', { class: 'ai-local-settings' });
+  wrap.appendChild(el('h4', { class: 'modal-subheading', text: '🧩 Local AI (in-browser)' }));
+  wrap.appendChild(el('p', { class: 'modal-hint', text: 'Runs a small open model (Llama/Qwen) entirely inside this browser tab via WebGPU — no key, no account, and nothing ever leaves your device. The model itself (1.5-2.5 GB, picked below) downloads once on first use and is cached by the browser after that; text only — the diagram image isn\'t sent to it.' }));
+
+  if (!isWebGpuSupported()) {
+    wrap.appendChild(el('p', { class: 'ai-provider-settings-warning' }, [
+      el('strong', { text: '⚠️ Not available here: ' }),
+      el('span', { text: 'this browser doesn\'t support WebGPU. Try Chrome or Edge on desktop, or use Copy/Paste or Direct API mode instead.' }),
+    ]));
+  }
+
+  const progressEl = el('span', { class: 'ai-local-progress' });
+  const preloadBtn = el('button', {
+    type: 'button', class: 'btn btn-secondary', text: '⬇️ Preload model',
+    disabled: !isWebGpuSupported(),
+    title: 'Downloads and initializes the model now, so the first real "Send" isn\'t a surprise multi-GB wait',
+    onClick: async () => {
+      preloadBtn.disabled = true;
+      preloadBtn.textContent = 'Loading…';
+      const result = await preloadLocalModel(settings.localModel, (report) => {
+        progressEl.textContent = report?.text
+          || (typeof report?.progress === 'number' ? `${Math.round(report.progress * 100)}%` : '');
+      });
+      preloadBtn.disabled = false;
+      preloadBtn.textContent = '⬇️ Preload model';
+      progressEl.textContent = '';
+      if (!result.ok) { showToast(result.error, 'error', 5000); return; }
+      showToast('Model loaded and ready.', 'success', 2200);
+    },
+  });
+
+  wrap.appendChild(field('Model', selectInput(
+    LOCAL_MODEL_CHOICES.map((m) => m.id),
+    settings.localModel,
+    (next) => { setLocalModel(next); renderForm(); },
+    Object.fromEntries(LOCAL_MODEL_CHOICES.map((m) => [m.id, `${m.name} (${m.sizeLabel})`])),
+  )));
+  wrap.appendChild(el('div', { class: 'field-row' }, [preloadBtn, progressEl]));
 
   return wrap;
 }

@@ -1989,7 +1989,83 @@ OAuth token outside Claude Code/Claude.ai (a February 2026 policy change).
 OpenAI has no public self-serve "use my ChatGPT subscription from an
 external app" mechanism — their Apps SDK runs the opposite direction
 (apps hosted inside ChatGPT). An API key remains the only sanctioned
-mechanism for what this feature does across all three providers.
+mechanism for what this feature does across all three remote providers —
+but a genuinely credential-free alternative does exist for anyone willing
+to trade hosted-model quality for it: see "Local AI Mode" below.
+
+## Local AI Mode (`io/webllmEngine.js`, `LOCAL_MODEL_CHOICES`/`setLocalModel`/`isLocalModeActive` in `io/aiProviderKeys.js`)
+
+The third `AI_SEND_MODES` value, `'local'`, and the one with no credential
+at all: an open model runs entirely inside this browser tab via WebGPU,
+using `@mlc-ai/web-llm` (vendored — see vendor/VENDOR.md's entry for
+exactly what is and isn't vendorable here). Structured the same
+pure-core/thin-IO-shell way as `io/aiDirectCall.js`, except the "IO" here
+is a lazy `import()` of a local module rather than a `fetch()`:
+
+- **`ensureEngine(modelId, onProgress)`** (private) lazily dynamic-imports
+  the vendored engine once (`loadWebLlmModule()`, cached in a module-level
+  promise) and creates or `reload()`s the shared `MLCEngine` instance to
+  match whichever model is requested — created via `CreateMLCEngine` the
+  first time, `engine.reload(modelId)` on every model switch after that,
+  since re-creating the whole engine object isn't necessary and WebLLM's
+  own API supports swapping models on an existing instance. Caught in
+  review before this ever shipped: the cached `enginePromise` module
+  variable **must** reset to `null` (along with `currentModelId`) if
+  creation/reload rejects — this is a multi-GB network download, where a
+  transient failure is a real, expected case, and without the reset every
+  retry after the first failure would immediately re-reject with the same
+  cached error forever, recoverable only by reloading the whole page.
+- **`generateLocal({modelId, prompt, onProgress})`** and
+  **`preloadLocalModel(modelId, onProgress)`** both short-circuit with a
+  clear message before touching the network at all if
+  `isWebGpuSupported()` (`!!navigator.gpu`) is false — the single most
+  likely failure mode (older/unsupported browsers, WebGPU disabled), worth
+  catching before a user waits on a doomed multi-GB download. Both return
+  the same `{ok, text|error}` / `{ok, error}` shape `sendPromptDirect` does,
+  so `utils/aiProviderActions.js`'s "🧩 Send to Local AI" button and
+  `modals/defaultSettingsModal.js`'s "⬇️ Preload model" button reuse the
+  exact same toast-on-error handling pattern as the Direct API buttons.
+- **Text-only, deliberately**: unlike AI Design Review's Direct-mode path,
+  `getImageBase64` is never wired up for the local button — the curated
+  small quantized models here aren't multimodal, so there's nothing
+  sensible to send an image to.
+
+**`LOCAL_MODEL_CHOICES`** (in `io/aiProviderKeys.js`, alongside
+`DIRECT_CAPABLE_PROVIDERS`) is three models — Llama 3.2 3B (first in the
+list, the default, and the one labeled "(recommended)" in its own display
+name; keep those two facts in sync if this list is ever reordered), Qwen2.5
+1.5B, and Qwen2.5 3B — every one confirmed present in the exact vendored
+build's own `prebuiltAppConfig.model_list` (`npx esbuild`'d and grepped for
+real `model_id` strings while building this, not guessed) and flagged
+`low_resource_required: true` there, so none of them assume a beefy
+discrete GPU. `sizeLabel` is that catalog's own `vram_required_MB` rounded
+— an approximation of download size, not exact. Settings' model `<select>`
+saves immediately via `setLocalModel()` regardless of which mode is
+currently active, same as the Direct-mode provider key fields next to it.
+
+**Mode-switch semantics**: switching *to* `'local'` never wipes anything
+(nothing to wipe — same as switching to `'direct'`). Switching *away* to
+`'handoff'` still wipes every saved Direct-mode API key if the switch is
+coming from either `'direct'` or `'local'` (there's no meaningful
+distinction — the wipe is about API keys, and `'local'` never had any), but
+explicitly preserves `localModel` across that wipe (`setAiSendMode`'s
+`{...DEFAULTS, mode: 'handoff', localModel: current.localModel}`), since a
+model *choice* isn't a credential and there's no reason to make someone
+re-pick it after a round trip through Direct mode.
+
+**Gotcha found empirically while testing this** (recorded here and in
+`docs/AI_AGENT_GUIDE.md`'s "Common pitfalls"): Playwright's `page.route()`
+does **not** intercept the network request a dynamic `import()` of a local
+ES module triggers, in this repo's pinned Playwright/Chromium version — a
+real request went through untouched even with a catch-all `**/*` route
+registered before navigation, confirmed with a throwaway debug script
+before concluding this wasn't a test-authoring mistake. This is why
+`tests/e2e/ai-local-mode.spec.js` cannot fake a successful model
+load/generation the way `tests/e2e/ai-provider-direct.spec.js` fakes a
+successful `fetch()`-based Direct API call — it only tests up to that
+boundary (Settings UI, the WebGPU-unsupported short-circuit end-to-end,
+button wiring/labels), leaving the real engine call itself un-mocked and
+therefore un-exercised in CI.
 
 ## Generate Design from Spec (`io/aiGenerateDesign.js`, `modals/generateDesignModal.js`)
 

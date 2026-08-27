@@ -1453,6 +1453,32 @@ of switching back is to stop keeping them around, not just to stop using
 them), and a separate "🗑️ Clear API Keys" button clears everything without
 requiring a mode switch.
 
+### 4.54 Local AI Mode (in-browser inference, no key)
+A third sending mode alongside Copy/Paste and Direct API, and the one with
+no credential of any kind: "Local AI in your browser" runs a small open
+model (Llama 3.2 3B, Qwen2.5 1.5B, or Qwen2.5 3B — picked in the same "🤖 AI
+Providers" settings section) entirely inside the current browser tab via
+WebGPU, using the vendored `@mlc-ai/web-llm` engine. No account, no key,
+and nothing about the prompt or diagram leaves the device — the tradeoff is
+that the model itself (1.5-2.5 GB, quantized) has to download once on first
+use (from Hugging Face / a GitHub-hosted binary release, both outside this
+app's control) before it can respond, and is meaningfully smaller/slower
+than a hosted frontier model. The browser caches the download afterward, so
+every use past the first is fully offline — the one feature in this
+otherwise fully offline-capable app that needs a connection the first time.
+
+Settings offers a model picker and a "⬇️ Preload model" button to download
+ahead of time rather than surprising a user with a multi-GB wait on their
+first "Send." A browser without WebGPU support sees a clear warning and a
+disabled preload button rather than a confusing failure later. Exactly like
+Direct API mode, a "🧩 Send to Local AI" button appears additively next to
+every hand-off button across all three AI-assisted flows whenever this mode
+is active — the hand-off option is never replaced, so a failed local
+generation (unsupported browser, model-load failure) always has a working
+fallback one click away. Local AI mode is text-only: the diagram image
+(only ever attached by AI Design Review) is not sent to it, since the
+curated models here aren't multimodal.
+
 ## 5. Non-functional requirements
 
 - **Security**: no `eval`/`innerHTML` with unsanitized input, no inline

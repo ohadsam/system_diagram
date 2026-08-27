@@ -212,6 +212,7 @@
       <li><a href="#saving">Saving, loading &amp; export</a></li>
       <li><a href="#ai-review">AI Design Review</a></li>
       <li><a href="#ai-direct-mode">Direct API mode &amp; getting an API key</a></li>
+      <li><a href="#ai-local-mode">Local AI mode (no key at all)</a></li>
       <li><a href="#check-diagram">Check Diagram</a></li>
       <li><a href="#generate-design">Generate Design from Spec</a></li>
       <li><a href="#ai-edit">Edit with AI</a></li>
@@ -461,7 +462,7 @@
 
     <section id="ai-direct-mode">
       <h2><span class="icon-badge">⚡</span> Direct API mode &amp; getting an API key</h2>
-      <p>Every AI-assisted feature — <a href="#ai-review">AI Design Review</a>, Generate Design from Spec, Edit with AI — defaults to the copy/paste hand-off flow above: no key, no setup, nothing ever leaves your clipboard. If you'd rather skip that and send the prompt (and diagram image, for AI Design Review) straight to a provider's own API with your own key, open <strong>Create menu → "Default settings for new components" → 🤖 AI Providers</strong> and switch "Sending mode" to <strong>Direct API calls</strong>.</p>
+      <p>Every AI-assisted feature — <a href="#ai-review">AI Design Review</a>, Generate Design from Spec, Edit with AI — defaults to the copy/paste hand-off flow above: no key, no setup, nothing ever leaves your clipboard. If you'd rather skip that and send the prompt (and diagram image, for AI Design Review) straight to a provider's own API with your own key, open <strong>Create menu → "Default settings for new components" → 🤖 AI Providers</strong> and switch "Sending mode" to <strong>Direct API calls</strong>. Don't want to manage a key at all? See <a href="#ai-local-mode">Local AI mode</a> below for a key-free alternative.</p>
       <div class="tip">⚠️ <strong>This isn't fully secure.</strong> A key saved here is stored in this browser like everything else in this app — unencrypted, readable by anyone with access to this browser profile or its developer tools. Only save a key on a device you trust, and use a key scoped to this specific use if your provider lets you create one. A "🗑️ Clear API Keys" button in the same section wipes every saved key instantly, and switching back to Copy/Paste mode wipes them automatically.</div>
       <p>Which providers actually work this way depends on whether that provider's servers allow a browser to call them directly (CORS) — something outside this app's control:</p>
       <ul>
@@ -472,6 +473,15 @@
         <li><strong>Any other provider</strong> — use "+ Add custom provider…" in the same section with its full chat-completions endpoint URL and your key, as long as it speaks the same request/response shape OpenAI's API does (most self-hosted and alternative providers do).</li>
       </ul>
       <p>Whichever mode is on, the original "open the provider's website" button always stays right there too — a failed direct call (wrong key, rate limit, CORS) is just a toast away from falling back to copy/paste for that one attempt.</p>
+    </section>
+
+    <section id="ai-local-mode">
+      <h2><span class="icon-badge">🧩</span> Local AI mode (no key at all)</h2>
+      <p>A third "Sending mode" option in the same "🤖 AI Providers" settings section: <strong>Local AI in your browser</strong> runs a small open model — Llama 3.2, Qwen2.5 — entirely inside this browser tab. No key, no account, no server, and nothing about your prompt or diagram ever leaves your device.</p>
+      <div class="tip">💾 The model itself (1.5-2.5 GB, whichever one you pick) downloads once the first time you use it and is cached by your browser after that — the one thing in this otherwise fully offline-capable app that needs an internet connection the first time. Use the "⬇️ Preload model" button in Settings to fetch it ahead of time instead of waiting on your first real "Send".</div>
+      <p>This needs <strong>WebGPU</strong> — supported on recent Chrome/Edge on desktop, Chrome on Android, and newer Safari/Firefox builds. If your browser doesn't support it, Settings shows a clear warning and the preload button is disabled rather than letting you hit a confusing failure later.</p>
+      <p>Once this mode is on, a "🧩 Send to Local AI" button appears right alongside the hand-off and Direct API buttons in AI Design Review, Generate Design from Spec, and Edit with AI — every option always stays available side by side, so a failed local attempt (unsupported browser, model still loading) is just a click away from the working hand-off fallback. Local AI mode is text-only: the diagram image in AI Design Review isn't sent to it, since these small models aren't multimodal.</p>
+      <p>Expect noticeably lower quality and speed than Claude, ChatGPT, or Gemini — these are compact models chosen to actually run in a browser, not frontier-scale ones. Good for a quick sanity check or when you'd simply rather not use a hosted provider at all.</p>
     </section>
 
     <section id="check-diagram">

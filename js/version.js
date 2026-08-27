@@ -2,9 +2,17 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.34.0';
+export const APP_VERSION = '1.35.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.35.0',
+    date: '2026-08-27',
+    highlights: [
+      'New "🧩 Local AI" sending mode (Settings → "🤖 AI Providers"): runs a small open model (Llama 3.2, Qwen2.5) entirely inside your browser via WebGPU — no key, no account, and nothing ever leaves your device. The model downloads once (1.5-2.5 GB) and is cached by the browser after that, with a "⬇️ Preload model" button to fetch it ahead of time.',
+      'A "🧩 Send to Local AI" button now appears alongside the existing hand-off and Direct API buttons in AI Design Review, Generate Design from Spec, and Edit with AI whenever Local AI mode is on — every option always stays available side by side.',
+    ],
+  },
   {
     version: '1.34.0',
     date: '2026-08-27',

@@ -1,12 +1,16 @@
-// Configurable AI provider credentials for "Direct API" mode — an opt-in
-// alternative to this app's default "prepare a prompt, hand it off to the
-// provider's own website, paste the reply back" flow (io/aiReview.js's
-// header comment explains why that's the default: this is a 100% static,
-// backend-free app, and most LLM providers don't support direct
-// browser-to-API calls anyway — see io/aiDirectCall.js for exactly which
-// ones genuinely do).
+// Configurable AI settings for this app's two opt-in alternatives to its
+// default "prepare a prompt, hand it off to the provider's own website,
+// paste the reply back" flow (io/aiReview.js's header comment explains why
+// that's the default: this is a 100% static, backend-free app):
+//   - 'direct': a saved API key calls a remote provider straight from the
+//     browser — see io/aiDirectCall.js for exactly which providers
+//     genuinely support that and why.
+//   - 'local': a small open model (Llama/Qwen/...) runs entirely inside
+//     the browser via WebGPU, no key, no account, no server at all — see
+//     io/webllmEngine.js. This is the one mode with no credential to leak,
+//     since there isn't one.
 //
-// Keys live in whichever storage backend the user has chosen
+// Keys/settings live in whichever storage backend the user has chosen
 // (io/storage.js — localStorage by default), exactly like every other app
 // setting, and are deliberately NEVER read by io/projects.js/io/fullBackup.js
 // — they're a browser/app setting, not project data, same category as
@@ -15,14 +19,33 @@
 // to them in the same browser storage — see the security note surfaced in
 // modals/defaultSettingsModal.js's "🤖 AI Providers" section), so switching
 // back to hand-off mode deliberately wipes every stored credential rather
-// than just hiding them.
+// than just hiding them. Switching to/from 'local' never wipes anything —
+// there's no credential involved either way.
 import { readJSON, writeJSON } from './storage.js';
 import { nextId } from '../core/id.js';
 
 const KEY = 'aiProviderKeys';
 const listeners = new Set();
 
-export const AI_SEND_MODES = ['handoff', 'direct'];
+export const AI_SEND_MODES = ['handoff', 'direct', 'local'];
+
+// Curated, verified-working model IDs for io/webllmEngine.js's in-browser
+// inference (Local AI mode) — every one confirmed present in the exact
+// vendored @mlc-ai/web-llm build's own model catalog (see vendor/VENDOR.md)
+// rather than guessed, since a wrong ID fails a multi-GB download partway
+// through instead of failing fast. All three are flagged
+// `low_resource_required: true` in that catalog, so none of them assume a
+// beefy discrete GPU. `sizeLabel` is that catalog's `vram_required_MB`
+// rounded — an approximation of the download size, not an exact figure.
+// The first entry is also DEFAULTS.localModel below — keep whichever one
+// is actually labeled "(recommended)" in first place, since the settings
+// dropdown's default selection and its own display label should never
+// disagree about which choice is the recommended one.
+export const LOCAL_MODEL_CHOICES = [
+  { id: 'Llama-3.2-3B-Instruct-q4f16_1-MLC', name: 'Llama 3.2 3B — balanced (recommended)', sizeLabel: '~2.3 GB' },
+  { id: 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC', name: 'Qwen2.5 1.5B — fastest, lightest', sizeLabel: '~1.6 GB' },
+  { id: 'Qwen2.5-3B-Instruct-q4f16_1-MLC', name: 'Qwen2.5 3B — strongest reasoning', sizeLabel: '~2.5 GB' },
+];
 
 // Providers with a real, verified direct-browser-call path — see
 // io/aiDirectCall.js's header comment for what was actually checked and
@@ -47,6 +70,7 @@ const DEFAULTS = {
   mode: 'handoff',
   providers: {}, // { [providerId]: { apiKey, model } }
   customProviders: [], // { id, name, baseUrl, apiKey, model }
+  localModel: LOCAL_MODEL_CHOICES[0].id,
 };
 
 export function getAiProviderSettings() {
@@ -57,6 +81,7 @@ export function getAiProviderSettings() {
     mode: AI_SEND_MODES.includes(stored.mode) ? stored.mode : DEFAULTS.mode,
     providers: { ...(stored.providers || {}) },
     customProviders: Array.isArray(stored.customProviders) ? stored.customProviders : [],
+    localModel: LOCAL_MODEL_CHOICES.some((m) => m.id === stored.localModel) ? stored.localModel : DEFAULTS.localModel,
   };
 }
 
@@ -73,13 +98,24 @@ export function onAiProviderSettingsChange(fn) {
 
 /** Switching to 'handoff' always wipes every stored key/custom provider —
  * the whole point of the mode switch is "stop keeping API credentials
- * around", not just "stop using them for now". Switching to 'direct' never
- * clears anything, since there's nothing to clear on the way in. */
+ * around", not just "stop using them for now" — but keeps the local-model
+ * choice, since that's not a credential and there's no reason to forget it.
+ * Switching to 'direct' or 'local' never clears anything, since there's
+ * nothing to clear on the way in either way. */
 export function setAiSendMode(mode) {
   const current = getAiProviderSettings();
   if (!AI_SEND_MODES.includes(mode) || mode === current.mode) return current;
-  if (mode === 'handoff') return save({ ...DEFAULTS, mode: 'handoff' });
+  if (mode === 'handoff') return save({ ...DEFAULTS, mode: 'handoff', localModel: current.localModel });
   return save({ ...current, mode });
+}
+
+/** The Settings model `<select>` for Local AI mode — doesn't require
+ * being in 'local' mode to change, same as a provider key field staying
+ * editable while in 'handoff' mode. */
+export function setLocalModel(modelId) {
+  const current = getAiProviderSettings();
+  if (!LOCAL_MODEL_CHOICES.some((m) => m.id === modelId)) return current;
+  return save({ ...current, localModel: modelId });
 }
 
 export function setProviderCredentials(providerId, { apiKey, model } = {}) {
@@ -125,6 +161,10 @@ export function clearAllAiProviderKeys() {
 
 export function isDirectModeActive() {
   return getAiProviderSettings().mode === 'direct';
+}
+
+export function isLocalModeActive() {
+  return getAiProviderSettings().mode === 'local';
 }
 
 /** Every provider actually usable for a direct call right now: Direct mode
