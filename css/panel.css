@@ -240,8 +240,13 @@ body.resizing-details-panel {
 }
 
 .ai-provider-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.ai-provider-row {
+  display: flex;
   gap: var(--space-2);
 }
 
@@ -250,10 +255,30 @@ body.resizing-details-panel {
   align-items: center;
   gap: var(--space-2);
   justify-content: flex-start;
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .ai-provider-icon {
   font-size: 15px;
+}
+
+.ai-provider-direct-btn {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.ai-provider-custom-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+@media (max-width: 420px) {
+  .ai-provider-row {
+    flex-wrap: wrap;
+  }
 }
 
 .generate-design-spec,

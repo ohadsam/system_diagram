@@ -7,10 +7,10 @@ import { openModal } from './modal.js';
 import { el, clear } from '../utils/dom.js';
 import * as store from '../core/store.js';
 import { validateProject } from '../core/project.js';
-import { AI_PROVIDERS } from '../io/aiReview.js';
 import { buildGenerateDesignPrompt, extractProjectJSON, autoArrangeIfNeeded } from '../io/aiGenerateDesign.js';
 import { showToast } from '../utils/toast.js';
 import { confirmAction } from './confirmModal.js';
+import { buildAiProviderActions } from '../utils/aiProviderActions.js';
 
 const STEP_TITLES = ['Your spec', 'Copy this prompt to your AI', "Paste the AI's result"];
 
@@ -110,17 +110,12 @@ export function openGenerateDesignModal() {
           }));
           body.appendChild(promptActions);
 
-          body.appendChild(el('h3', { class: 'modal-subheading', text: 'Open your AI (copies the prompt and opens a new tab)' }));
-          const providerGrid = el('div', { class: 'ai-provider-grid' });
-          for (const provider of AI_PROVIDERS) {
-            providerGrid.appendChild(el('button', {
-              type: 'button', class: 'btn ai-provider-btn', onClick: () => openProvider(provider),
-            }, [
-              el('span', { class: 'ai-provider-icon', text: provider.icon, 'aria-hidden': 'true' }),
-              el('span', { text: provider.name }),
-            ]));
-          }
-          body.appendChild(providerGrid);
+          body.appendChild(el('h3', { class: 'modal-subheading', text: 'Open your AI (copies the prompt and opens a new tab) — or send it directly' }));
+          body.appendChild(buildAiProviderActions({
+            openProvider,
+            getPrompt: currentPrompt,
+            onDirectResult: (text) => { responseText = text; pasteError = ''; step = 3; renderStep(); },
+          }));
 
           const actions = el('div', { class: 'modal-actions' });
           actions.appendChild(el('button', { type: 'button', class: 'btn', text: '← Back', onClick: () => { step = 1; renderStep(); } }));

@@ -110,6 +110,24 @@ Keep this in sync with `PLAN.md` as stages complete.
   field (with autocomplete) on custom components, grouping them into
   collapsible 📁 sub-groups in the sidebar.
 
+## v1.34.0 (2026-08-27)
+
+**⚡ Direct API mode for AI providers** — every AI-assisted feature (AI Design Review, Generate
+Design from Spec, Edit with AI) still defaults to the existing copy/paste hand-off flow, but
+Settings → "🤖 AI Providers" now offers an opt-in alternative: save an API key for Claude
+(Anthropic) or Gemini (Google) — both verified to genuinely support a direct browser-to-API call —
+plus ChatGPT (OpenAI, included though its CORS support couldn't be confirmed) and any other
+OpenAI-compatible endpoint via "+ Add custom provider…". A "⚡ Send directly" button appears
+alongside (never instead of) the existing hand-off button wherever a provider is configured, so a
+failed direct call (bad key, rate limit, CORS) always has a working fallback one click away.
+
+Keys are stored in their own `localStorage` entry (`io/aiProviderKeys.js`), never included in
+project JSON or full-backup export — an app/browser setting, not project data. A visible warning
+explains the tradeoff (an unencrypted browser setting is the most secure option a 100% static app
+has for a user-supplied secret, but it's still readable by anyone with access to the browser
+profile). Switching the sending mode back to Copy/Paste wipes every saved key automatically, and a
+separate "🗑️ Clear API Keys" button clears everything on demand without switching modes.
+
 ## v1.2.0 (2026-08-14)
 
 Starting formal version tracking here — see `js/version.js`

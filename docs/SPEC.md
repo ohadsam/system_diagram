@@ -1419,6 +1419,40 @@ wizard; a Container or Component diagram is built the same way as any
 other diagram, by dragging the matching shapes onto the canvas and
 connecting them — there is no enforced multi-level drill-down state.
 
+### 4.53 Direct API Mode for AI Providers
+Every AI-assisted feature (4.12 AI Design Review, 4.13 Generate Design from
+Spec, 4.38 Edit with AI) defaults to a "prepare & hand off" flow: no API key,
+nothing leaves the clipboard. Settings → "Default settings for new
+components" → "🤖 AI Providers" adds an opt-in alternative: a "Sending mode"
+toggle between **Copy/Paste** (the default) and **Direct API calls**, plus a
+key/model field for each of the three providers with a genuinely usable
+direct-browser-call path (Claude/Anthropic and Gemini/Google both support
+it; ChatGPT/OpenAI is offered too but may reject the request depending on
+that provider's own CORS policy — outside this app's control either way),
+and a "+ Add custom provider…" option for any other OpenAI-compatible
+endpoint (name, base URL, key, model). GitHub Copilot has no public per-key
+completions API for third-party apps, so it stays hand-off-only.
+
+Every AI flow's UI renders **both** options side by side whenever Direct
+mode is configured for a given provider — the existing hand-off button never
+disappears, so a failed direct call (bad key, rate limit, CORS) is always
+one click away from falling back to copy/paste. A direct call sends the
+same prompt (and, for AI Design Review, the same diagram PNG) the hand-off
+flow would have copied, and on success fills in the same paste-back field
+the user would otherwise have pasted into by hand.
+
+Credentials are stored in their own `localStorage` entry (`aiProviderKeys`),
+never included in project JSON, full-backup export, or saved-project files —
+an app/browser setting, not project data, same category as UI preferences.
+A visible warning explains the security tradeoff: an unencrypted browser
+setting is the most secure option a 100% static, backend-free app has for a
+user-supplied secret, but it is not encrypted and is readable by anyone with
+access to the browser profile or its dev tools. Switching the mode back to
+Copy/Paste wipes every saved key/custom provider automatically (the point
+of switching back is to stop keeping them around, not just to stop using
+them), and a separate "🗑️ Clear API Keys" button clears everything without
+requiring a mode switch.
+
 ## 5. Non-functional requirements
 
 - **Security**: no `eval`/`innerHTML` with unsanitized input, no inline

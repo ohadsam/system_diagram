@@ -163,6 +163,7 @@ this repo" quick-start.
 | Change "Import from SQL" (ER diagram from `CREATE TABLE` DDL) | `js/io/sqlDdlImport.js#parseSqlDdl` (pure regex parser — `splitTopLevel`/`extractBalancedParens` are the paren-depth-aware helpers that make `DECIMAL(10,2)` and multi-column `FOREIGN KEY (a, b)` parse correctly) + `js/core/erDiagramLayout.js#layoutErTables` (pure grid layout) + `js/canvas/canvas.js#createErDiagramFromDdl` (reuses the `shape-server-rows` "entity" convention) + `js/modals/importSqlModal.js` (the wizard) |
 | Add/change a C4 Model component | `js/data/categories/c4-model.js` — plain `c(...)`, using the standard C4 color palette (`PERSON`/`SYSTEM`/`SYSTEM_EXT`/`CONTAINER`/`CONTAINER_EXT`/`COMPONENT` constants at the top of the file) |
 | Change the C4 Context Diagram wizard | `js/core/c4Context.js#layoutC4Context` (pure — system centered, people row above, external-systems row below) + `js/canvas/canvas.js#createC4ContextDiagram` (creates the nodes + person→system/system→external edges as one dispatch) + `js/modals/c4ContextModal.js` (dynamic person/external-system row editor, same pattern as `sequenceDiagramModal.js`'s participant list) |
+| Change Direct API mode for AI providers (Settings) | `js/io/aiProviderKeys.js` (storage — `DIRECT_CAPABLE_PROVIDERS`, `HANDOFF_TO_DIRECT_ID`, mode-switch-wipes-keys logic) + `js/io/aiDirectCall.js` (pure `build*Request`/`parse*Response` per provider + `sendPromptDirect`'s one `fetch`) + `js/utils/aiProviderActions.js` (the shared "hand-off + optional ⚡ Send directly" button row, used by all three AI flows) + `js/modals/defaultSettingsModal.js#buildAiProvidersSection` (the Settings UI). **Read** docs/ARCHITECTURE.md's "Direct API Mode for AI Providers" section before assuming a new provider will just work — whether it does depends entirely on that provider's own CORS policy, not on anything this app controls. |
 
 ## Running things locally
 
@@ -787,3 +788,29 @@ npm test
   If sidebar render performance ever needs real work, it has to preserve
   "every item's DOM node exists at all times," not just "every item is
   visually correct."
+- **Never assume a mainstream AI provider blocks (or allows) direct
+  browser API calls without checking that specific provider's actual CORS
+  response headers** — general "you need a backend proxy" advice you'll
+  find via search does not hold uniformly. While building Direct API mode
+  (`io/aiDirectCall.js`), a real preflight+request against each provider's
+  live endpoint found Anthropic supports it (with one specific opt-in
+  header) and Gemini supports it out of the box with no special handling
+  at all — both contrary to the generic "no LLM API is directly
+  browser-callable" assumption this app's AI features were originally
+  built on. If a similar question comes up for a new provider, verify with
+  a real request (`curl -H "Origin: https://example.com" ...` against the
+  actual endpoint, checking for `access-control-allow-origin` in the
+  response) rather than trusting either training-data assumptions or a
+  single search result.
+- **A derived/computed UI value (like a button's `disabled` state) that
+  isn't part of the field being edited still needs its own re-render
+  trigger** — `defaultSettingsModal.js`'s "🗑️ Clear API Keys" button's
+  `disabled` attribute is computed from `getAiProviderSettings()` at
+  render time, but the built-in provider key/model fields originally saved
+  via `onBlur` without calling `renderForm()` afterward, so the button
+  stayed disabled after typing a key until some *other* field happened to
+  trigger a re-render. Caught by an e2e test asserting the button's
+  enabled state right after a `fill()` + `blur()`, not by eye. Any field
+  whose `onChange`/`onBlur` affects a sibling element's derived state
+  (not just its own value) needs to actually call the section's
+  re-render function, not just persist the change.

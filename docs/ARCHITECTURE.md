@@ -1814,10 +1814,15 @@ standalone, reusable pure function — both the new call sites below and
 
 ## AI Design Review (`io/aiReview.js`, `panel/aiReviewPanel.js`)
 
-Deliberately **not** an API integration — see docs/SPEC.md 4.12 for the
-full reasoning (no mainstream LLM offers key-free API access; scraping
-Google's embedded AI search results is blocked by CORS and against their
-ToS). `aiReview.js#buildReviewPrompt()` is a pure string builder (project
+Deliberately **not** an API integration by default — see docs/SPEC.md 4.12
+for the full reasoning (no mainstream LLM offers key-free API access;
+scraping Google's embedded AI search results is blocked by CORS and
+against their ToS). An opt-in "Direct API" mode that genuinely does call a
+provider's API from the browser, for the providers where that's actually
+possible, is covered separately below in "Direct API Mode for AI
+Providers" — it's additive: every hand-off mechanism this section
+describes keeps working unchanged regardless of whether Direct mode is
+configured. `aiReview.js#buildReviewPrompt()` is a pure string builder (project
 name/node-edge counts/component names, plus an optional attached spec
 file's text, truncated to a sane length). The panel:
 1. Lets the prompt be edited in place (`promptOverride`, `null` until the
@@ -1865,6 +1870,126 @@ textarea, and re-rendering the whole panel on every coalesced drag frame
 (store emits `'change'` for those too — see "State flow" above). The
 `detailsPanel.js` pattern (re-render whenever its one open node's data
 changes) doesn't apply here since this panel isn't node-scoped.
+
+## Direct API Mode for AI Providers (`io/aiProviderKeys.js`, `io/aiDirectCall.js`, `utils/aiProviderActions.js`, `modals/defaultSettingsModal.js`)
+
+An opt-in alternative to the hand-off flow above, for a user willing to
+save an API key in the browser. Split into three layers, following this
+app's usual "pure core, thin IO shell" split:
+
+- **`io/aiProviderKeys.js`** — credential storage and settings. Its own
+  `localStorage` key (`aiProviderKeys`), entirely separate from
+  `state`/project JSON — same category as `io/uiPrefs.js`, an app/browser
+  setting rather than project data, so it's never touched by
+  `io/projects.js`/`io/fullBackup.js` export or import. `getAiProviderSettings()`
+  reads+defaults+validates; `setProviderCredentials`/`addCustomProvider`/
+  `updateCustomProvider`/`removeCustomProvider`/`clearAllAiProviderKeys` all
+  follow the read-current → build-next → `save(next)` shape used throughout
+  this app's `io/*.js` settings modules. `setAiSendMode('handoff')` is the
+  one function here with a side effect beyond its own field: it wipes
+  `providers`/`customProviders` unconditionally, because the entire point of
+  switching back is "stop keeping these around," not "stop using them for
+  now" — `clearAllAiProviderKeys()` does the same wipe without touching
+  `mode`, for the standalone "🗑️ Clear API Keys" button.
+  `getConfiguredDirectProviders()` is the one query the UI layer actually
+  needs: it returns `[]` outright whenever `mode !== 'direct'`, so every
+  caller gets "nothing configured" for free instead of separately checking
+  the mode.
+
+- **`io/aiDirectCall.js`** — the actual network call, split into pure
+  `build*Request`/`parse*Response` functions per provider (no `fetch`
+  inside them, unit-testable without mocking the network) plus a thin
+  `sendPromptDirect(provider, {prompt, imageBase64})` orchestrator that
+  does the one `fetch` and turns any failure into one short user-facing
+  sentence. **Whether a given provider even reaches this code path depends
+  entirely on that provider's own CORS policy for cross-origin browser
+  requests** — verified empirically against each provider's real endpoint
+  while building this (raw preflight + request, checking the actual
+  `Access-Control-Allow-Origin` response header, not just documentation):
+  - **Anthropic** (`api.anthropic.com`) supports it, but only with the
+    `anthropic-dangerous-direct-browser-access: true` request header — omit
+    it and the server sends no CORS header at all and the browser blocks
+    the response before this code ever runs. This is the same header
+    Anthropic's own TypeScript SDK sets under its `dangerouslyAllowBrowser`
+    flag — a documented, intentional opt-in for exactly this "browser app
+    with a user-supplied key" case, not an undocumented trick.
+  - **Google Gemini** (`generativelanguage.googleapis.com`) supports it out
+    of the box — its preflight response already includes
+    `Access-Control-Allow-Origin: *`.
+  - **OpenAI** (`api.openai.com`) could not be verified either way from the
+    sandbox this was built in (an unrelated outbound network policy
+    rejected the verification request before it reached OpenAI's servers),
+    but multiple independent 2025-2026 developer reports describe it
+    rejecting browser-origin requests with no CORS headers. Included
+    anyway — a failed call here just surfaces a clear error and leaves the
+    hand-off button working right next to it, so if OpenAI ever does allow
+    it, this starts working with no code change, and if it never does, the
+    cost of trying is one caught error.
+  - **GitHub Copilot** has no public per-key REST completions API for
+    third-party apps at all (its REST API only covers seat
+    administration/usage metrics), so it's absent from
+    `DIRECT_CAPABLE_PROVIDERS` entirely and stays hand-off-only in the UI —
+    there's nothing a "direct" mode could call.
+  - **A "Custom (OpenAI-compatible)" provider** reuses
+    `buildOpenAiRequest`'s shape against a user-supplied `baseUrl` — most
+    self-hosted/alternative providers (Azure OpenAI, OpenRouter, Ollama, LM
+    Studio, Groq, Together, ...) speak this same chat-completions
+    request/response contract. Whether *that* server's CORS policy allows a
+    browser call is between the user and whoever operates it.
+
+- **`utils/aiProviderActions.js`** — the one shared UI piece consumed
+  identically by `panel/aiReviewPanel.js`, `modals/generateDesignModal.js`,
+  and `modals/aiEditModal.js` (previously each hand-rolled the same
+  hand-off provider grid from `aiReview.js#AI_PROVIDERS`; this pulled it
+  into one place when Direct mode needed a second button next to it).
+  `buildAiProviderActions({openProvider, getPrompt, getImageBase64,
+  onDirectResult})` always renders the existing hand-off button for every
+  entry in `AI_PROVIDERS`, and *additionally* renders a "⚡ Send directly"
+  button next to any provider `HANDOFF_TO_DIRECT_ID` maps to a configured
+  Direct-mode credential — additive, never a mode switch in the UI itself,
+  so a failed direct call always has the working hand-off button sitting
+  right there. `getImageBase64` is optional and only passed by
+  `aiReviewPanel.js` (the only one of the three flows that has a diagram
+  image to send); Generate Design/Edit with AI are text-only.
+
+**Settings UI** lives in `modals/defaultSettingsModal.js`'s "🤖 AI
+Providers" section (`buildAiProvidersSection()`) — chosen over a dedicated
+modal since this app already has exactly one settings surface for
+app-wide/non-project preferences, and every field here saves immediately
+(matching this modal's existing `contextRowMode`/library-settings fields,
+not the node-defaults `model` object that waits for the modal's own "Save"
+button) since losing a freshly-typed key by navigating away is a worse
+surprise than persisting it as soon as it's entered. Built-in provider
+key/model fields use `onBlur` rather than `onInput` specifically to avoid a
+write on every keystroke while typing a key; custom-provider fields use
+`onInput` like the rest of this modal's simpler fields. Switching to
+Direct mode with existing keys, or to handoff mode at all with anything
+saved, goes through `confirmModal.js#confirmAction()` first — canceling
+that confirmation has to visibly revert the `<select>`'s value, which a
+native `<select>` already changed before its `onChange` fired, so the
+whole section is wrapped in a re-callable `renderForm()` closure that
+fully rebuilds the modal body rather than trying to reset just the one
+element. The security warning shown here is not decorative: this being a
+100% static app means there is no server-side place to keep a secret, so
+an unencrypted `localStorage` entry actually is the most secure option
+available — the warning exists so the user makes that tradeoff knowingly,
+not to suggest a better option exists that wasn't built.
+
+**Why there's no username/password or "Sign in with Google" login as an
+alternative to an API key here** (researched, not assumed, 2026-08): a
+form collecting a real provider password would be a phishing pattern (this
+app's origin isn't the provider's real login page) and no provider exposes
+a password-based API login for third parties anyway. Google's OAuth 2.0
+path for the Gemini API is real, but it still requires the same Google
+Cloud project + enabled API a plain API key needs, and the resulting
+access/refresh token still has to sit in browser storage exactly like a
+key does — it changes the credential's shape, not its exposure. Anthropic
+explicitly bans third-party use of a Claude Free/Pro/Max subscription's
+OAuth token outside Claude Code/Claude.ai (a February 2026 policy change).
+OpenAI has no public self-serve "use my ChatGPT subscription from an
+external app" mechanism — their Apps SDK runs the opposite direction
+(apps hosted inside ChatGPT). An API key remains the only sanctioned
+mechanism for what this feature does across all three providers.
 
 ## Generate Design from Spec (`io/aiGenerateDesign.js`, `modals/generateDesignModal.js`)
 

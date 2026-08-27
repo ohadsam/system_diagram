@@ -211,6 +211,7 @@
       <li><a href="#custom">Custom components &amp; shapes</a></li>
       <li><a href="#saving">Saving, loading &amp; export</a></li>
       <li><a href="#ai-review">AI Design Review</a></li>
+      <li><a href="#ai-direct-mode">Direct API mode &amp; getting an API key</a></li>
       <li><a href="#check-diagram">Check Diagram</a></li>
       <li><a href="#generate-design">Generate Design from Spec</a></li>
       <li><a href="#ai-edit">Edit with AI</a></li>
@@ -443,7 +444,7 @@
 
     <section id="ai-review">
       <h2><span class="icon-badge">🤖</span> AI Design Review</h2>
-      <p>Click "🤖" in the toolbar to open a side panel that helps you get a system-design review from a mainstream AI — <strong>no API key or setup required</strong>.</p>
+      <p>Click "🤖" in the toolbar to open a side panel that helps you get a system-design review from a mainstream AI — <strong>no API key or setup required</strong> by default (see <a href="#ai-direct-mode">Direct API mode</a> below for the optional alternative that skips the copy/paste step).</p>
       <div class="tip">🔑 How it actually works: no AI provider (Claude, ChatGPT, Gemini, Copilot) offers key-free API access, and pulling results from Google's AI-powered search isn't possible either (blocked, and against Google's terms) — so instead of pretending otherwise, this panel prepares everything and hands it to <em>you</em> to paste in, using whichever AI account you're already signed into.</div>
       <div class="tip">💬 The panel's top has a "🔍 Review" / "💬 Explain" toggle — Review (the default) asks for critique/feedback as below; Explain instead asks the AI for a plain-language walkthrough of what the diagram represents, handy for onboarding a teammate or sanity-checking a generated/imported diagram.</div>
       <ol>
@@ -456,6 +457,21 @@
       <p><span class="mock-node">🤖 AI Design Review <small style="opacity:.7">prompt + image ready → opens Claude/ChatGPT/Gemini/Copilot</small></span></p>
       <div class="tip">💡 Opening a different project (New / Load / Duplicate / restoring a backup) while the panel is open clears its attached spec, prompt edits and saved replies — a review prepared for one diagram shouldn't silently attach itself to another.</div>
       <div class="tip">🔀 If your canvas has a <a href="#sequence-diagram">sequence diagram</a> on it, the prompt automatically asks flow-specific questions instead — call order, missing responses, race conditions — rather than the generic architecture checklist.</div>
+    </section>
+
+    <section id="ai-direct-mode">
+      <h2><span class="icon-badge">⚡</span> Direct API mode &amp; getting an API key</h2>
+      <p>Every AI-assisted feature — <a href="#ai-review">AI Design Review</a>, Generate Design from Spec, Edit with AI — defaults to the copy/paste hand-off flow above: no key, no setup, nothing ever leaves your clipboard. If you'd rather skip that and send the prompt (and diagram image, for AI Design Review) straight to a provider's own API with your own key, open <strong>Create menu → "Default settings for new components" → 🤖 AI Providers</strong> and switch "Sending mode" to <strong>Direct API calls</strong>.</p>
+      <div class="tip">⚠️ <strong>This isn't fully secure.</strong> A key saved here is stored in this browser like everything else in this app — unencrypted, readable by anyone with access to this browser profile or its developer tools. Only save a key on a device you trust, and use a key scoped to this specific use if your provider lets you create one. A "🗑️ Clear API Keys" button in the same section wipes every saved key instantly, and switching back to Copy/Paste mode wipes them automatically.</div>
+      <p>Which providers actually work this way depends on whether that provider's servers allow a browser to call them directly (CORS) — something outside this app's control:</p>
+      <ul>
+        <li><strong>Claude (Anthropic)</strong> — supported. Create a key at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com/settings/keys</a> (sign in, then "Create Key").</li>
+        <li><strong>Gemini (Google)</strong> — supported. Create a key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> ("Create API key").</li>
+        <li><strong>ChatGPT (OpenAI)</strong> — included, but OpenAI's API may reject a direct browser call regardless of the key; if it fails, the hand-off button right next to it still works. Create a key at <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com/api-keys</a> if you want to try it.</li>
+        <li><strong>Copilot</strong> — not available in Direct mode: GitHub doesn't offer a public per-key completions API for third-party apps, so it stays hand-off-only.</li>
+        <li><strong>Any other provider</strong> — use "+ Add custom provider…" in the same section with its full chat-completions endpoint URL and your key, as long as it speaks the same request/response shape OpenAI's API does (most self-hosted and alternative providers do).</li>
+      </ul>
+      <p>Whichever mode is on, the original "open the provider's website" button always stays right there too — a failed direct call (wrong key, rate limit, CORS) is just a toast away from falling back to copy/paste for that one attempt.</p>
     </section>
 
     <section id="check-diagram">

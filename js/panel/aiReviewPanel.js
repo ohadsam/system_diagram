@@ -1,15 +1,23 @@
 // Right slide-in "AI Design Review" panel — see docs/SPEC.md 4.12 for the
-// full explanation of why this is a "prepare & hand off" flow rather than
-// a live API integration (no mainstream LLM offers key-free API access,
-// and scraping Google's embedded AI search results is neither feasible
-// from a static page nor allowed). Nothing here is persisted across a
-// reload — it's a working scratch pad for one review session.
+// full explanation of why "prepare & hand off" (copy a prompt, open the
+// provider's own website, paste the reply back) is this app's default flow
+// rather than a live API integration: no mainstream LLM offers anonymous,
+// key-free API access, and this is a 100% static app with nowhere to keep
+// a secret server-side. Settings -> AI Providers (io/aiProviderKeys.js)
+// offers an opt-in "Direct API" mode for the providers that genuinely
+// support a direct browser call with a user-supplied key — see
+// io/aiDirectCall.js's header comment for exactly which ones and why —
+// surfaced here via utils/aiProviderActions.js's shared "⚡ Send directly"
+// button, always alongside (never instead of) the hand-off buttons below.
+// Nothing here is persisted across a reload — it's a working scratch pad
+// for one review session.
 import * as store from '../core/store.js';
 import { el, clear } from '../utils/dom.js';
 import { nextId } from '../core/id.js';
-import { AI_PROVIDERS, buildReviewPrompt, buildExplainPrompt } from '../io/aiReview.js';
+import { buildReviewPrompt, buildExplainPrompt } from '../io/aiReview.js';
 import { exportPNG, captureDiagramCanvas } from '../io/exportImage.js';
 import { showToast } from '../utils/toast.js';
+import { buildAiProviderActions } from '../utils/aiProviderActions.js';
 
 let rootEl = null;
 let isOpen = false;
@@ -19,6 +27,7 @@ let promptOverride = null;
 let mode = 'review'; // 'review' | 'explain' — which prompt builder currentPrompt() uses
 let savedReviews = [];
 let lastProjectId = null;
+let pasteBackTextarea = null; // set by buildPasteBack() each render; filled in by a successful direct send
 
 export function initAiReviewPanel(root) {
   rootEl = root;
@@ -90,6 +99,15 @@ async function openProvider(provider) {
   }
 }
 
+/** Same rendered canvas as copyImageToClipboard/downloadImage, but as a
+ * bare base64 string (no `data:image/...;base64,` prefix) for a direct API
+ * call's multimodal image content block — see utils/aiProviderActions.js. */
+async function currentImageBase64() {
+  const canvas = await captureDiagramCanvas();
+  if (!canvas) return undefined;
+  return canvas.toDataURL('image/png').split(',')[1];
+}
+
 async function downloadImage() {
   const result = await exportPNG(store.getState().name);
   if (!result.ok) showToast(result.error, 'error');
@@ -159,17 +177,13 @@ function render() {
   imageActions.appendChild(el('button', { type: 'button', class: 'btn btn-secondary', text: '📋 Copy image', onClick: copyImageToClipboard }));
   body.appendChild(imageActions);
 
-  body.appendChild(el('h3', { text: '4. Open your AI and paste both in' }));
-  const providerGrid = el('div', { class: 'ai-provider-grid' });
-  for (const provider of AI_PROVIDERS) {
-    providerGrid.appendChild(el('button', {
-      type: 'button', class: 'btn ai-provider-btn', onClick: () => openProvider(provider),
-    }, [
-      el('span', { class: 'ai-provider-icon', text: provider.icon, 'aria-hidden': 'true' }),
-      el('span', { text: provider.name }),
-    ]));
-  }
-  body.appendChild(providerGrid);
+  body.appendChild(el('h3', { text: '4. Open your AI and paste both in — or send it directly' }));
+  body.appendChild(buildAiProviderActions({
+    openProvider,
+    getPrompt: currentPrompt,
+    getImageBase64: currentImageBase64,
+    onDirectResult: (text) => { if (pasteBackTextarea) pasteBackTextarea.value = text; },
+  }));
 
   body.appendChild(el('h3', { text: '5. Bring the response back here' }));
   body.appendChild(buildPasteBack());
@@ -230,7 +244,8 @@ function buildSpecAttach() {
 
 function buildPasteBack() {
   const wrap = el('div', { class: 'ai-review-pasteback' });
-  const textarea = el('textarea', { class: 'ai-review-response', rows: 6, placeholder: "Paste the AI's response here…" });
+  const textarea = el('textarea', { class: 'ai-review-response', rows: 6, placeholder: "Paste the AI's response here (or send it directly above)…" });
+  pasteBackTextarea = textarea;
   wrap.appendChild(textarea);
   wrap.appendChild(el('button', {
     type: 'button', class: 'btn btn-primary', text: 'Save to this session',

@@ -2,9 +2,17 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.33.0';
+export const APP_VERSION = '1.34.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.34.0',
+    date: '2026-08-27',
+    highlights: [
+      'New "⚡ Direct API mode" for AI-assisted features (Settings → "🤖 AI Providers"): save an API key for Claude, Gemini, ChatGPT, or any other OpenAI-compatible endpoint so AI Design Review/Generate Design/Edit with AI can send the prompt straight to that provider instead of the copy/paste hand-off — the hand-off option always stays right there too, in case a direct call fails.',
+      'Keys are stored only in this browser (never in project files or backups), with a clear on-screen security warning, a one-click "🗑️ Clear API Keys" button, and an automatic wipe of every saved key when switching back to Copy/Paste mode.',
+    ],
+  },
   {
     version: '1.33.0',
     date: '2026-08-26',

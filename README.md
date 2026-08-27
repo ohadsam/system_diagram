@@ -144,6 +144,14 @@ Or open `index.html` directly in a browser.
   to compare against; paste the AI's reply back into the side panel to
   keep it with your project. A "💬 Explain" mode toggle asks instead for a
   plain-language walkthrough of what the diagram represents.
+- **⚡ Direct API mode (optional)** — Settings → "🤖 AI Providers" lets you
+  save an API key for Claude, Gemini, or ChatGPT (or any other
+  OpenAI-compatible endpoint) so AI Design Review/Generate Design/Edit with
+  AI can send the prompt straight to that provider's API instead of the
+  copy/paste hand-off — the hand-off button always stays right there too.
+  Keys are stored only in this browser (never in project files), with a
+  clear security warning, a one-click "Clear API Keys" button, and an
+  automatic wipe when you switch back to Copy/Paste mode.
 - **🔍 Check Diagram** — instant, offline structural checks (no AI needed):
   flags a client talking straight to a database, a component with no
   connections, or a replication pair with no load balancer routing to it.
