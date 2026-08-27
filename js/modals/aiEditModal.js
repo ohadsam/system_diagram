@@ -10,6 +10,7 @@ import { buildEditPrompt, extractPatchJSON, normalizePatch, summarizePatch } fro
 import { applyAiEditPatch } from '../canvas/canvas.js';
 import { showToast } from '../utils/toast.js';
 import { buildAiProviderActions } from '../utils/aiProviderActions.js';
+import { attachSpeechToTextarea } from '../utils/speechInput.js';
 
 const STEP_TITLES = ['Describe the change', 'Copy this prompt to your AI', "Paste the AI's result"];
 
@@ -65,7 +66,7 @@ export function openAiEditModal() {
             onInput: (e) => { instruction = e.target.value; },
           });
           textarea.value = instruction;
-          body.appendChild(textarea);
+          body.appendChild(attachSpeechToTextarea(textarea));
 
           const actions = el('div', { class: 'modal-actions' });
           actions.appendChild(el('button', { type: 'button', class: 'btn', text: 'Cancel', onClick: () => api.close() }));

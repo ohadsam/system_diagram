@@ -228,6 +228,7 @@
       <li><a href="#template-gallery">Template Gallery</a></li>
       <li><a href="#offline">Offline &amp; installable</a></li>
       <li><a href="#language">Language &amp; RTL</a></li>
+      <li><a href="#3d-presentation">3D Presentation Mode</a></li>
       <li><a href="#shortcuts">Keyboard shortcuts</a></li>
       <li><a href="#faq">FAQ</a></li>
     </ul>
@@ -351,6 +352,12 @@
       <p>Two more export buttons in the panel turn the active animation into a shareable file of its own: <strong>"🎬 Export to PPTX"</strong> builds one slide per step, cumulatively revealing what that step adds, with the step's intended timing/notes written into that slide's speaker notes (PowerPoint's own auto-advance-on-a-timer isn't something this app's PPTX writer can set directly, so treat the notes as the timing script). <strong>"🎥 Export to Video"</strong> renders the same sequence straight to a downloadable <code>.webm</code> video that just plays on its own — an Auto step's own delay becomes its on-screen duration, and any Click step becomes a fixed 2-second beat, so a click-through animation still turns into a normal, unattended video.</p>
       <h3>💫 Flow Simulation</h3>
       <p>Click "💫 Flow Simulation" (Tools menu) to toggle small animated dots flowing along every connector in its arrow direction — a quick, purely visual way to see which way data/requests move through the diagram at a glance, handy when presenting or just re-reading an unfamiliar diagram. It's a live view setting, not part of the diagram itself: it stays on across a reload (remembered like Dark Mode), but it's never saved into the project JSON or shown in an export. A <a href="#replication">Live Replication</a> pair — which has no drawn connector of its own to animate — also shows a dot traveling back and forth between its two mirrored sides while this is on.</p>
+      <h3>🪄 AI Beautify Layout</h3>
+      <p>Click "🪄 AI Beautify Layout" (Tools menu, needs 2+ components) to ask an AI to suggest a nicer arrangement of your existing components — same copy/paste hand-off (or Direct/Local AI, if set up) as every other AI feature here. Only <em>positions</em> change: nothing is added, removed, resized, or restyled, and it's one normal undo step.</p>
+      <h3>📃 Describe Diagram</h3>
+      <p>Click "📃 Describe Diagram" (Tools menu) for an instant, fully <strong>offline</strong> plain-text summary of your diagram's structure — no AI, no internet, no waiting: how many components in each category, what connects to what, and anything left unconnected. A "📋 Copy" button copies it as plain text. Useful for a quick sanity check, or for pasting a structural summary somewhere an image wouldn't work (a text-only chat, a screen reader).</p>
+      <h3>⌨️ Keyboard-only connect</h3>
+      <p>Select a component using only the keyboard (<kbd>Tab</kbd> to it) the same way a mouse click would, then press <kbd>C</kbd> to enter connect mode — every nearby component gets a small numbered badge, and pressing that number draws a connector from your selected component to it, exactly like a mouse drag between two connection points. Press <kbd>Esc</kbd> to cancel without connecting anything.</p>
     </section>
 
     <section id="styling">
@@ -388,7 +395,7 @@
       <div class="tip">💡 A connector has its own smaller variant of this same panel — right-click it and choose "Open details" (see <a href="#connectors">Connectors &amp; arrows</a>) for its label and a free-text notes field.</div>
       <ul>
         <li><strong>Notes</strong> — free-form text about that component.</li>
-        <li><strong>Estimated Monthly Cost</strong> — an optional $/mo figure; when set, it shows as a small green badge right on the component and counts toward the running total in "💰 Cost Breakdown" (Tools menu).</li>
+        <li><strong>Estimated Monthly Cost</strong> — an optional $/mo figure; when set, it shows as a small green badge right on the component and counts toward the running total in "💰 Cost Breakdown" (Tools menu), which also has an "🤖 Ask AI to reduce this cost" button for suggestions on trimming it.</li>
         <li><strong>Labels</strong> — short tags shown as chips directly on the component itself (e.g. "prod", "10K RPS", "99.9% SLA"), not just in this panel.</li>
         <li><strong>Sub-components</strong> — a list of internal parts (e.g. an API Gateway's routes, or a service's modules). Choose whether they show on the component as compact chips (default, truncated after 4) or a full untruncated list.</li>
         <li><strong>💡 Suggested sub-components</strong> — when curated suggestions (see "✨ Smart Suggestions") remain unattached for this component, they appear here as checkboxes; select any number and click "+ Add selected" to attach them all in one step.</li>
@@ -439,7 +446,8 @@
         <li><strong>Duplicate entire canvas</strong> (right-click the canvas) — copies every component and connector in place, offset slightly, within the <em>same</em> project — the diagram, doubled.</li>
       </ul>
       <h3>📸 Diagram Versions &amp; 🎬 Presentations</h3>
-      <p><strong>Version History</strong> (File menu) lets you capture a named, timestamped snapshot of the current diagram any time — click "📸 Save Version". From the list you can <strong>revert</strong> to one (undoable — <kbd>Ctrl/Cmd</kbd>+<kbd>Z</kbd> brings your current work back if you change your mind), <strong>delete</strong> one, or <strong>compare</strong> any two side-by-side: added/removed/changed components and connectors, each clickable to jump straight to it if it's still on your live canvas.</p>
+      <p><strong>Version History</strong> (File menu) lets you capture a named, timestamped snapshot of the current diagram any time — click "📸 Save Version". From the list you can <strong>revert</strong> to one (undoable — <kbd>Ctrl/Cmd</kbd>+<kbd>Z</kbd> brings your current work back if you change your mind), <strong>delete</strong> one, or <strong>compare</strong> any two side-by-side: added/removed/changed components and connectors, each clickable to jump straight to it if it's still on your live canvas, with a "💬 Explain this diff with AI" button that narrates the changes in plain language.</p>
+      <p>Once you have 2 or more versions, a branch selector appears above the list — every version starts on <strong>main</strong>. "🌿 Branch from here" on any version copies its content onto a new branch you name; "🔀 Merge into..." does the same onto an existing branch. Both are an explicit "copy this content over" action, not an automatic structural merge of two different versions' changes — a simple, honest way to keep, say, an experimental redesign separate from your main line without losing either.</p>
       <p><strong>Presentations</strong> (File menu) turns an ordered subset of your saved versions into a slideshow — pick which versions to include, reorder them, give the presentation a name, then <strong>▶️ Play</strong> to step through rendered images of each one with Next/Previous, or <strong>🎬 Export PPTX</strong> to download it as a real PowerPoint file.</p>
       <div class="tip">💡 Versions and presentations live inside the project file itself, so they travel with JSON export/import and "🗄️ Backup &amp; Restore" like everything else.</div>
       <h3>Clear Canvas</h3>
@@ -516,6 +524,7 @@
         <li>A <a href="#replication">Live Replication</a> pair with no load balancer or API gateway routing traffic to either side.</li>
       </ul>
       <p>Each finding is clickable — it closes the dialog and selects/centers the component(s) involved so you can fix it right away. The client-to-database and unrouted-replicas findings also offer a "🔧 Auto-fix" button — one click inserts a "Service Layer" (rerouting the direct connection through it) or a "Load Balancer" (connected to every replica) for you, as a single undoable step.</p>
+      <div class="tip">💯 A "Health Score" badge (0-100) sits at the top of the dialog — 100 with no findings at all, minus 10 for each one. It's just a quick at-a-glance number derived from the same findings listed below it, nothing more sophisticated.</div>
       <h3>⚙️ Custom Lint Rules</h3>
       <p>Click "⚙️ Manage Custom Rules" at the bottom of the Check Diagram dialog to define your own checks on top of the built-in ones, for conventions specific to your team or project. Three rule types are available: <strong>"Requires connection"</strong> (every component in category A must connect to at least one component in category B — e.g. every Database must reach a Backup Service), <strong>"Forbidden connection"</strong> (no component in category A may connect directly to category B — e.g. Client/Frontend straight to Databases, your own stricter version of the built-in check above), and <strong>"Max count"</strong> (no more than N components from a given category — e.g. flag a diagram with more than one Load Balancer). Give each rule a short name, toggle it on/off without deleting it, or remove it entirely. Custom rules run alongside the built-in checks every time you open Check Diagram, and are saved in this browser (not part of the diagram's own JSON), so they apply across every project you open here.</p>
     </section>
@@ -524,7 +533,7 @@
       <h2><span class="icon-badge">🧠</span> Generate Design from Spec</h2>
       <p>Click "🧠 Generate Design" in the toolbar to open a 3-step wizard that proposes a <strong>brand-new</strong> diagram from a requirements spec — the reverse of AI Design Review, and built the same honest way: <strong>no API key or setup required</strong>.</p>
       <ol>
-        <li><strong>Your spec</strong> — paste your product/requirements text directly, or load it from a <code>.txt</code>/<code>.md</code> file.</li>
+        <li><strong>Your spec</strong> — paste your product/requirements text directly, or load it from a <code>.txt</code>/<code>.md</code> file. A 🎙️ mic button appears next to this (and every other AI prompt field in this app) wherever your browser supports voice dictation — click it and speak instead of typing; what you say is appended, never replacing what's already there.</li>
         <li><strong>Copy the prompt to your AI</strong> — a ready-made, editable prompt that includes your spec plus an example of exactly the format this app can import, so a compliant reply can be pasted straight back in. Click Claude / ChatGPT / Gemini / Copilot to copy the prompt and open that provider's website in a new tab, or use "📋 Copy prompt" to copy it manually.</li>
         <li><strong>Paste the AI's result</strong> — paste its whole reply back in (any explanation text around the JSON is fine, it's picked out automatically) and click "Generate design". If the canvas already has something on it, you'll be asked to confirm before it's replaced — undo (<kbd>Ctrl/Cmd</kbd>+<kbd>Z</kbd>) brings it right back.</li>
       </ol>
@@ -663,6 +672,13 @@
       <div class="tip">🧩 The component library itself (all ~200 predefined component names/descriptions) and this help guide stay in English regardless of the chosen language — translating that much content is a separate, much bigger project. Anything you type yourself — component names, labels, notes, comments — is of course never translated and appears exactly as you typed it either way.</div>
     </section>
 
+    <section id="3d-presentation">
+      <h2><span class="icon-badge">🧊</span> 3D Presentation Mode</h2>
+      <p>Click "🧊 3D Presentation" (Tools menu, needs at least 1 component) to open a full-screen 3D view of your diagram, built for presenting rather than editing — nothing here can be moved, resized, or restyled. Every component becomes an extruded, colored box, and every connector becomes an animated "cable" — one flow direction rendered blue, the opposite direction red, so you can tell at a glance which way each connection actually points, purely from its own geometry (two connectors running opposite ways between the same pair of components always come out one of each color). Drag to orbit around the scene, scroll to zoom, or just leave it alone — it slowly rotates on its own when you're not actively dragging, for a presentation-ready look with zero setup.</p>
+      <p>If your diagram has a <a href="#canvas">Diagram Animation</a>, playing it (▶️) inside this view reveals components in the same order it normally would, and while it plays you'll see small ambient particles moving inside each visible component — like packets of information being processed — plus a subtly pulsing decal on a few components, for the look of hardware doing real work. No animation on the diagram? The scene just sits there, ready to orbit and admire.</p>
+      <p>Click "🎥 Export 3D Video" to record the whole thing to a downloadable video file: with a Diagram Animation present, it plays the animation through in real time (each step's own timing, exactly like a live playback) and captures every frame; with no animation, it records a fixed ~8-second orbiting shot instead. Click "✕ Close" (or <kbd>Esc</kbd>) to leave 3D Presentation Mode and return to normal editing — your diagram itself is completely untouched by any of this, since the 3D scene is only ever a view built from your existing components and connectors, never saved data of its own.</p>
+    </section>
+
     <section id="shortcuts">
       <h2><span class="icon-badge">⌨️</span> Keyboard shortcuts</h2>
       <table>
@@ -682,6 +698,7 @@
         <tr><td><kbd>Esc</kbd></td><td>Clear selection / close panels</td></tr>
         <tr><td>Arrow keys</td><td>Nudge the selected component by 1px (not while typing in a field)</td></tr>
         <tr><td><kbd>Shift</kbd>+Arrow keys</td><td>Nudge the selected component by 10px</td></tr>
+        <tr><td><kbd>C</kbd> (one component selected)</td><td>Enter <a href="#canvas">keyboard-only connect</a> mode — press a number badge to draw a connector there</td></tr>
         <tr><td colspan="2"><em>While playing a Diagram Animation:</em></td></tr>
         <tr><td><kbd>→</kbd> / <kbd>N</kbd> / click canvas</td><td>Advance to the next animation step</td></tr>
         <tr><td><kbd>←</kbd> / <kbd>P</kbd></td><td>Go back one animation step</td></tr>

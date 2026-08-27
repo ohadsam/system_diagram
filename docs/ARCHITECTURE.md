@@ -24,10 +24,15 @@ index.html ──► js/main.js
                  ├─ core/kioskMode.js    (Presenter Mode's on/off pub-sub)
                  ├─ core/animationPlayback.js (Diagram Animation's step-through state machine)
                  ├─ canvas/animationOverlay.js (Diagram Animation's floating playback controls + draw layer)
-                 ├─ modals/*.js          (incl. modals/generateDesignModal.js, modals/replicationModal.js, modals/sequenceDiagramModal.js, modals/aiEditModal.js, modals/customLintRulesModal.js, modals/globalSearchModal.js, modals/commentsListModal.js, modals/templateGalleryModal.js, modals/importSqlModal.js, modals/c4ContextModal.js, modals/quickStartModal.js, modals/importFromImageModal.js, modals/collaborationModal.js, modals/autoAnimationPrompt.js)
-                 ├─ io/*.js              (localStorage/IndexedDB, file, image/pdf/svg export, incl. io/projectTabs.js, io/duplicateTabWarning.js, io/exportAnimation.js, io/aiEditDesign.js, io/customLintRules.js, io/i18n.js, io/storage.js, io/indexedDbStore.js, io/exportSvg.js, io/globalProjectSearch.js, io/sqlDdlImport.js, io/serviceWorker.js, io/exportPulumi.js, io/exportCloudFormation.js, io/exportKubernetes.js, io/autoSuggest.js, io/autoSuggestWatcher.js, io/exportAnimationPptx.js, io/exportAnimationVideo.js)
+                 ├─ modals/*.js          (incl. modals/generateDesignModal.js, modals/replicationModal.js, modals/sequenceDiagramModal.js, modals/aiEditModal.js, modals/customLintRulesModal.js, modals/globalSearchModal.js, modals/commentsListModal.js, modals/templateGalleryModal.js, modals/importSqlModal.js, modals/c4ContextModal.js, modals/quickStartModal.js, modals/importFromImageModal.js, modals/collaborationModal.js, modals/autoAnimationPrompt.js, modals/aiAskModal.js, modals/aiLayoutModal.js, modals/aiDiffExplainModal.js, modals/diagramDescriptionModal.js)
+                 ├─ io/*.js              (localStorage/IndexedDB, file, image/pdf/svg export, incl. io/projectTabs.js, io/duplicateTabWarning.js, io/exportAnimation.js, io/aiEditDesign.js, io/customLintRules.js, io/i18n.js, io/storage.js, io/indexedDbStore.js, io/exportSvg.js, io/globalProjectSearch.js, io/sqlDdlImport.js, io/serviceWorker.js, io/exportPulumi.js, io/exportCloudFormation.js, io/exportKubernetes.js, io/autoSuggest.js, io/autoSuggestWatcher.js, io/exportAnimationPptx.js, io/exportAnimationVideo.js, io/aiLayoutSuggest.js, io/aiDiffExplain.js, io/aiCostOptimize.js, io/export3dVideo.js)
                  ├─ core/animationAutoBuild.js (Diagram Animation's post-AI-generation walkthrough builder)
                  ├─ core/animationVideoTiming.js (pure per-step screen-time math for io/exportAnimationVideo.js)
+                 ├─ core/diagramDescription.js, core/diagramHealth.js, core/versionBranches.js
+                 ├─ core/scene3dLayout.js (pure 2D→3D geometry mapping), core/scene3dMode.js (3D overlay on/off pub-sub)
+                 ├─ render3d/scene3dRenderer.js (Three.js/WebGL scene — the only consumer of vendor/three.module.min.js)
+                 ├─ canvas/scene3dOverlay.js, canvas/keyboardConnect.js
+                 ├─ utils/speechInput.js (Web Speech API mic-button wrapper for textareas)
                  ├─ collab/*.js          (Live Collaboration — collab/webrtcCollab.js's manual WebRTC transport, collab/peerjsCollab.js's quick-room-code transport, collab/collabProtocol.js's signal encode/decode, collab/collabSession.js's transport-to-store sync)
                  └─ hints/hints.js (incl. hints/onboardingChecklistWidget.js)
 ```
@@ -3710,6 +3715,163 @@ path), then drawn onto one persistent recording `<canvas>` and held for
 step's own `delayMs`, or a fixed `CLICK_STEP_DWELL_MS` (2s) for a `click`
 step, since there's no presenter there to click for it during an
 unattended recording.
+
+## AI Beautify Layout, Diff/Cost AI-ask, Voice Dictation (`io/aiLayoutSuggest.js`, `io/aiDiffExplain.js`, `io/aiCostOptimize.js`, `modals/aiAskModal.js`, `utils/speechInput.js`)
+
+`modals/aiAskModal.js#openAiAskModal({title, hint, prompt})` is a shared
+single-step "ask an AI, read the answer" modal (prompt textarea +
+`buildAiProviderActions` hand-off/direct/local send + a plain answer
+textarea) — extracted because "Explain this diff" (Compare Versions) and
+"Ask AI to reduce this cost" (Cost Breakdown) both needed exactly this
+shape, unlike Generate Design/Edit with AI, which need a preview/apply
+gate before touching the live project. `modals/aiLayoutModal.js` is the
+one exception needing its own 2-step wizard (prompt → paste/apply),
+since its answer *does* get applied back via
+`canvas.js#applyLayoutRepositions(repositions)` — a position-only
+dispatch (no shape/color/text touched) followed by `fitToScreen()`.
+
+`utils/speechInput.js#attachSpeechToTextarea(textarea, {lang})` wraps a
+textarea with a mic button using the Web Speech API's
+`SpeechRecognition`, when supported (`isSpeechRecognitionSupported()`);
+otherwise it returns the bare textarea untouched. Dictated text is always
+*appended*, never replaces existing content, and dispatches a real
+`input` event so the wrapping modal's own listeners see the change. Wired
+into AI Quick Start, Generate Design, and Edit with AI's text fields.
+
+**Gotcha: a stray `*/` inside a `/** ... */` JSDoc comment closes the
+comment early**, turning the rest of the comment's prose into raw
+(invalid) top-level JavaScript. `js/io/aiLayoutSuggest.js` originally had
+a comment reading "...validate*/sanitize* helpers." — the literal `*/`
+ended the block comment there, and the next line's prose became an
+illegal statement (`SyntaxError: Unexpected identifier`). Because this
+file sits on `toolbar.js`'s/`main.js`'s static import chain, it broke
+the **entire app**, not just the new feature — the same category of
+whole-app-breaking bug as the wrong-import gotcha documented under
+"Diagram Animation: auto-build + PPTX/video export" above, just a
+different mechanism (a syntax error instead of a missing named export).
+Worth grepping new/edited JSDoc comments for a literal `*/` inside their
+prose, not just at the very end, whenever a file breaks the whole app in
+a way that doesn't obviously point at itself.
+
+## New component categories & keyboard-only connect (`data/categories/bpmn.js`, `data/categories/uml-deployment.js`, `canvas/keyboardConnect.js`)
+
+UML Deployment's `Device`/`Execution Environment` nodes use a new
+`shape: 'cuboid'` (`css/node.css`) for the classic pseudo-3D UML box look.
+
+**Gotcha: `.node-body`'s `overflow: hidden`** (added earlier for the
+large-diagram `content-visibility` perf optimization) **silently clips a
+sibling shape's `::before`/`::after` pseudo-elements** if they're placed
+on `.node-body` instead of the outer `.node` — no console error, the
+faces just don't render. Cuboid's 3D-face pseudo-elements had to move to
+`.node[data-shape="cuboid"]::before/::after` instead. A second, related
+gotcha followed: **CSS custom properties set via inline style on one
+element aren't visible to a *different* element's own pseudo-elements**
+— `--node-fill`/`--node-stroke`/`--node-border-width` are set on
+`.node-body` by `canvas/node.js`, so once the cuboid's pseudo-elements
+moved to the outer `.node`, they had to also be set on `rootEl` (the
+`.node` element itself) via the same `.style.setProperty(...)` calls,
+mirroring the pre-existing `--destroy-y` precedent for the identical
+reason. Both were only caught by screenshot-driven visual verification —
+`getComputedStyle` on the pseudo-element showed correct values in both
+broken states, since the clipping and the custom-property scope are both
+invisible to that inspection.
+
+`canvas/keyboardConnect.js#startKeyboardConnect(fromNodeId)` drops up to
+9 numbered `.keyboard-connect-badge` divs as real DOM children of
+candidate `.node` elements (not a separate screen-space overlay needing
+`getBoundingClientRect`/scroll math — since `.node` is already
+`position: absolute`, a child badge inherits pan/zoom for free) and
+listens for digit keys 1-9 / Escape on `window`. Triggered by plain `C`
+in `main.js`'s keyboard-shortcut handler when exactly one node is
+selected. This also exposed a pre-existing gap: **there was no way for a
+keyboard-only user to select a node at all** before this batch — fixed by
+adding a `focus` listener (not `focusin`, which bubbles and would
+mis-fire from any descendant gaining focus) in `canvas/node.js`'s
+`createNodeEl`, guarded by a module-level `recentPointerdown` flag (set
+`true` in the pointerdown handler, reset via `setTimeout(fn, 0)`) so a
+mouse click's own focus side-effect doesn't re-run or reverse the
+pointerdown handler's own selection decision.
+
+## Describe Diagram, Diagram Health Score (`core/diagramDescription.js`, `core/diagramHealth.js`)
+
+Both are pure, offline, non-AI: `buildDiagramDescription(nodes, edges,
+resolveDef)` returns a plain-text structural summary (components by
+category, connections, isolated nodes), detecting sequence diagrams via
+`shape === 'lifeline'` and phrasing the summary as "lifelines"/"messages"
+instead of "components"/"connections". `computeDiagramHealth(nodeCount,
+findingsCount)` scores `100 - findingsCount * 10` (clamped `[0,100]`)
+against the existing Diagram Lint findings count, shown as a badge in
+`modals/diagramLintModal.js`.
+
+## Version branching (`core/versionBranches.js`)
+
+Deliberately **not** a real structural merge — `copyVersionToBranch`
+copies a version's whole snapshot onto another branch as a new version.
+"🔀 Merge into..." is the same operation under a different label/target,
+an explicit "use this content" choice rather than a diff-based merge —
+the same honesty this repo already applies to AI Design Review not being
+a live API integration. `listBranches`/`versionsOnBranch` always sort
+`'main'` first; every version missing a `branch` field (pre-existing
+saved data) backfills to `'main'` on load via `validateVersions`.
+
+## 3D Presentation Mode (`vendor/three.module.min.js`, `core/scene3dLayout.js`, `core/scene3dMode.js`, `render3d/scene3dRenderer.js`, `canvas/scene3dOverlay.js`, `io/export3dVideo.js`)
+
+Converts the current 2D diagram into a rotatable 3D scene for
+presentation purposes — components become extruded, colored boxes;
+connectors become animated "cable" tubes color-coded by flow direction;
+components show ambient "thinking" particle swarms and pulsing chip
+decals while a Diagram Animation plays; the whole thing can be recorded
+to a downloadable video file. Same pure-geometry/DOM-touching split this
+repo already uses elsewhere (e.g. `core/animationAutoBuild.js` vs. DOM
+playback code):
+
+- **`core/scene3dLayout.js`** (pure, unit-tested) maps 2D canvas
+  coordinates into 3D space — canvas X → 3D X, canvas Y → 3D Z, height
+  synthesized per-shape (`SHAPE_HEIGHT` map, `DEFAULT_HEIGHT` fallback).
+  `computeNode3D(node)` uses `node.stroke` (not `node.fill`, which is a
+  deliberately light pastel tint for 2D text/icon legibility and looks
+  washed-out/gray as a 3D surface color) as the box's primary color.
+  `computeEdge3D(fromNode3D, toNode3D)` colors a cable purely by which
+  axis (X or Z) has the larger displacement and its sign
+  (`FORWARD_COLOR = '#2563EB'` blue, `BACKWARD_COLOR = '#DC2626'` red) —
+  a function of geometry, not edge identity/order, so two opposite-
+  direction edges between the same pair of nodes always render as one
+  blue, one red, regardless of which was drawn first.
+- **`render3d/scene3dRenderer.js`** (all Three.js/WebGL/DOM logic, e2e-
+  tested only) — `mountScene3D(canvasEl)` lazily `import()`s
+  `vendor/three.module.min.js` (a real ES module, vendored via `npm pack
+  three@0.160.0`, `build/three.module.min.js` unmodified — see
+  `vendor/VENDOR.md`), builds the scene from live store state, and drives
+  a hand-rolled orbit camera (plain spherical coordinates — `theta`,
+  `phi`, `radius` — updated via pointerdown/move/up drag and wheel zoom,
+  no vendored `OrbitControls` addon) with a slow ambient auto-rotate
+  (`theta += dt * 0.12`) whenever not actively dragging, which is also
+  what makes a recorded video look like a real orbiting shot.
+  `computeActiveKeys(nodes, edges)` mirrors `canvas.js`'s
+  `applyAnimationVisibility` hidden/revealed-set logic exactly, so 3D
+  playback shows the same reveal state as 2D playback would. Returns
+  `{dispose, getRenderTargetCanvas}` — **`dispose()` is mandatory**
+  (cancels the rAF loop, unsubscribes store/animation listeners,
+  disconnects the `ResizeObserver`, calls `renderer.dispose()`) since a
+  `WebGLRenderer` holds a real GPU context that browsers only allow a
+  limited number of, and this overlay can be opened/closed repeatedly in
+  one session.
+- **`io/export3dVideo.js#exportAnimationTo3DVideo(canvasEl, animation)`**
+  records the 3D canvas via `captureStream(30)` + `MediaRecorder`. To
+  drive a Diagram Animation in real time without racing its own internal
+  auto-advance timers, it calls `startAnimationPlayback()` (if not
+  already playing), then `core/animationPlayback.js#setFrozen(true)` —
+  which disables the state machine's internal `scheduleCurrent()` timers
+  but, importantly, does **not** gate manual `nextStep()` calls — then
+  loops `sleep(computeStepDurationMs(step)); nextStep();` per step
+  itself. With no animation on the diagram, it records a fixed 8-second
+  ambient orbiting shot instead.
+- **`canvas/scene3dOverlay.js`** builds the `.scene3d-overlay` (full-
+  viewport, `--z-scene3d: 95` — the highest z-index token, an
+  independent layer not built on top of Presenter/Kiosk mode) with
+  Play/Stop/Prev/Next/Export/Close controls, mounted/torn down via
+  `core/scene3dMode.js`'s `onScene3DChange` pub-sub (same shape as
+  `core/kioskMode.js`).
 
 ## Security notes
 

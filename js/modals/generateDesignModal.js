@@ -12,6 +12,7 @@ import { showToast } from '../utils/toast.js';
 import { confirmAction } from './confirmModal.js';
 import { buildAiProviderActions } from '../utils/aiProviderActions.js';
 import { offerAutoWalkthroughAnimation } from './autoAnimationPrompt.js';
+import { attachSpeechToTextarea } from '../utils/speechInput.js';
 
 const STEP_TITLES = ['Your spec', 'Copy this prompt to your AI', "Paste the AI's result"];
 
@@ -76,7 +77,7 @@ export function openGenerateDesignModal() {
             onInput: (e) => { specText = e.target.value; },
           });
           textarea.value = specText;
-          body.appendChild(textarea);
+          body.appendChild(attachSpeechToTextarea(textarea));
 
           const actions = el('div', { class: 'modal-actions' });
           actions.appendChild(el('button', { type: 'button', class: 'btn', text: 'Cancel', onClick: () => api.close() }));

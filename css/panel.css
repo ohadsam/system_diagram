@@ -222,6 +222,59 @@ body.resizing-details-panel {
   font-size: 12px;
 }
 
+/* Voice dictation mic button (utils/speechInput.js) — floats over the
+   bottom-right corner of whichever textarea it wraps. Positioned via the
+   wrapper rather than the textarea itself so it works the same regardless
+   of which specific textarea class (.ai-review-prompt, .ai-edit-instruction,
+   a plain one) it's attached to. */
+.speech-input-wrap {
+  position: relative;
+}
+
+.speech-input-wrap textarea {
+  width: 100%;
+  padding-inline-end: 40px;
+}
+
+.speech-input-btn {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+[dir="rtl"] .speech-input-btn {
+  right: auto;
+  left: 8px;
+}
+
+.speech-input-btn:hover {
+  background: var(--color-bg);
+}
+
+.speech-input-btn.speech-input-recording {
+  background: var(--color-danger);
+  border-color: var(--color-danger);
+  color: #fff;
+  animation: speech-input-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes speech-input-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); }
+  50% { box-shadow: 0 0 0 6px rgba(220, 38, 38, 0); }
+}
+
 .ai-review-spec-name {
   font-size: 13px;
   overflow: hidden;

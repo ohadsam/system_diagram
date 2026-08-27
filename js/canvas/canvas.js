@@ -3,6 +3,7 @@
 // "Canvas rendering".
 import * as store from '../core/store.js';
 import { createEdge, nextZIndex, removeNode as removeNodeFromProject, removeEdge as removeEdgeFromProject, createNode, duplicateProject, createVersionSnapshot, removeVersion as removeVersionFromProject, createComment, createReply, createAnimationStep, createAnimation } from '../core/project.js';
+import { copyVersionToBranch } from '../core/versionBranches.js';
 import { onAnimationChange, isAnimationPlaying, getAnimationPlaybackState, startPlayback, stopPlayback } from '../core/animationPlayback.js';
 import { setKioskMode } from '../core/kioskMode.js';
 import { buildReplicationPair } from '../core/replication.js';
@@ -644,6 +645,25 @@ export function deleteVersion(versionId) {
   store.dispatch((draft) => {
     removeVersionFromProject(draft, versionId);
   });
+}
+
+/** "Create a branch from this version" and "Merge into..." are the exact
+ * same underlying operation (see core/versionBranches.js#copyVersionToBranch
+ * for why this is an explicit copy, never an automatic structural merge) —
+ * both land here. `targetBranch` is a brand-new name for the former, an
+ * existing branch's name for the latter; either way the result is a new
+ * version entry, appended, with the source version's own history
+ * untouched. Returns the new version, or null if the source no longer
+ * exists (e.g. deleted in another tab). */
+export function branchFromVersion(versionId, targetBranch, name) {
+  const state = store.getState();
+  const source = (state.versions || []).find((v) => v.id === versionId);
+  if (!source) return null;
+  const newVersion = copyVersionToBranch(source, targetBranch, name);
+  store.dispatch((draft) => {
+    draft.versions = [...(draft.versions || []), newVersion];
+  });
+  return newVersion;
 }
 
 /** Creates or overwrites a presentation — an ordered subset of saved
@@ -1699,6 +1719,44 @@ export function applyAiEditPatch(patch) {
     for (const id of patch.removeNodeIds) removeNodeFromProject(draft, id);
     for (const id of patch.removeEdgeIds) removeEdgeFromProject(draft, id);
   });
+}
+
+/**
+ * Applies an "AI Beautify Layout" reposition list (see
+ * io/aiLayoutSuggest.js#sanitizeLayoutPatch — already filtered to real,
+ * live node ids with finite coordinates) as one atomic dispatch/undo step.
+ * Position-only, same as Auto-arrange (autoArrangeAll below) — shape,
+ * text, color, and every connection are left untouched either way.
+ */
+export function applyLayoutRepositions(repositions) {
+  if (!repositions.length) return;
+  store.dispatch((draft) => {
+    for (const { id, x, y } of repositions) {
+      const node = draft.nodes.find((n) => n.id === id);
+      if (node) { node.x = x; node.y = y; }
+    }
+  });
+  fitToScreen();
+}
+
+/**
+ * Draws a connector between two existing components with no drag gesture
+ * at all — the mouse-free counterpart of dragging from one node's
+ * connection dot to another, used by canvas/keyboardConnect.js's numbered-
+ * badge gesture. Anchor sides come from `pickBestSides` (actual relative
+ * position), same as `addRelatedComponent` above, so the result looks the
+ * same as if it had been drawn by hand.
+ */
+export function connectNodesByKeyboard(fromNodeId, toNodeId) {
+  const state = store.getState();
+  const fromNode = state.nodes.find((n) => n.id === fromNodeId);
+  const toNode = state.nodes.find((n) => n.id === toNodeId);
+  if (!fromNode || !toNode) return;
+  const sides = pickBestSides(fromNode, toNode);
+  const edge = createEdge(fromNodeId, toNodeId, sides);
+  store.dispatch((draft) => { draft.edges.push(edge); });
+  store.select([], [edge.id]);
+  showToast('Connected — Ctrl/Cmd+Z to undo.', 'success', 1800);
 }
 
 /**

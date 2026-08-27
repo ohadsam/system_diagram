@@ -8,6 +8,8 @@ import { el } from '../utils/dom.js';
 import * as store from '../core/store.js';
 import { getCostedNodes, computeMonthlyCostTotal, formatMonthlyCost } from '../core/cost.js';
 import { centerOn } from '../canvas/viewport.js';
+import { buildCostOptimizePrompt } from '../io/aiCostOptimize.js';
+import { openAiAskModal } from './aiAskModal.js';
 
 export function openCostBreakdownModal() {
   const state = store.getState();
@@ -48,6 +50,15 @@ export function openCostBreakdownModal() {
       totalRow.appendChild(el('span', { text: `Total (${costed.length} component${costed.length === 1 ? '' : 's'})` }));
       totalRow.appendChild(el('span', { class: 'cost-breakdown-total-amount', text: `${formatMonthlyCost(total)}/mo` }));
       body.appendChild(totalRow);
+
+      body.appendChild(el('button', {
+        type: 'button', class: 'btn btn-secondary cost-breakdown-optimize-btn', text: '🤖 Ask AI to reduce this cost',
+        onClick: () => openAiAskModal({
+          title: '🤖 Reduce Monthly Cost',
+          hint: "Open your AI (copies the prompt and opens a new tab) — or send it directly. Paste its reply below, or it'll appear here automatically for a direct/local send.",
+          prompt: buildCostOptimizePrompt({ costedNodes: costed, total }),
+        }),
+      }));
     },
   });
 }

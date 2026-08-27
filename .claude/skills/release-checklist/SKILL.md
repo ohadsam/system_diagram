@@ -38,7 +38,12 @@ concrete examples). Do all three, in order, every single time this skill runs:
    no obvious link to animations, only diagnosed via a raw Playwright script with
    `page.on('pageerror', ...)` to get the browser's own precise error. If a whole test suite
    suddenly fails at the very first render right after a new io/export module was added, suspect a
-   bad import in that new file's chain before debugging the feature itself.
+   bad import in that new file's chain before debugging the feature itself. **A second way to
+   trigger the identical symptom: a stray literal `*/` inside a `/** ... */` JSDoc comment's own
+   prose closes the comment early**, turning the rest of it into an invalid top-level statement —
+   happened for real in `js/io/aiLayoutSuggest.js`, whose comment read "...validate*/sanitize*
+   helpers." Same fix works for both causes: `node -e "import('./path/to/file.js').catch(e=>console.log(e.message))"`
+   run against every new/changed file until the exact one throws.
 2. **Functional/integration.** Trace how the change interacts with existing features: undo/redo,
    JSON import/export, duplicate-project, autosave, the details panel, multi-select. A feature that
    works in isolation but breaks e.g. cascade-delete or the export format is not done.

@@ -2,9 +2,24 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.37.0';
+export const APP_VERSION = '1.38.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.38.0',
+    date: '2026-08-27',
+    highlights: [
+      'New "🪄 AI Beautify Layout" (Tools menu) — asks an AI to suggest a nicer arrangement of your existing components, using its own judgement instead of a fixed algorithm; only positions change.',
+      'Voice dictation: a 🎙️ mic button now appears on AI Quick Start, Generate Design, and Edit with AI\'s text fields wherever your browser supports it — dictate instead of typing.',
+      'New "💬 Explain this diff with AI" button in Compare Versions, and "🤖 Ask AI to reduce this cost" in Cost Breakdown — both use the same hand-off/direct/local send flow as every other AI feature here.',
+      'New "BPMN (Business Process)" and "UML Deployment" component categories, plus Switch, IDS/IPS, Network ACL, and Bastion Host in Networking. UML Deployment nodes render as a pseudo-3D "cuboid" box, the classic UML look.',
+      'Keyboard-only editing: Tab to a component to select it, then press C and a number to draw a connector to another component — no mouse required.',
+      'New "📃 Describe Diagram" (Tools menu) — an instant, offline plain-text summary of your diagram\'s structure, no AI involved.',
+      '"🔍 Check Diagram" now shows a Health Score (0-100) based on how many findings it turned up.',
+      'Diagram Versions can now be organized into lightweight branches — "🌿 Branch from here" and "🔀 Merge into..." on any saved version (an explicit "use this content" choice, not an automatic structural merge).',
+      'New "🧊 3D Presentation" (Tools menu) — view the current diagram as a rotatable 3D scene for presenting: components become extruded, colored blocks with ambient "thinking" particles, connectors become animated cables color-coded by direction, and a "🎥 Export 3D Video" button records it (driven by your Diagram Animation, if one exists) to a downloadable video file.',
+    ],
+  },
   {
     version: '1.37.0',
     date: '2026-08-27',

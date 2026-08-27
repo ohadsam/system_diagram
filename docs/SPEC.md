@@ -1592,6 +1592,7 @@ fresh request.
       "id": "ver_...",
       "name": "Before adding cache",
       "createdAt": "ISO-8601",
+      "branch": "main",
       "snapshot": { "nodes": [], "edges": [], "replicationPairs": [] }
     }
   ],
@@ -1781,7 +1782,103 @@ Two additions to Diagram Animation (4.36):
   "click" gets a fixed 2-second dwell in the recording, since there's no
   presenter there to click for it.
 
+### 4.63 AI Beautify Layout
+A "🪄 AI Beautify Layout" button (Tools menu, disabled with a toast under
+2 components) opens a 2-step wizard: a generated prompt asking an AI to
+suggest new `{id, x, y}` positions for the existing diagram, then a paste
+step that applies the result. Same copy/paste-hand-off/Direct-API/Local-AI
+sending options as every other AI feature here. Only positions change —
+shape, color, text, connectors are untouched — applied as one undoable
+dispatch, then the view fits to the new layout.
+
+### 4.64 Voice Dictation
+Every AI-prompt textarea (AI Quick Start, Generate Design from Spec, Edit
+with AI) gains a 🎙️ mic button wherever the browser's Web Speech API is
+available; clicking it transcribes speech and appends it to the field's
+existing content (never replacing it). No button appears at all when the
+API isn't supported — no error, no disabled state.
+
+### 4.65 AI-Narrated Diff & Cost Explanations
+Two small AI hand-offs, both using a single shared "ask and read the
+answer" modal (prompt + the usual hand-off/Direct/Local send options + an
+answer field, no apply step):
+- **Compare Versions** gains "💬 Explain this diff with AI", which asks
+  the AI to narrate the structural diff (4.17) in plain language.
+- **Cost Breakdown** (4.21) gains "🤖 Ask AI to reduce this cost", which
+  asks for cost-reduction suggestions given the diagram's costed
+  components and total.
+
+### 4.66 New Component Categories: BPMN & UML Deployment; Networking Additions
+- **BPMN (Business Process)** — 9 components (start/intermediate/end
+  event, task, sub-process, exclusive/parallel/inclusive gateway,
+  pool/lane) plus one ready-made "Approval Process" pattern.
+- **UML Deployment** — Device and Execution Environment (both rendered
+  with a new pseudo-3D `cuboid` shape, the classic UML deployment-diagram
+  box) and Artifact (a sticky-note shape).
+- **Networking** gains Bastion Host, IDS/IPS, Network ACL, and Switch.
+
+### 4.67 Keyboard-Only Component Connect
+A component can be selected via `Tab` alone (previously only a mouse
+click could select one) using a `focus`-based listener, guarded against
+double-firing from a mouse click's own focus side-effect. With exactly
+one component selected, pressing `C` shows a numbered badge (1-9) on
+every nearby component; pressing that number draws a connector to it,
+identical to a mouse drag between connection points. `Escape` cancels.
+
+### 4.68 Describe Diagram
+"📃 Describe Diagram" (Tools menu) generates an instant, fully offline
+plain-text summary of the diagram's structure — components grouped by
+category with counts, a line per connection, and a line listing any
+isolated (unconnected) components — shown in a read-only text area with a
+"📋 Copy" button. No AI call of any kind. Phrases itself in terms of
+"lifelines"/"messages" instead of "components"/"connections" when every
+component in the diagram is a sequence-diagram lifeline (4.15).
+
+### 4.69 Diagram Health Score
+"🔍 Check Diagram" (4.16) gains a 0-100 score badge at the top of its
+dialog, computed as `100 - findings.length * 10` (clamped to `[0, 100]`,
+`100` labeled "Empty" for a diagram with zero components) — a simple,
+deterministic function of the same findings list already shown below it,
+not a separate analysis.
+
+### 4.70 Version Branching
+Diagram Versions (4.17) gain a lightweight branch field (`'main'` by
+default for every existing/new version). A branch selector above the
+version list appears once 2+ versions exist, filtering the list to the
+selected branch. Two per-version actions: "🌿 Branch from here" (prompts
+a new branch name, copies that version's snapshot onto it as a new
+version) and "🔀 Merge into..." (prompts an existing branch name, same
+copy operation). Both are an explicit "copy this content over," not a
+diff-based structural merge of two branches' independent changes.
+
+### 4.71 3D Presentation Mode
+"🧊 3D Presentation" (Tools menu, disabled with a toast on an empty
+canvas) renders the current diagram as a rotatable 3D scene in a
+full-viewport overlay, for presenting rather than editing:
+- **Components** become extruded, colored boxes — 2D canvas (x, y) maps
+  to 3D (x, z); box height is a fixed per-shape constant; box color uses
+  the component's stroke color (its 2D fill is a pastel tint, chosen for
+  on-canvas text legibility, and would look washed out as a 3D surface).
+- **Connectors** become animated cable-like tubes, color-coded by flow
+  direction purely from each edge's own geometry — one direction blue,
+  the opposite direction red — so the same coloring rule always produces
+  one blue and one red cable for two opposite-direction edges between the
+  same pair of components, regardless of draw order.
+- **Camera** is a hand-rolled orbit (drag to rotate, scroll to zoom) with
+  a slow automatic rotation whenever the user isn't actively dragging.
+- **Playback.** If the diagram has a Diagram Animation (4.36), the
+  overlay's Play/Prev/Next controls drive the same reveal sequence in 3D;
+  while playing, visible components show ambient "thinking" particle
+  effects and a subtly pulsing decal, for a sense of active processing.
+  With no animation, the scene is just the static (auto-rotating) diagram.
+- **Video export.** "🎥 Export 3D Video" records the 3D canvas to a
+  downloadable video file — driving the Diagram Animation through in real
+  time if one exists (each step's own on-screen duration, exactly like a
+  live playback), or a fixed ~8-second ambient orbiting shot if not.
+- Closing the overlay (✕ or `Esc`) returns to normal editing; nothing
+  about the 3D view is itself saved as diagram data.
+
 ## 7. Out of scope for v1 (ideas for later, see PLAN.md §7)
 
-Versioned history beyond in-session undo/redo, cloud sync, PNG→SVG
-re-import, AI-assisted auto-layout.
+Versioned history beyond in-session undo/redo (superseded by 4.17/4.63
+branching), cloud sync, PNG→SVG re-import.

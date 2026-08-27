@@ -4,7 +4,7 @@ import { nextId } from './id.js';
 
 export const FORMAT_VERSION = 1;
 
-export const SHAPES = ['rect', 'rounded', 'circle', 'diamond', 'cylinder', 'hexagon', 'cloud', 'note', 'rows', 'lifeline'];
+export const SHAPES = ['rect', 'rounded', 'circle', 'diamond', 'cylinder', 'hexagon', 'cloud', 'note', 'rows', 'lifeline', 'cuboid'];
 export const ROUTINGS = ['straight', 'orthogonal', 'curved', 'magic'];
 export const ARROW_HEADS = ['none', 'open', 'filled', 'diamond', 'circle'];
 export const DASH_STYLES = ['solid', 'dashed', 'dotted'];
@@ -372,12 +372,17 @@ function remapAnimations(rawAnimations, activeAnimationId, nodeIdMap, edgeIdMap)
  * canvas.js#saveDiagramVersion for the dispatch that does). Deep-cloned so
  * later edits to the live project can never retroactively alter a captured
  * version. */
-export function createVersionSnapshot(project, name) {
+export function createVersionSnapshot(project, name, branch) {
   const ordinal = (project.versions?.length || 0) + 1;
   return {
     id: nextId('ver'),
     name: (name || '').trim() || `Version ${ordinal}`,
     createdAt: new Date().toISOString(),
+    // A lightweight organizational label, not a real branch/merge model —
+    // see core/versionBranches.js for what "branching" means in this app
+    // (explicit copy-a-version-to-another-branch, never an automatic
+    // structural merge of two diverged diagrams).
+    branch: (branch || '').trim() || 'main',
     snapshot: {
       nodes: structuredClone(project.nodes),
       edges: structuredClone(project.edges),
@@ -567,6 +572,10 @@ function validateVersions(rawVersions) {
       id: typeof v.id === 'string' && v.id ? v.id : nextId('ver'),
       name: typeof v.name === 'string' && v.name.trim() ? v.name : 'Version',
       createdAt: typeof v.createdAt === 'string' ? v.createdAt : new Date().toISOString(),
+      // Older versions (before branching existed) simply have no `branch`
+      // field — defaulting to 'main' here is the whole migration, same
+      // "absence just means the default" contract every other field here follows.
+      branch: typeof v.branch === 'string' && v.branch.trim() ? v.branch.trim() : 'main',
       snapshot: validateContent(v.snapshot.nodes, v.snapshot.edges, v.snapshot.replicationPairs),
     }));
 }

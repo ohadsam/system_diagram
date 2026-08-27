@@ -110,6 +110,55 @@ Keep this in sync with `PLAN.md` as stages complete.
   field (with autocomplete) on custom components, grouping them into
   collapsible 📁 sub-groups in the sidebar.
 
+## v1.38.0 (2026-08-27)
+
+**🧊 3D Presentation Mode** — the headline feature of this batch: a one-click "🧊 3D Presentation"
+button (Tools menu) converts the current diagram into a rotatable 3D scene for presenting.
+Components become extruded, colored boxes (`core/scene3dLayout.js` maps 2D canvas coordinates to
+3D space; box color uses each component's stroke color, not its pastel fill, so it reads as vivid
+under lighting); connectors become animated "cable" tubes color-coded by flow direction — one
+direction blue, the opposite red, purely a function of geometry so two opposite edges between the
+same pair of components always render one of each color regardless of draw order. Playing the
+diagram's existing Diagram Animation inside the 3D view shows ambient "thinking" particle swarms
+and pulsing chip decals inside each component. A hand-rolled orbit camera (drag to rotate, wheel to
+zoom, a slow ambient auto-rotate when idle) makes it read like a real presentation shot. A
+"🎥 Export 3D Video" button records the whole thing to a downloadable video file, driving the
+Diagram Animation in real time frame-by-frame if one exists, or a fixed ambient orbiting shot
+otherwise. Built on a newly-vendored Three.js (`vendor/three.module.min.js`, MIT) — the only
+non-UMD, genuine-ES-module third-party library in this app so far.
+
+**🪄 AI Beautify Layout** — Tools menu → asks an AI to suggest a nicer arrangement of the existing
+diagram's components, using its own judgement rather than a fixed auto-layout algorithm; only
+node positions change, nothing is added, removed, or restyled.
+
+**🎙️ Voice dictation** — AI Quick Start, Generate Design from Spec, and Edit with AI's text fields
+now show a mic button wherever the browser's Web Speech API is supported, appending dictated text
+instead of requiring typing.
+
+**💬 AI-narrated diff & cost explanations** — "Explain this diff with AI" in Compare Versions and
+"Ask AI to reduce this cost" in Cost Breakdown both open a new shared single-step ask/answer modal
+(hand-off/direct/local send, same as every other AI feature here).
+
+**New component categories** — BPMN (Business Process) with 9 event/task/gateway/pool shapes and
+an approval-process template, and UML Deployment (Device/Execution Environment/Artifact — the
+first two render as a pseudo-3D "cuboid" box, the classic UML look). Networking rounded out with
+Switch, IDS/IPS, Network ACL, and Bastion Host.
+
+**⌨️ Keyboard-only component connect** — Tab to a component to select it (previously impossible
+with the keyboard alone), then press C and a number to draw a connector to a nearby component, no
+mouse required.
+
+**📃 Describe Diagram** — Tools menu → an instant, fully offline plain-text summary of the
+diagram's structure (components by category, connections, isolated components) — no AI involved.
+
+**Diagram Health Score** — 🔍 Check Diagram now shows a 0-100 score derived from how many lint
+findings turned up, alongside the existing findings list.
+
+**🌿 Version branching** — any saved Diagram Version can now "Branch from here" or "Merge into..."
+another named branch — an explicit "copy this content onto that branch" operation, not an
+automatic structural merge, in keeping with this app's honesty about what its AI/versioning
+features actually do under the hood.
+
 ## v1.37.0 (2026-08-27)
 
 **🪄 AI Quick Start** — a guided on-ramp for someone new to the app, reachable any time from

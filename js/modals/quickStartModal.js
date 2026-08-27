@@ -23,6 +23,7 @@ import { buildAiProviderActions } from '../utils/aiProviderActions.js';
 import { isAutomaticSendConfigured } from '../io/aiProviderKeys.js';
 import { openDefaultSettingsModal } from './defaultSettingsModal.js';
 import { offerAutoWalkthroughAnimation } from './autoAnimationPrompt.js';
+import { attachSpeechToTextarea } from '../utils/speechInput.js';
 
 const STEP_TITLES = { setup: 'Set up AI (optional)', describe: 'Describe your system', prompt: 'Copy this prompt to your AI', paste: "Paste the AI's result", done: 'Your diagram' };
 
@@ -96,7 +97,7 @@ export function openQuickStartModal() {
             onInput: (e) => { description = e.target.value; },
           });
           textarea.value = description;
-          body.appendChild(textarea);
+          body.appendChild(attachSpeechToTextarea(textarea));
 
           const actions = el('div', { class: 'modal-actions' });
           actions.appendChild(el('button', { type: 'button', class: 'btn', text: 'Cancel', onClick: () => api.close() }));

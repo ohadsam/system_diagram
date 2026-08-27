@@ -6,11 +6,12 @@ import { openModal } from './modal.js';
 import { el, clear } from '../utils/dom.js';
 import { selectInput } from '../utils/formControls.js';
 import * as store from '../core/store.js';
-import { saveDiagramVersion, revertToVersion, deleteVersion } from '../canvas/canvas.js';
+import { saveDiagramVersion, revertToVersion, deleteVersion, branchFromVersion } from '../canvas/canvas.js';
 import { promptText } from './promptModal.js';
 import { confirmAction } from './confirmModal.js';
 import { openDiagramCompareModal } from './diagramCompareModal.js';
 import { showToast } from '../utils/toast.js';
+import { listBranches, versionsOnBranch, DEFAULT_BRANCH } from '../core/versionBranches.js';
 
 const CURRENT_ID = '__current__';
 
@@ -35,6 +36,7 @@ function labelOf(state, versionId) {
 
 export function openVersionHistoryModal() {
   let render;
+  let activeBranch = DEFAULT_BRANCH;
 
   const api = openModal({
     title: 'Version History',
@@ -73,14 +75,29 @@ export function openVersionHistoryModal() {
       return;
     }
 
+    const branches = listBranches(state.versions);
+    if (branches.length > 1) {
+      const branchRow = el('div', { class: 'version-history-branch-row' });
+      branchRow.appendChild(el('span', { text: 'Branch:' }));
+      branchRow.appendChild(selectInput(branches, activeBranch, (v) => { activeBranch = v; render(); }));
+      body.appendChild(branchRow);
+    }
+
+    const visibleVersions = versionsOnBranch(versions, activeBranch);
+    if (!visibleVersions.length) {
+      body.appendChild(el('p', { class: 'version-history-empty', text: `No versions on "${activeBranch}" yet.` }));
+      return;
+    }
+
     const list = el('div', { class: 'version-history-list' });
-    for (const v of versions) {
+    for (const v of visibleVersions) {
       const row = el('div', { class: 'version-history-row' });
       const info = el('div', { class: 'version-history-info' });
       info.appendChild(el('span', { class: 'version-history-name', text: v.name }));
+      const branchSuffix = v.branch && v.branch !== DEFAULT_BRANCH ? ` · branch: ${v.branch}` : '';
       info.appendChild(el('span', {
         class: 'version-history-meta',
-        text: `${formatDate(v.createdAt)} · ${v.snapshot.nodes.length} component(s), ${v.snapshot.edges.length} connector(s)`,
+        text: `${formatDate(v.createdAt)} · ${v.snapshot.nodes.length} component(s), ${v.snapshot.edges.length} connector(s)${branchSuffix}`,
       }));
       row.appendChild(info);
 
@@ -114,6 +131,44 @@ export function openVersionHistoryModal() {
           revertToVersion(v.id);
           showToast(`Reverted to "${v.name}".`, 'success', 2000);
           api.close();
+        },
+      }));
+      actions.appendChild(el('button', {
+        type: 'button',
+        class: 'btn btn-sm',
+        text: '🌿 Branch from here',
+        title: 'Create a new branch starting from this version\'s content',
+        onClick: async () => {
+          const existingBranches = listBranches(store.getState().versions);
+          const name = await promptText({
+            title: 'Branch from here',
+            label: 'New branch name',
+            defaultValue: `branch-${existingBranches.length}`,
+            confirmLabel: 'Create branch',
+          });
+          if (name == null || !name.trim()) return;
+          branchFromVersion(v.id, name);
+          showToast(`Branched "${v.name}" into "${name.trim()}".`, 'success', 2200);
+          activeBranch = name.trim();
+          render();
+        },
+      }));
+      actions.appendChild(el('button', {
+        type: 'button',
+        class: 'btn btn-sm',
+        text: '🔀 Merge into...',
+        title: 'Land this version\'s content as the newest version on another branch — an explicit "use this content" choice, not an automatic structural merge',
+        onClick: async () => {
+          const target = await promptText({
+            title: 'Merge into branch',
+            label: 'Target branch name (existing or new)',
+            defaultValue: DEFAULT_BRANCH,
+            confirmLabel: 'Merge',
+          });
+          if (target == null || !target.trim()) return;
+          branchFromVersion(v.id, target, `${v.name} (merged)`);
+          showToast(`Merged "${v.name}" into "${target.trim()}".`, 'success', 2200);
+          render();
         },
       }));
       actions.appendChild(el('button', {

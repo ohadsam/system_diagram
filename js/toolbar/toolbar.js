@@ -39,6 +39,9 @@ import { openBackupModal } from '../modals/backupModal.js';
 import { openWhatsNewModal } from '../modals/whatsNewModal.js';
 import { openReplicationModal } from '../modals/replicationModal.js';
 import { openAiEditModal } from '../modals/aiEditModal.js';
+import { openAiLayoutModal } from '../modals/aiLayoutModal.js';
+import { openDiagramDescriptionModal } from '../modals/diagramDescriptionModal.js';
+import { setScene3DActive } from '../core/scene3dMode.js';
 import { openSequenceDiagramModal } from '../modals/sequenceDiagramModal.js';
 import { openTemplateGalleryModal } from '../modals/templateGalleryModal.js';
 import { openImportSequenceMermaidModal } from '../modals/importSequenceMermaidModal.js';
@@ -621,6 +624,13 @@ function buildToolsGroupButtons() {
       showToast('Rearranged the diagram.', 'success', 1800);
     },
   });
+  const aiLayoutBtn = el('button', {
+    type: 'button',
+    class: 'btn',
+    title: 'AI Beautify Layout: ask an AI to suggest a nicer arrangement of your existing components, using its own judgement instead of a fixed algorithm — only positions change',
+    text: '🪄 AI Beautify Layout',
+    onClick: openAiLayoutModal,
+  });
   const distributeBtn = el('button', {
     type: 'button',
     class: 'btn',
@@ -642,6 +652,10 @@ function buildToolsGroupButtons() {
   const costBtn = el('button', {
     type: 'button', class: 'btn', title: 'Cost Breakdown: list every component with an estimated monthly cost (set per-component in its details panel) and the running total', text: '💰 Cost Breakdown',
     onClick: openCostBreakdownModal,
+  });
+  const describeBtn = el('button', {
+    type: 'button', class: 'btn', title: 'Describe Diagram: an instant, offline plain-text summary of this diagram\'s structure — no AI, handy for screen readers or a quick copy-paste readout', text: '📃 Describe Diagram',
+    onClick: openDiagramDescriptionModal,
   });
   const diagramThemeBtn = el('button', {
     type: 'button',
@@ -678,7 +692,17 @@ function buildToolsGroupButtons() {
     },
   });
   requestAnimationFrame(() => setFlowSimulationEnabled(prefs.flowSimulation));
-  return [gridBtn, minimapBtn, focusModeBtn, alignGuidesBtn, themeBtn, languageBtn, aiReviewBtn, outlineBtn, commentsBtn, collabBtn, lintBtn, costBtn, autoArrangeBtn, distributeBtn, scaleBtn, diagramThemeBtn, presenterModeBtn, animationBtn, flowSimBtn];
+  const scene3dBtn = el('button', {
+    type: 'button',
+    class: 'btn',
+    title: '3D Presentation: view the current diagram as a rotatable 3D scene for presenting — components become extruded blocks, connectors become animated cables',
+    text: '🧊 3D Presentation',
+    onClick: () => {
+      if (store.getState().nodes.length < 1) { showToast('Add at least one component first.', 'error'); return; }
+      setScene3DActive(true);
+    },
+  });
+  return [gridBtn, minimapBtn, focusModeBtn, alignGuidesBtn, themeBtn, languageBtn, aiReviewBtn, outlineBtn, commentsBtn, collabBtn, lintBtn, costBtn, describeBtn, autoArrangeBtn, aiLayoutBtn, distributeBtn, scaleBtn, diagramThemeBtn, presenterModeBtn, animationBtn, flowSimBtn, scene3dBtn];
 }
 
 function buildHelpGroupButtons() {

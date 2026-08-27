@@ -11,6 +11,7 @@ import { el } from '../utils/dom.js';
 import * as store from '../core/store.js';
 import { computeDiagramDiff, isDiagramDiffEmpty } from '../core/diagramDiff.js';
 import { centerOn } from '../canvas/viewport.js';
+import { openAiDiffExplainModal } from './aiDiffExplainModal.js';
 
 function jumpToNode(nodeId) {
   const state = store.getState();
@@ -68,6 +69,11 @@ export function openDiagramCompareModal({ leftLabel, leftContent, rightLabel, ri
         body.appendChild(el('p', { class: 'diagram-compare-empty', text: '✅ No differences between these two versions.' }));
         return;
       }
+
+      body.appendChild(el('button', {
+        type: 'button', class: 'btn btn-secondary diagram-compare-explain-btn', text: '💬 Explain this diff with AI',
+        onClick: () => openAiDiffExplainModal({ diff, leftLabel, rightLabel, allNodesById }),
+      }));
 
       if (diff.addedNodes.length) {
         const section = buildSection(`+ ${diff.addedNodes.length} component(s) added`, 'is-added');

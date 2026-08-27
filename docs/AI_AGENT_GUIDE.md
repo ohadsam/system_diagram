@@ -173,6 +173,16 @@ this repo" quick-start.
 | Change Auto-suggest (background AI-review nudge after N edits) | `js/io/autoSuggest.js` (edit-count tracking, threshold) + `js/io/autoSuggestWatcher.js` (the store subscription that fires it) + `js/io/aiProviderKeys.js#isAutomaticSendConfigured` (single source of truth for "can this even auto-send" — used here and by the Quick Start setup nudge alike, don't reintroduce a second copy of this boolean) + `js/modals/defaultSettingsModal.js#buildAutoSuggestSection` (the edit-count threshold config UI) |
 | Change Infrastructure-as-Code export (Pulumi / CloudFormation / Kubernetes) | `js/io/exportPulumi.js` / `js/io/exportCloudFormation.js` / `js/io/exportKubernetes.js` (pure, DOM-free, same `AWS_RESOURCE_MAP`-style approach as `exportTerraform.js`) + `js/modals/exportDiagramModal.js` (the export-target sections) |
 | Change Diagram Animation's auto-build-after-AI-generation prompt, or its PPTX/video export | `js/core/animationAutoBuild.js#buildAutoWalkthroughAnimation` (pure — turns a freshly-generated project's nodes/edges, in creation order, into animation steps) + `js/modals/autoAnimationPrompt.js#offerAutoWalkthroughAnimation` (the post-generation modal, called from `generateDesignModal.js`/`importFromImageModal.js`/`quickStartModal.js`) + `js/core/animationVideoTiming.js` (click-step-to-fixed-dwell conversion for video) + `js/io/exportAnimationPptx.js` (one slide per step, intended timing written into speaker notes since the vendored PptxGenJS build has no real auto-advance API) + `js/io/exportAnimationVideo.js` (native `HTMLCanvasElement.captureStream()` + `MediaRecorder`, no vendored library). **Read the "Common pitfalls" entry below about `captureDiagramCanvas`'s import path before touching either export file.** |
+| Change AI Beautify Layout | `js/io/aiLayoutSuggest.js` (`buildLayoutBeautifyPrompt`, `sanitizeLayoutPatch` — position-only, validates `{id,x,y}[]`) + `js/modals/aiLayoutModal.js` (2-step wizard) + `js/canvas/canvas.js#applyLayoutRepositions` (position-only dispatch + `fitToScreen()`). Same "not a live API integration" constraint as Generate Design. |
+| Change voice dictation on an AI text field | `js/utils/speechInput.js#attachSpeechToTextarea(textarea, {lang})` (Web Speech API, appends dictated text, never replaces) — wrap any new AI-prompt textarea with it the same way `quickStartModal.js`/`generateDesignModal.js`/`aiEditModal.js` do |
+| Change "Explain this diff with AI" or "Ask AI to reduce this cost" | `js/io/aiDiffExplain.js` / `js/io/aiCostOptimize.js` (prompt builders) + `js/modals/aiAskModal.js#openAiAskModal({title, hint, prompt})` (the shared single-step ask/answer modal both use) + `js/modals/aiDiffExplainModal.js` (thin wrapper) — a new "ask an AI and just show the answer" feature (no apply step) should use `aiAskModal.js` directly rather than building another wizard |
+| Add a BPMN or UML Deployment component | `js/data/categories/bpmn.js` / `js/data/categories/uml-deployment.js` — plain `c(...)`; UML Deployment's `Device`/`Execution Environment` use `shape: 'cuboid'` |
+| Adjust the pseudo-3D "cuboid" shape (`data-shape="cuboid"`) | `css/node.css` — its `::before`/`::after` faces live on the **outer** `.node`, not `.node-body` (which clips them via its own `overflow: hidden`) + `js/canvas/node.js` (also sets `--node-fill`/`--node-stroke`/`--node-border-width` on `rootEl` itself, not just `.node-body`, since a pseudo-element can't see a custom property set via inline style on a different element) — see docs/ARCHITECTURE.md's "New component categories & keyboard-only connect" section before touching either gotcha |
+| Change keyboard-only component selection or connect-by-keyboard | `js/canvas/node.js`'s `focus` listener + `recentPointerdown` guard (selection) + `js/canvas/keyboardConnect.js` (`startKeyboardConnect`/numbered badges/digit-key wiring) + `main.js#initKeyboardShortcuts`'s plain `'c'` branch |
+| Change "📃 Describe Diagram" | `js/core/diagramDescription.js#buildDiagramDescription` (pure, detects sequence diagrams via `shape === 'lifeline'`) + `js/modals/diagramDescriptionModal.js` (plain-text readonly view + copy button) |
+| Change the Diagram Health Score | `js/core/diagramHealth.js#computeDiagramHealth(nodeCount, findingsCount)` (pure) + `js/modals/diagramLintModal.js` (the `.diagram-health-badge`) |
+| Change version branching (Branch from here / Merge into...) | `js/core/versionBranches.js` (`listBranches`/`versionsOnBranch`/`copyVersionToBranch` — copies a snapshot onto a new branch, **not** a real structural merge) + `js/canvas/canvas.js#branchFromVersion` + `js/modals/versionHistoryModal.js` (branch selector + the two buttons) |
+| Change 3D Presentation Mode (geometry, rendering, or video export) | `js/core/scene3dLayout.js` (pure 2D→3D mapping + cable direction/color, unit-testable) + `js/render3d/scene3dRenderer.js` (all Three.js/WebGL — the only importer of `vendor/three.module.min.js`; **must** call the returned `dispose()` on close, it holds a real GPU context) + `js/core/scene3dMode.js` (on/off pub-sub) + `js/canvas/scene3dOverlay.js` (overlay UI) + `js/io/export3dVideo.js` (drives playback via `animationPlayback.js#setFrozen(true)` + manual `nextStep()`, records via `captureStream`/`MediaRecorder`). **Read** docs/ARCHITECTURE.md's "3D Presentation Mode" section before touching the orbit camera or the video-export step loop. |
 
 ## Running things locally
 
@@ -291,6 +301,25 @@ npm test
   export/io module, suspect a bad import in whatever new file is now on
   `main.js`'s or a panel's static import chain before debugging the feature
   itself.
+- **A stray `*/` inside a `/** ... */` JSDoc comment's prose closes the
+  comment right there**, turning the rest of it into raw, invalid
+  top-level JavaScript — a different mechanism than the wrong-import
+  pitfall above, but the same class of bug: a syntax error in one file on
+  `main.js`'s/a panel's static import chain throws at module-evaluation
+  time and breaks the *entire app*, not just whatever feature that file
+  belongs to. This happened for real in `js/io/aiLayoutSuggest.js`, whose
+  JSDoc comment read "...validate*/sanitize* helpers." — the literal `*/`
+  ended the comment mid-sentence, and the leftover prose became an
+  illegal statement (`SyntaxError: Unexpected identifier`). Same symptom
+  as the wrong-import case (every e2e test fails at the sidebar-never-
+  -rendering stage) and the same diagnosis technique works: a raw
+  Playwright script with `page.on('pageerror', ...)`, or
+  `node -e "import('./path/to/file.js').catch(e=>console.log(e.message))"`
+  run file-by-file against every new/changed module until the exact one
+  throws. When writing a JSDoc comment that describes something using a
+  literal `*/` in prose (e.g. "validate/sanitize" written with a slash
+  pair, or code-like text), double-check there's no `*/` substring inside
+  the comment body before the real closing `*/`.
 - **Any panel/row that `clear()`s + rebuilds its whole DOM on every store
   `'change'` event (details panel, toolbar contextual row) will steal focus
   from one of its own text/number/color fields on every keystroke**, since

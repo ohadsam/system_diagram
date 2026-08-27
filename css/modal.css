@@ -637,6 +637,32 @@
   margin: var(--space-3) 0;
 }
 
+.diagram-health-badge {
+  display: inline-block;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-3);
+}
+
+.diagram-health-excellent,
+.diagram-health-empty {
+  background: var(--color-amber-soft);
+  color: var(--color-success);
+}
+
+.diagram-health-good {
+  background: var(--color-amber-soft);
+  color: var(--color-amber-text);
+}
+
+.diagram-health-needs-attention,
+.diagram-health-poor {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
 .diagram-lint-list {
   display: flex;
   flex-direction: column;
@@ -880,6 +906,13 @@
   align-items: center;
   gap: var(--space-2);
   flex-wrap: wrap;
+}
+
+.version-history-branch-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
 }
 
 .presentations-modal {
@@ -1174,6 +1207,12 @@
 .cost-breakdown-total-amount {
   color: #065F46;
   font-size: 16px;
+}
+
+.cost-breakdown-optimize-btn,
+.diagram-compare-explain-btn {
+  margin-top: var(--space-4);
+  width: 100%;
 }
 
 .comment-modal-text {

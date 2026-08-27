@@ -9,6 +9,7 @@ import { openModal } from './modal.js';
 import { el, clear } from '../utils/dom.js';
 import * as store from '../core/store.js';
 import { computeDiagramLint, computeCustomLint } from '../core/diagramLint.js';
+import { computeDiagramHealth } from '../core/diagramHealth.js';
 import { resolveComponentDef, applyLintAutoFix } from '../canvas/canvas.js';
 import { centerOn } from '../canvas/viewport.js';
 import { getCustomLintRules } from '../io/customLintRules.js';
@@ -52,6 +53,11 @@ export function openDiagramLintModal() {
         }));
 
         const findings = computeAllFindings();
+        const health = computeDiagramHealth(store.getState().nodes.length, findings.length);
+        body.appendChild(el('div', {
+          class: `diagram-health-badge diagram-health-${health.label.toLowerCase().replace(/\s+/g, '-')}`,
+          text: `Health score: ${health.score}/100 (${health.label})`,
+        }));
         if (!findings.length) {
           body.appendChild(el('p', { class: 'diagram-lint-empty', text: '✅ No issues found.' }));
         } else {

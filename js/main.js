@@ -31,6 +31,8 @@ import { isKioskMode, setKioskMode } from './core/kioskMode.js';
 import { initKioskModeUi } from './toolbar/kioskModeUi.js';
 import { initDuplicateTabWarning } from './io/duplicateTabWarning.js';
 import { registerServiceWorker } from './io/serviceWorker.js';
+import { startKeyboardConnect, isKeyboardConnectActive } from './canvas/keyboardConnect.js';
+import { initScene3DOverlay } from './canvas/scene3dOverlay.js';
 
 function isTypingTarget(elRef) {
   if (!elRef) return false;
@@ -128,6 +130,16 @@ function initKeyboardShortcuts() {
       setToolMode('hand');
     } else if (!mod && e.key.toLowerCase() === 'v') {
       setToolMode('select');
+    } else if (!mod && e.key.toLowerCase() === 'c' && !isKeyboardConnectActive()) {
+      // Keyboard-only "draw a connector" — the mouse-free counterpart of
+      // dragging from a node's connection dot. Needs exactly one node
+      // selected (Tab to one first — canvas/node.js's `focus` listener
+      // keeps selection in sync with keyboard focus for exactly this case).
+      const nodeIds = store.getSelection().nodeIds;
+      if (nodeIds.length === 1) {
+        e.preventDefault();
+        startKeyboardConnect(nodeIds[0]);
+      }
     } else if (!mod && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
       // Nudges the selected node(s) by keyboard — the only way to reposition
       // a component without a mouse/touch drag, so this is load-bearing for
@@ -191,6 +203,7 @@ async function boot() {
   configureSidebar({ onEditCustomComponent: (def) => openCustomComponentModal({ editDef: def }) });
   initKioskModeUi();
   initAnimationOverlay();
+  initScene3DOverlay();
   initDuplicateTabWarning(showToast);
 
   initKeyboardShortcuts();

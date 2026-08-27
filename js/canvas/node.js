@@ -13,6 +13,14 @@ let handlers = {
   onContextMenu: () => {},
 };
 
+// Shared across every node instance — a mouse/touch interaction always
+// focuses its target as a side effect, right after its own pointerdown
+// handler already ran `onSelect` (possibly additively, possibly to
+// deselect). The `focus` listener below must not re-run `onSelect`
+// (non-additively) in that case — only for a *keyboard* Tab landing on a
+// node with no preceding pointerdown at all.
+let recentPointerdown = false;
+
 export function configureNodeHandlers(next) {
   handlers = { ...handlers, ...next };
 }
@@ -40,6 +48,8 @@ export function createNodeEl(node) {
     // right-clicked item. Right-clicking something *not* already selected
     // still selects just it, same as before.
     if (e.button === 2 && root.classList.contains('selected')) return;
+    recentPointerdown = true;
+    setTimeout(() => { recentPointerdown = false; }, 0);
     handlers.onSelect(node.id, e.shiftKey || e.metaKey || e.ctrlKey, e);
   });
   root.addEventListener('contextmenu', (e) => {
@@ -48,6 +58,17 @@ export function createNodeEl(node) {
   });
   root.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') handlers.onOpenDetails(node.id);
+  });
+  // Tab-focusing a node also selects it — otherwise there is no way to
+  // select a component at all without a mouse/touch click, which would
+  // make every keyboard-only editing action (arrow-key nudge, the 'C'
+  // keyboard-connect gesture, Delete) unreachable purely by keyboard. Guard
+  // against `recentPointerdown` so a plain/modifier click's own focus side
+  // effect never re-runs (or reverses) the pointerdown handler's own
+  // select/deselect/toggle decision above.
+  root.addEventListener('focus', () => {
+    if (recentPointerdown) return;
+    handlers.onSelect(node.id, false);
   });
 
   const body = el('div', { class: 'node-body' });
@@ -197,6 +218,15 @@ export function updateNodeEl(rootEl, node, { selected = false, replicated = fals
   body.style.setProperty('--node-fill', node.fill);
   body.style.setProperty('--node-stroke', node.stroke);
   body.style.setProperty('--node-border-width', `${node.strokeWidth}px`);
+  // Also set on rootEl, not just body — the cuboid shape's pseudo-3D
+  // faces (css/node.css) live on `.node` itself (not `.node-body`, which
+  // clips them via its own `overflow: hidden`), and a custom property set
+  // via inline style only cascades to *descendants* of the element it's
+  // set on, not to that element's own siblings-under-a-different-parent —
+  // same "set on rootEl too" pattern the destroy-marker below already uses.
+  rootEl.style.setProperty('--node-fill', node.fill);
+  rootEl.style.setProperty('--node-stroke', node.stroke);
+  rootEl.style.setProperty('--node-border-width', `${node.strokeWidth}px`);
 
   const hasDestroyMarker = node.shape === 'lifeline' && Number.isFinite(node.destroyOffset);
   rootEl.classList.toggle('has-destroy-marker', hasDestroyMarker);

@@ -406,6 +406,53 @@ body.kiosk-mode .kiosk-exit-btn {
   left: var(--space-3);
 }
 
+/* "🧊 3D Presentation" (canvas/scene3dOverlay.js) — a full-viewport layer,
+   always in the DOM, shown via the `.open` class rather than a body-class
+   toggle since it's independent of kiosk mode (see --z-scene3d's own
+   comment in css/variables.css for why). display:none while closed also
+   means js/render3d/scene3dRenderer.js is never mounted/rendering until
+   the user actually opens this. */
+.scene3d-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-scene3d);
+  background: #0F1420;
+}
+
+.scene3d-overlay.open {
+  display: block;
+}
+
+.scene3d-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  cursor: grab;
+}
+
+.scene3d-canvas:active {
+  cursor: grabbing;
+}
+
+.scene3d-controls {
+  position: fixed;
+  left: 50%;
+  bottom: var(--space-4);
+  transform: translateX(-50%);
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: calc(100vw - var(--space-4) * 2);
+}
+
+.scene3d-btn {
+  white-space: nowrap;
+}
+
+
 /* Diagram Animation playback controls (canvas/animationOverlay.js) — shown
    only while core/animationPlayback.js reports `playing: true` (toggled via
    JS, same "always in the DOM, hidden by default" approach as

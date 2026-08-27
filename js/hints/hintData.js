@@ -33,4 +33,8 @@ export const HINTS = [
   { id: 'hint-c4-context', target: '.toolbar-row-main', placement: 'bottom', text: '🧩 Create → C4 Context Diagram bootstraps a C4 Model System Context diagram from a system name and its users/external systems.' },
   { id: 'hint-quick-start', target: '.toolbar-row-main', placement: 'bottom', text: '🪄 New here? Create → AI Quick Start describes your system in plain words and has AI propose a starting diagram, with an explanation of why it chose each component.' },
   { id: 'hint-collaboration', target: '.toolbar-row-main', placement: 'bottom', text: '🤝 Tools → Collaborate works on the same diagram with one other person in real time — no account or server, just a code (or room number) you exchange to connect.' },
+  { id: 'hint-ai-beautify-layout', target: '.toolbar-row-main', placement: 'bottom', text: '🪄 Tools → AI Beautify Layout asks an AI to suggest a nicer arrangement of your existing components — only positions change, nothing is added or removed.' },
+  { id: 'hint-describe-diagram', target: '.toolbar-row-main', placement: 'bottom', text: '📃 Tools → Describe Diagram gives you an instant, offline plain-text summary of your diagram\'s structure — no AI involved.' },
+  { id: 'hint-keyboard-connect', target: '.toolbar-row-main', placement: 'bottom', text: '⌨️ Keyboard-only: Tab to select a component, then press C and a number to draw a connector to another component — no mouse required.' },
+  { id: 'hint-scene3d', target: '.toolbar-row-main', placement: 'bottom', text: '🧊 Tools → 3D Presentation turns your diagram into a rotatable 3D scene for presenting, with an "Export 3D Video" button to record it as a downloadable video.' },
 ];

@@ -665,6 +665,27 @@ test('validateProject backfills/validates a stored version\'s own snapshot the s
   assert.ok(v.snapshot.nodes[0].id.startsWith('node_'), 'a missing id inside a version snapshot should be backfilled just like a top-level node');
 });
 
+test('validateProject defaults a version\'s missing branch to "main", and keeps an explicit one', () => {
+  const raw = {
+    nodes: [],
+    edges: [],
+    versions: [
+      { id: 'ver_old', name: 'Pre-branching version', snapshot: { nodes: [], edges: [] } }, // no branch field at all
+      { id: 'ver_new', name: 'On a branch', branch: 'experiment', snapshot: { nodes: [], edges: [] } },
+    ],
+  };
+  const { project } = validateProject(raw);
+  assert.equal(project.versions[0].branch, 'main');
+  assert.equal(project.versions[1].branch, 'experiment');
+});
+
+test('createVersionSnapshot defaults branch to "main" and honors an explicit one', () => {
+  const p = { nodes: [], edges: [], versions: [] };
+  assert.equal(createVersionSnapshot(p, 'v1').branch, 'main');
+  assert.equal(createVersionSnapshot(p, 'v1', 'feature-x').branch, 'feature-x');
+  assert.equal(createVersionSnapshot(p, 'v1', '   ').branch, 'main', 'a blank branch name falls back to main, same as a missing one');
+});
+
 test('validateProject drops a version with no usable snapshot object', () => {
   const raw = { nodes: [], edges: [], versions: [{ id: 'ver_x', name: 'bad' }, null, 'not an object'] };
   const { project } = validateProject(raw);

@@ -217,6 +217,58 @@
   justify-content: flex-start;
 }
 
+/* UML Deployment "cuboid" — a flat pseudo-3D box (the classic UML
+   deployment-diagram "node" look), built with the well-known CSS "skewed
+   top/side face" cube trick. The two extra faces sit entirely *outside*
+   the box's own footprint (top face above, side face to the right) rather
+   than clipping/overlaying it, so there's no "pseudo-element covers the
+   icon/label" risk and no z-index stacking-context workaround needed —
+   .node-body keeps its own normal border/background untouched, exactly
+   like an ordinary rectangle. These live on the *outer* `.node` element,
+   not `.node-body` — `.node-body` has `overflow: hidden` (see its own
+   rule above, for the large-diagram content-visibility optimization),
+   which would silently clip anything positioned outside its own box, and
+   a pseudo-element positioned at a negative offset is exactly that; `.node`
+   itself sets no overflow, so the faces render outside its child's box
+   without being clipped. The tradeoff is purely cosmetic: the protruding
+   faces can visually overlap a neighboring node placed very close
+   above/to the right, same as the lifeline shape's full-height dashed
+   line already can. */
+.node[data-shape="cuboid"] {
+  --cuboid-depth: 10px;
+}
+
+.node[data-shape="cuboid"]::before {
+  content: '';
+  position: absolute;
+  left: var(--cuboid-depth);
+  right: 0;
+  top: calc(var(--cuboid-depth) * -1);
+  height: var(--cuboid-depth);
+  background: var(--node-fill);
+  border: var(--node-border-width, 2px) solid var(--node-stroke);
+  border-bottom: none;
+  transform: skewX(45deg);
+  transform-origin: bottom left;
+  pointer-events: none;
+}
+
+.node[data-shape="cuboid"]::after {
+  content: '';
+  position: absolute;
+  top: calc(var(--cuboid-depth) * -1);
+  bottom: 0;
+  right: calc(var(--cuboid-depth) * -1);
+  width: var(--cuboid-depth);
+  background: var(--node-fill);
+  filter: brightness(0.9);
+  border: var(--node-border-width, 2px) solid var(--node-stroke);
+  border-left: none;
+  transform: skewY(45deg);
+  transform-origin: top left;
+  pointer-events: none;
+}
+
 .node[data-shape="lifeline"] .node-body::before {
   content: '';
   position: absolute;
@@ -745,4 +797,29 @@
 
 .node-suggestion-badge:hover {
   background: var(--color-amber-soft);
+}
+
+/* Keyboard-connect numbered badges (canvas/keyboardConnect.js) — appended
+   directly as a child of each candidate target node, so it inherits that
+   node's own pan/zoom transform for free instead of needing separate
+   screen-space positioning math. Large and high-contrast (this is a
+   transient, must-be-glanceable-instantly affordance, not a persistent
+   subtle indicator like the suggestion badge above). */
+.keyboard-connect-badge {
+  position: absolute;
+  top: -14px;
+  left: -14px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-md);
+  pointer-events: none;
+  z-index: 5;
 }

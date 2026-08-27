@@ -107,6 +107,12 @@
      clickable while actively drawing. */
   --z-anim-draw: 89;
   --z-anim-controls: 91;
+  /* "🧊 3D Presentation" (canvas/scene3dOverlay.js) is a full independent
+     layer on top of everything else, including a toast or the animation
+     playback controls — it isn't built on kiosk mode (core/kioskMode.js)
+     the way Diagram Animation playback is, so nothing here can assume it's
+     ever hidden underneath. */
+  --z-scene3d: 95;
 }
 
 /* Dark theme — see js/io/uiPrefs.js (`theme: 'system'|'light'|'dark'`) and

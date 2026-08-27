@@ -1,7 +1,7 @@
 # System Design Diagram Builder
 
 A 100% client-side web app for designing system architecture diagrams —
-drag components from a library of 500+ predefined items (AWS services,
+drag components from a library of 600+ predefined items (AWS services,
 databases, caches, message queues, frameworks, code-level layers like
 Controller/Service/DAL, ready-made design pattern and state-machine
 blueprints like MVC/CQRS/API Gateway/Traffic-Light, and generative-AI
@@ -25,11 +25,11 @@ Or open `index.html` directly in a browser.
 
 ## Features
 
-- **Huge component library** — 580+ predefined components across 26
+- **Huge component library** — 600+ predefined components across 28
   categories (AWS, Databases, Cache, Messaging, Monitoring, DevOps,
   Containers, Networking, Security, Servers, Client/Frontend, Frontend &
   Backend frameworks, Storage, Logging, AI/ML, Cloud providers, C4 Model,
-  Basic shapes, and more), searchable and alphabetically sorted, with the most
+  BPMN (Business Process), UML Deployment, Basic shapes, and more), searchable and alphabetically sorted, with the most
   commonly-used component in each category (PostgreSQL, Docker, S3, Kafka,
   React, ...) subtly highlighted with a ★ badge — a "★ Popular only"
   toggle narrows the list down to just those.
@@ -249,9 +249,11 @@ Or open `index.html` directly in a browser.
 - **Recently Used** — the sidebar's pinned "Recently Used" section shows the
   last 8 components you actually placed on the canvas, most recent first.
 - **Diagram Versions & Presentations** — save named snapshots of a diagram
-  ("📸 Version History"), revert to one or compare any two side-by-side, then
-  assemble a subset of them into a "🎬 Presentation" — play it step-by-step
-  or export it to a real `.pptx` file.
+  ("📸 Version History"), revert to one or compare any two side-by-side
+  ("💬 Explain this diff with AI" narrates what changed in plain language),
+  organize versions into branches, then assemble a subset of them into a
+  "🎬 Presentation" — play it step-by-step or export it to a real `.pptx`
+  file.
 - **Reference Architecture Templates** — 5 ready-made "Design X" blueprints
   (URL Shortener, Chat Application, Rate Limiter Service, Social Media Feed,
   Ride-Sharing Dispatch) for interview prep, each a complete starting point
@@ -260,8 +262,9 @@ Or open `index.html` directly in a browser.
   box covering every app action and the whole component library at once,
   with context-aware results when a component is selected.
 - **Estimated cost & label chips** — set a $/mo cost estimate on any
-  component (shown as a badge, rolled into a "💰 Cost Breakdown" total), and
-  free-form labels now render as visible chips on the component itself.
+  component (shown as a badge, rolled into a "💰 Cost Breakdown" total, with
+  an "🤖 Ask AI to reduce this cost" button right there), and free-form
+  labels now render as visible chips on the component itself.
 - **Smart alignment guides** — dragging a component snaps into exact
   alignment with nearby components and shows a Figma-like guide line,
   toggleable via "🧲 Snap Guides".
@@ -365,18 +368,38 @@ Or open `index.html` directly in a browser.
   bootstraps a System Context diagram from a system name and its
   users/external systems.
 
+- **🧊 3D Presentation Mode** — one click (Tools menu) turns the current
+  diagram into a rotatable 3D scene for presenting: components become
+  extruded, colored boxes, connectors become animated "cable" tubes
+  color-coded by flow direction (blue one way, red the other), and
+  playing your Diagram Animation inside it shows ambient "thinking"
+  particles and pulsing chip decals inside each component. Drag to
+  orbit, scroll to zoom, or just let it auto-rotate — and "🎥 Export 3D
+  Video" records the whole thing to a downloadable video file.
+- **🪄 AI Beautify Layout** — asks an AI to suggest a nicer arrangement of
+  your existing components (Tools menu); only positions change.
+- **🎙️ Voice dictation** — a mic button appears on every AI text field
+  wherever your browser supports it, appending what you say instead of
+  typing it.
+- **📃 Describe Diagram** — an instant, fully offline plain-text summary
+  of your diagram's structure (Tools menu) — no AI involved.
+- **Diagram Health Score** — "🔍 Check Diagram" now shows a 0-100 score
+  based on how many findings it turned up.
+- **⌨️ Keyboard-only connect** — Tab to a component to select it, then
+  press `C` and a number to draw a connector to another one, no mouse
+  required.
 See [`help.html`](help.html) for the full interactive user guide.
 
 ## Tech stack
 
 Vanilla HTML/CSS/JavaScript (ES modules), no framework, no bundler. The
-only five runtime dependencies — `html2canvas` and `jsPDF` for PNG/PDF
+only six runtime dependencies — `html2canvas` and `jsPDF` for PNG/PDF
 export, `PptxGenJS` for the Presentations/Diagram Animation `.pptx`
-exports, `@mlc-ai/web-llm` for Local AI mode's in-browser inference, and
-`PeerJS` for Live Collaboration's quick-room-code connection method — are
-vendored locally in `vendor/` (see [`vendor/VENDOR.md`](vendor/VENDOR.md)),
-not loaded from a CDN, and only fetched lazily when you actually use the
-feature that needs them.
+exports, `@mlc-ai/web-llm` for Local AI mode's in-browser inference,
+`PeerJS` for Live Collaboration's quick-room-code connection method, and
+`three.js` for 3D Presentation Mode — are vendored locally in `vendor/`
+(see [`vendor/VENDOR.md`](vendor/VENDOR.md)), not loaded from a CDN, and
+only fetched lazily when you actually use the feature that needs them.
 
 ## Project structure
 
@@ -393,10 +416,12 @@ js/
   modals/   custom component/shape, save-as, load, confirm dialogs
   io/       localStorage/IndexedDB, JSON, PNG/PDF/SVG export
   collab/   Live Collaboration transports (manual WebRTC + PeerJS) + sync
+  render3d/ 3D Presentation Mode's Three.js/WebGL scene
   hints/    the guided-tour hints
   utils/    small shared DOM/color/form helpers
 vendor/     vendored html2canvas + jsPDF + PptxGenJS (export) + web-llm
-            (Local AI) + PeerJS (Live Collaboration)
+            (Local AI) + PeerJS (Live Collaboration) + three.js
+            (3D Presentation Mode)
 tests/
   unit/     Node test-runner tests for pure logic
   e2e/      Playwright browser tests

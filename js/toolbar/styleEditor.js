@@ -10,6 +10,7 @@ import { showToast } from '../utils/toast.js';
 const SHAPE_LABELS = {
   rect: 'Rectangle', rounded: 'Rounded', circle: 'Circle', diamond: 'Diamond',
   cylinder: 'Cylinder (DB)', hexagon: 'Hexagon', cloud: 'Cloud', note: 'Note', rows: 'Rows',
+  cuboid: 'Cuboid (3D Box)',
 };
 const ALIGN_LABELS = { left: 'Left', center: 'Center', right: 'Right' };
 const TEXT_POSITION_LABELS = {

@@ -1,12 +1,13 @@
 # Vendored libraries
 
-This app is otherwise 100% hand-written vanilla JS. These five files are
+This app is otherwise 100% hand-written vanilla JS. These six files are
 the only exceptions, and are loaded lazily — the first three only when the
 user actually clicks Export PNG/PDF or exports a presentation to
 PowerPoint, the fourth only when someone opts into Settings -> AI
 Providers -> Local AI (in-browser), the fifth only when someone picks the
-"quick room code" connection method in the Live Collaboration modal —
-rather than on page load.
+"quick room code" connection method in the Live Collaboration modal, the
+sixth only when someone opens Tools -> 3D Presentation — rather than on
+page load.
 
 They are vendored locally (not loaded from a CDN) so the app works fully
 offline/air-gapped on GitHub Pages with no third-party network dependency
@@ -19,6 +20,7 @@ or SRI-hash maintenance burden.
 | `pptxgen.bundle.js`      | PptxGenJS   | 3.12.0 | MIT | https://github.com/gitbrent/PptxGenJS |
 | `web-llm.min.js`         | @mlc-ai/web-llm | 0.2.84 | Apache-2.0 | https://github.com/mlc-ai/web-llm |
 | `peerjs.min.js`          | PeerJS      | 1.5.4 | MIT | https://github.com/peers/peerjs |
+| `three.module.min.js`    | three.js    | 0.160.0 | MIT | https://github.com/mrdoob/three.js |
 
 The first three are the official pre-built UMD/minified/bundled
 distributables from the package's npm `dist/` folder, copied unmodified.
@@ -70,3 +72,18 @@ method needs no library at all — just the browser's native
 code with no signaling server of this app's own. To upgrade: `npm pack
 peerjs@<version>` elsewhere, take `dist/peerjs.min.js`, strip the same
 sourcemap comment, and replace here.
+
+`three.module.min.js` is different from every file above: it's the
+official pre-built **ES module** distributable (`build/three.module.min.js`
+from the npm package), not a UMD/global-setting script — this app's own
+`js/render3d/scene3dRenderer.js` uses a real `import * as THREE from
+'../../vendor/three.module.min.js'`, the same plain-ES-module mechanism as
+every hand-written file here, rather than `utils/loadScript.js`'s
+`<script>`-tag loader the UMD libraries above need. Used only by the "🧊 3D
+Presentation" feature (Tools menu) — turns the current diagram into an
+interactive, rotatable 3D scene (extruded boxes for components, tube-
+-geometry "cables" for connectors) purely for presentation flair; the
+underlying 2D project data is completely unaffected. To upgrade: `npm pack
+three@<version>` elsewhere, take `build/three.module.min.js`, replace here
+unmodified (it needs no minification step of its own, unlike web-llm.min.js
+above).
