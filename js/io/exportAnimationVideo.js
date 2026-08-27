@@ -10,7 +10,8 @@
 // the same pace core/animationPlayback.js would during a live "▶️ Play
 // Animation" — just without anyone there to click through the 'click'
 // steps, hence their fixed CLICK_STEP_DWELL_MS dwell instead.
-import { captureDiagramCanvas, applyAnimationExportVisibility, clearAnimationExportVisibility } from '../canvas/canvas.js';
+import { applyAnimationExportVisibility, clearAnimationExportVisibility } from '../canvas/canvas.js';
+import { captureDiagramCanvas } from './exportImage.js';
 import { nextFrame } from '../utils/loadScript.js';
 import { downloadBlob, sanitizeFilename } from '../utils/download.js';
 import { computeStepDurationMs } from '../core/animationVideoTiming.js';

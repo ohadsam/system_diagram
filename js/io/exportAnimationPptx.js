@@ -16,7 +16,8 @@
 // progressive reveal in PowerPoint by hand.
 import { loadScriptOnce, nextFrame } from '../utils/loadScript.js';
 import { downloadBlob, sanitizeFilename } from '../utils/download.js';
-import { captureDiagramCanvas, applyAnimationExportVisibility, clearAnimationExportVisibility } from '../canvas/canvas.js';
+import { applyAnimationExportVisibility, clearAnimationExportVisibility } from '../canvas/canvas.js';
+import { captureDiagramCanvas } from './exportImage.js';
 
 const SLIDE_W = 13.33;
 const SLIDE_H = 7.5;
