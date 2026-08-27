@@ -73,7 +73,12 @@ export function createPeerJsTransport() {
           peer = new window.Peer(PEER_ID_PREFIX + roomCode);
           peer.on('open', () => resolve({ ok: true, roomCode }));
           peer.on('connection', (connection) => wireConnection(connection));
-          peer.on('error', (err) => resolve({ ok: false, error: describePeerError(err) }));
+          // Registered for the life of the peer, not just this initial
+          // attempt — a broker-level error arriving after the connection
+          // is already up (e.g. the signaling server itself drops) would
+          // otherwise never reach onStatusChange, since resolving an
+          // already-settled Promise a second time is a silent no-op.
+          peer.on('error', (err) => { setStatus('error'); resolve({ ok: false, error: describePeerError(err) }); });
         });
       } catch (err) {
         setStatus('error');
@@ -93,7 +98,12 @@ export function createPeerJsTransport() {
             wireConnection(peer.connect(PEER_ID_PREFIX + trimmed));
             resolve({ ok: true });
           });
-          peer.on('error', (err) => resolve({ ok: false, error: describePeerError(err) }));
+          // Registered for the life of the peer, not just this initial
+          // attempt — a broker-level error arriving after the connection
+          // is already up (e.g. the signaling server itself drops) would
+          // otherwise never reach onStatusChange, since resolving an
+          // already-settled Promise a second time is a silent no-op.
+          peer.on('error', (err) => { setStatus('error'); resolve({ ok: false, error: describePeerError(err) }); });
         });
       } catch (err) {
         setStatus('error');

@@ -110,6 +110,58 @@ Keep this in sync with `PLAN.md` as stages complete.
   field (with autocomplete) on custom components, grouping them into
   collapsible 📁 sub-groups in the sidebar.
 
+## v1.37.0 (2026-08-27)
+
+**🪄 AI Quick Start** — a guided on-ramp for someone new to the app, reachable any time from
+Create → AI Quick Start. Step 1 (skippable, shown only when no automatic AI mode is configured)
+nudges toward setting one up with a direct link into Settings; step 2 asks for a plain-language
+description of the system; step 3 sends `io/aiGenerateDesign.js#buildQuickStartPrompt` off (hand-off
+or automatic, like every other AI flow here) and loads the resulting diagram. Unlike Generate Design
+from Spec, the wizard doesn't close on success — a final step shows the AI's own rationale (an
+overview sentence plus a one-line "why" per component, matched back to the created nodes by id)
+before the user is dropped into the now-editable diagram.
+
+**🤝 Live Collaboration** — real-time two-person co-editing over WebRTC, with no account and no
+server of this app's own. `collab/webrtcCollab.js` implements a fully offline manual method (raw
+`RTCPeerConnection`/`RTCDataChannel`, non-trickle ICE, the offer/answer exchanged as two short
+copy-pasteable codes); `collab/peerjsCollab.js` implements a quick-room-code alternative via the
+newly-vendored PeerJS's free public broker, for when copying two blobs of text is more friction than
+wanted — the diagram itself still flows peer-to-peer either way. `collab/collabSession.js` syncs a
+connected transport with the canvas: whole-project-state broadcast (debounced), last-write-wins,
+applied via a coalesced `store.dispatch` (not `loadProject`) so incoming updates don't spam the local
+undo/redo history or reset selection. A green toolbar badge shows a session is connected even after
+the setup modal is closed. STUN-only (no TURN) is a known limitation for restrictive NATs.
+
+**🖼️ Import from Image** — reconstructs a diagram from a screenshot, exported image, or hand-drawn
+sketch. Same schema-anchored prompt-and-paste mechanism as Generate Design from Spec, with a new
+`buildImportFromImagePrompt` sharing its component-graph rules, asking the AI to read every visible
+label verbatim rather than paraphrase.
+
+**🛡️ AI Design Review: Security mode** — a fourth mode alongside Review/Explain/Suggestions, focused
+on public exposure, missing encryption, weak auth boundaries, exposed secrets, and missing audit
+logging — grouped by severity (🔴/🟠/🟡) rather than free-form prose. Available even in hand-off-only
+setups (unlike Suggestions, whose entire point is skipping the copy/paste round trip).
+
+**🔁 Auto-suggest** — Settings → AI Providers gained a background trigger for the existing
+"💡 Suggestions" mode: after a configurable number of distinct diagram edits pile up (not a timer —
+someone idle for an hour shouldn't get an unprompted API call, but someone who just edited a handful
+of components probably wants the check), it runs unattended and surfaces a badge on the AI Design
+Review toolbar button. Off by default since it's a trigger that can incur real cost in Direct API mode.
+
+**IaC exports** — Export Diagram gained Pulumi (TypeScript), CloudFormation (YAML), and Kubernetes
+manifest targets alongside the existing Terraform export, all following the same curation philosophy:
+a mapped AWS component becomes a real resource, an unmapped one is listed rather than guessed at.
+
+**Diagram Animation: auto-build + PPTX/video export** — after any AI-generation flow creates a
+diagram with 2+ components, a small prompt offers to auto-build a "walkthrough" animation revealing
+every node then every edge in the order they were generated (`core/animationAutoBuild.js`), with a
+configurable auto-advance delay or click-to-advance chosen right there. The Diagram Animation panel
+can now also export the active animation to a real `.pptx` (`io/exportAnimationPptx.js` — one slide
+per step, cumulatively revealing the diagram; PowerPoint's own auto-advance timing isn't exposed by
+the vendored PptxGenJS, so each slide's speaker notes carry the intended timing instead) or to a real
+video file (`io/exportAnimationVideo.js` — native `MediaRecorder` + `canvas.captureStream()`, playing
+back in real time; a "click" step gets a fixed 2s dwell since there's no presenter to click for it).
+
 ## v1.36.0 (2026-08-27)
 
 **💡 AI-Powered Suggestions** — a third mode in AI Design Review, alongside Review and Explain,

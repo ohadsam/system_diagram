@@ -2,9 +2,23 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.36.0';
+export const APP_VERSION = '1.37.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.37.0',
+    date: '2026-08-27',
+    highlights: [
+      'New "🪄 AI Quick Start" wizard (Create menu): describe your system in plain words and let AI propose a starting diagram — an optional nudge to set up an AI engine first, a natural-language description step, then a generated diagram you can keep editing, ending on a plain-language explanation of why it chose each component and that overall shape.',
+      'New "🤝 Live Collaboration" (Tools menu): work on the same diagram with one other person in real time over WebRTC, no account or server — choose a fully offline manual code-exchange method, or a quick room-code method for a faster connect. A green toolbar badge shows when a session is connected.',
+      'New "🖼️ Import from Image" (Create menu): reconstruct a diagram from a screenshot, exported image, or hand-drawn sketch, with AI help — same prompt-and-paste flow as Generate Design from Spec.',
+      'AI Design Review gets a new "🛡️ Security" mode — a focused pass for public exposure, missing encryption, weak auth boundaries, exposed secrets, and missing audit logging, grouped by severity. Available even without an automatic AI connection, unlike Suggestions.',
+      'Settings → AI Providers gets a "🔁 Auto-suggest" option: runs the "💡 Suggestions" check on its own in the background after a configurable number of diagram edits pile up — not a timer, so idle time never triggers it. A badge on the AI Design Review button shows when a background check found something.',
+      'Export Diagram gains three new Infrastructure-as-Code targets: Pulumi (TypeScript), CloudFormation (YAML), and Kubernetes manifests — alongside the existing Terraform export.',
+      'After an AI-generated diagram (Generate Design, Quick Start, or Import from Image) with 2+ components, you can now have it automatically build a "walkthrough" Diagram Animation revealing everything in the order it was generated — pick auto-advance (with your own timing) or click-to-advance.',
+      'Diagram Animation can now export to a real .pptx (one slide per step, cumulatively revealing the diagram) or to a real video file — both from the "🎞️ Diagram Animation" panel.',
+    ],
+  },
   {
     version: '1.36.0',
     date: '2026-08-27',

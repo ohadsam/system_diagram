@@ -148,7 +148,10 @@ Or open `index.html` directly in a browser.
   mode gets automatic, specific suggestions for the diagram (missing
   components, pricing notes, other improvements) with no copy/paste round
   trip, each rendered as a card with a one-click "+ Add" when it matches
-  something in the library.
+  something in the library. A "🛡️ Security" mode is a focused pass for
+  public exposure, missing encryption, weak auth boundaries, exposed
+  secrets, and missing audit logging, grouped by severity — available even
+  in hand-off-only setups.
 - **⚡ Direct API mode (optional)** — Settings → "🤖 AI Providers" lets you
   save an API key for Claude, Gemini, or ChatGPT (or any other
   OpenAI-compatible endpoint) so AI Design Review/Generate Design/Edit with
@@ -163,6 +166,20 @@ Or open `index.html` directly in a browser.
   your device. The model downloads once (1.5-2.5 GB) and is cached by the
   browser after that; a "⬇️ Preload model" button lets you fetch it ahead
   of time instead of waiting on the first real send.
+- **🔁 Auto-suggest (optional)** — once Direct API or Local AI mode is on,
+  Settings → "🤖 AI Providers" can run the "💡 Suggestions" check on its own
+  in the background after a configurable number of diagram edits pile up —
+  not a timer, so idle time never triggers it. A badge on the AI Design
+  Review toolbar button shows when a background check found something.
+- **🪄 AI Quick Start** — a guided on-ramp for new users (Create menu):
+  describe your system in plain words and let AI propose a starting
+  diagram, ending on a plain-language explanation of why it chose each
+  component and that overall shape — the wizard stays open on that
+  explanation instead of closing immediately, so you can read it before
+  editing the result.
+- **🖼️ Import from Image** — reconstruct a diagram from a screenshot,
+  exported image, or hand-drawn sketch, with the same one-click AI links
+  and paste-back flow as Generate Design.
 - **🔍 Check Diagram** — instant, offline structural checks (no AI needed):
   flags a client talking straight to a database, a component with no
   connections, or a replication pair with no load balancer routing to it.
@@ -279,8 +296,14 @@ Or open `index.html` directly in a browser.
 - **🕘 Undo History** — a visual timeline of every edit with an
   auto-generated label ("Added...", "Moved 2 components", ...); jump
   straight to any past point instead of pressing undo repeatedly.
-- **Terraform export** — "🌐 Export to..." can now also generate a starter
-  Terraform (`.tf`) file for the AWS components on the canvas.
+- **Infrastructure-as-Code export** — "🌐 Export to..." can generate a
+  starter Terraform (`.tf`), Pulumi (TypeScript), CloudFormation (YAML), or
+  Kubernetes manifest file for the AWS/container components on the canvas.
+- **🤝 Live Collaboration** — work on the same diagram with one other person
+  in real time over WebRTC, no account or server. Choose a fully offline
+  manual code-exchange method, or a quick room-code method via a public
+  broker — the diagram itself always syncs peer-to-peer either way. A green
+  toolbar badge shows when a session is connected.
 - **Diagram tabs** — "🗂️ Open in New Tab..." opens another saved diagram
   (or a new blank one) alongside your current one, with a tab strip to
   switch between them.
@@ -296,7 +319,10 @@ Or open `index.html` directly in a browser.
   step by step in a clean presentation view with progress-dot jumping,
   auto-focus pan/zoom, and Autoplay/Loop for an unattended display — or
   freeze to draw over the diagram live. Export/import every animation as
-  its own file, independent of the diagram.
+  its own file, independent of the diagram — or export the active one as a
+  real `.pptx` (one slide per step) or a real video file. After an
+  AI-generated diagram, a prompt offers to auto-build a walkthrough
+  animation revealing everything in the order it was generated.
 - **💫 Flow Simulation** — a Tools-menu toggle animates a small dot
   continuously flowing along every connector in its direction, to
   visualize traffic at a glance. Off by default; costs nothing when
@@ -344,11 +370,12 @@ See [`help.html`](help.html) for the full interactive user guide.
 ## Tech stack
 
 Vanilla HTML/CSS/JavaScript (ES modules), no framework, no bundler. The
-only four runtime dependencies — `html2canvas` and `jsPDF` for PNG/PDF
-export, `PptxGenJS` for the Presentations feature's `.pptx` export, and
-`@mlc-ai/web-llm` for Local AI mode's in-browser inference — are vendored
-locally in `vendor/` (see [`vendor/VENDOR.md`](vendor/VENDOR.md)), not
-loaded from a CDN, and only fetched lazily when you actually use the
+only five runtime dependencies — `html2canvas` and `jsPDF` for PNG/PDF
+export, `PptxGenJS` for the Presentations/Diagram Animation `.pptx`
+exports, `@mlc-ai/web-llm` for Local AI mode's in-browser inference, and
+`PeerJS` for Live Collaboration's quick-room-code connection method — are
+vendored locally in `vendor/` (see [`vendor/VENDOR.md`](vendor/VENDOR.md)),
+not loaded from a CDN, and only fetched lazily when you actually use the
 feature that needs them.
 
 ## Project structure
@@ -365,9 +392,11 @@ js/
   panel/    the right-hand details panel + AI design review panel
   modals/   custom component/shape, save-as, load, confirm dialogs
   io/       localStorage/IndexedDB, JSON, PNG/PDF/SVG export
+  collab/   Live Collaboration transports (manual WebRTC + PeerJS) + sync
   hints/    the guided-tour hints
   utils/    small shared DOM/color/form helpers
-vendor/     vendored html2canvas + jsPDF + PptxGenJS (export) + web-llm (Local AI)
+vendor/     vendored html2canvas + jsPDF + PptxGenJS (export) + web-llm
+            (Local AI) + PeerJS (Live Collaboration)
 tests/
   unit/     Node test-runner tests for pure logic
   e2e/      Playwright browser tests

@@ -1636,7 +1636,152 @@ exactly like the top-level `nodes`/`edges`/`replicationPairs` above (same
 shared `validateContent` helper), and a presentation slide referencing a
 version id that no longer exists is dropped on load.
 
+### 4.56 AI Quick Start
+A guided on-ramp for someone new to the app, reachable any time from
+Create → "🪄 AI Quick Start" (not auto-triggered on first load — it's a
+menu entry, not a first-run modal). Step 1, shown only when no automatic
+AI send path is currently configured (see 4.53/4.54's
+`isAutomaticSendConfigured`), nudges toward setting one up with a direct
+link that opens Settings scrolled straight to the AI Providers section,
+and can be skipped — every step from here on works with hand-off providers
+regardless. Step 2 asks for a plain-language description of the system.
+Step 3 builds a schema-anchored prompt (`buildQuickStartPrompt`, sharing
+Generate Design from Spec's component-graph rules) and sends it the same
+way every AI flow here does — hand-off or automatic. Step 4 parses the
+reply and loads it onto the canvas exactly like Generate Design from Spec.
+
+Unlike Generate Design from Spec, the wizard does not close once the
+diagram loads. A final step shows the AI's own rationale for its choices:
+one or two plain-language sentences on why the overall shape fits the
+description, plus a one-line "why" for each component, matched back to
+the node it describes by id. The AI is asked for this via a `rationale`
+object alongside the normal `nodes`/`edges` in its JSON reply;
+`validateProject` ignores unknown top-level keys, so `rationale` is read
+separately from the same parsed response rather than becoming part of the
+saved project. If the AI's reply omits it, the final step says so plainly
+rather than showing an empty section.
+
+### 4.57 Live Collaboration
+Real-time two-person co-editing of the same diagram over WebRTC, with no
+account and no signaling server of this app's own — reachable from
+Tools → "🤝 Collaborate". Whoever sets up a session picks one of two
+methods, and a role (host or guest):
+
+- **Manual code exchange** — fully offline. A raw `RTCPeerConnection` +
+  `RTCDataChannel`, non-trickle ICE (candidate gathering is capped at a
+  few seconds rather than waiting indefinitely for a STUN response that
+  may never arrive on a restrictive network), with the offer/answer
+  exchanged as two short base64 codes copy-pasted by any channel the two
+  people already have (chat, email, read aloud).
+- **Quick room code** — a public broker (via the vendored PeerJS) finds
+  the two browsers by a short, human-typable room code instead of a
+  manual code exchange; the diagram itself still flows directly between
+  the two browsers either way, same as the manual method.
+
+Once connected, the whole project state is broadcast (debounced, so a
+drag/resize gesture doesn't flood the channel) and applied on the other
+side as a single, last-write-wins update — whichever edit lands later,
+locally or remotely, wins. Applied via a coalesced store update rather
+than a full project reload, so a stream of incoming remote edits doesn't
+spam the local undo/redo history or reset the current selection/viewport.
+A guest whose canvas already has content is warned before connecting,
+since the host's diagram will arrive and take over. A small green badge on
+the toolbar's "🤝 Collaborate" button shows a session is connected even
+after the setup dialog is closed; the connection and its sync continue
+running in the background either way. Scoped to exactly one host and one
+guest. STUN-only (no TURN relay, since that needs a server) is a known
+limitation — two devices on especially restrictive/symmetric NATs may fail
+to connect via the manual method.
+
+### 4.58 Import from Image
+Create → "🖼️ Import from Image" reconstructs a diagram from a screenshot,
+an exported diagram image, or a hand-drawn sketch. Same 3-step
+prompt-and-paste mechanism as Generate Design from Spec (4.34): attach an
+image, get a prompt built specifically for reading an attached image
+(`buildImportFromImagePrompt`, sharing the same component-graph/shape
+rules and few-shot JSON example), send it (hand-off or automatic), and
+paste the reply back in to load it onto the canvas. The prompt asks the AI
+to use every label actually visible in the image verbatim rather than
+paraphrase or invent components not shown, and to infer each shape from
+the image's own visual conventions where it can.
+
+### 4.59 AI Design Review: Security Mode
+A fourth mode ("🛡️ Security") in AI Design Review, alongside
+Review/Explain/Suggestions (4.55). Unlike Suggestions, this mode is
+offered even in hand-off-only setups — its whole point is a focused
+checklist, not necessarily an automatic round trip, so the manual
+copy/paste path is just as central here as the automatic one. The prompt
+asks for a JSON array of findings, each tagged a severity (`high` /
+`medium` / `low`) and covering: public exposure of something that
+shouldn't be, missing encryption in transit/at rest, a weak or missing
+authentication/authorization boundary, an exposed secret/credential, and
+missing audit logging on a component that should have it. Findings render
+grouped by severity (🔴/🟠/🟡) rather than a flat list, with no "+ Add"
+action (a security finding isn't something to drop onto the canvas the
+way a Suggestions "missing component" is). Same manual-paste retry
+affordance as every other structured mode if the reply isn't valid JSON.
+
+### 4.60 Auto-suggest (background trigger for AI-Powered Suggestions)
+Settings → "🤖 AI Providers" gains a "🔁 Auto-suggest" toggle and an "every
+N edits" number field, meaningful only once Direct API mode or Local AI
+mode is actually usable (same `isAutomaticSendConfigured` check as
+Suggestions itself — see 4.55) and shown with a clear warning otherwise.
+When enabled, a store-change watcher counts distinct edits — a debounced
+trailing edge of `change` events, so one drag/resize gesture or a burst of
+label keystrokes counts as one edit, not one per frame/keystroke — and
+once the configured count is reached, runs the Suggestions prompt in the
+background (text-only, no canvas image, for efficiency) with no panel
+needing to be open. Deliberately count-based, not a timer: someone away
+from the keyboard for an hour shouldn't trigger an unprompted API call,
+but someone who just edited a handful of components probably wants the
+check. Off by default, since it's an unattended trigger that can incur
+real cost in Direct API mode. A small badge appears on the toolbar's
+"🤖 AI Design Review" button once a background check finds something;
+clicking it opens the panel straight into Suggestions mode with the
+findings already shown, and clears the badge.
+
+### 4.61 Infrastructure-as-Code Exports
+"🌐 Export to..." (4.9's export modal) gains three more Infrastructure-as-
+Code targets alongside the existing Terraform export: **Pulumi**
+(TypeScript), **CloudFormation** (YAML), and **Kubernetes manifests**. All
+four follow the same curation philosophy: an AWS component with a real,
+unambiguous mapping to a resource type becomes one; an AWS component
+without a clean mapping, or a non-AWS component, is listed in a trailing
+comment rather than guessed at; connectors between two mapped resources
+are noted as a comment too, since dependency wiring varies too much by
+target to auto-generate safely. The Kubernetes target is deliberately
+narrower still — only the "Pod" component maps to a real
+Deployment+Service manifest pair, since every other Containers &
+Orchestration component (Docker, Helm, ...) is a labeled box with no
+single obvious Kubernetes resource kind.
+
+### 4.62 Diagram Animation: Auto-build + PPTX/Video Export
+Two additions to Diagram Animation (4.36):
+
+- **Auto-build after AI generation.** After Generate Design from Spec
+  (4.34), AI Quick Start (4.56), or Import from Image (4.58) loads a
+  diagram with 2 or more components, a small prompt offers to
+  automatically build a "walkthrough" animation — one step per node, then
+  one step per edge, in the exact order they appear in the generated
+  project (the order an AI lists things in already reads as a narrative).
+  The prompt lets the auto-advance delay (default 3 seconds) or a
+  click-to-advance choice be set right there, before the animation is
+  created; skipping it leaves the diagram exactly as generated, and the
+  same animation can always be built by hand afterward.
+- **Export to PPTX/video.** The Diagram Animation panel gains "🎬 Export to
+  PPTX" and "🎥 Export to Video" buttons for the active animation. PPTX
+  export produces one slide per step, cumulatively revealing more of the
+  diagram than the last (PowerPoint's own per-shape entrance animations
+  and per-slide auto-advance timing aren't something the vendored
+  PptxGenJS exposes, so each step's intended timing is written into that
+  slide's speaker notes instead, alongside any of the step's own presenter
+  notes). Video export plays the animation back in real time as an actual
+  `.webm` file (via the browser's native `MediaRecorder` and
+  `canvas.captureStream()` — no vendored library needed); a step set to
+  "click" gets a fixed 2-second dwell in the recording, since there's no
+  presenter there to click for it.
+
 ## 7. Out of scope for v1 (ideas for later, see PLAN.md §7)
 
-Real-time multi-user collaboration, versioned history beyond in-session
-undo/redo, cloud sync, PNG→SVG re-import, AI-assisted auto-layout.
+Versioned history beyond in-session undo/redo, cloud sync, PNG→SVG
+re-import, AI-assisted auto-layout.

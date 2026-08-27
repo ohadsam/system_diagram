@@ -27,7 +27,18 @@ concrete examples). Do all three, in order, every single time this skill runs:
    deletion not cascading to edges, a severed replication link not freezing its peer and getting
    silently re-mirrored). Look specifically for: mutation of a `dispatch`-passed `prev` state,
    missing edge cleanup on any node deletion path, and off-by-one/tie-break logic in diff-based
-   code.
+   code. **Also double-check every new import in a new `io/`/`core/` module against the file it
+   actually claims to export from** — a wrong import doesn't fail at parse time if the wrong module
+   happens to export other real things, but if the new file is statically imported by something
+   already wired into the app (a panel, `main.js`), it throws at module-evaluation time and breaks
+   the *entire* app's module graph, not just the new feature. This happened for real: both
+   `io/exportAnimationPptx.js` and `io/exportAnimationVideo.js` imported `captureDiagramCanvas` from
+   `canvas/canvas.js` instead of its real home `io/exportImage.js`, and because `panel/animationPanel.js`
+   statically imports both, every e2e test failed with the sidebar never rendering — a symptom with
+   no obvious link to animations, only diagnosed via a raw Playwright script with
+   `page.on('pageerror', ...)` to get the browser's own precise error. If a whole test suite
+   suddenly fails at the very first render right after a new io/export module was added, suspect a
+   bad import in that new file's chain before debugging the feature itself.
 2. **Functional/integration.** Trace how the change interacts with existing features: undo/redo,
    JSON import/export, duplicate-project, autosave, the details panel, multi-select. A feature that
    works in isolation but breaks e.g. cascade-delete or the export format is not done.
@@ -160,6 +171,15 @@ with everything else in step 8, not as an afterthought later.
   `node:test`, no DOM; DOM-touching modules like `hints.js` get e2e coverage instead, not node
   unit tests — see `tests/unit/storage.test.mjs`'s header comment for why).
 - Add/extend e2e tests (`tests/e2e/*.spec.js`) for any new user-facing flow.
+- **If the feature does real peer-to-peer/WebRTC networking** (as Live Collaboration's
+  `collab/webrtcCollab.js` does), don't assume a public STUN/TURN/signaling server is reachable
+  from this sandboxed test environment — it often isn't, and a non-trickle ICE-gathering flow that
+  waits on a real `icegatheringstatechange` event will hang forever waiting for a STUN round trip
+  that never resolves. Race it against a hard timeout (see `GATHER_TIMEOUT_MS` there) so host
+  candidates alone (near-instant, no external server needed) are enough for a same-machine/same-LAN
+  e2e test, and write the real e2e test as two real peer connections in one browser context (see
+  `tests/e2e/liveCollaboration.spec.js`), not a mocked transport — a mock would never have caught
+  the hang in the first place.
 - Run everything and confirm it's green before moving on:
 
 ```bash

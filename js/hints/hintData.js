@@ -31,4 +31,6 @@ export const HINTS = [
   { id: 'hint-global-search', target: '.toolbar-row-main', placement: 'bottom', text: '🔎 File → Search All Projects finds text across every saved project in this browser at once — not just the one currently open.' },
   { id: 'hint-template-gallery', target: '.toolbar-row-main', placement: 'bottom', text: '🖼️ Create → Template Gallery browses every Reference Architecture and Design Pattern visually, with a preview thumbnail for each.' },
   { id: 'hint-c4-context', target: '.toolbar-row-main', placement: 'bottom', text: '🧩 Create → C4 Context Diagram bootstraps a C4 Model System Context diagram from a system name and its users/external systems.' },
+  { id: 'hint-quick-start', target: '.toolbar-row-main', placement: 'bottom', text: '🪄 New here? Create → AI Quick Start describes your system in plain words and has AI propose a starting diagram, with an explanation of why it chose each component.' },
+  { id: 'hint-collaboration', target: '.toolbar-row-main', placement: 'bottom', text: '🤝 Tools → Collaborate works on the same diagram with one other person in real time — no account or server, just a code (or room number) you exchange to connect.' },
 ];

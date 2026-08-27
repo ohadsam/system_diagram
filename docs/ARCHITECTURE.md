@@ -24,8 +24,11 @@ index.html ──► js/main.js
                  ├─ core/kioskMode.js    (Presenter Mode's on/off pub-sub)
                  ├─ core/animationPlayback.js (Diagram Animation's step-through state machine)
                  ├─ canvas/animationOverlay.js (Diagram Animation's floating playback controls + draw layer)
-                 ├─ modals/*.js          (incl. modals/generateDesignModal.js, modals/replicationModal.js, modals/sequenceDiagramModal.js, modals/aiEditModal.js, modals/customLintRulesModal.js, modals/globalSearchModal.js, modals/commentsListModal.js, modals/templateGalleryModal.js, modals/importSqlModal.js, modals/c4ContextModal.js)
-                 ├─ io/*.js              (localStorage/IndexedDB, file, image/pdf/svg export, incl. io/projectTabs.js, io/duplicateTabWarning.js, io/exportAnimation.js, io/aiEditDesign.js, io/customLintRules.js, io/i18n.js, io/storage.js, io/indexedDbStore.js, io/exportSvg.js, io/globalProjectSearch.js, io/sqlDdlImport.js, io/serviceWorker.js)
+                 ├─ modals/*.js          (incl. modals/generateDesignModal.js, modals/replicationModal.js, modals/sequenceDiagramModal.js, modals/aiEditModal.js, modals/customLintRulesModal.js, modals/globalSearchModal.js, modals/commentsListModal.js, modals/templateGalleryModal.js, modals/importSqlModal.js, modals/c4ContextModal.js, modals/quickStartModal.js, modals/importFromImageModal.js, modals/collaborationModal.js, modals/autoAnimationPrompt.js)
+                 ├─ io/*.js              (localStorage/IndexedDB, file, image/pdf/svg export, incl. io/projectTabs.js, io/duplicateTabWarning.js, io/exportAnimation.js, io/aiEditDesign.js, io/customLintRules.js, io/i18n.js, io/storage.js, io/indexedDbStore.js, io/exportSvg.js, io/globalProjectSearch.js, io/sqlDdlImport.js, io/serviceWorker.js, io/exportPulumi.js, io/exportCloudFormation.js, io/exportKubernetes.js, io/autoSuggest.js, io/autoSuggestWatcher.js, io/exportAnimationPptx.js, io/exportAnimationVideo.js)
+                 ├─ core/animationAutoBuild.js (Diagram Animation's post-AI-generation walkthrough builder)
+                 ├─ core/animationVideoTiming.js (pure per-step screen-time math for io/exportAnimationVideo.js)
+                 ├─ collab/*.js          (Live Collaboration — collab/webrtcCollab.js's manual WebRTC transport, collab/peerjsCollab.js's quick-room-code transport, collab/collabProtocol.js's signal encode/decode, collab/collabSession.js's transport-to-store sync)
                  └─ hints/hints.js (incl. hints/onboardingChecklistWidget.js)
 ```
 
@@ -3553,6 +3556,160 @@ disproportionate scope for what this batch needed: a Container or
 Component diagram is built exactly like any other diagram here, by
 dragging the matching shapes onto the canvas and connecting them, with no
 enforced abstraction-level state machine tying levels together.
+
+## AI Quick Start (`modals/quickStartModal.js`, `buildQuickStartPrompt` in `io/aiGenerateDesign.js`)
+
+A guided wizard distinct from `generateDesignModal.js` in one structural
+way: it doesn't close on success. Steps are `'setup' → 'describe' →
+'prompt' → 'paste' → 'done'`, with `'setup'` skipped entirely (start at
+`'describe'`) when `isAutomaticSendConfigured()` is already true. The
+`'setup'` step's "⚙️ Set up AI now" button calls
+`openDefaultSettingsModal({ scrollToAiProviders: true })` without closing
+the wizard first — native `<dialog>` elements stack, so Settings opens on
+top and closing it returns to the wizard underneath, still on `'setup'`
+(the nudge doesn't re-check itself and auto-advance; the user clicks
+"Skip →" either way once ready, matching how every other hand-off-capable
+flow here never actually requires automatic mode).
+
+`buildQuickStartPrompt` asks for a `rationale` object (`overview` string +
+one `{id, why}` per node) alongside the normal `nodes`/`edges` — see
+`docs/SPEC.md` 4.56. The `'done'` step reads `data.rationale` from the
+same parsed AI response `extractProjectJSON` already produced, entirely
+separately from `validateProject(data)`'s own output — `validateProject`
+builds its result field-by-field from a fixed whitelist (`core/project.js`
+~line 706), so the unknown `rationale` key is silently dropped from the
+saved project without any special-casing needed, and reading it from the
+raw parsed object before validation is what lets the `'done'` step still
+see it. Matching each rationale entry back to a created node is a plain
+id lookup (`project.nodes` retain whatever id string the AI used, since
+`validateContent` only generates a fresh id when one is missing/invalid —
+see 4.56).
+
+## Live Collaboration (`collab/webrtcCollab.js`, `collab/peerjsCollab.js`, `collab/collabSession.js`, `collab/collabProtocol.js`, `modals/collaborationModal.js`)
+
+Two interchangeable transports, both exposing the same shape —
+`send(data)`, `onMessage(fn)`, `onStatusChange(fn)`, `getStatus()`,
+`close()` — so `collab/collabSession.js` and `modals/collaborationModal.js`
+never need to know which one is in play:
+
+- **`webrtcCollab.js`** (manual method): raw `RTCPeerConnection` +
+  `RTCDataChannel`, non-trickle ICE. `waitForIceGatheringComplete` races
+  the real `icegatheringstatechange` event against a
+  `GATHER_TIMEOUT_MS` (4s) timer — **this is a hard requirement, not a
+  nicety**: this app's own e2e sandbox (and presumably some real
+  restrictive networks) can't reach the public STUN server at all, and
+  without the timeout race, non-trickle ICE would wait forever for a
+  gathering-complete event that never fires, silently hanging the whole
+  "Generating connection code…" step. The timeout means a code still
+  generates promptly with whatever candidates showed up in time — host
+  candidates alone (near-instant) for two devices on the same LAN, which
+  is this method's actual common case.
+- **`peerjsCollab.js`** (quick room-code method): wraps the vendored
+  PeerJS purely for its public broker (finding the other browser by a
+  short room code); the diagram data itself still flows directly
+  peer-to-peer once connected, same as the manual method. `randomRoomCode`
+  avoids visually-ambiguous characters (`0/O`, `1/I/L`) since the code is
+  meant to be read aloud or typed by hand. The `peer.on('error', ...)`
+  handler is registered for the peer's whole lifetime, not just the
+  initial connection attempt, and always calls `setStatus('error')` before
+  resolving its (possibly already-settled) promise — a broker-level error
+  arriving after the connection is already up would otherwise never reach
+  `onStatusChange`, since resolving an already-settled Promise a second
+  time is a silent no-op.
+
+`collab/collabSession.js` is the transport-agnostic sync: debounces local
+`store.subscribe('change')` events (400ms, same reasoning as
+`io/autoSuggestWatcher.js`), broadcasts the whole `store.getState()` on
+settle, and applies an incoming `{type:'state', project}` message via
+`store.dispatch((draft) => Object.assign(draft, structuredClone(msg.project)), { coalesce: true })`
+— not `store.loadProject`, since that would reset undo/redo history and
+selection on every single incoming update. A module-level `applyingRemote`
+flag set synchronously around that dispatch call is the echo-loop guard:
+without it, applying a remote update would itself fire `'change'`, which
+would broadcast it right back to where it came from.
+
+**Where session state lives, and why it survives the modal closing**:
+`transport`/`session`/`role`/`method` and every wizard-flow field
+(`offerCode`, `answerCode`, `hostedRoomCode`, ...) are module-scoped
+variables in `collaborationModal.js`, not local to
+`openCollaborationModal()`'s closure. Two reasons this matters:
+(1) closing the dialog mid-handshake (e.g. right after generating an offer
+code, before the other side has answered) must not forget that code —
+reopening the modal needs to resume exactly where it left off, not reset
+to `'choose'`; (2) `handleTransportStatusChange` — registered on every
+transport the moment it's created — starts the sync session and flips
+`screen` to `'connected'` the instant the transport actually connects,
+whether or not the modal is even open at that moment. A guest can connect
+after the host has already closed the setup dialog to go back to editing,
+and the sync must still start.
+
+**Testing**: the manual method is genuinely exercised end-to-end in
+`tests/e2e/liveCollaboration.spec.js` — two `context.newPage()` tabs (same
+pattern as `duplicateTabWarning.spec.js`) each run their own real
+`RTCPeerConnection`, negotiate over loopback, and sync actual diagram
+edits both ways; this works in the sandboxed CI browser precisely because
+the `GATHER_TIMEOUT_MS` race above doesn't block on STUN. The quick
+room-code method crosses PeerJS's real public broker and isn't
+e2e-tested here — same documented sandbox-network limitation as Local AI
+mode's WebLLM model download (`vendor/VENDOR.md`) — but its own plumbing
+(`randomRoomCode`, `describePeerError`) is unit-tested directly.
+
+## Diagram Animation: auto-build + PPTX/video export (`core/animationAutoBuild.js`, `modals/autoAnimationPrompt.js`, `io/exportAnimationPptx.js`, `io/exportAnimationVideo.js`, `core/animationVideoTiming.js`)
+
+`buildAutoWalkthroughAnimation(project, opts)` is a pure builder: one step
+per node then one step per edge, in the project's own array order — no
+smarter heuristic needed, since an AI's own listing order already reads
+as a narrative (gateway, service, database, then the connections between
+them). `modals/autoAnimationPrompt.js#offerAutoWalkthroughAnimation()` is
+called right after `store.loadProject(project)` succeeds in
+`generateDesignModal.js`, `quickStartModal.js` (after its `'done'` step's
+own "Done" click, not immediately on load, so it doesn't compete with the
+rationale screen), and `importFromImageModal.js` — skipped for a project
+with fewer than 2 nodes, since there's nothing to walk through. Installed
+via `canvas.js#setAnimations([animation], animation.id)`, the same
+wholesale-replace action the JSON import flow uses — safe here because a
+freshly-generated project's own `animations` array is always empty.
+
+Both export paths share `canvas.js#applyAnimationExportVisibility(revealedKeys)`
+/ `#clearAnimationExportVisibility()` — the same `.anim-hidden` CSS-class
+mechanism live playback's `applyAnimationVisibility` uses, but driven by
+an explicit revealed-keys set computed by the exporter itself (a
+cumulative union of each step's targets) rather than
+`core/animationPlayback.js`'s real playback state, since a capture pass
+shouldn't actually enter kiosk-mode playback. Both then call
+`io/exportImage.js#captureDiagramCanvas()` per step to rasterize the
+current reveal state — **note the import path**: `captureDiagramCanvas`
+lives in `io/exportImage.js`, not `canvas/canvas.js` (only
+`applyAnimationExportVisibility`/`clearAnimationExportVisibility` do); an
+earlier version of both new export modules imported it from the wrong
+module, which doesn't fail at parse time but breaks the *entire app's*
+module graph at runtime (a static `import { X } from ...` naming an export
+that doesn't exist throws when the graph is evaluated) — since
+`panel/animationPanel.js` statically imports both export modules, that one
+wrong import silently broke every other feature in the app, only caught by
+the full e2e regression suite (every test failed at the sidebar-never-
+-rendering stage, not with an error obviously pointing at animation
+export). Worth re-checking this exact import if either export module is
+touched again.
+
+`io/exportAnimationPptx.js` produces one slide per step, cumulatively
+revealing more of the diagram than the last. PowerPoint's own per-shape
+entrance animations and per-slide auto-advance timing live in OOXML's
+`<p:timing>` tree, which the vendored PptxGenJS 3.12.0 exposes nowhere —
+confirmed by grepping the actual bundled source for `advTm`/`transition`,
+not just its public `.d.ts` types — so each step's intended timing goes
+into that slide's speaker notes instead of a (silently fake) real
+auto-advance.
+
+`io/exportAnimationVideo.js` needs no vendored library — every browser
+this app already requires WebGPU support from for Local AI mode also
+ships `HTMLCanvasElement.captureStream()` and `MediaRecorder`. Every
+step's frame is captured up front (same visibility mechanism as the PPTX
+path), then drawn onto one persistent recording `<canvas>` and held for
+`core/animationVideoTiming.js#computeStepDurationMs` real time — an `auto`
+step's own `delayMs`, or a fixed `CLICK_STEP_DWELL_MS` (2s) for a `click`
+step, since there's no presenter there to click for it during an
+unattended recording.
 
 ## Security notes
 
