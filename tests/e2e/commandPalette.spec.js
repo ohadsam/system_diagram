@@ -82,5 +82,10 @@ test('every action added across recent batches is reachable from the palette (re
     await page.locator('.command-palette-input').fill(label.replace(/^\S+\s/, ''));
     await expect(page.locator('.command-palette-item', { hasText: label })).toBeVisible();
     await page.keyboard.press('Escape');
+    // The previous <dialog> must actually finish closing/removing itself
+    // before the next Ctrl/Cmd+K — otherwise a slow close can overlap with
+    // the next open and leave two `.command-palette-input` elements in the
+    // DOM at once, which every locator call below assumes can't happen.
+    await expect(page.locator('.command-palette-modal')).toBeHidden();
   }
 });
