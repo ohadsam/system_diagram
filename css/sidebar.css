@@ -19,12 +19,19 @@
   pointer-events: none;
 }
 
-.sidebar-popular-toggle {
+.sidebar-toggles-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0 var(--space-3) var(--space-2);
+}
+
+.sidebar-popular-toggle,
+.sidebar-compact-toggle {
   display: flex;
   align-items: center;
   gap: 5px;
   flex: 0 0 auto;
-  margin: 0 var(--space-3) var(--space-2);
   padding: 4px 10px;
   font-size: 12px;
   font-weight: 600;
@@ -32,10 +39,10 @@
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-round);
-  align-self: flex-start;
 }
 
-.sidebar-popular-toggle:hover {
+.sidebar-popular-toggle:hover,
+.sidebar-compact-toggle:hover {
   background: var(--color-surface-alt);
 }
 
@@ -43,6 +50,15 @@
   color: var(--color-amber-text);
   background: var(--color-amber-soft);
   border-color: #F59E0B;
+}
+
+/* Active = "compact mode is ON" (browsing a reduced library) — a distinct
+   color from the amber "★ popular" toggle above since the two can be on
+   at once and should read as independent filters, not a matched pair. */
+.sidebar-compact-toggle.active {
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+  border-color: var(--color-primary);
 }
 
 .sidebar-categories {

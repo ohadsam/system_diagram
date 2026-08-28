@@ -1723,3 +1723,23 @@
 .review-status-btn.is-active {
   outline: 2px solid var(--color-primary);
 }
+
+/* Feature Level settings (modals/defaultSettingsModal.js) — the Basic/
+   Advanced/Custom toggle from core/featureLevels.js. */
+.feature-level-settings {
+  margin-bottom: var(--space-4);
+}
+
+.feature-pack-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-alt);
+  border-radius: var(--radius-sm);
+}
+
+.feature-pack-row {
+  cursor: help;
+}

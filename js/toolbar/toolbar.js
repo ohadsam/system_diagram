@@ -94,6 +94,8 @@ import { t, getLanguage, setLanguage } from '../io/i18n.js';
 import { setTheme } from '../io/theme.js';
 import { isKioskMode, toggleKioskMode, onKioskModeChange } from '../core/kioskMode.js';
 import { onSuggestionsVisibilityChange } from '../canvas/suggestions.js';
+import { FEATURE_PACKS, isPackEnabled } from '../core/featureLevels.js';
+import { getFeatureLevelPrefs, onFeatureLevelChange } from '../io/featureLevelPrefs.js';
 
 let contextRow = null;
 let toolbarRootEl = null;
@@ -128,6 +130,47 @@ let canvasSearchCount = null;
 
 const EDGE_MARGIN = 8;
 
+/** Assembles one dropdown panel's contents from an always-visible "core"
+ * list plus zero or more pack-gated sections — see core/featureLevels.js.
+ * Every pack's buttons are always built and inserted (behind their own
+ * `.toolbar-dropdown-section-label` header, wrapped in one
+ * `.toolbar-dropdown-pack-section[data-pack-id]` container) — grouping
+ * this app's largest dropdown (Tools, 24+ buttons) into labeled sections
+ * is valuable regardless of whether anything is actually hidden. Whether a
+ * section starts *hidden* reflects the feature-level prefs at build time;
+ * `refreshPackSectionVisibility` (called from `onFeatureLevelChange`)
+ * re-derives that later without rebuilding any button, so none of a
+ * pack's buttons ever lose the live subscriptions/badges they set up when
+ * first created. A section with an empty `buttons` array is skipped
+ * outright (a pack that contributed nothing to this particular panel).
+ * @param {HTMLElement[]} coreButtons
+ * @param {{packId: string, buttons: HTMLElement[]}[]} packSections
+ */
+function buildGatedButtonList(coreButtons, packSections) {
+  const prefs = getFeatureLevelPrefs();
+  const out = [...coreButtons];
+  for (const { packId, buttons } of packSections) {
+    if (!buttons.length) continue;
+    const pack = FEATURE_PACKS.find((p) => p.id === packId);
+    const section = el('div', { class: 'toolbar-dropdown-pack-section', 'data-pack-id': packId, hidden: !isPackEnabled(prefs, packId) });
+    section.appendChild(el('div', { class: 'toolbar-dropdown-section-label', text: `${pack.icon} ${pack.label}`, title: pack.description }));
+    for (const b of buttons) section.appendChild(b);
+    out.push(section);
+  }
+  return out;
+}
+
+/** Re-applies the current Basic/Advanced/Custom choice to every already-
+ * built `.toolbar-dropdown-pack-section` inside one dropdown panel's root
+ * — see buildGatedButtonList's header comment for why this exists instead
+ * of rebuilding the panel's buttons. */
+function refreshPackSectionVisibility(panelRoot) {
+  const prefs = getFeatureLevelPrefs();
+  panelRoot.querySelectorAll('.toolbar-dropdown-pack-section').forEach((section) => {
+    section.hidden = !isPackEnabled(prefs, section.dataset.packId);
+  });
+}
+
 export function initToolbar(root) {
   root.classList.add('toolbar');
   toolbarRootEl = root;
@@ -138,13 +181,28 @@ export function initToolbar(root) {
   row1.appendChild(buildCommandPaletteGroup());
   row1.appendChild(buildNavToolGroup());
   row1.appendChild(buildQuickCreateGroup());
-  row1.appendChild(buildToolbarDropdown(t('toolbar.file'), '🗂️', t('toolbar.file.title'), buildFileGroupButtons()));
-  row1.appendChild(buildToolbarDropdown(t('toolbar.create'), '✨', t('toolbar.create.title'), buildCreateGroupButtons()));
+  const fileDropdown = buildToolbarDropdown(t('toolbar.file'), '🗂️', t('toolbar.file.title'), buildFileGroupButtons());
+  const createDropdown = buildToolbarDropdown(t('toolbar.create'), '✨', t('toolbar.create.title'), buildCreateGroupButtons());
+  row1.appendChild(fileDropdown);
+  row1.appendChild(createDropdown);
   const spacer = el('div', { class: 'toolbar-spacer' });
   row1.appendChild(spacer);
   row1.appendChild(renderZoomControls());
-  row1.appendChild(buildToolbarDropdown(t('toolbar.tools'), '🛠️', t('toolbar.tools.title'), buildToolsGroupButtons()));
+  const toolsDropdown = buildToolbarDropdown(t('toolbar.tools'), '🛠️', t('toolbar.tools.title'), buildToolsGroupButtons());
+  row1.appendChild(toolsDropdown);
   row1.appendChild(buildToolbarDropdown(t('toolbar.help'), '❓', t('toolbar.help.title'), buildHelpGroupButtons()));
+  // Every pack's buttons are always built (see buildGatedButtonList) —
+  // only their `.toolbar-dropdown-pack-section` wrapper's `hidden` reflects
+  // the current Basic/Advanced/Custom choice. So a settings change never
+  // needs to rebuild these panels (which would mean tearing down and
+  // recreating live badge subscriptions like the AI auto-suggest/comments/
+  // interview-timer/review-status badges — easy to leak): it just flips
+  // `hidden` on whichever sections changed. See
+  // io/featureLevelPrefs.js's header comment for why this listens on its
+  // own narrow pub-sub rather than uiPrefs.js's much noisier one.
+  onFeatureLevelChange(() => {
+    for (const panelRoot of [fileDropdown, createDropdown, toolsDropdown]) refreshPackSectionVisibility(panelRoot);
+  });
   // Appended last (not before the spacer): at common desktop widths this
   // row already has zero slack (the row-main children's combined width
   // sits right at the container edge — see git history around the canvas
@@ -461,7 +519,15 @@ function buildFileGroupButtons() {
   const versionHistoryBtn = el('button', { type: 'button', class: 'btn', title: 'Save named snapshots of this diagram, revert to one, or compare two', text: '📸 Version History', onClick: openVersionHistoryModal });
   const historyTimelineBtn = el('button', { type: 'button', class: 'btn', title: 'Visual undo/redo timeline — jump straight to any past step instead of pressing undo repeatedly', text: '🕘 Undo History', onClick: openHistoryTimelineModal });
   const presentationsBtn = el('button', { type: 'button', class: 'btn', title: 'Build a slideshow out of saved versions, play it, or export it to PowerPoint', text: '🎬 Presentations', onClick: openPresentationsModal });
-  return [newBtn, saveAsBtn, loadBtn, globalSearchBtn, addTabBtn, duplicateProjectBtn, exportJsonBtn, importJsonBtn, importUrlBtn, systemMapBtn, pngBtn, pdfBtn, exportPosterBtn, svgBtn, exportDiagramBtn, shareBtn, versionHistoryBtn, historyTimelineBtn, presentationsBtn, backupBtn];
+  // Core: the file lifecycle actions anyone needs regardless of experience
+  // level (create/save/load/duplicate/basic export). Everything else here
+  // is comparatively occasional/specialized — bulk-search, multi-diagram
+  // navigation, less-common export formats, versioning/history, backups —
+  // and lives behind the 'advanced-io' pack (see core/featureLevels.js).
+  return buildGatedButtonList(
+    [newBtn, saveAsBtn, loadBtn, duplicateProjectBtn, exportJsonBtn, importJsonBtn, pngBtn, pdfBtn],
+    [{ packId: 'advanced-io', buttons: [globalSearchBtn, addTabBtn, importUrlBtn, systemMapBtn, exportPosterBtn, svgBtn, exportDiagramBtn, shareBtn, versionHistoryBtn, historyTimelineBtn, presentationsBtn, backupBtn] }],
+  );
 }
 
 function buildCreateGroupButtons() {
@@ -501,7 +567,20 @@ function buildCreateGroupButtons() {
     text: '🎓 Demo Projects',
     onClick: openDemoProjectsModal,
   });
-  return [newComponentBtn, quickStartBtn, generateDesignBtn, importFromImageBtn, aiEditBtn, replicateBtn, sequenceDiagramBtn, importMermaidBtn, importSqlBtn, c4ContextBtn, templateGalleryBtn, demoProjectsBtn, defaultsBtn];
+  // Core: building blocks and beginner on-ramps (New Component, both AI
+  // starting-point wizards, the two browse-first-then-drop entry points,
+  // and Default Settings itself — which now also hosts the Feature Level
+  // section, so it must never be gated behind its own setting). The two
+  // more specialized AI actions and the diagram-type-specific wizards
+  // (sequence diagrams, C4, Replicate, Mermaid/SQL import) live behind
+  // packs — see core/featureLevels.js.
+  return buildGatedButtonList(
+    [newComponentBtn, quickStartBtn, generateDesignBtn, templateGalleryBtn, demoProjectsBtn, defaultsBtn],
+    [
+      { packId: 'ai-tools', buttons: [importFromImageBtn, aiEditBtn] },
+      { packId: 'diagram-types', buttons: [replicateBtn, sequenceDiagramBtn, importMermaidBtn, importSqlBtn, c4ContextBtn] },
+    ],
+  );
 }
 
 function buildToolsGroupButtons() {
@@ -755,7 +834,23 @@ function buildToolsGroupButtons() {
       setScene3DActive(true);
     },
   });
-  return [gridBtn, minimapBtn, focusModeBtn, alignGuidesBtn, themeBtn, languageBtn, aiReviewBtn, outlineBtn, commentsBtn, collabBtn, lintBtn, costBtn, describeBtn, interviewBtn, reviewStatusBtn, autoArrangeBtn, aiLayoutBtn, distributeBtn, scaleBtn, diagramThemeBtn, presenterModeBtn, animationBtn, flowSimBtn, scene3dBtn];
+  // Core: cosmetic/accessibility prefs (grid, snap guides, theme,
+  // language) plus two navigation aids whose *creation* path is already
+  // always available regardless of gating — Outline (a pure navigation
+  // list) and Comments (pinning a comment is a canvas right-click action,
+  // not gated; hiding just the "browse comments" button would leave a
+  // Basic-mode user able to create comments but not find them again).
+  // Everything else groups into a pack — see core/featureLevels.js.
+  return buildGatedButtonList(
+    [gridBtn, alignGuidesBtn, themeBtn, languageBtn, outlineBtn, commentsBtn],
+    [
+      { packId: 'ai-tools', buttons: [aiReviewBtn, aiLayoutBtn] },
+      { packId: 'collaboration', buttons: [collabBtn] },
+      { packId: 'analysis', buttons: [lintBtn, costBtn, describeBtn, interviewBtn, reviewStatusBtn] },
+      { packId: 'layout-tools', buttons: [autoArrangeBtn, distributeBtn, scaleBtn] },
+      { packId: 'visual-extras', buttons: [minimapBtn, focusModeBtn, diagramThemeBtn, presenterModeBtn, animationBtn, flowSimBtn, scene3dBtn] },
+    ],
+  );
 }
 
 function buildHelpGroupButtons() {

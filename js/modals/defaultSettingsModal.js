@@ -18,6 +18,8 @@ import { isWebGpuSupported, preloadLocalModel } from '../io/webllmEngine.js';
 import * as store from '../core/store.js';
 import { showToast } from '../utils/toast.js';
 import { confirmAction } from './confirmModal.js';
+import { FEATURE_MODES, FEATURE_PACKS } from '../core/featureLevels.js';
+import { getFeatureLevelPrefs, saveFeatureLevelPrefs } from '../io/featureLevelPrefs.js';
 
 const CONTEXT_ROW_MODE_LABELS = {
   floating: 'Floating — pops up next to whatever\'s selected',
@@ -43,7 +45,13 @@ const AI_SEND_MODE_LABELS = {
   local: 'Local AI in your browser (no key, no account — see below)',
 };
 
-export function openDefaultSettingsModal({ scrollToAiProviders = false } = {}) {
+const FEATURE_MODE_LABELS = {
+  basic: '🌱 Basic — hide advanced/power-user tools (recommended for new users)',
+  advanced: '🚀 Advanced — show every tool',
+  custom: '🎛️ Custom — choose exactly which tool groups to show',
+};
+
+export function openDefaultSettingsModal({ scrollToAiProviders = false, scrollToFeatureLevel = false } = {}) {
   const model = { ...getNodeDefaults() };
   const libraryModel = { ...getLibrarySettings() };
   const uiPrefsModel = { ...getUiPrefs() };
@@ -77,6 +85,13 @@ export function openDefaultSettingsModal({ scrollToAiProviders = false } = {}) {
           (v) => { libraryModel.suggestionsEnabled = v; saveLibrarySettings(libraryModel); },
           'Show "Smart Suggestions" (companion components) after placing a component',
         ));
+        form.appendChild(checkbox(
+          libraryModel.compactSidebar,
+          (v) => { libraryModel.compactSidebar = v; saveLibrarySettings(libraryModel); },
+          'Compact sidebar: show only Favorites, Recently Used and My Components by default (same toggle as the sidebar\'s own 🗂️ button)',
+        ));
+
+        form.appendChild(buildFeatureLevelSection(renderForm));
 
         form.appendChild(buildAiProvidersSection(renderForm));
 
@@ -121,6 +136,14 @@ export function openDefaultSettingsModal({ scrollToAiProviders = false } = {}) {
           scrollToAiProviders = false;
           requestAnimationFrame(() => form.querySelector('.ai-provider-settings')?.scrollIntoView({ block: 'start' }));
         }
+        if (scrollToFeatureLevel) {
+          // Same one-shot pattern as scrollToAiProviders just above — e.g.
+          // the progressive-unlock suggestion banner's "⚙️ Show me" link
+          // (hints/featureSuggestionBanner.js) and the Command Palette's
+          // own "Feature Level Settings" entry both jump straight here.
+          scrollToFeatureLevel = false;
+          requestAnimationFrame(() => form.querySelector('.feature-level-settings')?.scrollIntoView({ block: 'start' }));
+        }
       };
 
       renderForm();
@@ -140,6 +163,45 @@ function applyDefaultsToAllNodes(defaults) {
     }
   });
   return count;
+}
+
+/** "🧩 Feature Level" section — the Basic/Advanced/Custom toggle from
+ * core/featureLevels.js. This app has accumulated a very large number of
+ * toolbar actions across many batches; Basic mode hides everything but a
+ * small always-visible core, Advanced shows everything (this app's
+ * original, pre-this-feature behavior), and Custom lets someone pick
+ * exactly which packs they want. Every field here saves immediately (same
+ * convention as the Component library checkboxes above), and toolbar.js
+ * reacts live via io/featureLevelPrefs.js's onFeatureLevelChange — no
+ * reload needed, unlike the Language toggle elsewhere in this modal. */
+function buildFeatureLevelSection(renderForm) {
+  const prefs = getFeatureLevelPrefs();
+  const wrap = el('div', { class: 'feature-level-settings' });
+  wrap.appendChild(el('h3', { class: 'modal-subheading', text: '🧩 Feature Level' }));
+  wrap.appendChild(el('p', { class: 'modal-hint', text: 'This app has a lot of tools across the Create and Tools menus — pick how many of them show up. Nothing here removes or changes any diagram; it only changes what\'s visible in the toolbar. Every action stays reachable through ⌘/Ctrl+K Quick Actions regardless of this setting.' }));
+
+  wrap.appendChild(field('Show', selectInput(FEATURE_MODES, prefs.featureMode, (next) => {
+    saveFeatureLevelPrefs({ featureMode: next });
+    renderForm();
+  }, FEATURE_MODE_LABELS)));
+
+  if (prefs.featureMode === 'custom') {
+    const list = el('div', { class: 'feature-pack-list' });
+    for (const pack of FEATURE_PACKS) {
+      const checked = prefs.enabledPacks.includes(pack.id);
+      const row = checkbox(checked, (v) => {
+        const nextPacks = v ? [...prefs.enabledPacks, pack.id] : prefs.enabledPacks.filter((id) => id !== pack.id);
+        saveFeatureLevelPrefs({ enabledPacks: nextPacks });
+        renderForm();
+      }, `${pack.icon} ${pack.label}`);
+      row.title = pack.description;
+      row.classList.add('feature-pack-row');
+      list.appendChild(row);
+    }
+    wrap.appendChild(list);
+  }
+
+  return wrap;
 }
 
 /** "🤖 AI Providers" section — configures Direct API mode (io/aiProviderKeys.js,

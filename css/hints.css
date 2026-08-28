@@ -149,3 +149,52 @@
 [dir="rtl"] .onboarding-checklist-close {
   float: left;
 }
+
+/* Progressive-unlock suggestion nudge (hints/featureSuggestionBanner.js) —
+   bottom-right (mirrored under RTL) rather than the onboarding checklist
+   card's bottom-left, so the two can never visually stack even though
+   both are possible around the same time for a very fast first-time user. */
+.feature-suggestion-banner {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: var(--z-hint);
+  width: 300px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-3);
+}
+
+[dir="rtl"] .feature-suggestion-banner {
+  right: auto;
+  left: 16px;
+}
+
+.feature-suggestion-close {
+  float: right;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px;
+}
+
+.feature-suggestion-text {
+  margin: 0 0 var(--space-2);
+  clear: both;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.feature-suggestion-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}

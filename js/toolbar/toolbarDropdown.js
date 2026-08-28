@@ -55,7 +55,10 @@ document.addEventListener('keydown', (e) => {
  * @param {string} label visible text on the trigger button
  * @param {string} icon a single emoji shown before the label
  * @param {string} title tooltip summarizing the group's contents
- * @param {HTMLElement[]} buttons already-built <button> elements to show in the panel
+ * @param {HTMLElement[]} buttons already-built elements (buttons, and
+ *   optionally `.toolbar-dropdown-section-label` header divs, or a
+ *   `.toolbar-dropdown-pack-section` wrapper — see toolbar.js's
+ *   `buildGatedButtonList`) to show in the panel
  */
 export function buildToolbarDropdown(label, icon, title, buttons) {
   const root = el('div', { class: 'toolbar-dropdown' });
@@ -129,5 +132,5 @@ export function buildToolbarDropdown(label, icon, title, buttons) {
 
   root.appendChild(trigger);
   root.appendChild(panel);
-  return root;
+  return { root, setButtons };
 }

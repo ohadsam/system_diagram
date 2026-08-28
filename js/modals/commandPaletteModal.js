@@ -199,6 +199,7 @@ function buildAppCommands() {
     { id: 'system-map', label: '🗺️ System Map', keywords: ['system map', 'projects', 'graph', 'link'], run: () => openSystemMapModal() },
     { id: 'export-poster', label: '🧩 Export PDF (Poster)', keywords: ['pdf', 'poster', 'print', 'tile', 'pages'], run: () => openExportPosterModal() },
     { id: 'review-status', label: '📝 Review Status', keywords: ['review', 'status', 'draft', 'approved', 'approval'], run: () => openReviewStatusModal() },
+    { id: 'feature-level', label: '🧩 Feature Level Settings', keywords: ['feature level', 'basic', 'advanced', 'custom', 'hide', 'show', 'simplify', 'toolbar'], run: () => openDefaultSettingsModal({ scrollToFeatureLevel: true }) },
   ];
 }
 

@@ -20,7 +20,7 @@ import { confirmAction } from '../modals/confirmModal.js';
 import { promptText } from '../modals/promptModal.js';
 import { pickJSONFile } from '../io/fileIO.js';
 import { showToast } from '../utils/toast.js';
-import { getLibrarySettings, onLibrarySettingsChange } from '../io/librarySettings.js';
+import { getLibrarySettings, onLibrarySettingsChange, saveLibrarySettings } from '../io/librarySettings.js';
 import { getRecentComponentIds, onRecentComponentsChange } from '../io/recentComponents.js';
 import { t } from '../io/i18n.js';
 
@@ -87,7 +87,36 @@ export function initSidebar(root) {
   });
   popularBtn.appendChild(el('span', { text: '★', 'aria-hidden': 'true' }));
   popularBtn.appendChild(el('span', { text: t('sidebar.popularOnly') }));
-  rootEl.appendChild(popularBtn);
+  const togglesRow = el('div', { class: 'sidebar-toggles-row' });
+  togglesRow.appendChild(popularBtn);
+  rootEl.appendChild(togglesRow);
+
+  // Compact library: hide the full built-in category browser by default,
+  // keeping only Favorites/Recently Used/My Components (plus whatever a
+  // search matches, regardless of this setting — see renderList) — a new
+  // visitor otherwise lands on ~28 collapsed categories with no sense of
+  // which matter to them yet. Same persisted setting reachable from
+  // Default Settings (modals/defaultSettingsModal.js) for discoverability;
+  // this button is just the fast, in-context way to flip it.
+  const compactBtn = el('button', {
+    type: 'button',
+    class: 'sidebar-compact-toggle',
+    'aria-pressed': 'false',
+    onClick: () => saveLibrarySettings({ compactSidebar: !getLibrarySettings().compactSidebar }),
+  });
+  compactBtn.appendChild(el('span', { text: '🗂️', 'aria-hidden': 'true' }));
+  const compactBtnLabel = el('span');
+  compactBtn.appendChild(compactBtnLabel);
+  togglesRow.appendChild(compactBtn);
+  const syncCompactBtn = (settings) => {
+    const compact = !!settings.compactSidebar;
+    compactBtn.classList.toggle('active', compact);
+    compactBtn.setAttribute('aria-pressed', String(compact));
+    compactBtn.title = compact
+      ? 'Compact library is on — showing only Favorites, Recently Used and My Components. Click to show every category, or just search (search always looks everywhere).'
+      : 'Show only Favorites, Recently Used and My Components by default, hiding the full category list until you search or click this again.';
+    compactBtnLabel.textContent = compact ? 'Browse all categories' : 'Compact library';
+  };
 
   listEl = el('div', { class: 'sidebar-categories' });
   rootEl.appendChild(listEl);
@@ -105,7 +134,8 @@ export function initSidebar(root) {
     expanded.set(FAVORITES_CATEGORY.id, true);
     renderList();
   });
-  onLibrarySettingsChange(renderList);
+  syncCompactBtn(getLibrarySettings());
+  onLibrarySettingsChange((settings) => { syncCompactBtn(settings); renderList(); });
   // Unlike Favorites (a deliberate action), a component lands here on every
   // single placement — auto-expanding the section each time would yank
   // attention/scroll on normal canvas work, so just re-render in place.
@@ -151,7 +181,15 @@ function renderList() {
     listEl.appendChild(renderRecentCategory(q, recentDefs));
   }
 
+  // Compact mode hides the full built-in category browser (everything but
+  // "My Components", which stays — it's the user's own content, not
+  // library noise) until there's an active search query: search must
+  // always look everywhere regardless of this setting, or a compact-mode
+  // user could search for something and be told it doesn't exist.
+  const showBuiltinCategories = q || !librarySettings.compactSidebar;
+
   for (const cat of categories) {
+    if (!showBuiltinCategories && cat.id !== CUSTOM_CATEGORY.id) continue;
     let matches = filterComponents(cat.components, query);
     // "Popular only" is scoped to the built-in library — `popular` is a
     // curated per-component data flag (see data/schema.js), not something

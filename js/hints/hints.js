@@ -4,6 +4,8 @@
 import { el } from '../utils/dom.js';
 import { readJSON, writeJSON } from '../io/storage.js';
 import { HINTS } from './hintData.js';
+import { isPackEnabled } from '../core/featureLevels.js';
+import { getFeatureLevelPrefs } from '../io/featureLevelPrefs.js';
 
 const KEY = 'dismissedHints';
 const ENABLED_KEY = 'hintsEnabled';
@@ -39,7 +41,15 @@ export function setHintsEnabled(enabled) {
 }
 
 export function initHints() {
-  queue = HINTS.filter((h) => !getDismissed().has(h.id));
+  // A hint tagged with `packId` (see hintData.js) points at a toolbar
+  // button that only exists when that pack is enabled — see
+  // core/featureLevels.js. Showing it anyway (e.g. to a Basic-mode
+  // visitor) would describe a button that isn't there. This snapshot is
+  // taken once here, not re-checked per showNext() call, so mid-tour is
+  // never worse than "matches whatever the level was when the tour
+  // started" — hints are low-stakes and dismissible either way.
+  const prefs = getFeatureLevelPrefs();
+  queue = HINTS.filter((h) => !getDismissed().has(h.id) && (!h.packId || isPackEnabled(prefs, h.packId)));
   if (areHintsEnabled()) showNext();
   window.addEventListener('resize', () => {
     if (bubbleEl && currentTarget) positionBubble(bubbleEl, currentTarget, bubbleEl.dataset.placement);

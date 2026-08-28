@@ -33,6 +33,9 @@ import { initDuplicateTabWarning } from './io/duplicateTabWarning.js';
 import { registerServiceWorker } from './io/serviceWorker.js';
 import { startKeyboardConnect, isKeyboardConnectActive } from './canvas/keyboardConnect.js';
 import { initScene3DOverlay } from './canvas/scene3dOverlay.js';
+import { applyFirstVisitDefaultsIfNeeded } from './io/firstVisitDefaults.js';
+import { recordSessionStart } from './io/usageStats.js';
+import { maybeShowFeatureSuggestionBanner } from './hints/featureSuggestionBanner.js';
 
 function isTypingTarget(elRef) {
   if (!elRef) return false;
@@ -172,6 +175,12 @@ async function boot() {
   // every other module can keep reading storage synchronously either way.
   await initStorageBackend();
 
+  // Also must resolve before anything else touches storage — see this
+  // function's own header comment for why (a brand-new-visitor check that
+  // must see storage in its true "before this boot" state).
+  applyFirstVisitDefaultsIfNeeded();
+  recordSessionStart();
+
   // Already applied synchronously by index.html's inline <head> script
   // (before this module even loaded) — called again here so the rest of
   // the app (the toolbar's theme toggle) can rely on io/theme.js's applied
@@ -209,6 +218,7 @@ async function boot() {
   initKeyboardShortcuts();
   requestAnimationFrame(() => initHints());
   requestAnimationFrame(() => initOnboardingChecklistWidget());
+  requestAnimationFrame(() => maybeShowFeatureSuggestionBanner());
   registerServiceWorker();
 
   const whatsNew = checkWhatsNew();
