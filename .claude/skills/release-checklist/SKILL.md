@@ -13,6 +13,18 @@ finished; the version bump needs the review's fixes already applied; the merge n
 If a step turns up nothing to do (no hint-worthy feature, no doc actually affected), say so
 explicitly and move on — don't pad an entry just to have written something.
 
+**Before starting this checklist for a new batch, confirm the previous batch's own run of it
+actually finished.** This has silently failed before: the batch that shipped AI Beautify Layout,
+voice dictation, BPMN/UML Deployment, keyboard-only connect, and 3D Presentation Mode (v1.38.0)
+had its own "run the release checklist" step left pending when the next batch's work started
+directly on top of it — nobody noticed because the *next* batch's checklist run happened to
+re-cover most of the same ground (docs, hints, tests) anyway, and only an explicit "did anything
+from recent batches fall through the cracks?" audit caught the gap after the fact, by which point
+it was pure luck nothing had actually gone missing. Concretely: check this session's own task/todo
+list (or ask whether a prior "run the release checklist" step is still marked pending) before
+assuming the repo is in a clean, fully-checklisted state — don't just look at whether `main` is
+green, since a half-finished checklist and a green `main` look identical from the outside.
+
 ## 1. Code review — run it 3 times (technical, functional, UI/UX + mobile)
 
 **Literally three separate review passes, every time — not one merged skim, not "the important
