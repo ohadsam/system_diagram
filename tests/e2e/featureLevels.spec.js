@@ -8,7 +8,11 @@ test.beforeEach(async ({ page }) => {
 
 test('Tools dropdown groups its buttons under labeled sections', async ({ page }) => {
   await openToolbarGroup(page, 'Tools');
-  const labels = page.locator('.toolbar-dropdown-section-label');
+  // Every dropdown panel's buttons exist in the DOM all along (only the
+  // closed ones are `hidden` — see toolbar.js's buildGatedButtonList), so
+  // this has to scope to the one currently-open panel or it also picks up
+  // File's and Create's own section labels.
+  const labels = page.locator('.toolbar-dropdown-panel:not([hidden]) .toolbar-dropdown-section-label');
   await expect(labels).toHaveCount(5); // ai-tools, collaboration, analysis, layout-tools, visual-extras
   await expect(labels.filter({ hasText: 'AI Tools' })).toBeVisible();
   await expect(labels.filter({ hasText: 'Visual & Presentation' })).toBeVisible();

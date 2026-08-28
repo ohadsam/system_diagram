@@ -175,6 +175,17 @@ async function boot() {
   // every other module can keep reading storage synchronously either way.
   await initStorageBackend();
 
+  // io/whatsNew.js#checkWhatsNew has its own, unrelated "is storage
+  // completely empty" brand-new-visitor check — it has to run and capture
+  // its result *before* applyFirstVisitDefaultsIfNeeded()/
+  // recordSessionStart() below write anything, or it would see this boot's
+  // own writes and wrongly conclude "a returning visitor with no tracked
+  // version", popping the "What's New" modal on a real brand-new visitor's
+  // very first-ever load. `markVersionSeen()` and actually showing the
+  // modal both still happen later, in their original spot — only the
+  // *check* needs to move this early.
+  const whatsNew = checkWhatsNew();
+
   // Also must resolve before anything else touches storage — see this
   // function's own header comment for why (a brand-new-visitor check that
   // must see storage in its true "before this boot" state).
@@ -221,7 +232,6 @@ async function boot() {
   requestAnimationFrame(() => maybeShowFeatureSuggestionBanner());
   registerServiceWorker();
 
-  const whatsNew = checkWhatsNew();
   markVersionSeen();
   if (whatsNew.show) requestAnimationFrame(() => openWhatsNewModal(whatsNew.highlights));
 }
