@@ -44,6 +44,7 @@ import { openDiagramDescriptionModal } from '../modals/diagramDescriptionModal.j
 import { setScene3DActive } from '../core/scene3dMode.js';
 import { openSequenceDiagramModal } from '../modals/sequenceDiagramModal.js';
 import { openTemplateGalleryModal } from '../modals/templateGalleryModal.js';
+import { openDemoProjectsModal } from '../modals/demoProjectsModal.js';
 import { openImportSequenceMermaidModal } from '../modals/importSequenceMermaidModal.js';
 import { openImportSqlModal } from '../modals/importSqlModal.js';
 import { openC4ContextModal } from '../modals/c4ContextModal.js';
@@ -476,7 +477,13 @@ function buildCreateGroupButtons() {
     text: '🖼️ Template Gallery',
     onClick: openTemplateGalleryModal,
   });
-  return [newComponentBtn, quickStartBtn, generateDesignBtn, importFromImageBtn, aiEditBtn, replicateBtn, sequenceDiagramBtn, importMermaidBtn, importSqlBtn, c4ContextBtn, templateGalleryBtn, defaultsBtn];
+  const demoProjectsBtn = el('button', {
+    type: 'button', class: 'btn',
+    title: 'Demo Projects: load a ready-made example diagram showing off a different diagram kind (or a combo of two), and clear it again when done',
+    text: '🎓 Demo Projects',
+    onClick: openDemoProjectsModal,
+  });
+  return [newComponentBtn, quickStartBtn, generateDesignBtn, importFromImageBtn, aiEditBtn, replicateBtn, sequenceDiagramBtn, importMermaidBtn, importSqlBtn, c4ContextBtn, templateGalleryBtn, demoProjectsBtn, defaultsBtn];
 }
 
 function buildToolsGroupButtons() {

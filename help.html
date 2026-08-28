@@ -152,6 +152,15 @@
     font-size: 14px;
     margin-top: 14px;
   }
+  .help-screenshot {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    margin: 14px 0;
+  }
   details {
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
@@ -226,6 +235,7 @@
       <li><a href="#c4-model">C4 Model</a></li>
       <li><a href="#sql-import">Import from SQL</a></li>
       <li><a href="#template-gallery">Template Gallery</a></li>
+      <li><a href="#demo-projects">Demo Projects</a></li>
       <li><a href="#offline">Offline &amp; installable</a></li>
       <li><a href="#language">Language &amp; RTL</a></li>
       <li><a href="#3d-presentation">3D Presentation Mode</a></li>
@@ -301,6 +311,7 @@
 
     <section id="canvas">
       <h2><span class="icon-badge">🖼️</span> Working on the canvas</h2>
+      <img class="help-screenshot" src="assets/screenshots/canvas-overview.png" alt="A layered system diagram on the canvas — Controller, Service, Data Access Layer, and a Database component, connected top to bottom with arrows.">
       <table>
         <tr><th>Action</th><th>How</th></tr>
         <tr><td>Move a component</td><td>Drag it. Selecting several first (Shift-click or drag a selection box) moves them together.</td></tr>
@@ -379,6 +390,8 @@
 
     <section id="connectors">
       <h2><span class="icon-badge">➡️</span> Connectors &amp; arrows</h2>
+      <img class="help-screenshot" src="assets/screenshots/connectors.png" alt="A component hovered on the canvas, showing its four small blue connection-point dots, with arrows already drawn down to three components below it.">
+
       <p>Hover or select a component to reveal four small connection points on its edges. Drag from one to another component to draw a connector — it stays attached and re-routes live as you move things. Which point it actually starts/ends on is picked automatically from where the two components sit relative to each other, not fixed to whichever point you happened to grab — so a connector always exits/enters on the geometrically sensible side, whichever exact point you dragged from. Where along that side it lands, though, <em>is</em> wherever you actually grabbed/dropped it — most shapes' connection points are a small dot right at the midpoint so this rarely matters, but a tall shape like a <a href="#sequence-diagram">sequence-diagram lifeline</a> exposes a full-height strip so several connectors can land on it at different heights instead of piling up on one point.</p>
       <p>Select a connector to style it: color, thickness, dash pattern, routing (straight / elbow / curved / 🪄 magic — see below), an independent arrow-head style for each end (none, open, filled, diamond, circle — so you can build one-way, two-way, or plain lines), and an optional label. The default (elbow) routing automatically avoids every other component in its path, using as few bends as possible — no extra step needed, every connector you draw does this out of the box.</p>
       <p>Right-click a connector for its own menu: <strong>Open details</strong> (a right-side panel with the same label field plus a free-text notes field — see <a href="#details">Notes &amp; sub-components</a>), Duplicate, Delete.</p>
@@ -460,6 +473,7 @@
 
     <section id="ai-review">
       <h2><span class="icon-badge">🤖</span> AI Design Review</h2>
+      <img class="help-screenshot" src="assets/screenshots/ai-design-review.png" alt="The AI Design Review panel open next to a diagram, showing the Review/Explain/Security mode toggle and an editable, auto-generated review prompt.">
       <p>Click "🤖" in the toolbar to open a side panel that helps you get a system-design review from a mainstream AI — <strong>no API key or setup required</strong> by default (see <a href="#ai-direct-mode">Direct API mode</a> below for the optional alternative that skips the copy/paste step).</p>
       <div class="tip">🔑 How it actually works: no AI provider (Claude, ChatGPT, Gemini, Copilot) offers key-free API access, and pulling results from Google's AI-powered search isn't possible either (blocked, and against Google's terms) — so instead of pretending otherwise, this panel prepares everything and hands it to <em>you</em> to paste in, using whichever AI account you're already signed into.</div>
       <div class="tip">💬 The panel's top has a "🔍 Review" / "💬 Explain" toggle — Review (the default) asks for critique/feedback as below; Explain instead asks the AI for a plain-language walkthrough of what the diagram represents, handy for onboarding a teammate or sanity-checking a generated/imported diagram. A third "💡 Suggestions" option appears too once Direct API mode or Local AI mode is set up — see <a href="#ai-suggestions">AI-Powered Suggestions</a> below.</div>
@@ -607,6 +621,7 @@
 
     <section id="sequence-diagram">
       <h2><span class="icon-badge">🔀</span> Sequence Diagrams</h2>
+      <img class="help-screenshot" src="assets/screenshots/sequence-diagram.png" alt="A sequence diagram with four lifelines (Client, Server, Auth Service, Users DB) and numbered messages flowing between them, showing a login request/response handshake.">
       <p>A UML-style "communication flow" diagram — vertical <strong>lifelines</strong>, one per participant, with horizontal <strong>messages</strong> between them showing a call followed by a response (or any back-and-forth), read top to bottom as time.</p>
       <ol>
         <li><strong>Open the wizard</strong> — toolbar's "✨ Create" menu → "🔀 Sequence Diagram". Enter 2 or more participant names (Client, Server, Database, ...) — add or remove rows as needed — and click "🔀 Create". One titled lifeline appears for each name, evenly spaced left to right.</li>
@@ -661,6 +676,13 @@
       <p>"Create" → "🖼️ Template Gallery" browses every Reference Architecture and Design Pattern visually, each with a small preview thumbnail, instead of scanning the sidebar's text list. Search or switch category tabs to narrow it down, then click a card to drop it onto the canvas — same as clicking it in the sidebar.</p>
     </section>
 
+    <section id="demo-projects">
+      <h2><span class="icon-badge">🎓</span> Demo Projects</h2>
+      <p>"Create" → "🎓 Demo Projects" opens a picker with a ready-made example diagram for each of the different diagram kinds this app supports — a plain layered system diagram, a highly-available microservices deployment, a <a href="#sequence-diagram">sequence diagram</a>, a BPMN process, a UML deployment diagram, an ER diagram, a state machine, and a C4 Context diagram — plus a "Combo" demo showing two kinds coexisting on the same canvas at once (a regular system diagram next to a sequence diagram detailing one of its request flows), to make the point that this isn't an either/or choice.</p>
+      <img class="help-screenshot" src="assets/screenshots/demo-projects.png" alt="The Demo Projects modal, listing several ready-made example diagrams (Basic Web App, Highly-Available Microservices, Sequence Diagram, BPMN Approval Process, UML Deployment Diagram, ...) each with a Load button.">
+      <p>Click "Load" on any demo to drop it onto the canvas — if the canvas already has something on it, you'll be asked to confirm first, exactly like <a href="#generate-design">Generate Design</a> does before replacing your current diagram (undo brings it right back either way). The same modal's "🧹 Clear Canvas" button clears whatever's currently on the canvas, demo or not, back to blank — handy once you're done exploring a demo.</p>
+    </section>
+
     <section id="offline">
       <h2><span class="icon-badge">📴</span> Offline &amp; installable</h2>
       <p>Once you've loaded this app in your browser at least once, it keeps working — including autosave — without a network connection, and reconnects to fetch anything newer in the background the next time you're online. Most browsers also let you "install" it like a native app from the browser's own menu, for a window without the usual browser chrome.</p>
@@ -674,6 +696,7 @@
 
     <section id="3d-presentation">
       <h2><span class="icon-badge">🧊</span> 3D Presentation Mode</h2>
+      <img class="help-screenshot" src="assets/screenshots/3d-presentation.png" alt="A diagram rendered as a rotatable 3D scene — extruded, colored boxes for each component, with blue and red cable-like connectors arcing between them.">
       <p>Click "🧊 3D Presentation" (Tools menu, needs at least 1 component) to open a full-screen 3D view of your diagram, built for presenting rather than editing — nothing here can be moved, resized, or restyled. Every component becomes an extruded, colored box, and every connector becomes an animated "cable" — one flow direction rendered blue, the opposite direction red, so you can tell at a glance which way each connection actually points, purely from its own geometry (two connectors running opposite ways between the same pair of components always come out one of each color). Drag to orbit around the scene, scroll to zoom, or just leave it alone — it slowly rotates on its own when you're not actively dragging, for a presentation-ready look with zero setup.</p>
       <p>If your diagram has a <a href="#canvas">Diagram Animation</a>, playing it (▶️) inside this view reveals components in the same order it normally would, and while it plays you'll see small ambient particles moving inside each visible component — like packets of information being processed — plus a subtly pulsing decal on a few components, for the look of hardware doing real work. No animation on the diagram? The scene just sits there, ready to orbit and admire.</p>
       <p>Click "🎥 Export 3D Video" to record the whole thing to a downloadable video file: with a Diagram Animation present, it plays the animation through in real time (each step's own timing, exactly like a live playback) and captures every frame; with no animation, it records a fixed ~8-second orbiting shot instead. Click "✕ Close" (or <kbd>Esc</kbd>) to leave 3D Presentation Mode and return to normal editing — your diagram itself is completely untouched by any of this, since the 3D scene is only ever a view built from your existing components and connectors, never saved data of its own.</p>
@@ -681,6 +704,7 @@
 
     <section id="shortcuts">
       <h2><span class="icon-badge">⌨️</span> Keyboard shortcuts</h2>
+      <img class="help-screenshot" src="assets/screenshots/command-palette.png" alt="The Quick Actions command palette open over a diagram, showing search results for &quot;arrange&quot; including Auto-arrange and AI Beautify Layout.">
       <table>
         <tr><th>Shortcut</th><th>Action</th></tr>
         <tr><td><kbd>Ctrl/Cmd</kbd>+<kbd>K</kbd></td><td>Open the Command Palette ("⌘ Quick Actions") — search any app action or add any component from one box</td></tr>

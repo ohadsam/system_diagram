@@ -68,3 +68,19 @@ test('keyboard navigation (ArrowDown/ArrowUp) moves the active highlight, and En
   await expect(page.locator('.command-palette-modal')).toBeHidden();
   await expect.poll(() => nodeCount(page)).toBe(before + 1);
 });
+
+test('every action added across recent batches is reachable from the palette (release-checklist audit)', async ({ page }) => {
+  const expectedLabels = [
+    '🔎 Search All Projects', '🗂️ Open in New Tab...', '🕘 Undo History', '🪄 AI Quick Start',
+    '🖼️ Import from Image', '💬 Edit with AI', '🧩 C4 Context Diagram', '📥 Import from SQL',
+    '🖼️ Template Gallery', '🎓 Demo Projects', '🤝 Collaborate', '💬 Comments', '📋 Outline',
+    '🪄 AI Beautify Layout', '📃 Describe Diagram', '🖥️ Presenter Mode', '🎞️ Diagram Animation',
+    '💫 Flow Simulation', '🧊 3D Presentation', "🆕 What's New",
+  ];
+  for (const label of expectedLabels) {
+    await page.keyboard.press('ControlOrMeta+k');
+    await page.locator('.command-palette-input').fill(label.replace(/^\S+\s/, ''));
+    await expect(page.locator('.command-palette-item', { hasText: label })).toBeVisible();
+    await page.keyboard.press('Escape');
+  }
+});

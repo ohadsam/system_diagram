@@ -1411,3 +1411,59 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+.demo-projects-intro {
+  margin: 0 0 var(--space-3);
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.demo-projects-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-height: 55vh;
+  overflow-y: auto;
+}
+
+.demo-projects-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-alt);
+}
+
+.demo-projects-row-icon {
+  font-size: 24px;
+  flex: none;
+}
+
+.demo-projects-row-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.demo-projects-row-name {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.demo-projects-row-desc {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.demo-projects-row-load {
+  flex: none;
+}
+
+.demo-projects-clear-btn {
+  margin-top: var(--space-3);
+  width: 100%;
+}

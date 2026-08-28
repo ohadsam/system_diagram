@@ -182,7 +182,9 @@ this repo" quick-start.
 | Change "📃 Describe Diagram" | `js/core/diagramDescription.js#buildDiagramDescription` (pure, detects sequence diagrams via `shape === 'lifeline'`) + `js/modals/diagramDescriptionModal.js` (plain-text readonly view + copy button) |
 | Change the Diagram Health Score | `js/core/diagramHealth.js#computeDiagramHealth(nodeCount, findingsCount)` (pure) + `js/modals/diagramLintModal.js` (the `.diagram-health-badge`) |
 | Change version branching (Branch from here / Merge into...) | `js/core/versionBranches.js` (`listBranches`/`versionsOnBranch`/`copyVersionToBranch` — copies a snapshot onto a new branch, **not** a real structural merge) + `js/canvas/canvas.js#branchFromVersion` + `js/modals/versionHistoryModal.js` (branch selector + the two buttons) |
-| Change 3D Presentation Mode (geometry, rendering, or video export) | `js/core/scene3dLayout.js` (pure 2D→3D mapping + cable direction/color, unit-testable) + `js/render3d/scene3dRenderer.js` (all Three.js/WebGL — the only importer of `vendor/three.module.min.js`; **must** call the returned `dispose()` on close, it holds a real GPU context) + `js/core/scene3dMode.js` (on/off pub-sub) + `js/canvas/scene3dOverlay.js` (overlay UI) + `js/io/export3dVideo.js` (drives playback via `animationPlayback.js#setFrozen(true)` + manual `nextStep()`, records via `captureStream`/`MediaRecorder`). **Read** docs/ARCHITECTURE.md's "3D Presentation Mode" section before touching the orbit camera or the video-export step loop. |
+| Change 3D Presentation Mode (geometry, rendering, or video export) | `js/core/scene3dLayout.js` (pure 2D→3D mapping + cable direction/color, unit-testable) + `js/render3d/scene3dRenderer.js` (all Three.js/WebGL — the only importer of `vendor/three.module.min.js`; **must** call the returned `dispose()` on close, it holds a real GPU context) + `js/core/scene3dMode.js` (on/off pub-sub) + `js/canvas/scene3dOverlay.js` (overlay UI) + `js/io/export3dVideo.js` (drives playback via `animationPlayback.js#setFrozen(true)` + manual `nextStep()`, records via `captureStream`/`MediaRecorder`). **Read** docs/ARCHITECTURE.md's "3D Presentation Mode" section before touching the orbit camera or the video-export step loop — in particular, don't map a new shape's `node.w`/`node.h` straight into a 3D box's width/depth without checking it's actually a spatial footprint (a lifeline's `h` isn't, see the gotcha there). |
+| Add/change a Demo Project, or add a new diagram *kind* that should get one | `js/core/demoProjects.js` (`DEMO_PROJECTS` list, `buildPatternPieces`/`buildLifelinePieces`/`manualChain` builders — reuse an existing pattern via `buildPatternPieces` whenever one exists rather than hand-placing nodes) + `js/modals/demoProjectsModal.js` (picker UI) + `js/canvas/canvas.js#loadDemoProject`. Run `tests/unit/demoProjects.test.mjs` after adding one — it validates every demo's `defId`s resolve and the built project passes `validateProject()`. See docs/ARCHITECTURE.md's "Demo Projects" section. |
+| Add a new toolbar action/modal and make sure it's reachable by keyboard | Add it to `js/modals/commandPaletteModal.js#buildAppCommands()` (or `buildContextualCommands` if it only makes sense with a component selected) with a label matching the toolbar button's own icon+text — the palette drifted behind several batches of real features before an explicit audit caught it, see docs/ARCHITECTURE.md's "Command Palette completeness" section. Extend the expected-labels list in `tests/e2e/commandPalette.spec.js`'s "every action added across recent batches is reachable" test too. A brand-new dedicated keyboard shortcut in `main.js#initKeyboardShortcuts` is the exception, not the default — reserved for continuously-repeated actions (zoom, undo/redo, delete, duplicate, tool-mode toggles), not one-off modals. |
 
 ## Running things locally
 
@@ -906,3 +908,29 @@ npm test
   time a new sibling function is added next to others that share an
   options shape, check it actually uses every field the *shared* UI still
   offers for it, not just the fields exercised by its own first draft.
+- **A new "adapt an existing 2D value for a new visual context" function
+  should never assume every shape's field means the same thing in the new
+  context.** `core/scene3dLayout.js#computeNode3D` mapped every shape's
+  `node.w`/`node.h` into a 3D box's width/depth the same way — correct
+  for an ordinary component (a real spatial footprint), silently wrong
+  for a sequence-diagram lifeline (`h` is a time axis, often 600+, not a
+  footprint), producing a 3D box that visually dwarfed every other shape
+  in the scene with no error anywhere. Only caught by rendering one
+  instance of every 2D shape side by side in the actual 3D view and
+  comparing them — a unit test on `computeNode3D` alone had nothing to
+  compare against, since it only ever asserted one shape's output in
+  isolation. When adding a new geometry/rendering adapter over an
+  existing schema field, ask explicitly whether every shape that can hold
+  that field actually means the same *kind* of thing by it, not just
+  whether the field exists.
+- **The Command Palette (`modals/commandPaletteModal.js#buildAppCommands`)
+  is documented as a complete index of every toolbar action, but nothing
+  enforces that automatically — it drifted behind a dozen-plus real
+  features across several batches** (AI Quick Start, Import from Image,
+  Template Gallery, Collaborate, 3D Presentation, and more were all
+  reachable from the toolbar but not from Ctrl/Cmd+K) before an explicit
+  audit caught it all at once. Add a new toolbar action's palette entry
+  in the *same* commit that adds the toolbar button, not as a follow-up —
+  `tests/e2e/commandPalette.spec.js`'s "every action added across recent
+  batches is reachable" test exists to catch this going forward; extend
+  its expected-labels list whenever you add a new one.

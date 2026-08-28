@@ -20,6 +20,20 @@ const SHAPE_HEIGHT = {
 };
 const DEFAULT_HEIGHT = 60;
 
+// A lifeline's 2D `h` (often 600+) is a *time axis*, not a real spatial
+// footprint the way every other shape's width/height genuinely is — mapping
+// it straight through like every other node (as this function did before)
+// makes a lifeline's 3D box hundreds of units deep but only
+// DEFAULT_HEIGHT/cylinder/etc. tall, rendering as a giant flat slab wildly
+// out of proportion with every other component (confirmed visually: it
+// dwarfed every other shape in the scene). A lifeline persisting across the
+// whole interaction reads better in 3D as a tall pillar than a wide slab, so
+// it gets its own fixed footprint/height instead of reusing `node.w`/`node.h`
+// literally — anchored near the top of its 2D bounding box (where its title
+// box actually sits), not centered on the full time-axis span.
+const LIFELINE_DEPTH = 70;
+const LIFELINE_HEIGHT = 220;
+
 export const FORWARD_COLOR = '#2563EB';
 export const BACKWARD_COLOR = '#DC2626';
 
@@ -27,14 +41,16 @@ export const BACKWARD_COLOR = '#DC2626';
  * width/height/depth, so the renderer can build a `THREE.BoxGeometry`
  * directly from it (Three.js boxes are centered on their own origin). */
 export function computeNode3D(node) {
-  const height = SHAPE_HEIGHT[node.shape] ?? DEFAULT_HEIGHT;
+  const isLifeline = node.shape === 'lifeline';
+  const height = isLifeline ? LIFELINE_HEIGHT : (SHAPE_HEIGHT[node.shape] ?? DEFAULT_HEIGHT);
+  const depth = isLifeline ? LIFELINE_DEPTH : node.h;
   return {
     id: node.id,
     x: node.x + node.w / 2,
     y: height / 2,
-    z: node.y + node.h / 2,
+    z: node.y + depth / 2,
     width: node.w,
-    depth: node.h,
+    depth,
     height,
     // The 3D box's main surface uses the node's *stroke* color, not its
     // fill — a 2D node's fill is deliberately a very light pastel tint of

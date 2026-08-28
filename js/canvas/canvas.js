@@ -11,6 +11,7 @@ import { computeAutoLayout } from '../core/autoLayout.js';
 import { layoutLifelines, distributeLifelineColumns, distributeMessages, layoutImportedSequenceDiagram, GAP as LIFELINE_GAP } from '../core/sequenceDiagram.js';
 import { layoutErTables } from '../core/erDiagramLayout.js';
 import { layoutC4Context } from '../core/c4Context.js';
+import { buildDemoProject } from '../core/demoProjects.js';
 import { scaleNodes } from '../core/scaleDiagram.js';
 import { applyDiagramTheme, DIAGRAM_THEMES } from '../core/diagramTheme.js';
 import { initMinimap } from './minimap.js';
@@ -1542,6 +1543,24 @@ export function createC4ContextDiagram(systemName, people, externalSystems) {
   store.select(newNodes.map((n) => n.id), []);
   showToast(`Created a C4 Context diagram with ${newNodes.length} boxes.`, 'success', 3200);
   return newNodes.length;
+}
+
+/** Loads a ready-made Demo Project (see core/demoProjects.js and
+ * modals/demoProjectsModal.js) — a full project switch via
+ * `store.loadProject`, same as Load/New/"Generate Design"/"AI Quick
+ * Start", not an incremental `dispatch` onto the current canvas. The
+ * modal itself is responsible for confirming replacement of a non-empty
+ * canvas first (same pattern as those other full-switch flows) and for
+ * offering "🧹 Clear Canvas" (the existing `clearCanvas()` below) right
+ * alongside it — a loaded demo needs no separate "is this a demo"
+ * tracking of its own to be clearable. */
+export function loadDemoProject(demoId) {
+  const project = buildDemoProject(demoId);
+  if (!project) return false;
+  store.loadProject(project);
+  store.select(project.nodes.map((n) => n.id), []);
+  showToast(`Loaded "${project.name}" (${project.nodes.length} components).`, 'success', 2800);
+  return true;
 }
 
 /** Quick "add one more participant" for an existing sequence diagram (right-

@@ -110,6 +110,39 @@ Keep this in sync with `PLAN.md` as stages complete.
   field (with autocomplete) on custom components, grouping them into
   collapsible 📁 sub-groups in the sidebar.
 
+## v1.39.0 (2026-08-28)
+
+**🎓 Demo Projects** — a new "🎓 Demo Projects" picker (Create menu) loads a ready-made example
+diagram for each diagram kind this app supports: a plain layered system diagram, a highly-available
+replicated deployment, a sequence diagram, a BPMN process, a UML deployment diagram, an ER diagram,
+a state machine, and a C4 Context diagram — plus a "Combo" demo showing a regular system diagram
+and a sequence diagram coexisting on the same canvas, to make the point that these aren't
+mutually exclusive. Loading a demo asks for confirmation first if the canvas isn't already empty
+(same as Generate Design/AI Quick Start); "🧹 Clear Canvas" sits in the same modal for convenience.
+Built with `js/core/demoProjects.js` — a pure module reusing the exact same pattern/lifeline
+construction logic the interactive paths already use, so a demo can't drift out of sync with what
+those mechanisms actually produce.
+
+**In-app guide screenshots** — `help.html` now embeds real screenshots for several visually
+distinctive screens (the canvas, connectors/connection points, a sequence diagram, 3D Presentation
+Mode, the AI Design Review panel, Demo Projects, and the Command Palette) alongside the existing
+prose, since some things are genuinely clearer shown than described.
+
+**3D Presentation Mode: lifeline shape fix** — a sequence-diagram lifeline rendered in the 3D view
+as a giant, wildly disproportionate slab (its 2D height, a time axis rather than a spatial
+footprint, was being mapped straight into the 3D box's depth). It now renders as a tall pillar
+instead, sized comparably to every other component in the scene — found and fixed by rendering one
+instance of every 2D shape side by side in the 3D view and comparing them.
+
+**Command Palette completeness audit** — the Command Palette (Ctrl/Cmd+K) is meant to be a
+complete index of every toolbar action, but had drifted behind more than a dozen real features
+across several batches. AI Quick Start, Import from Image, Edit with AI, C4 Context Diagram,
+Import from SQL, Template Gallery, Demo Projects, Collaborate, Comments, Outline, AI Beautify
+Layout, Describe Diagram, Presenter Mode, Diagram Animation, Flow Simulation, 3D Presentation,
+the Language toggle, and What's New are all now searchable from the palette. Keyboard shortcuts
+were reviewed too — no gaps found; every existing shortcut is still reserved for a continuously-
+repeated action, with everything else discoverable through the (now complete) palette.
+
 ## v1.38.0 (2026-08-27)
 
 **🧊 3D Presentation Mode** — the headline feature of this batch: a one-click "🧊 3D Presentation"

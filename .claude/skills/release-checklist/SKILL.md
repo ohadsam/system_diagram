@@ -144,16 +144,60 @@ is "nothing to do":
 - `help.html` — the in-app user guide. Add/update a section, its TOC entry, and an FAQ entry if
   relevant. Verify every TOC `href="#x"` still resolves to a real `<section id="x">` (a broken
   anchor is easy to introduce and easy to check: extract all `href="#..."` and `<section id="...">`
-  values and diff them).
+  values and diff them). **If this batch adds a genuinely new, visually distinctive screen** (a new
+  modal, a new full-canvas view like 3D Presentation, a new panel) that a screenshot would make
+  meaningfully easier to understand than prose alone, add one: serve the app locally, drive it with
+  a throwaway Playwright script (dismiss the "Skip all" hints prompt and any onboarding-checklist
+  widget first, click "Fit to screen" before capturing a canvas view, use `page.locator(...).screenshot()`
+  or a `clip` region to crop tightly rather than a full 1280×900 viewport with mostly empty space),
+  save the PNG under `assets/screenshots/`, and embed it with `<img class="help-screenshot" src="assets/screenshots/<name>.png" alt="...">`
+  right after that section's `<h2>` — see the existing screenshots there for the pattern. Not every
+  batch needs a new one; most changes extend an already-illustrated screen and need no image at all.
 
-## 6. Skills — including a self-review of this checklist
+## 6. Demo Projects (`js/core/demoProjects.js`, `js/modals/demoProjectsModal.js`)
+
+**If this batch adds a new diagram *kind*** (a new sidebar category with its own distinct visual
+shape/pattern — the way BPMN, UML Deployment, and Sequence Diagrams each got their own demo — not
+just a new component within an existing kind), add a matching entry to `DEMO_PROJECTS` in
+`js/core/demoProjects.js` so "🎓 Demo Projects" (Create menu) keeps demonstrating every kind this
+app actually supports. Reuse an existing ready-made pattern/template via `buildPatternPieces(...)`
+where one already exists (fastest, and automatically stays in sync with that pattern's own
+nodes/edges) rather than hand-placing nodes; only reach for `manualChain(...)` when no suitable
+pattern exists yet (as UML Deployment's demo does). Run `tests/unit/demoProjects.test.mjs` after
+adding one — it validates every demo's `defId`s resolve to real components and the built project
+passes `validateProject()`, which catches a typo'd id immediately rather than only when someone
+opens that specific demo. If the batch's new feature is a capability *within* an existing diagram
+kind (a new sequence-diagram fragment type, a new BPMN shape) rather than a whole new kind, no demo
+change is needed — say so explicitly rather than skipping the question.
+
+## 7. Command Palette & Keyboard Shortcuts
+
+**Every new toolbar-reachable action or modal added this batch needs a matching entry in
+`js/modals/commandPaletteModal.js#buildAppCommands()`** (or `buildContextualCommands`, if it only
+makes sense with a component selected) — this app's stated design is that the Command Palette
+(Ctrl/Cmd+K) is a complete, searchable index of everything the toolbar can do, not just a curated
+subset, and it has drifted behind new features before (a whole batch's worth of actions — AI
+Quick Start, Import from Image, Template Gallery, Collaborate, 3D Presentation, and more — were
+missing until an explicit audit added them). Concretely: for every new `onClick` added to
+`toolbar.js` this batch, grep `commandPaletteModal.js` for that same label/action; if it's missing,
+add a `{ id, label, keywords, run }` entry matching the toolbar button's own icon+text exactly (so
+search results feel identical to the toolbar), and re-run `tests/e2e/commandPalette.spec.js`'s
+"every action added across recent batches is reachable" test with the new label appended to its
+list. Separately, **decide explicitly whether the new action also deserves its own dedicated
+keyboard shortcut** in `main.js#initKeyboardShortcuts` — reserved for continuously-repeated actions
+only (zoom, undo/redo, delete, duplicate, the Hand/Select toggle, keyboard-connect's `C`), not for
+every new modal/toggle; the Command Palette is the intended discovery path for everything else, so
+"no dedicated shortcut, reachable via ⌘K" is the expected answer most of the time — say so rather
+than skip the question. If you do add one, update `help.html`'s `#shortcuts` table too.
+
+## 8. Skills — including a self-review of this checklist
 
 Check whether this repo's `.claude/skills/` need updating given the change — e.g.
 `.claude/skills/add-library-item/SKILL.md` if the component data schema (`js/data/schema.js`)
 changed.
 
 **Then, explicitly and every time, ask whether this checklist itself (this file) needs updating.**
-Do this last, after steps 1-5 are actually done — only with the whole batch behind you can you see
+Do this last, after steps 1-7 are actually done — only with the whole batch behind you can you see
 whether it taught this checklist something new. Concretely: did anything found or built during
 this run reveal a recurring pattern, a new gotcha, a new subsystem worth its own check, or a step
 whose instructions turned out to be incomplete/wrong once actually followed? If so, add or edit a
@@ -167,9 +211,9 @@ here" is a valid, expected answer most of the time, not a step to omit.
 Create a new skill only for a genuinely recurring workflow, not a one-off task — skills cost a
 discovery/loading overhead, so a narrow one-shot instruction belongs in the conversation, not a
 new skill file. Any resulting edit to this file is part of the same batch — commit it together
-with everything else in step 8, not as an afterthought later.
+with everything else in step 10, not as an afterthought later.
 
-## 7. Tests
+## 9. Tests
 
 - Add/extend unit tests (`tests/unit/*.test.mjs`) for any new pure logic — see existing tests in
   `tests/unit/replication.test.mjs` and `tests/unit/project.test.mjs` for the style (plain
@@ -196,7 +240,7 @@ PLAYWRIGHT_CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx 
 If the pinned chromium path above doesn't exist, find the installed one first:
 `find /opt/pw-browsers -maxdepth 2 -iname "chrome"`.
 
-## 8. Merge to main and push
+## 10. Merge to main and push
 
 This repo's convention (established across every batch) is a **fast-forward merge**, not a PR:
 
@@ -226,6 +270,11 @@ means main moved since the branch was cut and needs a real merge decision.
 - `npm run test:unit` and the Playwright e2e suite both pass with 0 failures.
 - Version bumped, What's New updated, hints reviewed, all six doc surfaces reviewed (even if some
   needed no change — say so).
+- Demo Projects checked against this batch's changes — a new diagram kind got a matching demo (or
+  it was explicitly decided none was needed).
+- Command Palette checked against every toolbar action/modal added this batch — each is reachable
+  from Ctrl/Cmd+K, and a dedicated keyboard shortcut was explicitly considered (and added, or
+  explicitly skipped) for each.
 - This checklist itself explicitly reconsidered in light of this batch — updated if this run
   surfaced a new recurring pattern/gotcha, or a stated "no update needed" otherwise.
 - `main` is pushed and fast-forwarded to include the batch.

@@ -30,6 +30,7 @@ index.html ──► js/main.js
                  ├─ core/animationVideoTiming.js (pure per-step screen-time math for io/exportAnimationVideo.js)
                  ├─ core/diagramDescription.js, core/diagramHealth.js, core/versionBranches.js
                  ├─ core/scene3dLayout.js (pure 2D→3D geometry mapping), core/scene3dMode.js (3D overlay on/off pub-sub)
+                 ├─ core/demoProjects.js (Demo Projects — pure, reuses the pattern/lifeline construction recipe), modals/demoProjectsModal.js
                  ├─ render3d/scene3dRenderer.js (Three.js/WebGL scene — the only consumer of vendor/three.module.min.js)
                  ├─ canvas/scene3dOverlay.js, canvas/keyboardConnect.js
                  ├─ utils/speechInput.js (Web Speech API mic-button wrapper for textareas)
@@ -3837,6 +3838,28 @@ playback code):
   a function of geometry, not edge identity/order, so two opposite-
   direction edges between the same pair of nodes always render as one
   blue, one red, regardless of which was drawn first.
+
+  **Gotcha: a lifeline's 2D `h` is a time axis, not a spatial footprint.**
+  `computeNode3D` originally mapped every shape's `node.w`/`node.h`
+  straight into a box's width/depth the same way — correct for an
+  ordinary component, but a sequence-diagram lifeline's `h` is typically
+  600+ (its title box plus a long dashed line downward, representing
+  time, not physical extent). Mapped literally, a lifeline became a 3D
+  box hundreds of units deep but only as tall as any other component — a
+  giant flat slab that visually dwarfed every other shape in the scene,
+  confirmed by an actual screenshot before the fix (every other shape
+  was legible at a normal zoom; the lifeline box alone spanned nearly the
+  whole visible scene). Fixed by giving `shape === 'lifeline'` its own
+  fixed, small footprint (`LIFELINE_DEPTH`) and a height taller than an
+  ordinary component (`LIFELINE_HEIGHT`) instead of reusing `node.w`/
+  `node.h` — reads as a tall pillar (a persistent presence throughout the
+  interaction) rather than a slab, and is anchored near the *top* of the
+  lifeline's 2D bounding box (where its title box actually sits), not
+  centered on the full time-axis span. Caught only by rendering an
+  instance of every 2D shape side by side in the 3D view and comparing —
+  the unit tests for `computeNode3D` alone had no shape-proportion
+  assertion to catch this, since nothing there compared one shape's
+  output against another's.
 - **`render3d/scene3dRenderer.js`** (all Three.js/WebGL/DOM logic, e2e-
   tested only) — `mountScene3D(canvasEl)` lazily `import()`s
   `vendor/three.module.min.js` (a real ES module, vendored via `npm pack
@@ -3872,6 +3895,100 @@ playback code):
   Play/Stop/Prev/Next/Export/Close controls, mounted/torn down via
   `core/scene3dMode.js`'s `onScene3DChange` pub-sub (same shape as
   `core/kioskMode.js`).
+
+## Demo Projects (`core/demoProjects.js`, `modals/demoProjectsModal.js`)
+
+"🎓 Demo Projects" (Create menu) loads one ready-made example diagram per
+diagram kind this app supports, plus a "Combo" demo showing two kinds
+coexisting on one canvas (a regular system diagram next to a sequence
+diagram detailing one of its request flows) — see docs/SPEC.md 4.72.
+
+`core/demoProjects.js` is pure and DOM-free, deliberately reusing the
+*exact same construction recipe* the live, interactive paths already use,
+rather than hand-placing every demo node's x/y:
+- `buildPatternPieces(patternId, anchorX, anchorY, zStart)` duplicates
+  `canvas.js#instantiatePatternAtPoint`'s own node/edge-from-pattern
+  mapping (same `dx`/`dy`-from-center math, same `groupOnInstantiate`
+  handling) — kept as a **separate, intentional duplicate** rather than
+  exporting and reusing the original, because that original depends on
+  live `store`/`viewport` state (`screenCenterCanvasPoint()`) to place
+  things relative to whatever's currently on screen, while a demo needs
+  to build a whole *detached* project up front, before anything is
+  loaded, anchored at a fixed point instead. Most demos (Basic Web App,
+  Highly-Available Microservices, Login Flow, BPMN Approval, ER Diagram,
+  Traffic Light, and half of Combo) are just this function pointed at an
+  existing pattern id — automatically staying in sync with that pattern's
+  own `nodes`/`edges` definition, since there's no separate copy of the
+  pattern's shape to go stale.
+- `buildLifelinePieces(names, anchorX, anchorY, zStart)` does the same for
+  a set of sequence-diagram lifelines, via `core/sequenceDiagram.js#layoutLifelines`
+  (the same layout function `canvas.js#createSequenceDiagram` uses).
+- `manualChain(specs, zStart)` is the fallback for a demo with no existing
+  pattern to reuse (UML Deployment: Device → Execution Environment →
+  Artifact) — a straight line of nodes, each connected to the next.
+
+`buildDemoProject(demoId)` assembles a full project object via
+`{ ...createEmptyProject(name), nodes, edges }` — no `validateProject()`
+call needed (unlike AI-generated JSON), since everything in it already
+came from `createNode`/`createEdge`, the same trusted internal
+construction every interactive pattern-instantiation path already uses
+without validation. `canvas.js#loadDemoProject(demoId)` is the only thing
+that actually calls `store.loadProject()` with the result — a full
+project switch (undo can't reach across it), same as Load/New/Generate
+Design, not an incremental `dispatch` onto the current canvas.
+
+"Clearing" a loaded demo needed **no new tracking mechanism at all** — the
+Demo Projects modal just puts the existing `canvas.js#clearCanvas()`
+button right there for convenience. There was no need to invent an
+"is the current project a demo" flag (which `validateProject()`'s
+explicit field allowlist would have silently dropped on the next load
+anyway) — clearing a demo and clearing any other canvas are the same
+action.
+
+## In-App Guide Screenshots (`assets/screenshots/*.png`, `help.html`)
+
+`help.html` embeds real PNG screenshots of several visually distinctive
+screens (canvas overview, connectors, sequence diagram, 3D Presentation,
+AI Design Review, Demo Projects, Command Palette) via
+`<img class="help-screenshot" src="assets/screenshots/<name>.png">` right
+after each section's `<h2>` — some things (what a filled-in AI-review
+prompt looks like, what the 3D cable coloring actually looks like) read
+faster from a picture than from prose alone. These are static assets
+checked into the repo, not generated at any build/publish step (this app
+has none) — captured by hand with a throwaway Playwright script: load a
+Demo Project (see above) for realistic content, dismiss the "Skip all"
+hints prompt and the onboarding-checklist widget, click "Fit to screen"
+before capturing a canvas view, and use `page.locator(...).screenshot()`
+or a `clip` region to crop tightly to the interesting area rather than a
+full viewport with mostly empty space (a first pass at the 3D Presentation
+screenshot, and one at a demo's raw canvas view, both needed exactly this
+crop treatment after producing a lot of dead space). Regenerate one only
+when the screen it shows changes enough to look visibly stale — most UI
+tweaks don't warrant a re-capture.
+
+## Command Palette completeness (`modals/commandPaletteModal.js`)
+
+The Command Palette's own stated design is a *complete* searchable index
+of every toolbar action, not a curated subset — but nothing enforces that
+automatically, and it drifted behind reality for several batches' worth
+of features (AI Quick Start, Import from Image, Edit with AI, C4 Context,
+Import from SQL, Template Gallery, Demo Projects, Collaborate, Comments,
+Outline, AI Beautify Layout, Describe Diagram, Presenter Mode, Diagram
+Animation, Flow Simulation, 3D Presentation, Language toggle, and What's
+New were all reachable from their toolbar buttons but not from Ctrl/Cmd+K)
+until an explicit audit added all of them at once to `buildAppCommands()`.
+`tests/e2e/commandPalette.spec.js`'s "every action added across recent
+batches is reachable" test exists specifically to catch this drift going
+forward — it asserts a list of expected labels are all findable by
+search; **extend that list, not just `buildAppCommands()`, whenever a new
+toolbar action is added** (see the `release-checklist` skill's Command
+Palette step). No new keyboard shortcuts were warranted by this
+audit — every one of these actions is either a modal (no natural
+single-key mapping) or a toggle already reachable a click away in an
+existing Tools/Create dropdown, matching this app's existing convention
+that dedicated shortcuts are reserved for continuously-repeated actions
+(zoom, undo/redo, delete, duplicate, tool-mode toggles) and the palette is
+the intended discovery path for everything else.
 
 ## Security notes
 

@@ -22,6 +22,14 @@ test('computeNode3D varies extrusion height by shape, defaulting for an unlisted
   assert.equal(unknown.height, rounded.height, 'an unrecognized shape falls back to the same default as rounded');
 });
 
+test('computeNode3D gives a lifeline a tall-pillar footprint instead of using its full time-axis height as depth', () => {
+  const lifeline = computeNode3D({ id: 'lf1', x: 100, y: 200, w: 140, h: 640, shape: 'lifeline', stroke: '#111' });
+  const plain = computeNode3D({ id: 'n1', x: 100, y: 200, w: 140, h: 640, shape: 'rounded', stroke: '#111' });
+  assert.ok(lifeline.depth < plain.depth, 'a lifeline must not use its full 2D height as a 3D footprint depth — that dwarfs every other shape');
+  assert.ok(lifeline.height > plain.height, 'a lifeline reads as a tall pillar in 3D, taller than an ordinary box');
+  assert.ok(lifeline.depth < 100, 'the lifeline footprint stays comparable in scale to a normal component');
+});
+
 test('computeEdge3D colors by geometric direction, not edge identity — same axis, opposite signs, opposite colors', () => {
   const left = { x: 0, y: 60, z: 0, height: 60 };
   const right = { x: 300, y: 60, z: 0, height: 60 };

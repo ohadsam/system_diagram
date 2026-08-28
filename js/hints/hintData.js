@@ -37,4 +37,5 @@ export const HINTS = [
   { id: 'hint-describe-diagram', target: '.toolbar-row-main', placement: 'bottom', text: '📃 Tools → Describe Diagram gives you an instant, offline plain-text summary of your diagram\'s structure — no AI involved.' },
   { id: 'hint-keyboard-connect', target: '.toolbar-row-main', placement: 'bottom', text: '⌨️ Keyboard-only: Tab to select a component, then press C and a number to draw a connector to another component — no mouse required.' },
   { id: 'hint-scene3d', target: '.toolbar-row-main', placement: 'bottom', text: '🧊 Tools → 3D Presentation turns your diagram into a rotatable 3D scene for presenting, with an "Export 3D Video" button to record it as a downloadable video.' },
+  { id: 'hint-demo-projects', target: '.toolbar-row-main', placement: 'bottom', text: '🎓 Create → Demo Projects loads a ready-made example diagram for each diagram kind this app supports — including a "Combo" demo showing two kinds together on one canvas.' },
 ];

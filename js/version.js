@@ -2,9 +2,19 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.38.0';
+export const APP_VERSION = '1.39.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.39.0',
+    date: '2026-08-28',
+    highlights: [
+      'New "🎓 Demo Projects" (Create menu) — load a ready-made example diagram for each diagram kind this app supports (system diagram, sequence diagram, BPMN, UML Deployment, ER diagram, state machine, C4 Context), plus a "Combo" demo showing a system diagram and a sequence diagram together on one canvas. "🧹 Clear Canvas" sits right there too.',
+      'The in-app user guide (help.html) now includes real screenshots alongside the writeups for several visually distinctive screens — the canvas, connectors, sequence diagrams, 3D Presentation, AI Design Review, Demo Projects, and the Command Palette.',
+      'Fixed: a sequence-diagram lifeline in 3D Presentation Mode rendered as a giant, wildly out-of-proportion slab instead of a normal-looking component — it now renders as a tall pillar, sized like everything else in the scene.',
+      'The Command Palette (Ctrl/Cmd+K) now includes every toolbar action and modal in this app — over a dozen were previously reachable only from the toolbar, including AI Quick Start, Import from Image, Edit with AI, C4 Context, Import from SQL, Template Gallery, Collaborate, Comments, Outline, AI Beautify Layout, Describe Diagram, Presenter Mode, Diagram Animation, Flow Simulation, 3D Presentation, Language, and What\'s New.',
+    ],
+  },
   {
     version: '1.38.0',
     date: '2026-08-27',

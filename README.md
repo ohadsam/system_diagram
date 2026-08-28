@@ -388,6 +388,12 @@ Or open `index.html` directly in a browser.
 - **⌨️ Keyboard-only connect** — Tab to a component to select it, then
   press `C` and a number to draw a connector to another one, no mouse
   required.
+- **🎓 Demo Projects** — load a ready-made example diagram for each diagram
+  kind this app supports (system diagram, sequence diagram, BPMN, UML
+  Deployment, ER diagram, state machine, C4 Context), plus a "Combo" demo
+  showing a system diagram and a sequence diagram together on one canvas —
+  "🧹 Clear Canvas" sits right in the same picker.
+
 See [`help.html`](help.html) for the full interactive user guide.
 
 ## Tech stack
@@ -405,6 +411,7 @@ only fetched lazily when you actually use the feature that needs them.
 
 ```
 index.html / help.html        entry page + user guide
+assets/screenshots/            real screenshots embedded in help.html
 css/                           one stylesheet per UI area
 js/
   core/     central store, undo/redo history, project (de)serialization

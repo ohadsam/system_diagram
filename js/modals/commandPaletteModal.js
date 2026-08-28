@@ -51,6 +51,28 @@ import { exportPDF } from '../io/exportPdf.js';
 import { showToast } from '../utils/toast.js';
 import { resetHints } from '../hints/hints.js';
 import { toggleAiReviewPanel } from '../panel/aiReviewPanel.js';
+import { openGlobalSearchModal } from './globalSearchModal.js';
+import { openAddTabModal } from './addTabModal.js';
+import { openHistoryTimelineModal } from './historyTimelineModal.js';
+import { openQuickStartModal } from './quickStartModal.js';
+import { openImportFromImageModal } from './importFromImageModal.js';
+import { openAiEditModal } from './aiEditModal.js';
+import { openC4ContextModal } from './c4ContextModal.js';
+import { openImportSqlModal } from './importSqlModal.js';
+import { openTemplateGalleryModal } from './templateGalleryModal.js';
+import { openCollaborationModal } from './collaborationModal.js';
+import { openCommentsListModal } from './commentsListModal.js';
+import { toggleOutlinePanel } from '../panel/outlinePanel.js';
+import { toggleAnimationPanel } from '../panel/animationPanel.js';
+import { openAiLayoutModal } from './aiLayoutModal.js';
+import { openDiagramDescriptionModal } from './diagramDescriptionModal.js';
+import { openWhatsNewModal } from './whatsNewModal.js';
+import { openDemoProjectsModal } from './demoProjectsModal.js';
+import { setFlowSimulationEnabled } from '../canvas/canvas.js';
+import { toggleKioskMode } from '../core/kioskMode.js';
+import { setScene3DActive } from '../core/scene3dMode.js';
+import { getLanguage, setLanguage, t } from '../io/i18n.js';
+import { LANGUAGES } from '../io/uiPrefs.js';
 
 const MAX_COMPONENT_RESULTS = 8;
 const MAX_RELATED_PER_KIND = 3;
@@ -121,6 +143,51 @@ function buildAppCommands() {
     { id: 'zoom-out', label: '➖ Zoom Out', keywords: ['zoom', 'out'], run: () => viewport.zoomTo(viewport.getViewport().zoom - 0.1) },
     { id: 'zoom-reset', label: '🔄 Reset Zoom', keywords: ['zoom', 'reset', '100%'], run: () => viewport.zoomTo(1) },
     { id: 'show-hints', label: '💡 Show Hints Again', keywords: ['hints', 'tour', 'help', 'guide'], run: resetHints },
+    { id: 'global-search', label: '🔎 Search All Projects', keywords: ['search', 'all', 'projects', 'find'], run: openGlobalSearchModal },
+    { id: 'add-tab', label: '🗂️ Open in New Tab...', keywords: ['tab', 'new tab', 'open'], run: openAddTabModal },
+    { id: 'history-timeline', label: '🕘 Undo History', keywords: ['undo', 'redo', 'history', 'timeline'], run: openHistoryTimelineModal },
+    { id: 'quick-start', label: '🪄 AI Quick Start', keywords: ['ai', 'quick start', 'onboarding', 'describe'], run: openQuickStartModal },
+    { id: 'import-from-image', label: '🖼️ Import from Image', keywords: ['ai', 'import', 'image', 'screenshot', 'sketch'], run: openImportFromImageModal },
+    { id: 'ai-edit', label: '💬 Edit with AI', keywords: ['ai', 'edit', 'patch', 'change'], run: openAiEditModal },
+    { id: 'c4-context', label: '🧩 C4 Context Diagram', keywords: ['c4', 'context', 'model'], run: openC4ContextModal },
+    { id: 'import-sql', label: '📥 Import from SQL', keywords: ['import', 'sql', 'ddl', 'er diagram', 'entity'], run: openImportSqlModal },
+    { id: 'template-gallery', label: '🖼️ Template Gallery', keywords: ['template', 'gallery', 'reference architecture', 'pattern'], run: openTemplateGalleryModal },
+    { id: 'demo-projects', label: '🎓 Demo Projects', keywords: ['demo', 'example', 'sample', 'showcase', 'tutorial'], run: openDemoProjectsModal },
+    { id: 'collaborate', label: '🤝 Collaborate', keywords: ['collaborate', 'live', 'realtime', 'webrtc', 'peer'], run: openCollaborationModal },
+    { id: 'comments-list', label: '💬 Comments', keywords: ['comments', 'pins', 'unresolved'], run: openCommentsListModal },
+    { id: 'outline', label: '📋 Outline', keywords: ['outline', 'toc', 'table of contents', 'list'], run: toggleOutlinePanel },
+    { id: 'ai-beautify-layout', label: '🪄 AI Beautify Layout', keywords: ['ai', 'layout', 'beautify', 'reposition', 'arrange'], run: openAiLayoutModal },
+    { id: 'describe-diagram', label: '📃 Describe Diagram', keywords: ['describe', 'summary', 'plain text', 'accessible'], run: openDiagramDescriptionModal },
+    {
+      id: 'presenter-mode', label: '🖥️ Presenter Mode', keywords: ['presenter', 'kiosk', 'full screen', 'clean'],
+      run: toggleKioskMode,
+    },
+    { id: 'diagram-animation', label: '🎞️ Diagram Animation', keywords: ['animation', 'reveal', 'playback', 'sequence'], run: toggleAnimationPanel },
+    {
+      id: 'flow-simulation', label: '💫 Flow Simulation', keywords: ['flow', 'simulation', 'traffic', 'dots'],
+      run: () => {
+        const next = !getUiPrefs().flowSimulation;
+        saveUiPrefs({ flowSimulation: next });
+        setFlowSimulationEnabled(next);
+        document.querySelector('#toolbar button[title^="Flow Simulation"]')?.classList.toggle('active', next);
+      },
+    },
+    {
+      id: 'scene3d', label: '🧊 3D Presentation', keywords: ['3d', 'presentation', 'scene', 'cable', 'video'],
+      run: () => {
+        if (store.getState().nodes.length < 1) { showToast('Add at least one component first.', 'error'); return; }
+        setScene3DActive(true);
+      },
+    },
+    {
+      id: 'language-toggle', label: `🌐 ${t('toolbar.language')}`, keywords: ['language', 'hebrew', 'rtl', 'english'],
+      run: () => {
+        const nextIndex = (LANGUAGES.indexOf(getLanguage()) + 1) % LANGUAGES.length;
+        setLanguage(LANGUAGES[nextIndex]);
+        window.location.reload();
+      },
+    },
+    { id: 'whats-new', label: "🆕 What's New", keywords: ["what's new", 'changelog', 'version', 'updates'], run: () => openWhatsNewModal() },
   ];
 }
 
