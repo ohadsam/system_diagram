@@ -1996,6 +1996,43 @@ no accounts to enforce one, the same honesty already applied to 4.70's
 version branching being an explicit copy rather than a real structural
 merge.
 
+### 4.80 Feature Levels — Basic/Advanced/Custom
+A "🧩 Feature Level" setting (Create → Default Settings, or the Command
+Palette) controls how much of this app's Create/Tools/File dropdown
+content is visible, without ever touching a diagram's own content:
+- **Basic** — only a small, always-useful core shows (New/Save/Load, basic
+  exports, AI Quick Start, Generate Design, undo/redo, zoom, Select/Hand
+  toggle, and a few cosmetic prefs); everything else is hidden.
+- **Advanced** — every action shows, this app's original behavior.
+- **Custom** — pick exactly which of 7 themed groups (AI Tools, Diagram
+  Types, Collaboration, Analysis & QA, Layout Tools, Visual & Presentation,
+  Advanced Import/Export) show, independently.
+
+The File/Create/Tools dropdown menus group their contents under these same
+7 labeled sections regardless of the current mode — grouping the Tools
+menu's many buttons is worth doing even when nothing is hidden. Every
+action stays reachable through ⌘/Ctrl+K Quick Actions regardless of this
+setting.
+
+A brand-new visitor (nothing at all in this browser's storage yet) starts
+in Basic mode with a compact sidebar (below) automatically; anyone who
+already had this app open before this setting existed keeps their exact
+existing toolbar/sidebar, nothing hidden — this is a one-time decision made
+once per browser, never retroactive.
+
+A Basic-mode visitor who's used the app for a few sessions (3, then 8, then
+15) gets a small, dismissible one-time nudge suggesting they explore the
+rest of this app's tools, linking directly to the Feature Level setting.
+"Don't ask again" turns it off permanently; otherwise each milestone shows
+at most once.
+
+### 4.81 Compact Sidebar
+A 🗂️ toggle above the component library (also in Default Settings) shows
+only Favorites, Recently Used, and My Components by default, collapsing
+the full category browser (~28 categories) one click away. Search always
+searches every category regardless of this setting — it only affects what
+shows without an active search.
+
 ## 7. Out of scope for v1 (ideas for later, see PLAN.md §7)
 
 Versioned history beyond in-session undo/redo (superseded by 4.17/4.63

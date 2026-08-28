@@ -191,6 +191,10 @@ this repo" quick-start.
 | Change System Map or cross-project links | `js/core/project.js`'s `links`/`createProjectLink`/`validateLinks` (project schema) + `js/io/projects.js#listSavedProjects` (must include `links` in its mapped shape) + `js/core/systemMap.js#computeSystemMapLayout` (pure circle layout) + `js/modals/systemMapModal.js`. **Gotcha**: the current project's own `links` must come from the live store, not `listSavedProjects()`'s persisted copy — see docs/ARCHITECTURE.md's "System Map" section. |
 | Change Export PDF (Poster) | `js/core/pdfTiling.js#computeTileGrid` (pure tile-grid math, in points) + `js/io/exportPdf.js#exportPdfTiled` (slices the rasterized canvas per tile via `drawImage`) + `js/modals/exportPosterModal.js` (page-size picker). Page sizes stay in the same `/2` pt-equals-css-pixel convention the existing single-page `exportPDF` uses. |
 | Change Review Status | `js/core/project.js`'s `reviewStatus`/`reviewedBy`/`reviewedAt` fields + `REVIEW_STATUSES` + `js/canvas/canvas.js#setReviewStatus` + `js/modals/reviewStatusModal.js` + the toolbar badge in `js/toolbar/toolbar.js` (subscribes to `store`'s `'change'` event). Not a real permissions system — just a shared label. |
+| Change the Basic/Advanced/Custom feature-level system | `js/core/featureLevels.js` (`FEATURE_PACKS` registry + `packsForMode`/`isPackEnabled`, pure) + `js/io/featureLevelPrefs.js` (persisted choice, its own narrow pub-sub — see its header comment for why not `uiPrefs.js`) + `js/toolbar/toolbar.js#buildGatedButtonList`/`refreshPackSectionVisibility` (every pack's buttons are always built; only a `.toolbar-dropdown-pack-section` wrapper's `hidden` flips — never rebuild buttons just to gate them, or you'll re-register live badge subscriptions). To add a new gate-able toolbar button, put it in an existing pack's `buttons` array at one of the three `buildGatedButtonList(...)` call sites in `toolbar.js`, or add a new pack to `FEATURE_PACKS` if it doesn't fit an existing one. |
+| Change first-visit defaults (Basic mode + compact sidebar for a brand-new visitor) | `js/io/firstVisitDefaults.js#applyFirstVisitDefaultsIfNeeded` (one-time, guarded by its own flag key — see "Common pitfalls" below about `checkWhatsNew()` ordering before touching where this is called in `main.js#boot`) |
+| Change the progressive-unlock suggestion banner | `js/io/usageStats.js` (session-count + shown-milestones tracking) + `js/core/featureLevels.js#getDueSuggestionMilestone`/`SUGGESTION_MILESTONES` (pure) + `js/hints/featureSuggestionBanner.js` (the dismissible card UI) |
+| Change the compact sidebar toggle | `js/io/librarySettings.js`'s `compactSidebar` field + `js/sidebar/sidebar.js`'s `.sidebar-compact-toggle` button and `renderList()`'s `showBuiltinCategories` gate (search always bypasses it) |
 
 ## Running things locally
 
@@ -967,3 +971,49 @@ npm test
   click through to that group's *last* button at a short viewport (~600px
   desktop, not just mobile/tablet) — don't just confirm the new button
   itself is visible.
+
+- **`io/whatsNew.js#checkWhatsNew`'s own "brand-new visitor" check
+  (`listKeysWithPrefix('').length === 0`) has to run and capture its
+  result *before* anything else in `main.js#boot` writes to storage, not
+  just before the modal is actually shown.** Adding
+  `io/firstVisitDefaults.js#applyFirstVisitDefaultsIfNeeded` +
+  `io/usageStats.js#recordSessionStart` to `boot()` broke this for real: both
+  write storage keys, and they used to run *before* `checkWhatsNew()` was
+  called later in the same function — so by the time `checkWhatsNew()`
+  finally ran, storage was no longer empty (because of this same boot's own
+  earlier writes), and a genuinely brand-new visitor's very first-ever page
+  load started wrongly popping the "What's New" modal, which
+  `whatsNew.js`'s own header comment explicitly says shouldn't happen ("the
+  hints tour already covers onboarding"). Caught via the new
+  `tests/e2e/featureLevels.spec.js`'s first-time-visitor tests timing out —
+  every `dismissHints()` call kept hitting a `<dialog class="whats-new-modal">`
+  intercepting pointer events. Fixed by moving the `checkWhatsNew()` *call*
+  (capturing `whatsNew` in a variable) to right after `initStorageBackend()`,
+  before any other boot step — `markVersionSeen()` and actually showing the
+  modal still happen later, only the check needed to move. If you add
+  another piece of boot-time bootstrapping that writes to storage, run it
+  through the same question: does anything downstream in `boot()` do its
+  own "is storage empty" check, and if so, does it still run before your
+  new write?
+
+- **Playwright's default browser context starts with completely empty
+  storage — the exact same signal `io/firstVisitDefaults.js` and
+  `io/whatsNew.js` both use for "this is a brand-new visitor."** Without
+  `tests/e2e/playwright.config.js`'s `storageState` default (seeding
+  `firstVisitDefaultsApplied` and `lastSeenVersion` so every test starts as
+  a settled *returning* visitor), the entire pre-existing e2e suite would
+  silently start in simplified Basic mode and fail to find whatever
+  Tools/Create button it goes looking for. A test that specifically wants
+  to exercise first-visit behavior has to explicitly override this back to
+  empty with its own `test.use({ storageState: { cookies: [], origins: [] } })`
+  — see `tests/e2e/featureLevels.spec.js`'s nested describe block. If you
+  ever add a third "is this a brand-new visitor" check anywhere in this
+  app, this config's `storageState` needs to seed whatever key that check
+  reads too, or the same class of bug will resurface for it.
+
+- **Every dropdown panel's buttons exist in the DOM all along — only the
+  closed panel itself is `hidden`.** A Playwright locator for something
+  panel-scoped (like `.toolbar-dropdown-section-label`) has to scope to the
+  currently-open panel (`.toolbar-dropdown-panel:not([hidden]) ...`) or it
+  silently matches the same class of element across every dropdown at
+  once, not just the one you opened.

@@ -242,6 +242,7 @@
       <li><a href="#system-map">System Map</a></li>
       <li><a href="#export-poster">Export PDF (Poster)</a></li>
       <li><a href="#review-status">Review Status</a></li>
+      <li><a href="#feature-levels">Feature Level (Basic/Advanced/Custom)</a></li>
       <li><a href="#offline">Offline &amp; installable</a></li>
       <li><a href="#language">Language &amp; RTL</a></li>
       <li><a href="#3d-presentation">3D Presentation Mode</a></li>
@@ -282,6 +283,7 @@
         <li><strong>★ Popular</strong> — a small tinted background and ★ badge mark the handful of components in each category most engineers would immediately recognize as common building blocks (PostgreSQL, Docker, S3, Kafka, React, ...) — purely a visual landmark, it never changes sort order or search.</li>
         <li><strong>★ Popular only</strong> — the toggle button right below the search box narrows every category down to just its ★-marked components (Favorites and My Components are unaffected).</li>
         <li><strong>Recently Used</strong> — a pinned section (below Favorites) automatically shows the last 8 components you actually placed on the canvas, most recent first — no setup needed.</li>
+        <li><strong>🗂️ Compact library</strong> — the toggle button next to "★ Popular only" hides every built-in category except your own "My Components", showing just Favorites/Recently Used/My Components — click it again (or the same setting in Default Settings) to bring the full category list back. Search always still searches everywhere regardless of this toggle.</li>
       </ul>
       <div class="tip">🧠 The <strong>AI Providers &amp; Agents</strong> category covers the generative-AI world: model providers (OpenAI, Anthropic, Google, AWS Bedrock, Azure OpenAI, Mistral, Cohere, Hugging Face, Ollama, ...), specific models (GPT, Claude, Gemini, Llama, Whisper, DALL·E, ...), the Model Context Protocol (MCP Server/Client/Tool/Resource/Prompt), agents &amp; agent frameworks (LangGraph, AutoGen, CrewAI, Semantic Kernel, LlamaIndex), and skills/tools/RAG building blocks (Skill, System Prompt, RAG Pipeline, Knowledge Base, Guardrails, Function Calling). These behave like any other component — drag or click to add.</div>
       <div class="tip">☸️ The <strong>AWS</strong> category includes container-orchestration building blocks — EKS Cluster, EKS Node Group, Pod (EKS), ECS Cluster, ECS Service, ECS Task — alongside the managed services (EKS, ECS, Fargate, ...) themselves.</div>
@@ -717,6 +719,18 @@
     <section id="review-status">
       <h2><span class="icon-badge">📝</span> Review Status</h2>
       <p>"Tools" → "📝 Review Status" sets a shared 📝 Draft / 👀 In Review / ✅ Approved label on the current diagram, with your name (optional) and the time recorded every time it changes — a colored badge in the Tools menu always shows the current status. This is a lightweight, honest note for whoever else opens the diagram, not an access-control system — this app has no accounts, so anyone can change the status at any time.</p>
+    </section>
+
+    <section id="feature-levels">
+      <h2><span class="icon-badge">🧩</span> Feature Level (Basic/Advanced/Custom)</h2>
+      <p>This app has grown a lot of tools across the Create and Tools menus. "Create" → "🎛️ Default Settings" → "🧩 Feature Level" (or search "Feature Level" in Quick Actions) lets you choose how many of them show up:</p>
+      <ul>
+        <li><strong>🌱 Basic</strong> — only a small, always-useful core shows (New/Save/Load, basic exports, AI Quick Start, Generate Design, undo/redo, zoom, and a few cosmetic settings). Recommended if you're new here.</li>
+        <li><strong>🚀 Advanced</strong> — every tool shows, exactly as this app has always worked.</li>
+        <li><strong>🎛️ Custom</strong> — pick exactly which of 7 tool groups (AI Tools, Diagram Types, Collaboration, Analysis &amp; QA, Layout Tools, Visual &amp; Presentation, Advanced Import/Export) show up, independently of each other.</li>
+      </ul>
+      <p>The File/Create/Tools menus organize their buttons under these same 7 labeled sections no matter which mode you're in — even in Advanced mode, grouping makes the longer menus (Tools especially) much easier to scan. Nothing here ever touches your diagram, and every action — hidden or not — stays reachable by searching for it in the Command Palette (<kbd>Ctrl/Cmd</kbd>+<kbd>K</kbd>).</p>
+      <div class="tip">🌱 The very first time you open this app in a browser, it starts in Basic mode with a compact sidebar (below) automatically. If you'd already been using this app before this feature existed, nothing changes for you — your toolbar and sidebar stay exactly as they were. If you're in Basic mode and keep using the app for a few sessions, a small dismissible note will eventually suggest exploring the rest of the toolset — "Not now" just defers it, "Don't ask again" turns it off for good.</div>
     </section>
 
     <section id="offline">

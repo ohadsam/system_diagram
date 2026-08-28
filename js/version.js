@@ -2,9 +2,20 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.40.0';
+export const APP_VERSION = '1.41.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.41.0',
+    date: '2026-08-28',
+    highlights: [
+      'New "🧩 Feature Level" setting (Create → Default Settings) — Basic (recommended for new users), Advanced (show everything), or Custom, controlling how many of this app\'s many Create/Tools menu actions show up. Everything stays reachable through ⌘/Ctrl+K Quick Actions regardless of this setting, and nothing here ever touches your diagram.',
+      'The Tools/Create/File dropdown menus now group their buttons under labeled sections (AI Tools, Diagram Types, Collaboration, Analysis & QA, Layout Tools, Visual & Presentation, Advanced Import/Export) instead of one long flat list.',
+      'New compact sidebar mode (🗂️ button above the component library, or the same setting in Default Settings) — shows just Favorites, Recently Used and My Components by default; search still always looks everywhere.',
+      'A first-time visitor now starts in Basic mode with a compact sidebar automatically; anyone who already had this app open keeps their exact existing toolbar/sidebar with nothing hidden.',
+      'If you\'re in Basic mode, a small one-time nudge appears after a few sessions suggesting you explore the rest of this app\'s tools, with a direct link to the new Feature Level setting.',
+    ],
+  },
   {
     version: '1.40.0',
     date: '2026-08-28',

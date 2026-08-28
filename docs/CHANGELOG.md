@@ -110,6 +110,39 @@ Keep this in sync with `PLAN.md` as stages complete.
   field (with autocomplete) on custom components, grouping them into
   collapsible 📁 sub-groups in the sidebar.
 
+## v1.41.0 (2026-08-28)
+
+**🧩 Feature Level (Basic/Advanced/Custom)** — this app has accumulated a very large number of
+toolbar actions across many batches (77 buttons, 24 alone in the Tools dropdown), overwhelming for
+someone who just wants to draw a basic diagram. A new setting (Create → Default Settings → 🧩
+Feature Level, or the Command Palette) lets anyone choose Basic (hide everything but a small
+always-visible core), Advanced (show everything — this app's original behavior), or Custom (pick
+exactly which of 7 themed tool groups — AI Tools, Diagram Types, Collaboration, Analysis & QA,
+Layout Tools, Visual & Presentation, Advanced Import/Export — show up). Nothing here ever touches a
+diagram or removes a capability — every action stays reachable through ⌘/Ctrl+K Quick Actions
+regardless, and gated buttons are hidden, not destroyed, so switching modes live never loses a
+badge or a running timer.
+
+**Grouped toolbar dropdowns** — the File/Create/Tools menus now organize their buttons under
+labeled sections (the same 7 groups above) instead of one long flat list, independent of the
+Basic/Advanced/Custom choice — even in Advanced mode, where everything shows, the Tools dropdown's
+24 buttons are far easier to scan grouped than flat.
+
+**Compact sidebar** — a new 🗂️ toggle above the component library (also in Default Settings) shows
+only Favorites, Recently Used, and My Components by default, collapsing the full ~28-category
+browser one click away. Search always still searches every category regardless of this setting.
+
+**First-time-visitor defaults** — a brand-new visitor (nothing at all in this browser's storage
+yet) now starts in Basic mode with a compact sidebar automatically, so their very first look at
+this app isn't 77 buttons and 28 categories all at once. Anyone who already had this app open
+before this update keeps their exact existing toolbar and sidebar, nothing hidden — this is a
+one-time decision made once per browser, not a retroactive change for existing visitors.
+
+**Progressive-unlock suggestion** — a Basic-mode visitor who's used the app for a few sessions (3,
+8, then 15) gets a small, dismissible one-time nudge suggesting they explore the rest of this
+app's tools, linking straight to the Feature Level setting. Each nudge shows at most once; "Don't
+ask again" turns it off for good.
+
 ## v1.40.0 (2026-08-28)
 
 **🎯 Blast Radius** — right-click any component → "Blast Radius..." shows what would be affected

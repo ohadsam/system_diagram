@@ -405,6 +405,11 @@ Or open `index.html` directly in a browser.
   same-size printable pages to assemble into one big poster.
 - **📝 Review Status** — a shared draft/in-review/approved label for team
   workflows, with who set it and when.
+- **🧩 Feature Level (Basic/Advanced/Custom)** — choose how many of this
+  app's many tools show up in the toolbar; a new visitor starts simplified
+  automatically, a returning visitor keeps everything they already had.
+- **Compact sidebar** — show just Favorites/Recently Used/My Components by
+  default, with every category one click (or a search) away.
 
 See [`help.html`](help.html) for the full interactive user guide.
 

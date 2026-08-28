@@ -55,7 +55,25 @@ concrete examples). Do all three, in order, every single time this skill runs:
    prose closes the comment early**, turning the rest of it into an invalid top-level statement —
    happened for real in `js/io/aiLayoutSuggest.js`, whose comment read "...validate*/sanitize*
    helpers." Same fix works for both causes: `node -e "import('./path/to/file.js').catch(e=>console.log(e.message))"`
-   run against every new/changed file until the exact one throws.
+   run against every new/changed file until the exact one throws. **A third way a mid-refactor
+   revert can silently break the whole app: reverting a function body back to its old shape but
+   missing its `return` statement**, left pointing at a variable (`setButtons` in this app's
+   history) that no longer exists anywhere in the file — a plain `ReferenceError` at the very first
+   call, same "whole app won't boot" symptom as the two causes above, same fix (the
+   `node -e "import(...)"` one-liner). If you build something, then redesign it away mid-session,
+   re-read the *whole* function you touched, not just the lines you intentionally changed.
+   **If this batch adds any code that runs during `main.js#boot` and writes to storage** (a
+   one-time bootstrap flag, a usage counter, anything via `io/storage.js#writeJSON`), check whether
+   anything *else* in `boot()` — existing or new — does its own "is storage completely empty" /
+   "is this a brand-new visitor" check (`io/whatsNew.js#checkWhatsNew` is the one that already
+   exists). If so, your new write has to happen *after* that check runs (or the check has to be
+   moved earlier to capture its result first) — this bit a real user, not just a test, the first
+   time `io/firstVisitDefaults.js` was added: a genuinely brand-new visitor's very first page load
+   started wrongly showing the "What's New" modal, because the new bootstrap's own storage writes
+   happened before `checkWhatsNew()`'s identical empty-storage check ran later in the same `boot()`.
+   Playwright's own default browser context is *also* completely empty storage, so this class of
+   bug shows up in e2e tests too — see `tests/e2e/playwright.config.js`'s `storageState` default and
+   the "Common pitfalls" entries in `docs/AI_AGENT_GUIDE.md` for the full pattern.
 2. **Functional/integration.** Trace how the change interacts with existing features: undo/redo,
    JSON import/export, duplicate-project, autosave, the details panel, multi-select. A feature that
    works in isolation but breaks e.g. cascade-delete or the export format is not done.

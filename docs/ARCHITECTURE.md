@@ -37,6 +37,7 @@ index.html ──► js/main.js
                  ├─ core/systemMap.js (pure circle layout), modals/systemMapModal.js (System Map)
                  ├─ core/pdfTiling.js (pure tile-grid math), modals/exportPosterModal.js (Export PDF poster tiling, in io/exportPdf.js#exportPdfTiled)
                  ├─ modals/reviewStatusModal.js (Review Status — schema fields live in core/project.js)
+                 ├─ core/featureLevels.js (pure feature-pack registry), io/featureLevelPrefs.js, io/usageStats.js, io/firstVisitDefaults.js, hints/featureSuggestionBanner.js (Feature Levels — Basic/Advanced/Custom)
                  ├─ render3d/scene3dRenderer.js (Three.js/WebGL scene — the only consumer of vendor/three.module.min.js)
                  ├─ canvas/scene3dOverlay.js, canvas/keyboardConnect.js
                  ├─ utils/speechInput.js (Web Speech API mic-button wrapper for textareas)
@@ -4116,6 +4117,103 @@ already-"Approved" copy nobody actually looked at would be actively
 misleading. This puts it in the same bucket as `id`/`createdAt`/`versions`
 (reset on copy), not `comments`/`animations` (carried over as diagram
 content) — see `duplicateProject`'s own comment for the full reasoning.
+
+## Feature Levels — Basic/Advanced/Custom (`core/featureLevels.js`, `io/featureLevelPrefs.js`, `io/usageStats.js`, `io/firstVisitDefaults.js`, `hints/featureSuggestionBanner.js`)
+
+This app had grown, batch by batch, into 77 toolbar buttons (24 alone in
+the Tools dropdown) and 28 sidebar categories — real depth, but overwhelming
+for someone who just wants to draw a basic diagram. Rather than removing
+anything, this system makes *how much of it shows* a choice.
+
+**The pack registry.** `core/featureLevels.js` defines `FEATURE_PACKS`: 7
+themed groups (`ai-tools`, `diagram-types`, `collaboration`, `analysis`,
+`layout-tools`, `visual-extras`, `advanced-io`), each with an id/icon/
+label/description. A small set of always-useful actions (New/Save/Load,
+basic exports, AI Quick Start, Generate Design, undo/redo, zoom, the
+Select/Hand toggle, ...) is deliberately *not* part of any pack — see
+`toolbar.js`'s own core-vs-pack button lists at each of its three
+`buildGatedButtonList(...)` call sites for the exact split and the reasoning
+behind each button's placement (e.g. AI Quick Start stays core because its
+own title says "New to this app?" — gating a beginner on-ramp behind an
+"advanced" flag would be backwards).
+
+`packsForMode(featureMode, enabledPacks)` is the single pure function
+everything else calls: `'basic'` → no packs; `'advanced'` → every pack
+(this app's original, pre-this-system behavior); `'custom'` → exactly
+`enabledPacks`.
+
+**Gating without rebuilding.** `toolbar.js#buildGatedButtonList` wraps each
+pack's buttons in one `.toolbar-dropdown-pack-section[data-pack-id]`
+container with a `.toolbar-dropdown-section-label` header, built *once* at
+`initToolbar` time regardless of the current mode — every button, badge,
+and one-time subscription (`initAutoSuggestWatcher`, the comments/
+interview/review-status/collab badge listeners) is created exactly once,
+ever. Only the wrapper's `hidden` attribute reflects the current gating.
+When the feature level changes, `onFeatureLevelChange` fires
+`refreshPackSectionVisibility`, which re-derives `hidden` for every
+existing section — it does **not** rebuild any button. This was a
+deliberate design correction: an earlier draft rebuilt each gated dropdown's
+entire button list on every feature-level change, which would have
+re-invoked `initAutoSuggestWatcher()` and re-subscribed every badge
+listener a second (third, fourth, ...) time per session — a real listener-
+leak class of bug, caught before it shipped by tracing through what each
+button-builder function's own side effects were, not by a failing test.
+The section-header grouping itself is unconditional — even in Advanced
+mode, where every section is visible, grouping the Tools dropdown's 24
+buttons under 5 labels is worth doing regardless of whether anything is
+hidden.
+
+**First-visit defaults (`io/firstVisitDefaults.js`).** A brand-new visitor
+(literally nothing in this browser's `sdb:v1:` storage yet — the same
+"nothing at all in storage" check `io/whatsNew.js` already used) gets
+`featureMode: 'basic'` and `librarySettings.compactSidebar: true` applied
+once, explicitly, the moment storage is confirmed empty. A returning
+visitor — any prior app data at all, even something unrelated like a saved
+project from years before this system existed — gets neither: their
+toolbar and sidebar look exactly like they always did. This determination
+runs exactly once ever per browser, guarded by its own
+`firstVisitDefaultsApplied` flag key (written last, after the check, so a
+reload mid-first-session doesn't see this same boot's own writes and
+wrongly conclude "returning" — mirrors `io/whatsNew.js`'s own
+`markVersionSeen()`-as-guard pattern). **Gotcha found in review**: this
+function's own writes happening *before* `io/whatsNew.js#checkWhatsNew`'s
+call, in `main.js#boot`, broke `checkWhatsNew`'s identical brand-new-visitor
+check for a real user, not just in tests — see the "Common pitfalls" entry
+in `AI_AGENT_GUIDE.md` for the full incident and the boot-ordering fix.
+
+**Progressive-unlock nudge (`io/usageStats.js`,
+`hints/featureSuggestionBanner.js`).** `usageStats.js` tracks a plain
+session counter (bumped once per `main.js#boot`) plus which milestones
+(`SUGGESTION_MILESTONES = [3, 8, 15]`) have already fired. On boot,
+`getDueSuggestionMilestone` checks: still in Basic mode, not permanently
+dismissed, and the next milestone's session count has been reached but not
+yet shown. If due, `featureSuggestionBanner.js` shows a small dismissible
+card (bottom-right, mirrored under RTL — deliberately the opposite corner
+from the onboarding checklist card's bottom-left, since both could
+plausibly show in the same very-fast first session) with a direct link
+into the Feature Level settings section. This is a nudge, not a lock —
+"Not now" just defers to the next milestone; "Don't ask again" is the only
+permanent opt-out.
+
+**Compact sidebar (`io/librarySettings.js`'s `compactSidebar`,
+`sidebar/sidebar.js`).** A single boolean, editable from either the
+sidebar's own 🗂️ toggle button (fast, in-context) or Default Settings (for
+discoverability/consistency with the Feature Level section right below
+it) — genuinely the same setting, not two independent ones. When on and no
+search query is active, `renderList()` skips every built-in category
+except "My Components" (the user's own content, not library noise);
+Favorites and Recently Used always show regardless, since they're already
+a deliberate personal shortlist. A search query always bypasses this
+entirely, on purpose — a compact-mode user searching for something that
+exists must still find it.
+
+**Design decision: the Command Palette is never gated.** Every action
+stays reachable through ⌘/Ctrl+K regardless of feature level — searching
+is opt-in (you have to type), so showing a gated-off action there doesn't
+contribute to a beginner's visual overwhelm the way a flat 24-button
+dropdown does, while still letting anyone who knows exactly what they want
+reach it without switching modes first. `commandPaletteModal.js#buildAppCommands`
+was deliberately left untouched by this system for that reason.
 
 ## Security notes
 
