@@ -132,5 +132,5 @@ export function buildToolbarDropdown(label, icon, title, buttons) {
 
   root.appendChild(trigger);
   root.appendChild(panel);
-  return { root, setButtons };
+  return root;
 }
