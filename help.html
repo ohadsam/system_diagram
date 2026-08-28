@@ -381,11 +381,13 @@
 
     <section id="styling">
       <h2><span class="icon-badge">🎨</span> Styling components</h2>
-      <p>Select one or more components — the toolbar's second row fills in with style controls: fill color, "no background" toggle, border color/width, shape, font size, text alignment, text position, show/hide icon, and (for a single selection) icon, text, width and height.</p>
+      <p>Select one or more components — the toolbar's second row fills in with style controls: four style-preset buttons, fill color, "no background" toggle, border color/width/style, shape, corner radius (rectangle/rounded shapes only), drop shadow, opacity, font size, text alignment, text position, show/hide icon, and (for a single selection) icon, text, width/height with S/M/L quick-size buttons.</p>
       <p><span class="mock-node">🖥️ API Server</span> — example of a styled component with an icon and label.</p>
       <p><strong>Text position</strong> controls where the label sits: centered/top/bottom inside the shape, or floating above/below it — handy for a minimalist icon-only look with a caption underneath.</p>
       <div class="tip">💡 Style changes apply to every selected component at once, so you can restyle a whole group in one go.</div>
       <p>This row's header (name of what's selected, plus a 📌, ›/‹ and a ✕) is always there: click <strong>›</strong> to collapse the style fields down to just that slim strip — handy for getting them out of the way on a small screen without losing your selection — and <strong>‹</strong> to bring them back. <strong>✕</strong> deselects outright when you're done editing.</p>
+      <h3>✨ Style Presets, corner radius, drop shadow &amp; opacity</h3>
+      <p>Four one-click preset buttons — <strong>⭐ Primary</strong>, <strong>🗑️ Deprecated</strong>, <strong>🌐 External</strong>, <strong>✨ Highlighted</strong> — each set fill, border, border style and drop shadow together in one click, instead of adjusting every field separately. <strong>Corner radius</strong> (rectangle/rounded shapes only) fine-tunes how sharp or rounded the corners are. <strong>Drop shadow</strong> gives a component a stronger, more elevated look. <strong>Opacity</strong> fades a component out — handy for marking something as planned or not-yet-built, and works independently of Focus Mode's own dimming.</p>
       <h3>Floating, pinned to top, or pinned to bottom</h3>
       <p>By default this row shows as a small card that pops up right next to whatever you've selected, instead of pushing the rest of the screen around. Click <strong>📌</strong> on it to pin it to the top of the screen instead (back in the toolbar, like earlier versions of this app); click it again to unpin and go back to floating. Prefer it pinned to the bottom, or want floating/pinned-top as your permanent default? Set it once in "🎛️ Default Settings" → "Style editor" and every new selection uses it from then on.</p>
       <h3>Default settings for new components</h3>

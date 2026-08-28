@@ -4215,6 +4215,62 @@ dropdown does, while still letting anyone who knows exactly what they want
 reach it without switching modes first. `commandPaletteModal.js#buildAppCommands`
 was deliberately left untouched by this system for that reason.
 
+## Component Style Presets, Corner Radius, Border Style, Drop Shadow, Opacity (`core/stylePresets.js`, `toolbar/styleEditor.js`, `canvas/node.js`)
+
+Six new fields/controls in the per-node style editor, following the same "each field its own
+default in `createNode`, its own clamp/fallback branch in `validateProject`" convention every prior
+node-schema field here already has.
+
+**`core/stylePresets.js`** — a pure, DOM-free module: `STYLE_PRESETS` (`primary`/`deprecated`/
+`external`/`highlighted`, each a fixed bundle of `fill`/`stroke`/`strokeWidth`/`borderStyle`/
+`dropShadow`/`opacity`) and `getStylePresetFields(id)`, which strips the display `label` out and
+returns the raw fields to `Object.assign` onto a node. Deliberately **not** its own persisted field
+on the node — same reasoning as `core/diagramTheme.js`'s palette recolor (which also doesn't track
+"which theme"): applying a preset is a one-time bundle of concrete values, not a live binding, so
+the preset's own definition can change in a later batch without silently reinterpreting every node
+that ever used it. `toolbar/styleEditor.js#buildStylePresetRow` renders one button per preset, each
+calling the same `updateAll` closure every other style field here already uses — one `store.dispatch`
+over every selected node, so applying a preset to a multi-selection is one undo step, same as any
+other edit.
+
+**`cornerRadius`** (`core/project.js`) — `null` means "use the current shape's own default radius"
+(css/node.css's per-shape rule, e.g. 14px for `rounded`), the same "unset, fall back to something
+else" convention `iconImage: null` already uses. `canvas/node.js#updateNodeEl` only sets an inline
+`border-radius` when the shape is `rect` or `rounded` — every other shape either has a fixed
+geometric form (circle/diamond/hexagon) or its own baked-in shape-specific rounding (cloud/note/
+cylinder/rows), so the style editor's Corner Radius field is only shown for those two shapes
+(`styleEditor.js` checks `first.shape`).
+
+**`borderStyle`** (`BORDER_STYLES = ['solid', 'dashed', 'dotted']`, `core/project.js`) — a plain CSS
+`border-style` value set on `.node-body`. Like `strokeWidth`/`stroke` before it, this is an honest
+no-op on diamond/hexagon/cylinder, which fake their outline via clipped or pseudo-element layers
+(see css/node.css's own comments on that trick) rather than a real CSS border — there's nothing to
+dash.
+
+**`dropShadow`** (boolean, `core/project.js`) — an opt-in stronger shadow. **Gotcha found during this
+batch's review**: the first implementation set `body.style.boxShadow` directly from
+`canvas/node.js`, which — being an inline style — unconditionally beat the `.node:hover`/
+`.node.selected` class rules that also draw a shadow there (css/node.css), silently hiding e.g. the
+selection ring on a selected node with drop shadow on. Fixed by routing through a
+`--node-extra-shadow` CSS custom property instead: `canvas/node.js` only ever sets or removes that
+one property, and every rule that draws a shadow on `.node-body` (`base`, `:hover`, `.selected`, the
+`note` shape) reads `var(--node-extra-shadow, <its own baseline>)` — so the property composes with
+whichever state-based rule is active instead of replacing it outright. **General lesson for any
+future per-node inline style field**: before wiring `body.style.<prop> = ...` for a brand-new field,
+grep `css/node.css` for that same CSS property on `.node-body` — if any `:hover`/`.selected`/
+shape-specific rule already sets it, an inline value will always win over all of them regardless of
+selector specificity, and the fix is this custom-property indirection, not a specificity fight.
+
+**`opacity`** (0-100, `core/project.js`) — applied as an inline style on `.node-body`, not the outer
+`.node`. Focus Mode's dimming and Diagram Animation's reveal/hide both toggle a *class* on the outer
+`.node` element instead (`.dimmed`, `.anim-hidden`) — keeping this field on the inner element means
+the two compose multiplicatively via normal CSS opacity stacking rather than fighting over the same
+property or needing to know about each other.
+
+**Size presets** (S/M/L buttons in `styleEditor.js`, single-selection only) — not a schema field at
+all, just a shortcut that sets `w`/`h` to one of three fixed pairs, the same "convenience action, not
+a persisted concept" tier as `core/diagramTheme.js`'s recolor and the style presets above.
+
 ## Security notes
 
 - No `innerHTML` is ever fed unsanitized/user-provided strings; text

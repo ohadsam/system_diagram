@@ -693,3 +693,14 @@ body.kiosk-mode .kiosk-exit-btn {
   line-height: 16px;
   text-align: center;
 }
+
+/* Style Preset / Size Preset button rows (toolbar/styleEditor.js) — the
+   contextual style row itself is flex-direction:column (each field its own
+   stacked row), so these wrap their own buttons horizontally instead of
+   stacking one-per-line. */
+.style-preset-row,
+.style-size-preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}

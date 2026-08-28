@@ -2,9 +2,21 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.41.0';
+export const APP_VERSION = '1.42.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.42.0',
+    date: '2026-08-28',
+    highlights: [
+      'A component\'s style controls now include four one-click "✨ Style Presets" (⭐ Primary, 🗑️ Deprecated, 🌐 External, ✨ Highlighted) that set fill, border, and shadow together in one click, instead of adjusting each field separately.',
+      'New "Corner Radius" field for rectangle/rounded components — adjust how sharp or rounded the corners are, independent of the Shape dropdown.',
+      'New "Border style" field (Solid/Dashed/Dotted) alongside the existing border color/width controls.',
+      'New "Drop shadow" checkbox for a stronger, more elevated look on any component.',
+      'New "Opacity" field (10-100%) — fade a component out, e.g. to mark something as planned or not-yet-built; independent of Focus Mode\'s own dimming.',
+      'New S/M/L quick size buttons next to Width/Height for lining up several components to a consistent size at a glance.',
+    ],
+  },
   {
     version: '1.41.0',
     date: '2026-08-28',

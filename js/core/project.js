@@ -18,6 +18,16 @@ export const TEXT_POSITIONS = ['center', 'top', 'bottom', 'above', 'below'];
 // Whether a node's sub-components render as compact truncated chips or as
 // a full untruncated list of rows — see docs/SPEC.md 4.2.5.
 export const SUBCOMPONENTS_DISPLAY_MODES = ['chips', 'full'];
+
+// A node's border-style (canvas/node.js sets this via the standard CSS
+// `border-style` property). Only visibly affects shapes that render a real
+// CSS border on `.node-body` (rect/rounded/circle/cloud/note/rows/cuboid/
+// lifeline) — diamond/hexagon/cylinder fake their outline with filled
+// pseudo-elements (see css/node.css's own comment on that trick) and have
+// no real border to dash, so this field is a harmless no-op for them, the
+// same honest "doesn't apply to every shape" limitation strokeWidth/stroke
+// already have there today.
+export const BORDER_STYLES = ['solid', 'dashed', 'dotted'];
 // Purely a descriptive label on a replication pair — every mode uses the
 // exact same live-mirroring engine (core/replication.js); see docs/SPEC.md
 // "Live Replication" for why one mechanism covers all of them.
@@ -156,6 +166,28 @@ export function createNode(def, x, y, overrides = {}) {
     fill: def?.fill ?? '#FFFFFF',
     stroke: def?.color ?? '#4F46E5',
     strokeWidth: 2,
+    // null = use the current shape's own default radius (css/node.css's
+    // per-shape rule, e.g. 14px for "rounded") rather than a fixed number —
+    // the same "null means unset, fall back to something else" convention
+    // iconImage already uses below, so switching shape later never needs to
+    // also reset this. Only visibly applies to the 'rect'/'rounded' shapes
+    // (see canvas/node.js) — every other shape is either a fixed geometric
+    // form (circle/diamond/hexagon) or already has its own shape-specific
+    // rounding baked into its CSS (cloud/note/cylinder/rows).
+    cornerRadius: null,
+    borderStyle: 'solid',
+    // An opt-in *stronger* shadow than every node's own baseline
+    // `box-shadow: var(--shadow-sm)` (css/node.css) — false leaves that
+    // baseline alone rather than removing all shadow.
+    dropShadow: false,
+    // 0-100 (not 0-1) so the style editor's plain number input reads
+    // naturally as a percentage; canvas/node.js divides by 100 for the
+    // actual inline `opacity` CSS value. Independent of, and composes
+    // with, Focus Mode's dimming and Diagram Animation's reveal/hide
+    // (both toggle a *class* on the outer `.node`, not this per-node
+    // field's inline style on `.node-body`) — see canvas/node.js's own
+    // comment for why that split is deliberate.
+    opacity: 100,
     text: def?.name ?? 'Component',
     fontSize: 13,
     textAlign: 'center',
@@ -504,6 +536,10 @@ function validateContent(rawNodes, rawEdges, rawReplicationPairs) {
         fill: typeof n.fill === 'string' ? n.fill : '#FFFFFF',
         stroke: typeof n.stroke === 'string' ? n.stroke : '#4F46E5',
         strokeWidth: Number.isFinite(n.strokeWidth) ? n.strokeWidth : 2,
+        cornerRadius: Number.isFinite(n.cornerRadius) ? Math.max(0, n.cornerRadius) : null,
+        borderStyle: BORDER_STYLES.includes(n.borderStyle) ? n.borderStyle : 'solid',
+        dropShadow: n.dropShadow === true,
+        opacity: Number.isFinite(n.opacity) ? Math.min(100, Math.max(0, n.opacity)) : 100,
         text: typeof n.text === 'string' ? n.text : '',
         fontSize: Number.isFinite(n.fontSize) ? n.fontSize : 13,
         textAlign: ['left', 'center', 'right'].includes(n.textAlign) ? n.textAlign : 'center',

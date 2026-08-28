@@ -195,6 +195,7 @@ this repo" quick-start.
 | Change first-visit defaults (Basic mode + compact sidebar for a brand-new visitor) | `js/io/firstVisitDefaults.js#applyFirstVisitDefaultsIfNeeded` (one-time, guarded by its own flag key — see "Common pitfalls" below about `checkWhatsNew()` ordering before touching where this is called in `main.js#boot`) |
 | Change the progressive-unlock suggestion banner | `js/io/usageStats.js` (session-count + shown-milestones tracking) + `js/core/featureLevels.js#getDueSuggestionMilestone`/`SUGGESTION_MILESTONES` (pure) + `js/hints/featureSuggestionBanner.js` (the dismissible card UI) |
 | Change the compact sidebar toggle | `js/io/librarySettings.js`'s `compactSidebar` field + `js/sidebar/sidebar.js`'s `.sidebar-compact-toggle` button and `renderList()`'s `showBuiltinCategories` gate (search always bypasses it) |
+| Change node style presets / corner radius / border style / drop shadow / opacity / size presets | `js/core/stylePresets.js` (pure preset definitions + `getStylePresetFields`) + `js/toolbar/styleEditor.js` (`buildStylePresetRow`, the Corner Radius/Border Style/Drop Shadow/Opacity fields, the S/M/L size-preset row) + `js/core/project.js` (`cornerRadius`/`borderStyle`/`dropShadow`/`opacity` fields + `BORDER_STYLES`) + `js/canvas/node.js#updateNodeEl`. See "Common pitfalls" below before wiring a new per-node style field straight to `body.style.<prop>`. |
 
 ## Running things locally
 
@@ -1017,3 +1018,34 @@ npm test
   currently-open panel (`.toolbar-dropdown-panel:not([hidden]) ...`) or it
   silently matches the same class of element across every dropdown at
   once, not just the one you opened.
+
+- **An inline `body.style.<prop> = ...` on `.node-body` from `canvas/node.js`
+  unconditionally beats any `.node:hover`/`.node.selected`/shape-specific CSS
+  rule that also sets that same property, regardless of selector
+  specificity — inline always wins over a class rule unless the class rule
+  itself uses `!important`.** This shipped as a real bug adding the Drop
+  Shadow style field (v1.42.0): setting `body.style.boxShadow` directly
+  silently erased `.node.selected .node-body`'s selection-ring box-shadow
+  whenever drop shadow was also on, since the two rules draw to the exact
+  same CSS property and the inline one always wins. Fixed by introducing a
+  `--node-extra-shadow` custom property that `canvas/node.js` is the only
+  thing that ever sets/clears, with every CSS rule that draws a shadow on
+  `.node-body` reading `var(--node-extra-shadow, <its own baseline>)`
+  instead of a hardcoded value — see docs/ARCHITECTURE.md's "Component
+  Style Presets..." section. Before wiring any *new* per-node inline style
+  field straight to `body.style.<prop>`, grep `css/node.css` for that same
+  property already being set on `.node-body` by a state/shape rule — if one
+  exists, route through a custom property the same way instead of a direct
+  assignment, and write an e2e test that exercises the new field *while the
+  node is also selected* (a bare, unselected node in the test would never
+  have caught this).
+
+- **Playwright's `hasText` string filter is a case-insensitive substring
+  match against the whole element's text content, not just its own direct
+  label text.** `page.locator('.field', { hasText: 'Shape' })` also matched
+  the *Text Position* field, because two of its own `<select>` option
+  labels read "Above shape"/"Below shape" — lowercase "shape" still matches
+  case-insensitively. Anchor with a regex (`{ hasText: /^Shape/ }`) whenever
+  a short, generic label could plausibly appear as a substring of another
+  field's own text (an option, a placeholder, a neighboring label) rather
+  than assuming a `.field`-scoped locator is automatically unambiguous.

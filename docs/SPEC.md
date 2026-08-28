@@ -2033,6 +2033,26 @@ the full category browser (~28 categories) one click away. Search always
 searches every category regardless of this setting — it only affects what
 shows without an active search.
 
+### 4.82 Component Style Presets, Corner Radius, Border Style, Drop Shadow, Opacity, Size Presets
+The per-node style editor (4.5) gains six new controls, all in the same contextual card:
+
+- **Style Presets** — four buttons (⭐ Primary, 🗑️ Deprecated, 🌐 External, ✨ Highlighted) each set
+  fill/border/border-width/border-style/drop-shadow/opacity together in one click (one undo step),
+  same as any other style-editor edit. Not its own persisted field on the node — applying one is a
+  one-time bundle of concrete values, not a live binding to "which preset."
+- **Corner radius** — a numeric field (0-40px), shown only when the node's shape is `rect` or
+  `rounded` (the only two shapes with a real CSS `border-radius`); unset (`null`) means "use that
+  shape's own default radius."
+- **Border style** — Solid/Dashed/Dotted. Like `strokeWidth`, this has no visible effect on
+  diamond/hexagon/cylinder, whose outline is faked with clipped/pseudo-element layers rather than a
+  real CSS border.
+- **Drop shadow** — a checkbox for a stronger elevation shadow than every node's own baseline. Composes
+  correctly with the existing hover/selection-ring shadows rather than replacing them.
+- **Opacity** — 10-100%, for fading a node to indicate e.g. a planned-but-not-built component.
+  Independent of, and composes with, Focus Mode's dimming and Diagram Animation's reveal/hide.
+- **Size presets** — S/M/L buttons next to Width/Height for quickly matching a component to one of
+  three common sizes (120×60, 160×84, 220×120), a shortcut rather than a new field.
+
 ## 7. Out of scope for v1 (ideas for later, see PLAN.md §7)
 
 Versioned history beyond in-session undo/redo (superseded by 4.17/4.63

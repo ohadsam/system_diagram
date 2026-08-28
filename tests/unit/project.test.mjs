@@ -6,6 +6,39 @@ import {
   countUnresolvedComments,
 } from '../../js/core/project.js';
 
+test('createNode defaults cornerRadius/borderStyle/dropShadow/opacity', () => {
+  const node = createNode(null, 0, 0);
+  assert.equal(node.cornerRadius, null, 'null means "use the shape\'s own default radius"');
+  assert.equal(node.borderStyle, 'solid');
+  assert.equal(node.dropShadow, false);
+  assert.equal(node.opacity, 100);
+});
+
+test('validateProject validates/clamps cornerRadius/borderStyle/dropShadow/opacity', () => {
+  const p = createEmptyProject();
+  p.nodes = [
+    createNode(null, 0, 0, { cornerRadius: 20, borderStyle: 'dashed', dropShadow: true, opacity: 40 }),
+    createNode(null, 100, 0, { cornerRadius: -5 }), // clamped to 0, not dropped
+    createNode(null, 200, 0, { borderStyle: 'bogus' }), // falls back to 'solid'
+    createNode(null, 300, 0, { dropShadow: 'yes' }), // only a literal true counts
+    createNode(null, 400, 0, { opacity: 500 }), // clamped to 100
+    createNode(null, 500, 0, { opacity: -20 }), // clamped to 0
+    createNode(null, 600, 0, {}), // untouched — cornerRadius stays null
+  ];
+  const { ok, project } = validateProject(p);
+  assert.equal(ok, true);
+  assert.equal(project.nodes[0].cornerRadius, 20);
+  assert.equal(project.nodes[0].borderStyle, 'dashed');
+  assert.equal(project.nodes[0].dropShadow, true);
+  assert.equal(project.nodes[0].opacity, 40);
+  assert.equal(project.nodes[1].cornerRadius, 0);
+  assert.equal(project.nodes[2].borderStyle, 'solid');
+  assert.equal(project.nodes[3].dropShadow, false);
+  assert.equal(project.nodes[4].opacity, 100);
+  assert.equal(project.nodes[5].opacity, 0);
+  assert.equal(project.nodes[6].cornerRadius, null);
+});
+
 test('createEmptyProject has the expected shape', () => {
   const p = createEmptyProject('Test');
   assert.equal(p.name, 'Test');

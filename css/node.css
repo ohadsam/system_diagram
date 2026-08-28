@@ -48,7 +48,13 @@
   justify-content: center;
   border-style: solid;
   border-radius: 4px;
-  box-shadow: var(--shadow-sm);
+  /* --node-extra-shadow (set inline by canvas/node.js when the per-node
+     "Drop shadow" style field is on) swaps in var(--shadow-lg) here; the
+     fallback is this shape's own baseline shadow. Layering it through a
+     custom property instead of setting `box-shadow` directly from JS keeps
+     this rule and the `.node.selected` rule below both able to react to it
+     without either one clobbering the other's box-shadow value. */
+  box-shadow: var(--node-extra-shadow, var(--shadow-sm));
   padding: 8px 10px;
   overflow: hidden;
   transition: box-shadow 0.1s;
@@ -194,7 +200,7 @@
   pointer-events: none;
 }
 .node[data-shape="cloud"] .node-body { border-radius: 46% 54% 54% 46% / 60% 55% 45% 40%; }
-.node[data-shape="note"] .node-body { border-radius: 2px; transform: rotate(-1deg); box-shadow: var(--shadow-md); }
+.node[data-shape="note"] .node-body { border-radius: 2px; transform: rotate(-1deg); box-shadow: var(--node-extra-shadow, var(--shadow-md)); }
 .node[data-shape="rows"] .node-body { border-radius: 10px; justify-content: flex-start; padding: 0; }
 
 /* Sequence-diagram lifeline — a titled box (::before, same "fill layer
@@ -403,11 +409,11 @@
 }
 
 .node:hover .node-body {
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--node-extra-shadow, var(--shadow-md));
 }
 
 .node.selected .node-body {
-  box-shadow: 0 0 0 2px var(--color-primary), var(--shadow-md);
+  box-shadow: 0 0 0 2px var(--color-primary), var(--node-extra-shadow, var(--shadow-md));
 }
 
 .node-standard {

@@ -110,6 +110,37 @@ Keep this in sync with `PLAN.md` as stages complete.
   field (with autocomplete) on custom components, grouping them into
   collapsible 📁 sub-groups in the sidebar.
 
+## v1.42.0 (2026-08-28)
+
+**Six new component-styling options**, expanding the per-node style editor (`toolbar/styleEditor.js`)
+without adding new modals or toolbar clutter — all fields live in the same contextual style card that
+already opens when a component is selected:
+
+- **✨ Style Presets** — four one-click buttons (⭐ Primary, 🗑️ Deprecated, 🌐 External, ✨ Highlighted)
+  each apply a fixed bundle of fill/border/border-style/shadow/opacity in a single dispatch (one undo
+  step), defined in a new pure `core/stylePresets.js` module. Deliberately not persisted as "which
+  preset is this" on the node — same reasoning as `core/diagramTheme.js`'s palette recolor — so a
+  preset's own definition can evolve later without silently reinterpreting every node that ever used it.
+- **Corner Radius** — a numeric field, shown only for the `rect`/`rounded` shapes (the only two with a
+  real, adjustable CSS `border-radius`); `null` means "use that shape's own default radius," so
+  switching shapes never needs special reset logic.
+- **Border style** — Solid/Dashed/Dotted, a plain CSS `border-style` value. Like `strokeWidth` before
+  it, this is an honest no-op on diamond/hexagon/cylinder, which fake their outline with filled
+  pseudo-elements and have no real border to dash.
+- **Drop shadow** — a checkbox for a stronger `box-shadow`. Implemented via a `--node-extra-shadow`
+  CSS custom property rather than setting `box-shadow` directly from JS — an inline `box-shadow` would
+  have unconditionally beaten the `.node:hover`/`.node.selected` class rules that also draw a shadow
+  there, silently hiding e.g. the selection ring on a selected node with drop shadow on. Every one of
+  those rules now reads `var(--node-extra-shadow, <its own baseline>)` instead.
+- **Opacity** — a 10-100% field, applied as an inline style on `.node-body` (not the outer `.node`),
+  which is exactly what lets it compose independently of Focus Mode's dimming and Diagram Animation's
+  reveal/hide, both of which toggle a class on the outer element instead.
+- **Size presets** — S/M/L quick buttons next to Width/Height, a shortcut for typing the same two
+  numbers rather than a new persisted field.
+
+All four new node-schema fields (`cornerRadius`, `borderStyle`, `dropShadow`, `opacity`) get a
+`createNode` default and a `validateProject` clamp/fallback branch, same as every other per-node field.
+
 ## v1.41.0 (2026-08-28)
 
 **🧩 Feature Level (Basic/Advanced/Custom)** — this app has accumulated a very large number of

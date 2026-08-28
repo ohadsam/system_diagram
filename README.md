@@ -104,14 +104,16 @@ Or open `index.html` directly in a browser.
   bends; every other routing now auto-avoids obstacles too), independent
   start/end arrow-head styles, color, thickness, dash pattern and labels.
   Deleting a component always cleans up every connector attached to it.
-- **Style toolbar** — colors, shape, border, font, text alignment/position
-  (including outside-the-shape captions), icon visibility, size — applies
-  to your whole selection at once. Its header lets you collapse it to a
-  slim strip without losing your selection (handy on mobile), or close it
-  outright. Shows as a small floating card next to your selection by
-  default, or pin it (📌) to the top of the screen instead — set your
-  preferred default (floating, pinned to top, or pinned to bottom) in
-  Default Settings.
+- **Style toolbar** — colors, shape, border (color/width/style), corner
+  radius, drop shadow, opacity, four one-click style presets (⭐ Primary,
+  🗑️ Deprecated, 🌐 External, ✨ Highlighted), font, text alignment/position
+  (including outside-the-shape captions), icon visibility, size (with S/M/L
+  quick-size buttons) — applies to your whole selection at once. Its header
+  lets you collapse it to a slim strip without losing your selection (handy
+  on mobile), or close it outright. Shows as a small floating card next to
+  your selection by default, or pin it (📌) to the top of the screen
+  instead — set your preferred default (floating, pinned to top, or pinned
+  to bottom) in Default Settings.
 - **Global default settings** — set defaults (transparent background, show
   icon, text position, sub-components display) applied to every newly
   created component, with a one-click "apply to all existing components"

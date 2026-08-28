@@ -205,9 +205,37 @@ export function updateNodeEl(rootEl, node, { selected = false, replicated = fals
   body.style.background = node.fill;
   body.style.borderColor = node.stroke;
   body.style.borderWidth = `${node.strokeWidth}px`;
+  body.style.borderStyle = node.borderStyle || 'solid';
   body.style.color = '#1F2937';
   body.style.fontSize = `${node.fontSize}px`;
   body.style.textAlign = node.textAlign;
+  // Only rect/rounded actually use a plain CSS border-radius (see
+  // core/project.js#createNode's cornerRadius comment for why every other
+  // shape ignores this) — clearing the inline property for the rest falls
+  // back to their own shape-specific css/node.css rule rather than fighting it.
+  body.style.borderRadius = Number.isFinite(node.cornerRadius) && (node.shape === 'rect' || node.shape === 'rounded')
+    ? `${node.cornerRadius}px`
+    : '';
+  // An opt-in *stronger* shadow on top of `.node-body`'s own baseline
+  // `box-shadow: var(--shadow-sm)` (css/node.css). Set as a custom property
+  // rather than `box-shadow` directly: `.node-body` isn't the only rule
+  // that draws a shadow there — `:hover`/`.selected` layer their own ring/
+  // elevation on top (css/node.css) — and an inline `box-shadow` would beat
+  // all of those class rules outright, silently hiding e.g. the selection
+  // ring on a selected node with drop shadow on. Every one of those rules
+  // instead reads `var(--node-extra-shadow, <its own baseline>)`, so
+  // removing the property (rather than setting 'none') falls back to
+  // whichever baseline is active instead of erasing it.
+  if (node.dropShadow) {
+    body.style.setProperty('--node-extra-shadow', 'var(--shadow-lg)');
+  } else {
+    body.style.removeProperty('--node-extra-shadow');
+  }
+  // Deliberately on `.node-body`, not `.node` — see core/project.js's
+  // `opacity` field comment for why this has to compose independently of
+  // Focus Mode/Diagram Animation's own class-based opacity on the outer
+  // element rather than fight over the same property.
+  body.style.opacity = Number.isFinite(node.opacity) ? String(node.opacity / 100) : '';
   // Also exposed as custom properties, read only by the diamond/hexagon
   // border fix below (css/node.css) — a plain CSS `border` doesn't follow
   // clip-path's polygon outline (it's still a rectangular border box
