@@ -41,6 +41,12 @@ import { openDiagramLintModal } from './diagramLintModal.js';
 import { openCostBreakdownModal } from './costBreakdownModal.js';
 import { openScaleDiagramModal } from './scaleDiagramModal.js';
 import { openDiagramThemeModal } from './diagramThemeModal.js';
+import { openBlastRadiusModal } from './blastRadiusModal.js';
+import { openInterviewModeModal } from './interviewModeModal.js';
+import { openImportFromUrlModal } from './importFromUrlModal.js';
+import { openSystemMapModal } from './systemMapModal.js';
+import { openExportPosterModal } from './exportPosterModal.js';
+import { openReviewStatusModal } from './reviewStatusModal.js';
 import { getUiPrefs, saveUiPrefs } from '../io/uiPrefs.js';
 import { setMinimapVisible } from '../canvas/minimap.js';
 import { openGenerateDesignModal } from './generateDesignModal.js';
@@ -188,6 +194,11 @@ function buildAppCommands() {
       },
     },
     { id: 'whats-new', label: "🆕 What's New", keywords: ["what's new", 'changelog', 'version', 'updates'], run: () => openWhatsNewModal() },
+    { id: 'interview-mode', label: '🎓 Interview Mode', keywords: ['interview', 'practice', 'system design', 'timer', 'grading'], run: () => openInterviewModeModal() },
+    { id: 'import-url', label: '🔗 Import from URL/Gist', keywords: ['import', 'url', 'gist', 'github', 'link'], run: () => openImportFromUrlModal() },
+    { id: 'system-map', label: '🗺️ System Map', keywords: ['system map', 'projects', 'graph', 'link'], run: () => openSystemMapModal() },
+    { id: 'export-poster', label: '🧩 Export PDF (Poster)', keywords: ['pdf', 'poster', 'print', 'tile', 'pages'], run: () => openExportPosterModal() },
+    { id: 'review-status', label: '📝 Review Status', keywords: ['review', 'status', 'draft', 'approved', 'approval'], run: () => openReviewStatusModal() },
   ];
 }
 
@@ -208,6 +219,7 @@ function buildContextualCommands(nodeId) {
   getRelatedPatterns(def.id).slice(0, 2).forEach((rel) => {
     commands.push({ id: `rel-pattern-${rel.id}`, label: `${rel.icon} Add "${rel.name}" nearby`, keywords: [rel.name, 'pattern', 'sequence'], run: () => instantiatePatternNearNode(rel.id, nodeId) });
   });
+  commands.push({ id: 'ctx-blast-radius', label: `🎯 Blast Radius of ${def.name}`, keywords: ['blast', 'radius', 'impact', 'failure', 'dependency'], run: () => openBlastRadiusModal(nodeId) });
   commands.push({ id: 'ctx-duplicate', label: `📄 Duplicate ${def.name}`, keywords: ['duplicate', 'copy'], run: duplicateSelection });
   commands.push({ id: 'ctx-delete', label: `🗑️ Delete ${def.name}`, keywords: ['delete', 'remove'], run: deleteSelection });
   return commands;

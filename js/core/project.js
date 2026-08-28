@@ -38,6 +38,13 @@ export const ANIMATION_REVEAL_MODES = ['auto', 'click'];
 // ballooning into an unusable project (see validateAnimations below).
 export const MAX_ANIMATIONS_PER_PROJECT = 50;
 export const MAX_TARGETS_PER_ANIMATION_STEP = 50;
+// A lightweight status label for team review workflows — deliberately just
+// a label with a "who/when set it" note (see `reviewedBy`/`reviewedAt`
+// below), not a real approval/permissions system (no accounts exist in
+// this app to enforce one) — same honesty-about-what-it-does convention as
+// core/versionBranches.js's "branching" being an explicit copy, not a real
+// merge. See modals/reviewStatusModal.js.
+export const REVIEW_STATUSES = ['draft', 'in-review', 'approved'];
 
 export function createEmptyProject(name = 'Untitled Diagram') {
   const now = new Date().toISOString();
@@ -76,7 +83,28 @@ export function createEmptyProject(name = 'Untitled Diagram') {
     // this was a collection.
     animations: [],
     activeAnimationId: null,
+    // Cross-project links — "this diagram relates to that other saved
+    // diagram" (e.g. a system diagram pointing at a separate sequence
+    // diagram detailing one of its flows, or a service's own DB schema
+    // diagram) — see modals/systemMapModal.js and core/systemMap.js. `to`
+    // is another *saved* project's id (io/projects.js); a link whose target
+    // was since deleted is simply skipped when rendering the map, same
+    // "never throws on a dangling reference" contract as every other
+    // validate* helper below — it isn't cleaned up here since this
+    // project's own links are the only thing being validated, not the
+    // wider saved-projects list.
+    links: [],
+    // See REVIEW_STATUSES above — 'draft' is the default every project
+    // starts in, same as an ordinary document with nobody's eyes on it yet.
+    reviewStatus: 'draft',
+    reviewedBy: '',
+    reviewedAt: null,
   };
+}
+
+/** One entry in `project.links` — see createEmptyProject's comment above. */
+export function createProjectLink(to, label = '') {
+  return { id: nextId('link'), to, label: (label || '').trim() };
 }
 
 /** One entry in a step's `targets` array — deliberately a plain
@@ -345,6 +373,14 @@ export function duplicateProject(project) {
     // that leaves it with no targets left. `activeAnimationId` follows the
     // same animation through its own id remap rather than being dropped.
     ...remapAnimations(project.animations, project.activeAnimationId, nodeIdMap, edgeIdMap),
+    // A copy is its own unreviewed artifact — nobody has looked at *this*
+    // copy yet, even if the original was "Approved" — so review status
+    // resets the same way id/createdAt do, not carried over like comments/
+    // animations (which are diagram content, not a claim about who
+    // reviewed this specific object).
+    reviewStatus: 'draft',
+    reviewedBy: '',
+    reviewedAt: null,
   };
 }
 
@@ -706,6 +742,23 @@ function validateAnimations(input, nodeIds, edgeIds) {
   return { animations, activeAnimationId };
 }
 
+/** Validates `project.links` — same never-throws, backfill-don't-drop
+ * contract as every other validate* helper here. A link missing a `to`
+ * target is dropped outright (it points nowhere); everything else gets a
+ * sane default. Whether `to` actually resolves to a real saved project is
+ * checked later, at render time (core/systemMap.js), not here — this
+ * project's own JSON has no visibility into the wider saved-projects list. */
+function validateLinks(rawLinks) {
+  if (!Array.isArray(rawLinks)) return [];
+  return rawLinks
+    .filter((l) => l && typeof l === 'object' && typeof l.to === 'string' && l.to)
+    .map((l) => ({
+      id: typeof l.id === 'string' && l.id ? l.id : nextId('link'),
+      to: l.to,
+      label: typeof l.label === 'string' ? l.label : '',
+    }));
+}
+
 /**
  * Validate an arbitrary parsed-JSON value as a project, returning
  * { ok: true, project } with unknown/invalid fields coerced to safe
@@ -723,6 +776,10 @@ export function validateProject(input) {
     const presentations = validatePresentations(input.presentations, versions);
     const comments = validateComments(input.comments);
     const { animations, activeAnimationId } = validateAnimations(input, new Set(nodes.map((n) => n.id)), new Set(edges.map((e) => e.id)));
+    const links = validateLinks(input.links);
+    const reviewStatus = REVIEW_STATUSES.includes(input.reviewStatus) ? input.reviewStatus : 'draft';
+    const reviewedBy = typeof input.reviewedBy === 'string' ? input.reviewedBy : '';
+    const reviewedAt = typeof input.reviewedAt === 'string' ? input.reviewedAt : null;
 
     const project = {
       formatVersion: FORMAT_VERSION,
@@ -743,6 +800,10 @@ export function validateProject(input) {
       comments,
       animations,
       activeAnimationId,
+      links,
+      reviewStatus,
+      reviewedBy,
+      reviewedAt,
     };
     return { ok: true, project };
   } catch (err) {

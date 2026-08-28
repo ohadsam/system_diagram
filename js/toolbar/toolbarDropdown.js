@@ -69,7 +69,16 @@ export function buildToolbarDropdown(label, icon, title, buttons) {
 
   // Fixed viewport coordinates, clamped to stay fully on-screen — see the
   // module comment above for why this is more robust than CSS `position:
-  // absolute` relative to the trigger.
+  // absolute` relative to the trigger. `top` alone being clamped isn't
+  // enough once a group has grown long enough that the panel's own natural
+  // height exceeds the viewport (this app's longest group, Tools, has
+  // grown past two dozen buttons across many batches) — clamping only the
+  // position still leaves its bottom rows genuinely unreachable, with no
+  // page scroll to fall back on since the panel is `position: fixed`. So
+  // `max-height`/`overflow-y` are set here too, sized to whatever space is
+  // actually left below `top`, the same "clamp position AND cap size with
+  // its own scrollbar" approach `.toolbar-row-context.floating` already
+  // uses (css/toolbar.css) — just computed here since `top` is dynamic.
   function positionPanel() {
     const triggerRect = trigger.getBoundingClientRect();
     const panelRect = panel.getBoundingClientRect();
@@ -79,6 +88,8 @@ export function buildToolbarDropdown(label, icon, title, buttons) {
     const top = Math.max(EDGE_MARGIN, Math.min(triggerRect.bottom + 4, maxTop));
     panel.style.left = `${left}px`;
     panel.style.top = `${top}px`;
+    panel.style.maxHeight = `${window.innerHeight - top - EDGE_MARGIN}px`;
+    panel.style.overflowY = 'auto';
   }
 
   const trigger = el(

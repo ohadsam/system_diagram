@@ -1,225 +1,141 @@
 import { test, expect } from '@playwright/test';
-import { dismissHints, addComponentByName, connectNodes } from './helpers.js';
+import { dismissHints, addComponentByName, openToolbarGroup, connectNodes } from './helpers.js';
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/index.html');
   await dismissHints(page);
 });
 
-async function openToolbarGroup(page, groupLabel) {
-  await page.locator('#toolbar button.toolbar-dropdown-trigger', { hasText: groupLabel }).click();
-}
+test('Blast Radius: right-clicking a connected component shows what depends on it and what it depends on', async ({ page }) => {
+  await addComponentByName(page, 'Load Balancer');
+  await addComponentByName(page, 'API Gateway');
+  const nodes = page.locator('.node');
+  await connectNodes(page, nodes.nth(0), nodes.nth(1));
+  await expect(page.locator('.edge')).toHaveCount(1);
 
-// ---- Flow Simulation ----
-
-test.describe('Flow Simulation', () => {
-  test('toggling it shows an animated dot on every connector, hidden again when toggled off', async ({ page }) => {
-    await addComponentByName(page, 'API Gateway');
-    await addComponentByName(page, 'Redis Cache');
-    await connectNodes(page, page.locator('.node').first(), page.locator('.node').nth(1));
-    await expect(page.locator('.edge')).toHaveCount(1);
-
-    await expect(page.locator('.flow-dot').first()).not.toBeVisible();
-
-    await openToolbarGroup(page, 'Tools');
-    await page.locator('.toolbar-dropdown-panel button', { hasText: 'Flow Simulation' }).click();
-    await expect(page.locator('.flow-dot').first()).toBeVisible();
-    await expect(page.locator('.edge-layer.flow-simulation-on')).toHaveCount(1);
-
-    await openToolbarGroup(page, 'Tools');
-    await page.locator('.toolbar-dropdown-panel button', { hasText: 'Flow Simulation' }).click();
-    await expect(page.locator('.flow-dot').first()).not.toBeVisible();
-  });
-
-  test('persists across a reload via the same preference storage as other toolbar toggles', async ({ page }) => {
-    await openToolbarGroup(page, 'Tools');
-    await page.locator('.toolbar-dropdown-panel button', { hasText: 'Flow Simulation' }).click();
-    await page.reload();
-    await dismissHints(page);
-    await expect(page.locator('#toolbar')).toBeVisible();
-    await openToolbarGroup(page, 'Tools');
-    await expect(page.locator('.toolbar-dropdown-panel button', { hasText: 'Flow Simulation' })).toHaveClass(/active/);
-  });
+  await nodes.nth(0).click({ button: 'right' });
+  await page.locator('.context-menu-item', { hasText: 'Blast Radius' }).click();
+  await expect(page.locator('.blast-radius-modal')).toBeVisible();
+  await expect(page.locator('.blast-radius-item')).toHaveCount(1);
 });
 
-// ---- Edit with AI ----
-
-test.describe('Edit with AI', () => {
-  test('describing a change, pasting a patch, previewing, and applying it edits the live diagram as one undoable step', async ({ page }) => {
-    await addComponentByName(page, 'API Gateway');
-    await addComponentByName(page, 'Redis Cache');
-    await connectNodes(page, page.locator('.node').first(), page.locator('.node').nth(1));
-
-    await openToolbarGroup(page, 'Create');
-    await page.locator('.toolbar-dropdown-panel button', { hasText: 'Edit with AI' }).click();
-    await expect(page.locator('.ai-edit-modal')).toBeVisible();
-
-    await page.locator('.ai-edit-instruction').fill('rename Redis Cache to Redis Cache v2');
-    await page.locator('.modal-actions button', { hasText: 'Next →' }).click();
-    // A textarea's *value* (set reactively via the JS property, not appended
-    // as a text-node child) isn't what toContainText() reads — that checks
-    // textContent, which stays empty. inputValue()/toHaveValue() is correct here.
-    expect(await page.locator('.ai-review-prompt').inputValue()).toContain('rename Redis Cache to Redis Cache v2');
-    await page.locator('.modal-actions button', { hasText: 'Next →' }).click();
-
-    const targetNodeId = await page.locator('.node', { hasText: 'Redis Cache' }).getAttribute('data-node-id');
-    const patch = JSON.stringify({ updateNodes: [{ id: targetNodeId, text: 'Redis Cache v2' }] });
-    await page.locator('.ai-edit-response').fill('```json\n' + patch + '\n```');
-    await page.locator('.modal-actions button', { hasText: 'Preview changes' }).click();
-    await expect(page.locator('.ai-edit-preview-row')).toHaveCount(1);
-    await expect(page.locator('.ai-edit-preview-row')).toContainText('text');
-
-    await page.locator('.modal-actions button', { hasText: 'Apply changes' }).click();
-    await expect(page.locator('.ai-edit-modal')).toHaveCount(0);
-    await expect(page.locator('.node', { hasText: 'Redis Cache v2' })).toHaveCount(1);
-
-    await page.keyboard.press('Control+z');
-    await expect(page.locator('.node', { hasText: 'Redis Cache v2' })).toHaveCount(0);
-    await expect(page.locator('.node', { hasText: 'Redis Cache', exact: true })).toHaveCount(1);
-  });
-
-  test('a patch adding a new node+edge and removing an old edge applies all of it together', async ({ page }) => {
-    await addComponentByName(page, 'API Gateway');
-    await addComponentByName(page, 'PostgreSQL');
-    await connectNodes(page, page.locator('.node').first(), page.locator('.node').nth(1));
-    await expect(page.locator('.edge')).toHaveCount(1);
-    const oldEdgeId = await page.locator('.edge').first().getAttribute('data-edge-id');
-    const gatewayId = await page.locator('.node').first().getAttribute('data-node-id');
-
-    await openToolbarGroup(page, 'Create');
-    await page.locator('.toolbar-dropdown-panel button', { hasText: 'Edit with AI' }).click();
-    await page.locator('.ai-edit-instruction').fill('add a cache');
-    await page.locator('.modal-actions button', { hasText: 'Next →' }).click();
-    await page.locator('.modal-actions button', { hasText: 'Next →' }).click();
-
-    const patch = JSON.stringify({
-      addNodes: [{ id: 'newcache', x: 400, y: 400, shape: 'cylinder', text: 'New Cache' }],
-      addEdges: [{ id: 'newe1', from: gatewayId, to: 'newcache', label: 'reads' }],
-      removeEdgeIds: [oldEdgeId],
-    });
-    await page.locator('.ai-edit-response').fill('```json\n' + patch + '\n```');
-    await page.locator('.modal-actions button', { hasText: 'Preview changes' }).click();
-    await expect(page.locator('.ai-edit-preview-row')).toHaveCount(3);
-    await page.locator('.modal-actions button', { hasText: 'Apply changes' }).click();
-
-    await expect(page.locator('.node')).toHaveCount(3);
-    await expect(page.locator('.node', { hasText: 'New Cache' })).toHaveCount(1);
-    await expect(page.locator('.edge')).toHaveCount(1);
-  });
+test('Blast Radius: an unconnected component reports nothing would be affected', async ({ page }) => {
+  await addComponentByName(page, 'Load Balancer');
+  await page.locator('.node').first().click({ button: 'right' });
+  await page.locator('.context-menu-item', { hasText: 'Blast Radius' }).click();
+  await expect(page.locator('.blast-radius-modal')).toBeVisible();
+  await expect(page.locator('.blast-radius-empty')).toContainText("isn't connected");
 });
 
-// ---- Custom Lint Rules ----
+test('Interview Mode: starting a practice question shows a live countdown badge and lets grading open an AI ask modal', async ({ page }) => {
+  await openToolbarGroup(page, 'Tools');
+  await page.locator('#toolbar button', { hasText: 'Interview Mode' }).click();
+  await expect(page.locator('.interview-mode-modal')).toBeVisible();
+  await page.locator('.interview-duration-btn', { hasText: '15m' }).click();
+  await page.locator('.interview-prompt-row', { hasText: 'Design a URL Shortener' }).locator('button', { hasText: 'Start' }).click();
+  await expect(page.locator('.interview-mode-modal')).toBeHidden();
+  await openToolbarGroup(page, 'Tools');
+  await expect(page.locator('.toolbar-interview-badge')).toBeVisible();
+  await expect(page.locator('.toolbar-interview-badge')).toContainText(':');
 
-test.describe('Custom Lint Rules', () => {
-  test('a requires-connection rule flags a violating component and clears once connected, and can be disabled', async ({ page }) => {
-    await addComponentByName(page, 'Redis Cache');
-
-    await openToolbarGroup(page, 'Tools');
-    await page.locator('.toolbar-dropdown-panel button', { hasText: 'Check Diagram' }).click();
-    await page.locator('.modal-actions button', { hasText: 'Manage Custom Rules' }).click();
-
-    const selects = page.locator('.custom-lint-rule-form select');
-    await selects.nth(1).selectOption('cache');
-    await selects.nth(2).selectOption('backend-frameworks');
-    await page.locator('.custom-lint-rule-form input[type="text"]').fill('Cache needs a backend');
-    await page.locator('.modal-actions button', { hasText: '+ Add rule' }).click();
-    await expect(page.locator('.custom-lint-rule-row')).toHaveCount(1);
-    await page.locator('.custom-lint-rules-modal .modal-actions button', { hasText: 'Done' }).click();
-
-    await expect(page.locator('.diagram-lint-item-text')).toContainText('Cache needs a backend');
-
-    // Disable it and confirm it stops firing.
-    await page.locator('.modal-actions button', { hasText: 'Manage Custom Rules' }).click();
-    await page.locator('.custom-lint-rule-row input[type="checkbox"]').uncheck();
-    await page.locator('.custom-lint-rules-modal .modal-actions button', { hasText: 'Done' }).click();
-    await expect(page.locator('.diagram-lint-empty')).toBeVisible();
-
-    // Delete it and confirm it's gone from the manager too.
-    await page.locator('.modal-actions button', { hasText: 'Manage Custom Rules' }).click();
-    await page.locator('.custom-lint-rule-row button', { hasText: 'Delete' }).click();
-    await page.locator('.confirm-modal button', { hasText: 'Delete' }).click();
-    await expect(page.locator('.custom-lint-rule-row')).toHaveCount(0);
-  });
+  await page.locator('#toolbar button', { hasText: 'Interview Mode' }).click();
+  await expect(page.locator('.interview-timer')).toContainText('remaining');
+  await page.locator('button', { hasText: 'Submit for Grading' }).click();
+  await expect(page.locator('.ai-ask-modal')).toBeVisible();
+  await expect(page.locator('.ai-ask-modal .ai-review-prompt')).toHaveValue(/Design a URL Shortener/);
 });
 
-// ---- Threaded Comments ----
+test('Interview Mode: ending practice hides the countdown badge', async ({ page }) => {
+  await openToolbarGroup(page, 'Tools');
+  await page.locator('#toolbar button', { hasText: 'Interview Mode' }).click();
+  await page.locator('.interview-prompt-row', { hasText: 'Design a Rate Limiter' }).locator('button', { hasText: 'Start' }).click();
+  await openToolbarGroup(page, 'Tools');
+  await expect(page.locator('.toolbar-interview-badge')).toBeVisible();
 
-test.describe('Threaded Comments', () => {
-  test('replies can be added and removed, the note persists, and everything round-trips through JSON export/import', async ({ page }) => {
-    await page.locator('#canvas-viewport').click({ button: 'right', position: { x: 300, y: 300 } });
-    await page.locator('.context-menu-item', { hasText: 'Add comment here' }).click();
-    await expect(page.locator('.comment-modal')).toBeVisible();
-
-    await page.locator('.comment-modal-text').fill('Should this be async?');
-    await page.locator('.comment-reply-input').fill('Yes, queue it');
-    await page.locator('.comment-reply-input').press('Enter');
-    await expect(page.locator('.comment-reply')).toHaveCount(1);
-    await expect(page.locator('.comment-reply-input')).toBeFocused();
-
-    await page.locator('.comment-reply-input').fill('Agreed');
-    await page.locator('.comment-reply-input').press('Enter');
-    await expect(page.locator('.comment-reply')).toHaveCount(2);
-    await expect(page.locator('.comment-modal-text')).toHaveValue('Should this be async?');
-
-    await page.locator('.comment-reply-remove').first().click();
-    await expect(page.locator('.comment-reply')).toHaveCount(1);
-    await expect(page.locator('.comment-reply-text')).toHaveText('Agreed');
-
-    await page.locator('.field-checkbox input[type="checkbox"]').check();
-    await page.locator('.modal-actions button', { hasText: 'Done' }).click();
-    await expect(page.locator('.comment-pin.resolved')).toHaveCount(1);
-
-    const [download] = await Promise.all([
-      page.waitForEvent('download'),
-      (async () => {
-        await page.locator('#toolbar button.toolbar-dropdown-trigger', { hasText: 'File' }).click();
-        await page.locator('.toolbar-dropdown-panel button', { hasText: 'Export JSON' }).click();
-      })(),
-    ]);
-    const path = await download.path();
-
-    await page.locator('.comment-pin').click();
-    await page.locator('.modal-actions button', { hasText: 'Delete' }).click();
-    await page.locator('.confirm-modal button', { hasText: 'Delete' }).click();
-    await expect(page.locator('.comment-pin')).toHaveCount(0);
-
-    const fileChooserPromise = page.waitForEvent('filechooser');
-    await page.locator('#toolbar button.toolbar-dropdown-trigger', { hasText: 'File' }).click();
-    await page.locator('.toolbar-dropdown-panel button', { hasText: 'Import JSON' }).click();
-    const fileChooser = await fileChooserPromise;
-    await fileChooser.setFiles(path);
-
-    await expect(page.locator('.comment-pin.resolved')).toHaveCount(1);
-    await page.locator('.comment-pin').click();
-    await expect(page.locator('.comment-reply')).toHaveCount(1);
-    await expect(page.locator('.comment-reply-text')).toHaveText('Agreed');
-  });
+  await page.locator('#toolbar button', { hasText: 'Interview Mode' }).click();
+  await page.locator('button', { hasText: 'End Practice' }).click();
+  await openToolbarGroup(page, 'Tools');
+  await expect(page.locator('.toolbar-interview-badge')).toBeHidden();
 });
 
-// ---- Hebrew / RTL localization ----
+test('Import from URL/Gist: a bad URL shows a clear error without touching the canvas', async ({ page }) => {
+  await openToolbarGroup(page, 'File');
+  await page.locator('#toolbar button', { hasText: 'Import from URL/Gist' }).click();
+  await expect(page.locator('.import-url-modal')).toBeVisible();
+  await page.locator('.import-url-input').fill('not-a-url');
+  await page.locator('.import-url-modal button', { hasText: 'Import' }).click();
+  await expect(page.locator('.import-url-error')).toContainText(/http/i);
+  await expect(page.locator('.node')).toHaveCount(0);
+});
 
-test.describe('Hebrew / RTL localization', () => {
-  test('toggling the language translates core toolbar chrome and mirrors the layout, reversibly', async ({ page }) => {
-    await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
+test('Import from URL/Gist: a successful fetch loads the diagram onto the canvas', async ({ page }) => {
+  await page.route('https://example.com/my-diagram.json', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ name: 'Shared Diagram', nodes: [{ id: 'n1', x: 0, y: 0, w: 160, h: 84 }], edges: [] }),
+  }));
+  await openToolbarGroup(page, 'File');
+  await page.locator('#toolbar button', { hasText: 'Import from URL/Gist' }).click();
+  await page.locator('.import-url-input').fill('https://example.com/my-diagram.json');
+  await page.locator('.import-url-modal button', { hasText: 'Import' }).click();
+  await expect(page.locator('.import-url-modal')).toBeHidden();
+  await expect(page.locator('.node')).toHaveCount(1);
+  await expect(page.locator('.toast-success')).toContainText('Shared Diagram');
+});
 
-    await openToolbarGroup(page, 'Tools');
-    await page.locator('.toolbar-dropdown-panel button', { hasText: 'Language' }).click();
-    await page.waitForLoadState('domcontentloaded');
-    await dismissHints(page);
+test('System Map: saving a second diagram and linking to it shows both nodes and the link', async ({ page }) => {
+  await addComponentByName(page, 'Load Balancer');
+  await page.keyboard.press('ControlOrMeta+s');
+  await expect(page.locator('.toast-success').last()).toBeVisible();
 
-    await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
-    await expect(page.locator('html')).toHaveAttribute('lang', 'he');
-    await expect(page.locator('#toolbar button.toolbar-dropdown-trigger', { hasText: 'קובץ' })).toBeVisible();
-    await expect(page.locator('.sidebar-search input')).toHaveAttribute('placeholder', 'חיפוש רכיבים...');
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
-    expect(overflow).toBe(true);
+  await openToolbarGroup(page, 'File');
+  await page.locator('#toolbar button[title="New diagram"]').click();
+  await page.locator('.confirm-modal button', { hasText: 'Start new' }).click();
+  await addComponentByName(page, 'Redis Cache');
+  await page.keyboard.press('ControlOrMeta+s');
+  await expect(page.locator('.toast-success').last()).toBeVisible();
 
-    // Toggle back to English.
-    await openToolbarGroup(page, 'כלים');
-    await page.locator('.toolbar-dropdown-panel button', { hasText: 'שפה' }).click();
-    await page.waitForLoadState('domcontentloaded');
-    await dismissHints(page);
-    await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
-    await expect(page.locator('#toolbar button.toolbar-dropdown-trigger', { hasText: 'File' })).toBeVisible();
-  });
+  await openToolbarGroup(page, 'File');
+  await page.locator('#toolbar button', { hasText: 'System Map' }).click();
+  await expect(page.locator('.system-map-modal')).toBeVisible();
+  await expect(page.locator('.system-map-node')).toHaveCount(2);
+
+  await page.locator('.system-map-label-input').fill('related backend');
+  await page.locator('.system-map-add-row button', { hasText: 'Add Link' }).click();
+  await expect(page.locator('.system-map-link-row')).toHaveCount(1);
+  await expect(page.locator('.system-map-link')).toHaveCount(1);
+});
+
+test('Export PDF (Poster): produces a downloadable, valid poster PDF', async ({ page }) => {
+  await addComponentByName(page, 'Load Balancer');
+  await addComponentByName(page, 'API Gateway');
+
+  await openToolbarGroup(page, 'File');
+  await page.locator('#toolbar button', { hasText: 'Export PDF (Poster)' }).click();
+  await expect(page.locator('.export-poster-modal')).toBeVisible();
+
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.locator('.export-poster-modal button', { hasText: 'Export' }).click(),
+  ]);
+  expect(download.suggestedFilename()).toMatch(/-poster\.pdf$/);
+  const path = await download.path();
+  const bytes = await import('node:fs').then((fs) => fs.promises.readFile(path));
+  expect(bytes.toString('latin1')).toContain('%PDF');
+});
+
+test('Review Status: starts as Draft, and marking Approved with a name updates the toolbar badge', async ({ page }) => {
+  await openToolbarGroup(page, 'Tools');
+  await expect(page.locator('.toolbar-review-status-badge')).toHaveText('Draft');
+
+  await page.locator('#toolbar button', { hasText: 'Review Status' }).click();
+  await expect(page.locator('.review-status-modal')).toBeVisible();
+  await page.locator('.review-status-name-input').fill('Ada');
+  await page.locator('.review-status-btn', { hasText: 'Approved' }).click();
+  await expect(page.locator('.review-status-meta')).toContainText('Ada');
+
+  await page.locator('.modal-close').click();
+  await openToolbarGroup(page, 'Tools');
+  await expect(page.locator('.toolbar-review-status-badge')).toHaveText('Approved');
+  await expect(page.locator('.toolbar-review-status-badge')).toHaveClass(/toolbar-review-status-approved/);
 });

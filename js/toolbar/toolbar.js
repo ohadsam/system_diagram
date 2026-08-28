@@ -41,6 +41,12 @@ import { openReplicationModal } from '../modals/replicationModal.js';
 import { openAiEditModal } from '../modals/aiEditModal.js';
 import { openAiLayoutModal } from '../modals/aiLayoutModal.js';
 import { openDiagramDescriptionModal } from '../modals/diagramDescriptionModal.js';
+import { openInterviewModeModal } from '../modals/interviewModeModal.js';
+import { openImportFromUrlModal } from '../modals/importFromUrlModal.js';
+import { openSystemMapModal } from '../modals/systemMapModal.js';
+import { openExportPosterModal } from '../modals/exportPosterModal.js';
+import { openReviewStatusModal } from '../modals/reviewStatusModal.js';
+import { onInterviewChange, getRemainingMs, formatRemaining } from '../core/interviewMode.js';
 import { setScene3DActive } from '../core/scene3dMode.js';
 import { openSequenceDiagramModal } from '../modals/sequenceDiagramModal.js';
 import { openTemplateGalleryModal } from '../modals/templateGalleryModal.js';
@@ -413,6 +419,14 @@ function buildFileGroupButtons() {
       showToast(`Loaded "${result.project.name}".`, 'success');
     },
   });
+  const importUrlBtn = el('button', {
+    type: 'button', class: 'btn', title: 'Import a diagram JSON hosted elsewhere — a GitHub raw file link, a public Gist, or any URL that returns this app\'s JSON format', text: '🔗 Import from URL/Gist',
+    onClick: openImportFromUrlModal,
+  });
+  const systemMapBtn = el('button', {
+    type: 'button', class: 'btn', title: 'System Map: a visual graph of every saved diagram and how they relate to each other — click one to open it', text: '🗺️ System Map',
+    onClick: openSystemMapModal,
+  });
   const pngBtn = el('button', {
     type: 'button', class: 'btn', title: 'Export diagram as PNG image', text: '🖼️ Export PNG',
     onClick: async () => {
@@ -429,6 +443,10 @@ function buildFileGroupButtons() {
       if (!result.ok) showToast(result.error, 'error');
     },
   });
+  const exportPosterBtn = el('button', {
+    type: 'button', class: 'btn', title: 'Export PDF (Poster): splits a large diagram across several same-size printable pages to assemble into one big poster', text: '🧩 Export PDF (Poster)',
+    onClick: openExportPosterModal,
+  });
   const svgBtn = el('button', {
     type: 'button', class: 'btn', title: 'Export diagram as a vector SVG image — scales to any size with no quality loss',
     text: '🔺 Export SVG',
@@ -443,7 +461,7 @@ function buildFileGroupButtons() {
   const versionHistoryBtn = el('button', { type: 'button', class: 'btn', title: 'Save named snapshots of this diagram, revert to one, or compare two', text: '📸 Version History', onClick: openVersionHistoryModal });
   const historyTimelineBtn = el('button', { type: 'button', class: 'btn', title: 'Visual undo/redo timeline — jump straight to any past step instead of pressing undo repeatedly', text: '🕘 Undo History', onClick: openHistoryTimelineModal });
   const presentationsBtn = el('button', { type: 'button', class: 'btn', title: 'Build a slideshow out of saved versions, play it, or export it to PowerPoint', text: '🎬 Presentations', onClick: openPresentationsModal });
-  return [newBtn, saveAsBtn, loadBtn, globalSearchBtn, addTabBtn, duplicateProjectBtn, exportJsonBtn, importJsonBtn, pngBtn, pdfBtn, svgBtn, exportDiagramBtn, shareBtn, versionHistoryBtn, historyTimelineBtn, presentationsBtn, backupBtn];
+  return [newBtn, saveAsBtn, loadBtn, globalSearchBtn, addTabBtn, duplicateProjectBtn, exportJsonBtn, importJsonBtn, importUrlBtn, systemMapBtn, pngBtn, pdfBtn, exportPosterBtn, svgBtn, exportDiagramBtn, shareBtn, versionHistoryBtn, historyTimelineBtn, presentationsBtn, backupBtn];
 }
 
 function buildCreateGroupButtons() {
@@ -664,6 +682,34 @@ function buildToolsGroupButtons() {
     type: 'button', class: 'btn', title: 'Describe Diagram: an instant, offline plain-text summary of this diagram\'s structure — no AI, handy for screen readers or a quick copy-paste readout', text: '📃 Describe Diagram',
     onClick: openDiagramDescriptionModal,
   });
+  const interviewBadge = el('span', { class: 'toolbar-count-badge toolbar-interview-badge', hidden: true });
+  const interviewBtn = el('button', {
+    type: 'button', class: 'btn', title: 'Interview Mode: practice a system design interview question against a timer, then get AI feedback on the diagram you built', onClick: openInterviewModeModal,
+  }, [el('span', { text: '🎓 Interview Mode' }), interviewBadge]);
+  let interviewTimerInterval = null;
+  onInterviewChange((session) => {
+    clearInterval(interviewTimerInterval);
+    if (!session) { interviewBadge.hidden = true; return; }
+    interviewBadge.hidden = false;
+    const update = () => {
+      const remaining = getRemainingMs();
+      interviewBadge.textContent = remaining === null ? '🎓' : formatRemaining(remaining);
+    };
+    update();
+    interviewTimerInterval = setInterval(update, 1000);
+  });
+  const reviewStatusBadge = el('span', { class: 'toolbar-count-badge toolbar-review-status-badge' });
+  const reviewStatusBtn = el('button', {
+    type: 'button', class: 'btn', title: 'Review Status: a shared draft/in-review/approved label for this diagram', onClick: openReviewStatusModal,
+  }, [el('span', { text: '📝 Review Status' }), reviewStatusBadge]);
+  const REVIEW_STATUS_BADGE_TEXT = { draft: 'Draft', 'in-review': 'In Review', approved: 'Approved' };
+  const updateReviewStatusBadge = () => {
+    const status = store.getState().reviewStatus || 'draft';
+    reviewStatusBadge.textContent = REVIEW_STATUS_BADGE_TEXT[status] || status;
+    reviewStatusBadge.className = `toolbar-count-badge toolbar-review-status-badge toolbar-review-status-${status}`;
+  };
+  store.subscribe('change', updateReviewStatusBadge);
+  updateReviewStatusBadge();
   const diagramThemeBtn = el('button', {
     type: 'button',
     class: 'btn',
@@ -709,7 +755,7 @@ function buildToolsGroupButtons() {
       setScene3DActive(true);
     },
   });
-  return [gridBtn, minimapBtn, focusModeBtn, alignGuidesBtn, themeBtn, languageBtn, aiReviewBtn, outlineBtn, commentsBtn, collabBtn, lintBtn, costBtn, describeBtn, autoArrangeBtn, aiLayoutBtn, distributeBtn, scaleBtn, diagramThemeBtn, presenterModeBtn, animationBtn, flowSimBtn, scene3dBtn];
+  return [gridBtn, minimapBtn, focusModeBtn, alignGuidesBtn, themeBtn, languageBtn, aiReviewBtn, outlineBtn, commentsBtn, collabBtn, lintBtn, costBtn, describeBtn, interviewBtn, reviewStatusBtn, autoArrangeBtn, aiLayoutBtn, distributeBtn, scaleBtn, diagramThemeBtn, presenterModeBtn, animationBtn, flowSimBtn, scene3dBtn];
 }
 
 function buildHelpGroupButtons() {

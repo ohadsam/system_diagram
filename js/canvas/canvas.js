@@ -2,7 +2,7 @@
 // store, and owns pan/zoom/marquee-selection. See docs/ARCHITECTURE.md
 // "Canvas rendering".
 import * as store from '../core/store.js';
-import { createEdge, nextZIndex, removeNode as removeNodeFromProject, removeEdge as removeEdgeFromProject, createNode, duplicateProject, createVersionSnapshot, removeVersion as removeVersionFromProject, createComment, createReply, createAnimationStep, createAnimation } from '../core/project.js';
+import { createEdge, nextZIndex, removeNode as removeNodeFromProject, removeEdge as removeEdgeFromProject, createNode, duplicateProject, createVersionSnapshot, removeVersion as removeVersionFromProject, createComment, createReply, createAnimationStep, createAnimation, createProjectLink } from '../core/project.js';
 import { copyVersionToBranch } from '../core/versionBranches.js';
 import { onAnimationChange, isAnimationPlaying, getAnimationPlaybackState, startPlayback, stopPlayback } from '../core/animationPlayback.js';
 import { setKioskMode } from '../core/kioskMode.js';
@@ -38,6 +38,7 @@ import { showSuggestionsFor } from './suggestions.js';
 import { computeGroupBounds } from './groupBackgrounds.js';
 import { confirmAction } from '../modals/confirmModal.js';
 import { promptNumber } from '../modals/promptModal.js';
+import { openBlastRadiusModal } from '../modals/blastRadiusModal.js';
 import { recordComponentUsed } from '../io/recentComponents.js';
 
 let viewportEl = null;
@@ -617,6 +618,36 @@ export function saveDiagramVersion(name) {
     draft.versions = [...(draft.versions || []), version];
   });
   return version;
+}
+
+/** Adds a cross-project link from this live project to another *saved*
+ * project — see core/project.js's `links` field and modals/
+ * systemMapModal.js. Purely data; the actual System Map is computed at
+ * render time from every saved project's own `links` array. */
+export function addProjectLink(targetProjectId, label) {
+  const link = createProjectLink(targetProjectId, label);
+  store.dispatch((draft) => {
+    draft.links = [...(draft.links || []), link];
+  });
+  return link;
+}
+
+export function removeProjectLink(linkId) {
+  store.dispatch((draft) => {
+    draft.links = (draft.links || []).filter((l) => l.id !== linkId);
+  });
+}
+
+/** Changes this project's review status (see core/project.js's
+ * REVIEW_STATUSES and modals/reviewStatusModal.js) and records who set it
+ * and when — a lightweight "who last touched this" note, not a real
+ * permissions/approval system (no accounts exist here to enforce one). */
+export function setReviewStatus(status, reviewedBy) {
+  store.dispatch((draft) => {
+    draft.reviewStatus = status;
+    draft.reviewedBy = (reviewedBy || '').trim();
+    draft.reviewedAt = new Date().toISOString();
+  });
 }
 
 /** Replaces the live canvas's nodes/edges/replicationPairs with a saved
@@ -2378,6 +2409,7 @@ function openNodeContextMenu(nodeId, evt) {
   const items = [
     { label: 'Open details', icon: 'ⓘ', onClick: () => window.dispatchEvent(new CustomEvent('sdb:open-details', { detail: { nodeId } })) },
     { label: 'Duplicate', icon: '⧉', onClick: () => { store.select([nodeId], []); duplicateSelection(); } },
+    { label: 'Blast Radius...', icon: '🎯', onClick: () => openBlastRadiusModal(nodeId) },
   ];
   if (node?.shape === 'lifeline') {
     items.push({ label: 'Add lifeline to the right', icon: '➕', onClick: () => addLifelineToRight(nodeId) });

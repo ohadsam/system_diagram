@@ -11,7 +11,7 @@ const KEY = 'savedProjects';
 export function listSavedProjects() {
   const list = readJSON(KEY, []);
   return list
-    .map((p) => ({ id: p.id, name: p.name, updatedAt: p.updatedAt, favorite: !!p.favorite, nodeCount: p.nodes?.length || 0 }))
+    .map((p) => ({ id: p.id, name: p.name, updatedAt: p.updatedAt, favorite: !!p.favorite, nodeCount: p.nodes?.length || 0, links: Array.isArray(p.links) ? p.links : [] }))
     .sort((a, b) => (Number(b.favorite) - Number(a.favorite)) || (b.updatedAt || '').localeCompare(a.updatedAt || ''));
 }
 

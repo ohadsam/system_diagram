@@ -110,6 +110,40 @@ Keep this in sync with `PLAN.md` as stages complete.
   field (with autocomplete) on custom components, grouping them into
   collapsible 📁 sub-groups in the sidebar.
 
+## v1.40.0 (2026-08-28)
+
+**🎯 Blast Radius** — right-click any component → "Blast Radius..." shows what would be affected
+if it failed, computed purely from the diagram's own connectors: what it feeds downstream, and
+what calls into it. No AI, no new schema — a pure BFS over the existing edge list
+(`core/blastRadius.js`), with each affected component clickable to jump to it and a
+"Highlight all on canvas" button to select and frame the whole set at once.
+
+**🎓 Interview Mode** — a new practice flow (Tools menu): pick a curated system-design interview
+question (ten to start, Easy/Medium/Hard), work against an optional timer shown as a live toolbar
+countdown, then submit the diagram for AI feedback using the exact same hand-off/direct/local send
+flow every other AI feature here already uses — no separate grading pipeline, no fake automatic
+score.
+
+**🔗 Import from URL/Gist** — loads a diagram JSON hosted elsewhere (a GitHub raw file link, a
+public Gist, or any URL returning this app's format), the counterpart to the existing encoded
+share link for when the file already lives somewhere public. A Gist URL resolves through GitHub's
+own public API; any fetch/parse/format failure shows a specific error without touching the canvas.
+
+**🗺️ System Map** — a new visual graph (File menu) of every saved diagram and the links between
+them, for a diagram best understood alongside a related one — a system diagram pointing at a
+separate sequence diagram detailing one of its flows, or at a DB schema diagram. Any saved diagram
+can link to any other with an optional label; clicking a diagram on the map opens it.
+
+**🧩 Export PDF (Poster)** — splits a large diagram across several same-size printable pages (A4
+or US Letter) to physically assemble into one big poster, complementing the existing single-page
+PDF export (which always scales the whole diagram onto one sheet). Each page prints its own page
+number and grid position to help reassemble them in order.
+
+**📝 Review Status** — a new shared draft/in-review/approved label (Tools menu) for team
+workflows, with an optional name and a timestamp recorded on every change, shown as a colored
+toolbar badge. Explicitly a lightweight note, not an access-control system — this app has no
+accounts to enforce one.
+
 ## v1.39.0 (2026-08-28)
 
 **🎓 Demo Projects** — a new "🎓 Demo Projects" picker (Create menu) loads a ready-made example

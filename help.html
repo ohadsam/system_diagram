@@ -236,6 +236,12 @@
       <li><a href="#sql-import">Import from SQL</a></li>
       <li><a href="#template-gallery">Template Gallery</a></li>
       <li><a href="#demo-projects">Demo Projects</a></li>
+      <li><a href="#blast-radius">Blast Radius</a></li>
+      <li><a href="#interview-mode">Interview Mode</a></li>
+      <li><a href="#import-url">Import from URL/Gist</a></li>
+      <li><a href="#system-map">System Map</a></li>
+      <li><a href="#export-poster">Export PDF (Poster)</a></li>
+      <li><a href="#review-status">Review Status</a></li>
       <li><a href="#offline">Offline &amp; installable</a></li>
       <li><a href="#language">Language &amp; RTL</a></li>
       <li><a href="#3d-presentation">3D Presentation Mode</a></li>
@@ -681,6 +687,36 @@
       <p>"Create" → "🎓 Demo Projects" opens a picker with a ready-made example diagram for each of the different diagram kinds this app supports — a plain layered system diagram, a highly-available microservices deployment, a <a href="#sequence-diagram">sequence diagram</a>, a BPMN process, a UML deployment diagram, an ER diagram, a state machine, and a C4 Context diagram — plus a "Combo" demo showing two kinds coexisting on the same canvas at once (a regular system diagram next to a sequence diagram detailing one of its request flows), to make the point that this isn't an either/or choice.</p>
       <img class="help-screenshot" src="assets/screenshots/demo-projects.png" alt="The Demo Projects modal, listing several ready-made example diagrams (Basic Web App, Highly-Available Microservices, Sequence Diagram, BPMN Approval Process, UML Deployment Diagram, ...) each with a Load button.">
       <p>Click "Load" on any demo to drop it onto the canvas — if the canvas already has something on it, you'll be asked to confirm first, exactly like <a href="#generate-design">Generate Design</a> does before replacing your current diagram (undo brings it right back either way). The same modal's "🧹 Clear Canvas" button clears whatever's currently on the canvas, demo or not, back to blank — handy once you're done exploring a demo.</p>
+    </section>
+
+    <section id="blast-radius">
+      <h2><span class="icon-badge">🎯</span> Blast Radius</h2>
+      <p>Right-click any component on the canvas → "🎯 Blast Radius..." shows what would be affected if it failed, computed instantly from the diagram's own connectors — no AI. Two lists appear: "⬇️ Depends on this" (components it connects out to — they'd stop getting whatever it normally sends them) and "⬆️ Calls into this" (components that connect into it — their connections would start failing). Click any listed component to jump straight to it, or click "🎯 Highlight all on canvas" to select and frame the whole affected group at once. A component with no connections simply reports that nothing else would be affected.</p>
+    </section>
+
+    <section id="interview-mode">
+      <h2><span class="icon-badge">🎓</span> Interview Mode</h2>
+      <p>"Tools" → "🎓 Interview Mode" is a practice flow for system-design interview questions. Pick one of ten curated questions (Easy/Medium/Hard) and, optionally, a time limit — a live countdown then shows right in the toolbar while you build your design on the canvas. When you're ready, click "🎓 Submit for Grading" to send the question plus a plain-text description of your diagram to an AI for feedback, using the exact same copy/paste (or Direct/Local AI, if set up) hand-off as every other AI feature in this app — there's no separate automatic grading behind the scenes. "🛑 End Practice" stops the session and clears the toolbar countdown at any point.</p>
+    </section>
+
+    <section id="import-url">
+      <h2><span class="icon-badge">🔗</span> Import from URL/Gist</h2>
+      <p>"File" → "🔗 Import from URL/Gist" loads a diagram JSON hosted somewhere else — a GitHub "raw" file link, a public Gist (any file in it), or any URL that returns this app's own JSON format directly. This is the counterpart to "🔗 Share" (which encodes the whole diagram into the URL itself): use this one when the file already lives somewhere public instead. A bad link, network/CORS problem, or a file that isn't valid JSON for this app shows a specific error without touching your current canvas; a successful import replaces the canvas (confirming first if it isn't already empty).</p>
+    </section>
+
+    <section id="system-map">
+      <h2><span class="icon-badge">🗺️</span> System Map</h2>
+      <p>"File" → "🗺️ System Map" draws a small graph of every diagram you've saved in this browser, and the links between them — useful once a system diagram and a related sequence diagram (or a separate DB schema diagram) start referencing the same real system. Pick another saved diagram from the dropdown, add an optional label, and click "🔗 Add Link" to connect this diagram to it on the map; click any diagram's circle on the map to open it. A link pointing at a diagram you've since deleted is simply left off the map rather than shown broken.</p>
+    </section>
+
+    <section id="export-poster">
+      <h2><span class="icon-badge">🧩</span> Export PDF (Poster)</h2>
+      <p>"File" → "🧩 Export PDF (Poster)" splits a large diagram across several same-size pages (A4 or US Letter) instead of shrinking the whole thing onto one sheet the way the plain "📄 Export PDF" does — print each page and tape or glue the edges together for a wall-size poster. Each page prints its own page number and grid position (e.g. "Page 3/6 — row 1, col 3") in the corner, and neighboring pages overlap slightly so you can line them up by eye.</p>
+    </section>
+
+    <section id="review-status">
+      <h2><span class="icon-badge">📝</span> Review Status</h2>
+      <p>"Tools" → "📝 Review Status" sets a shared 📝 Draft / 👀 In Review / ✅ Approved label on the current diagram, with your name (optional) and the time recorded every time it changes — a colored badge in the Tools menu always shows the current status. This is a lightweight, honest note for whoever else opens the diagram, not an access-control system — this app has no accounts, so anyone can change the status at any time.</p>
     </section>
 
     <section id="offline">

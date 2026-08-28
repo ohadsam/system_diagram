@@ -631,6 +631,22 @@ body.kiosk-mode .kiosk-exit-btn {
   background: var(--color-success);
 }
 
+.toolbar-interview-badge {
+  background: var(--color-primary);
+}
+
+.toolbar-review-status-draft {
+  background: var(--color-text-muted);
+}
+
+.toolbar-review-status-in-review {
+  background: var(--color-amber-text, #b45309);
+}
+
+.toolbar-review-status-approved {
+  background: var(--color-success);
+}
+
 .toolbar-count-badge {
   display: inline-block;
   min-width: 16px;

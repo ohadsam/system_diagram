@@ -31,6 +31,12 @@ index.html ──► js/main.js
                  ├─ core/diagramDescription.js, core/diagramHealth.js, core/versionBranches.js
                  ├─ core/scene3dLayout.js (pure 2D→3D geometry mapping), core/scene3dMode.js (3D overlay on/off pub-sub)
                  ├─ core/demoProjects.js (Demo Projects — pure, reuses the pattern/lifeline construction recipe), modals/demoProjectsModal.js
+                 ├─ core/blastRadius.js (pure edge-graph traversal), modals/blastRadiusModal.js
+                 ├─ core/interviewMode.js, core/interviewPrompts.js, io/interviewGrading.js, modals/interviewModeModal.js (Interview Mode)
+                 ├─ io/importFromUrl.js, modals/importFromUrlModal.js (Import from URL/Gist)
+                 ├─ core/systemMap.js (pure circle layout), modals/systemMapModal.js (System Map)
+                 ├─ core/pdfTiling.js (pure tile-grid math), modals/exportPosterModal.js (Export PDF poster tiling, in io/exportPdf.js#exportPdfTiled)
+                 ├─ modals/reviewStatusModal.js (Review Status — schema fields live in core/project.js)
                  ├─ render3d/scene3dRenderer.js (Three.js/WebGL scene — the only consumer of vendor/three.module.min.js)
                  ├─ canvas/scene3dOverlay.js, canvas/keyboardConnect.js
                  ├─ utils/speechInput.js (Web Speech API mic-button wrapper for textareas)
@@ -1386,6 +1392,28 @@ the panel has room for, an ancestor-relative `absolute` panel has no way
 to know it needs to flip or clamp itself — only a viewport-relative
 computation can. See `tests/e2e/mobile-responsive.spec.js`'s "every
 toolbar dropdown panel stays fully within the viewport" test.
+
+**Gotcha: clamping position isn't enough once the panel's own height
+exceeds the viewport.** `positionPanel()` originally only clamped `top`/
+`left`; the panel itself had no `max-height`/`overflow-y`, so once a
+group's buttons collectively grew taller than the viewport, `top` clamps
+down to `EDGE_MARGIN` but the panel's *bottom* still runs off-screen with
+no scrollbar to reach it and no page scroll to fall back on (the panel is
+`position: fixed`). This went unnoticed for a long time because the Tools
+group — this app's longest, having accreted a button per feature across
+many batches — only actually crossed a standard test viewport's height
+once two more buttons (Interview Mode, Review Status) were added, at which
+point `tests/e2e/scene3d.spec.js` started failing to click "🧊 3D
+Presentation" (the last button in the group) with "element is outside of
+the viewport", despite that feature being completely unrelated to the
+batch that broke it. Fixed by also setting `panel.style.maxHeight` (sized
+to whatever space is left below the clamped `top`) and `overflow-y: auto`
+in `positionPanel()` — the same "clamp position AND cap size with a
+scrollbar" approach `.toolbar-row-context.floating` (`css/toolbar.css`)
+already used for the floating contextual style row. Any batch adding a
+button to an already-long dropdown group should actually click through to
+the group's last button at a short viewport, not just confirm the new
+button itself renders — see the `release-checklist` skill's UI/UX step.
 
 Only one dropdown panel is ever open at a time (module-level `openPanel`);
 it closes on an outside click, `Escape`, or immediately after one of its
@@ -3989,6 +4017,105 @@ existing Tools/Create dropdown, matching this app's existing convention
 that dedicated shortcuts are reserved for continuously-repeated actions
 (zoom, undo/redo, delete, duplicate, tool-mode toggles) and the palette is
 the intended discovery path for everything else.
+
+## Blast Radius (`core/blastRadius.js`, `modals/blastRadiusModal.js`)
+
+Pure BFS over the diagram's own edges, two directions from the target node:
+"forward" (following `edge.from → edge.to`, matching core/diagramLint.js's
+existing directional convention) for what the target feeds, and "backward"
+for what feeds into it. Both are unioned as the affected set — a failing
+node breaks its callers *and* starves whatever it calls, so both matter.
+Deliberately reuses no shared "select and center" helper — this repo's own
+convention (see diagramLintModal.js, diagramCompareModal.js, commentsListModal.js,
+outlinePanel.js) is a small local copy per modal rather than one shared
+utility, and blastRadiusModal.js follows the same pattern rather than
+introducing a new abstraction.
+
+## Interview Mode (`core/interviewMode.js`, `core/interviewPrompts.js`, `io/interviewGrading.js`, `modals/interviewModeModal.js`)
+
+The session (challenge prompt, timer start, duration) is in-memory module
+state with a pub-sub (`onInterviewChange`), the same shape as
+`modals/collaborationModal.js#onCollabStatusChange` — deliberately *not*
+part of the project JSON, since it describes a practice session, not
+diagram content. Grading reuses `modals/aiAskModal.js` (the same generic
+"prepare a prompt, hand it to an AI, read the answer" modal `costBreakdownModal.js`
+and `diagramCompareModal.js` already use) rather than building a new
+AI-plumbing path — the grading prompt embeds the question plus this
+diagram's own offline plain-text description (`core/diagramDescription.js`,
+4.68/Describe Diagram), so grading works even with no AI image attachment.
+The toolbar's countdown badge polls `getRemainingMs()` on a 1s
+`setInterval`, cleared whenever `onInterviewChange` fires (interview
+started/ended) — same lightweight polling approach the interview timer
+inside the modal itself also uses, cleared via the modal's own `<dialog>`
+`close` event listener so it can't outlive the modal being closed by any
+path (✕, Escape, backdrop).
+
+## Import from URL/Gist (`io/importFromUrl.js`, `modals/importFromUrlModal.js`)
+
+A `gist.github.com/...` URL can't be fetched directly (it returns an HTML
+page, not the file's JSON) — it's special-cased to GitHub's public gists
+API (`api.github.com/gists/{id}`, no auth needed for a public gist), with
+a fallback to a truncated file's own `raw_url` for a gist file too large
+for the summary endpoint to inline. Every other URL is fetched as-is and
+expected to already be a raw JSON response. `fetchProjectFromUrl` never
+throws — a bad URL shape, non-ok HTTP status, invalid JSON, or JSON that
+fails `validateProject` all resolve to a `{ok:false, error}` with a
+specific, distinguishable message (including a dedicated CORS/network
+message for a `TypeError` from `fetch` itself, the most common real-world
+failure for an arbitrary third-party URL).
+
+## System Map (`core/systemMap.js`, `modals/systemMapModal.js`)
+
+`project.links` (`core/project.js`) is a small array of `{id, to, label}`
+on the *live* project, `to` being another *saved* project's id
+(`io/projects.js`) — deliberately not a nested-document system, just a
+named pointer. The map itself is a simple circle layout
+(`computeSystemMapLayout`, pure/tested) over every saved project plus the
+live one if it isn't saved yet, drawn as an inline SVG. **Gotcha**: the
+current project's own `links` must be read from the *live* store state,
+not from `listSavedProjects()`'s persisted copy — `addProjectLink`/
+`removeProjectLink` only dispatch to the live store, so a link added since
+the last save would silently not appear on the map until the project was
+re-saved, if the map naively used the saved-list copy for every project
+uniformly. `systemMapModal.js#renderBody` overlays `state.links` onto
+whichever saved-list entry matches `state.id` (or appends an "(unsaved)"
+entry) specifically to avoid this.
+
+## Export PDF (Poster) (`core/pdfTiling.js`, `io/exportPdf.js#exportPdfTiled`)
+
+`computeTileGrid` (pure, tested) is deliberately separate from the
+canvas-slicing code in `exportPdf.js` — the same pure-math/DOM-touching
+split this repo already uses for `core/scene3dLayout.js` vs
+`render3d/scene3dRenderer.js`, `core/systemMap.js` vs its modal, etc. It
+computes tile bounds in the same pt-equals-css-pixel unit the existing
+single-page `exportPDF` already uses (canvas pixels ÷ 2, since
+`captureDiagramCanvas` rasterizes at up to 2x scale) — `exportPdfTiled`
+does not attempt to recover `captureDiagramCanvas`'s actual (occasionally
+capped-below-2x, for a very large diagram) scale factor, since that
+function doesn't expose it to callers; staying consistent with the
+existing `/2` convention was judged better than a fragile guess. Each tile
+becomes its own offscreen `<canvas>` via `drawImage`'s 9-argument
+crop-and-scale form, embedded as one PDF page each with a small
+`TILE_OVERLAP_PT` overlap between neighbors and a page-number/grid-position
+label stamped in the corner via jsPDF's own `text()`.
+
+## Review Status (`core/project.js` — `reviewStatus`/`reviewedBy`/`reviewedAt`, `modals/reviewStatusModal.js`)
+
+A plain three-value label (`draft`/`in-review`/`approved`) plus a
+free-text "who" and a timestamp, all on the project itself so it travels
+with export/import/backup like every other project field. Explicitly not
+a permissions system — there are no accounts in this app to enforce
+one — the toolbar badge and modal exist purely as a visible, shared note,
+the same intentional honesty this app already applies to version
+branching (4.70) being an explicit copy rather than a real structural
+merge. **Gotcha caught in review**: `core/project.js#duplicateProject`
+resets `reviewStatus` to `'draft'` (and clears `reviewedBy`/`reviewedAt`)
+rather than carrying the original's status over — a duplicate is its own
+unreviewed artifact, so an "Approved" original producing an
+already-"Approved" copy nobody actually looked at would be actively
+misleading. This puts it in the same bucket as `id`/`createdAt`/`versions`
+(reset on copy), not `comments`/`animations` (carried over as diagram
+content) — see `duplicateProject`'s own comment for the full reasoning.
 
 ## Security notes
 

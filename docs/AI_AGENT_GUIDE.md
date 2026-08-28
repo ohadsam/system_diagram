@@ -185,6 +185,12 @@ this repo" quick-start.
 | Change 3D Presentation Mode (geometry, rendering, or video export) | `js/core/scene3dLayout.js` (pure 2D→3D mapping + cable direction/color, unit-testable) + `js/render3d/scene3dRenderer.js` (all Three.js/WebGL — the only importer of `vendor/three.module.min.js`; **must** call the returned `dispose()` on close, it holds a real GPU context) + `js/core/scene3dMode.js` (on/off pub-sub) + `js/canvas/scene3dOverlay.js` (overlay UI) + `js/io/export3dVideo.js` (drives playback via `animationPlayback.js#setFrozen(true)` + manual `nextStep()`, records via `captureStream`/`MediaRecorder`). **Read** docs/ARCHITECTURE.md's "3D Presentation Mode" section before touching the orbit camera or the video-export step loop — in particular, don't map a new shape's `node.w`/`node.h` straight into a 3D box's width/depth without checking it's actually a spatial footprint (a lifeline's `h` isn't, see the gotcha there). |
 | Add/change a Demo Project, or add a new diagram *kind* that should get one | `js/core/demoProjects.js` (`DEMO_PROJECTS` list, `buildPatternPieces`/`buildLifelinePieces`/`manualChain` builders — reuse an existing pattern via `buildPatternPieces` whenever one exists rather than hand-placing nodes) + `js/modals/demoProjectsModal.js` (picker UI) + `js/canvas/canvas.js#loadDemoProject`. Run `tests/unit/demoProjects.test.mjs` after adding one — it validates every demo's `defId`s resolve and the built project passes `validateProject()`. See docs/ARCHITECTURE.md's "Demo Projects" section. |
 | Add a new toolbar action/modal and make sure it's reachable by keyboard | Add it to `js/modals/commandPaletteModal.js#buildAppCommands()` (or `buildContextualCommands` if it only makes sense with a component selected) with a label matching the toolbar button's own icon+text — the palette drifted behind several batches of real features before an explicit audit caught it, see docs/ARCHITECTURE.md's "Command Palette completeness" section. Extend the expected-labels list in `tests/e2e/commandPalette.spec.js`'s "every action added across recent batches is reachable" test too. A brand-new dedicated keyboard shortcut in `main.js#initKeyboardShortcuts` is the exception, not the default — reserved for continuously-repeated actions (zoom, undo/redo, delete, duplicate, tool-mode toggles), not one-off modals. |
+| Change Blast Radius | `js/core/blastRadius.js#computeBlastRadius(nodes, edges, startNodeId)` (pure BFS, both directions) + `js/modals/blastRadiusModal.js` (lists, jump-to-node, "Highlight all"). Reached via right-click on a node (`js/canvas/canvas.js#openNodeContextMenu`) and the Command Palette's contextual commands, not a toolbar button. |
+| Change Interview Mode | `js/core/interviewPrompts.js` (curated question list — add one here) + `js/core/interviewMode.js` (in-memory session/timer pub-sub, **not** part of the project JSON) + `js/io/interviewGrading.js#buildGradingPrompt` + `js/modals/interviewModeModal.js`. Grading reuses `js/modals/aiAskModal.js` — no separate AI-plumbing to touch. |
+| Change Import from URL/Gist | `js/io/importFromUrl.js#fetchProjectFromUrl` (Gist URLs go through GitHub's `api.github.com/gists/{id}`; everything else fetched as raw JSON) + `js/modals/importFromUrlModal.js`. Mock `globalThis.fetch` for unit tests (see `tests/unit/importFromUrl.test.mjs`) rather than hitting the network. |
+| Change System Map or cross-project links | `js/core/project.js`'s `links`/`createProjectLink`/`validateLinks` (project schema) + `js/io/projects.js#listSavedProjects` (must include `links` in its mapped shape) + `js/core/systemMap.js#computeSystemMapLayout` (pure circle layout) + `js/modals/systemMapModal.js`. **Gotcha**: the current project's own `links` must come from the live store, not `listSavedProjects()`'s persisted copy — see docs/ARCHITECTURE.md's "System Map" section. |
+| Change Export PDF (Poster) | `js/core/pdfTiling.js#computeTileGrid` (pure tile-grid math, in points) + `js/io/exportPdf.js#exportPdfTiled` (slices the rasterized canvas per tile via `drawImage`) + `js/modals/exportPosterModal.js` (page-size picker). Page sizes stay in the same `/2` pt-equals-css-pixel convention the existing single-page `exportPDF` uses. |
+| Change Review Status | `js/core/project.js`'s `reviewStatus`/`reviewedBy`/`reviewedAt` fields + `REVIEW_STATUSES` + `js/canvas/canvas.js#setReviewStatus` + `js/modals/reviewStatusModal.js` + the toolbar badge in `js/toolbar/toolbar.js` (subscribes to `store`'s `'change'` event). Not a real permissions system — just a shared label. |
 
 ## Running things locally
 
@@ -934,3 +940,30 @@ npm test
   `tests/e2e/commandPalette.spec.js`'s "every action added across recent
   batches is reachable" test exists to catch this going forward; extend
   its expected-labels list whenever you add a new one.
+- **A feature that reads "the current project" from a persisted list
+  (`io/projects.js#listSavedProjects`) instead of the live in-memory store
+  will show stale data for whatever the user is actively editing.** The
+  System Map modal originally built its graph entirely from
+  `listSavedProjects()`, including for the currently-open project — so a
+  link added via `addProjectLink` (which only dispatches to the live
+  store, same as every other in-session edit) wouldn't appear on the map
+  until the user explicitly re-saved. Any UI that lists "every project"
+  and also needs to reflect live, unsaved edits to the *current* one must
+  overlay the live `store.getState()` onto whichever list entry matches
+  the current project's id (see `systemMapModal.js#renderBody`), not read
+  the persisted copy uniformly for every entry.
+- **Adding a button to the Tools dropdown (or any long-lived dropdown
+  group) can silently push its total height past the viewport, and
+  `toolbarDropdown.js#positionPanel` only clamped the panel's *position*,
+  not its *height* — the bottom rows then render off-screen with no
+  scrollbar and no page scroll to fall back on (`position: fixed`).** This
+  broke for real when Interview Mode + Review Status buttons finally
+  tipped the Tools group (this app's longest) over a standard viewport's
+  height, and `scene3d.spec.js` started failing to click "3D Presentation"
+  (the group's last button) — a feature completely untouched by that
+  batch. Fixed by giving the panel a dynamic `max-height`/`overflow-y` in
+  `positionPanel()` too, sized to whatever room is left below the clamped
+  `top`. When you add a button to an already-long dropdown group, actually
+  click through to that group's *last* button at a short viewport (~600px
+  desktop, not just mobile/tablet) — don't just confirm the new button
+  itself is visible.

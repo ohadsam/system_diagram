@@ -38,4 +38,8 @@ export const HINTS = [
   { id: 'hint-keyboard-connect', target: '.toolbar-row-main', placement: 'bottom', text: '⌨️ Keyboard-only: Tab to select a component, then press C and a number to draw a connector to another component — no mouse required.' },
   { id: 'hint-scene3d', target: '.toolbar-row-main', placement: 'bottom', text: '🧊 Tools → 3D Presentation turns your diagram into a rotatable 3D scene for presenting, with an "Export 3D Video" button to record it as a downloadable video.' },
   { id: 'hint-demo-projects', target: '.toolbar-row-main', placement: 'bottom', text: '🎓 Create → Demo Projects loads a ready-made example diagram for each diagram kind this app supports — including a "Combo" demo showing two kinds together on one canvas.' },
+  { id: 'hint-blast-radius', target: '.canvas-viewport', placement: 'top', text: '🎯 Right-click any component → Blast Radius shows everything that would be affected if it failed — what it feeds, and what calls into it.' },
+  { id: 'hint-interview-mode', target: '.toolbar-row-main', placement: 'bottom', text: '🎓 Tools → Interview Mode picks a system-design practice question, times you while you build the diagram, then asks an AI to grade it.' },
+  { id: 'hint-system-map', target: '.toolbar-row-main', placement: 'bottom', text: '🗺️ File → System Map shows every saved diagram and how they relate — link this one to another related diagram (like a sequence diagram detailing one of its flows).' },
+  { id: 'hint-review-status', target: '.toolbar-row-main', placement: 'bottom', text: '📝 Tools → Review Status sets a shared draft/in-review/approved label on this diagram, with who set it and when — a note for whoever else opens it, not an access-control system.' },
 ];

@@ -2,9 +2,21 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.39.0';
+export const APP_VERSION = '1.40.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.40.0',
+    date: '2026-08-28',
+    highlights: [
+      'New "🎯 Blast Radius" (right-click any component) — shows everything that would be affected if that component failed: what it feeds downstream, and what calls into it, purely from the diagram\'s own connectors.',
+      'New "🎓 Interview Mode" (Tools menu) — practice a system-design interview question against an optional timer, then submit your diagram for AI feedback using this app\'s usual hand-off/direct/local AI setup.',
+      'New "🔗 Import from URL/Gist" (File menu) — load a diagram JSON hosted elsewhere (a GitHub raw file link, a public Gist, or any URL returning this app\'s format) instead of only a local file.',
+      'New "🗺️ System Map" (File menu) — a visual graph of every saved diagram and the links between them, so a system diagram can point at a related sequence diagram, DB schema diagram, or any other saved project.',
+      'New "🧩 Export PDF (Poster)" (File menu) — splits a large diagram across several same-size printable pages (A4 or US Letter) to print and physically assemble into one big poster.',
+      'New "📝 Review Status" (Tools menu) — a shared draft/in-review/approved label for a diagram, with who set it and when, for team workflows (not an access-control system — just a note for whoever else opens it).',
+    ],
+  },
   {
     version: '1.39.0',
     date: '2026-08-28',

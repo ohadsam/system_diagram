@@ -91,6 +91,19 @@ concrete examples). Do all three, in order, every single time this skill runs:
      unless it's a continuously-used control like undo/redo/zoom/a tool-mode toggle — see
      `docs/AI_AGENT_GUIDE.md`'s "Add a toolbar button" pitfall for the convention and why (a flat
      row of full-text buttons was the direct cause of a past mobile horizontal-overflow bug).
+   - **If you added a button to the Tools dropdown (this app's longest group, now two dozen-plus
+     buttons), actually open it and confirm every button — including the last one — is clickable,
+     not just present in the DOM.** `toolbarDropdown.js#positionPanel` clamps the panel's *position*
+     to the viewport but, before it grows a `max-height`/`overflow-y`, nothing clamped its *height*
+     — once the group's natural height exceeds the viewport, the bottom rows render below the
+     visible area with no scrollbar to reach them, and no page scroll bails you out either since the
+     panel is `position: fixed`. This happened for real: the batch that added Interview Mode and
+     Review Status buttons was the first to actually push the Tools group over a standard test
+     viewport's height, and two `scene3d.spec.js` tests failed with "element is outside of the
+     viewport" trying to click "🧊 3D Presentation" — the *last* button in that group — even though
+     nothing about 3D Presentation itself had changed. A quick check: script a click on whichever
+     button is currently *last* in the group you touched, at a short desktop height (~600px) in
+     addition to mobile/tablet, not just visually eyeballing the open panel at a tall viewport.
 
 Fix everything found before moving on. If a pass finds nothing, say so and continue — don't
 manufacture a finding.

@@ -393,6 +393,18 @@ Or open `index.html` directly in a browser.
   Deployment, ER diagram, state machine, C4 Context), plus a "Combo" demo
   showing a system diagram and a sequence diagram together on one canvas —
   "🧹 Clear Canvas" sits right in the same picker.
+- **🎯 Blast Radius** — right-click any component to see what would be
+  affected if it failed, purely from the diagram's own connectors.
+- **🎓 Interview Mode** — practice a system-design interview question
+  against a timer, then submit the diagram for AI feedback.
+- **🔗 Import from URL/Gist** — load a diagram JSON hosted elsewhere (a
+  GitHub raw file link, a public Gist, or any URL in this app's format).
+- **🗺️ System Map** — a visual graph of every saved diagram and the links
+  between them, so a diagram can point at a related one.
+- **🧩 Export PDF (Poster)** — splits a large diagram across several
+  same-size printable pages to assemble into one big poster.
+- **📝 Review Status** — a shared draft/in-review/approved label for team
+  workflows, with who set it and when.
 
 See [`help.html`](help.html) for the full interactive user guide.
 
