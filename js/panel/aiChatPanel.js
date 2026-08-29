@@ -67,7 +67,7 @@ export function close() {
 }
 
 function applyDockPosition() {
-  const { aiChatDockMode, aiChatFloatingPos } = getUiPrefs();
+  const { aiChatDockMode, aiChatFloatingPos, aiChatWidth, aiChatBottomHeight, aiChatFloatingHeight } = getUiPrefs();
   rootEl.classList.remove('dock-right', 'dock-bottom', 'dock-floating');
   rootEl.classList.add(`dock-${aiChatDockMode}`);
   rootEl.style.left = '';
@@ -76,6 +76,14 @@ function applyDockPosition() {
     rootEl.style.left = `${aiChatFloatingPos.x}px`;
     rootEl.style.top = `${aiChatFloatingPos.y}px`;
   }
+  setOrClearVar('--ai-chat-panel-width', aiChatWidth);
+  setOrClearVar('--ai-chat-panel-bottom-height', aiChatBottomHeight);
+  setOrClearVar('--ai-chat-panel-floating-height', aiChatFloatingHeight);
+}
+
+function setOrClearVar(name, px) {
+  if (px) rootEl.style.setProperty(name, `${px}px`);
+  else rootEl.style.removeProperty(name);
 }
 
 function setDockMode(mode) {
@@ -88,9 +96,95 @@ function render() {
   clear(rootEl);
   if (!isAutomaticSendConfigured()) {
     renderSetupNudge();
-    return;
+  } else {
+    renderChat();
   }
-  renderChat();
+  rootEl.appendChild(buildResizeHandle());
+}
+
+// One resize handle per dock mode, each dragging a different CSS var (see
+// css/variables.css) so a manually-picked size survives across reopening
+// the panel and switching dock modes independently — 'right' only ever
+// needs a width, 'bottom' only a height, 'floating' needs both from one
+// corner grip. Present in every render (including the setup nudge), since
+// there's no reason resizing should require AI mode to be configured first.
+function buildResizeHandle() {
+  const mode = getUiPrefs().aiChatDockMode;
+  if (mode === 'bottom') return makeHandle('ai-chat-resize-h', beginBottomHeightResize, 'Drag to resize height');
+  if (mode === 'floating') return makeHandle('ai-chat-resize-corner', beginFloatingResize, 'Drag to resize');
+  return makeHandle('ai-chat-resize-w', beginWidthResize, 'Drag to resize width');
+}
+
+function makeHandle(className, onPointerDown, title) {
+  const handle = el('div', { class: `ai-chat-resize-handle ${className}`, title });
+  handle.addEventListener('pointerdown', onPointerDown);
+  return handle;
+}
+
+function beginWidthResize(e) {
+  e.preventDefault();
+  const handle = e.currentTarget;
+  const startX = e.clientX;
+  const startWidth = rootEl.getBoundingClientRect().width;
+  const maxWidth = Math.min(window.innerWidth - 80, 720);
+  handle.setPointerCapture(e.pointerId);
+  const onMove = (ev) => {
+    const next = Math.min(maxWidth, Math.max(260, startWidth - (ev.clientX - startX)));
+    rootEl.style.setProperty('--ai-chat-panel-width', `${next}px`);
+  };
+  const onUp = () => {
+    handle.removeEventListener('pointermove', onMove);
+    saveUiPrefs({ aiChatWidth: parseFloat(rootEl.style.getPropertyValue('--ai-chat-panel-width')) || startWidth });
+  };
+  handle.addEventListener('pointermove', onMove);
+  handle.addEventListener('pointerup', onUp, { once: true });
+}
+
+function beginBottomHeightResize(e) {
+  e.preventDefault();
+  const handle = e.currentTarget;
+  const startY = e.clientY;
+  const startHeight = rootEl.getBoundingClientRect().height;
+  const maxHeight = Math.min(window.innerHeight - 120, 700);
+  handle.setPointerCapture(e.pointerId);
+  const onMove = (ev) => {
+    const next = Math.min(maxHeight, Math.max(160, startHeight - (ev.clientY - startY)));
+    rootEl.style.setProperty('--ai-chat-panel-bottom-height', `${next}px`);
+  };
+  const onUp = () => {
+    handle.removeEventListener('pointermove', onMove);
+    saveUiPrefs({ aiChatBottomHeight: parseFloat(rootEl.style.getPropertyValue('--ai-chat-panel-bottom-height')) || startHeight });
+  };
+  handle.addEventListener('pointermove', onMove);
+  handle.addEventListener('pointerup', onUp, { once: true });
+}
+
+function beginFloatingResize(e) {
+  e.preventDefault();
+  const handle = e.currentTarget;
+  const startX = e.clientX;
+  const startY = e.clientY;
+  const rect = rootEl.getBoundingClientRect();
+  const startWidth = rect.width;
+  const startHeight = rect.height;
+  const maxWidth = Math.min(window.innerWidth - 40, 720);
+  const maxHeight = Math.min(window.innerHeight - 40, 800);
+  handle.setPointerCapture(e.pointerId);
+  const onMove = (ev) => {
+    const nextWidth = Math.min(maxWidth, Math.max(260, startWidth + (ev.clientX - startX)));
+    const nextHeight = Math.min(maxHeight, Math.max(200, startHeight + (ev.clientY - startY)));
+    rootEl.style.setProperty('--ai-chat-panel-width', `${nextWidth}px`);
+    rootEl.style.setProperty('--ai-chat-panel-floating-height', `${nextHeight}px`);
+  };
+  const onUp = () => {
+    handle.removeEventListener('pointermove', onMove);
+    saveUiPrefs({
+      aiChatWidth: parseFloat(rootEl.style.getPropertyValue('--ai-chat-panel-width')) || startWidth,
+      aiChatFloatingHeight: parseFloat(rootEl.style.getPropertyValue('--ai-chat-panel-floating-height')) || startHeight,
+    });
+  };
+  handle.addEventListener('pointermove', onMove);
+  handle.addEventListener('pointerup', onUp, { once: true });
 }
 
 function buildHeader() {

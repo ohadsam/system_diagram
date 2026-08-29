@@ -644,6 +644,82 @@ body.resizing-details-panel {
   flex: 0 0 auto;
 }
 
+/* One of these three is appended per render, matching the current dock
+   mode (aiChatPanel.js#buildResizeHandle) — dragging it live-updates the
+   matching css/variables.css var (--ai-chat-panel-width/-bottom-height/
+   -floating-height) and persists the final size via io/uiPrefs.js, so a
+   manually-picked size sticks across reopening the panel. Uses a wide
+   invisible hit-strip with a thin visible bar centered inside it (same
+   "generous hit target, thin visual" idea as .conn-point), since a
+   6px-wide draggable edge is otherwise hard to grab precisely. */
+.ai-chat-resize-handle {
+  position: absolute;
+  z-index: 2;
+}
+
+.ai-chat-resize-handle::after {
+  content: '';
+  display: block;
+  background: transparent;
+  transition: background 0.12s ease;
+}
+
+.ai-chat-resize-handle:hover::after,
+.ai-chat-resize-handle:active::after {
+  background: var(--color-primary);
+}
+
+.ai-chat-resize-w {
+  top: 0;
+  left: -4px;
+  bottom: 0;
+  width: 8px;
+  cursor: ew-resize;
+}
+
+.ai-chat-resize-w::after {
+  width: 2px;
+  height: 100%;
+  margin: 0 auto;
+}
+
+.ai-chat-resize-h {
+  top: -4px;
+  left: 0;
+  right: 0;
+  height: 8px;
+  cursor: ns-resize;
+}
+
+.ai-chat-resize-h::after {
+  height: 2px;
+  width: 100%;
+  margin: auto 0;
+}
+
+.ai-chat-resize-corner {
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+}
+
+.ai-chat-resize-corner::after {
+  width: 8px;
+  height: 8px;
+  margin: auto 2px 2px auto;
+  border-radius: 0 0 2px 0;
+  border-right: 2px solid var(--color-border);
+  border-bottom: 2px solid var(--color-border);
+  background: transparent !important;
+}
+
+.ai-chat-resize-corner:hover::after,
+.ai-chat-resize-corner:active::after {
+  border-color: var(--color-primary);
+}
+
 .replication-pair-list {
   display: flex;
   flex-direction: column;

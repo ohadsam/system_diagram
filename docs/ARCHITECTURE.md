@@ -4371,18 +4371,27 @@ diagram change.
 
 ## Working with CLI (`core/appUrl.js`, `modals/cliSetupModal.js`)
 
-Answers the one question the AI/CLI Integration guide above can't answer for itself:
-an AI CLI tool has no built-in way to discover *this* running instance's address —
-there's no API, registry, or DNS trick that hands a generic CLI tool a URL it was
-never told. `core/appUrl.js#computeAppBaseUrl(href)` is a small pure function (easily
+Answers two stacked questions the AI/CLI Integration guide above can't answer for
+itself. First: an AI CLI tool has no built-in way to discover *this* running
+instance's address — there's no API, registry, or DNS trick that hands a generic CLI
+tool a URL it was never told. Second, easy to miss until it's pointed out: even once a
+CLI has the bare address, a plain domain doesn't tell it *which file* to read either —
+there's no universal convention that makes a generic CLI check `/llms.txt` on its own
+just because it was handed a URL. So the modal's primary, first action is a
+ready-made prompt that already names the exact file (`<address>llms.txt`), not the
+bare address by itself; the address is still offered, but demoted to a secondary
+fallback for someone building their own request.
+
+`core/appUrl.js#computeAppBaseUrl(href)` is a small pure function (easily
 unit-tested without a DOM) that strips everything after the last `/` in the URL's
 path — turning `.../system_diagram/index.html` into `.../system_diagram/` — so the
-modal shows the *live* address of whatever's actually running (GitHub Pages, a custom
-domain, a local dev server) rather than a guessed one. This directly replaced an
-earlier, weaker approach from this project's own history: before this modal existed,
-answering "what URL do I give the CLI" meant guessing from the repo's owner/name on
-GitHub Pages's default URL scheme, with no way to verify it was actually live from a
-sandboxed environment — reading it straight off `window.location` needs no such
+modal computes the *live* address of whatever's actually running (GitHub Pages, a
+custom domain, a local dev server) rather than a guessed one, for either the prompt
+or the bare address. This directly replaced an earlier, weaker approach from this
+project's own history: before this modal existed, answering "what URL do I give the
+CLI" meant guessing from the repo's owner/name on GitHub Pages's default URL scheme,
+with no way to verify it was actually live from a sandboxed environment — reading it
+straight off `window.location` needs no such
 guess. `modals/cliSetupModal.js` renders this address plus a ready-to-copy prompt
 telling the CLI to fetch `<address>llms.txt`.
 
@@ -4429,6 +4438,22 @@ on one element — `dock-right` stays in-flow exactly like `#ai-review-panel`;
 `dock-bottom`/`dock-floating` switch to `position: fixed`, so only `dock-right` needs
 a mobile drawer-overlay override in `css/responsive.css` (the fixed modes are already
 overlays at every width).
+
+**Resizing** reuses the exact same three CSS vars every dock mode already sized
+itself with (`--ai-chat-panel-width`/`-bottom-height`/`-floating-height`,
+`css/variables.css`) rather than inventing new ones — `buildResizeHandle()` appends
+one `.ai-chat-resize-*` handle per render, matching the current dock mode, and its
+`pointerdown`/`pointermove`/`pointerup` drag live-writes the matching var as an
+*inline* style on `#ai-chat-panel` itself (`rootEl.style.setProperty(...)`), which
+wins over the stylesheet's `var(...)` reference without needing to touch
+`width`/`height` directly (`dock-right`'s `flex: 0 0 var(...)` sets an explicit
+flex-basis, and a plain inline `width` can't override that — the custom property is
+the only lever that reaches both the flex-basis and the plain-width rules at once).
+The final size is persisted on `pointerup` via `io/uiPrefs.js#aiChatWidth`
+(shared by `dock-right` and `dock-floating`, since they already shared the same var)
+`/aiChatBottomHeight/aiChatFloatingHeight` — `null` for any of them means "use that
+var's own CSS default", so a visitor who's never resized the panel sees the exact
+same sizes as before this feature existed.
 
 ## Security notes
 

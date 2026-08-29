@@ -110,6 +110,25 @@ Keep this in sync with `PLAN.md` as stages complete.
   field (with autocomplete) on custom components, grouping them into
   collapsible 📁 sub-groups in the sidebar.
 
+## v1.46.0 (2026-08-29)
+
+**"🤖 AI Chat" is now resizable in every dock mode.** Drag its left edge while
+docked to the side, its top edge while docked to the bottom, or its bottom-right
+corner grip while floating — each dock mode has its own draggable handle
+(`js/panel/aiChatPanel.js`), and the size you pick is persisted per mode
+(`io/uiPrefs.js#aiChatWidth/aiChatBottomHeight/aiChatFloatingHeight`) so it
+sticks across reopening the panel or reloading the page.
+
+## v1.45.1 (2026-08-29)
+
+**Fix: "Working with CLI" dialog was leading with the wrong action.** A bare web
+address doesn't tell a CLI tool which file to fetch — there's no standard convention
+that makes it check `/llms.txt` just because it was handed a domain, so presenting the
+address as the dialog's first/primary step was misleading. The dialog's primary,
+first action is now a ready-made prompt that already names the exact file
+(`<address>llms.txt`); the bare address is still offered, but demoted to a clearly
+labeled secondary fallback for someone building their own request.
+
 ## v1.45.0 (2026-08-29)
 
 **Working with CLI** and **AI Chat** — two additions answering "how does a CLI tool

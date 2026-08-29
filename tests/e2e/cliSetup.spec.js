@@ -21,13 +21,22 @@ test('shows the live base URL of this exact page, not a guess', async ({ page })
   await expect(page.locator('.cli-setup-prompt')).toHaveValue(/http:\/\/localhost:4173\/llms\.txt/);
 });
 
-test('the "Copy" button copies the same address shown in the field', async ({ page }) => {
+test('"Copy prompt" copies the ready-made prompt naming the specific file, not just the bare address', async ({ page }) => {
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   await openCliSetup(page);
-  await page.locator('.cli-setup-modal button', { hasText: '📋 Copy' }).first().click();
+  await page.locator('.cli-setup-modal button', { hasText: 'Copy prompt' }).click();
+  const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
+  expect(clipboardText).toContain('http://localhost:4173/llms.txt');
+  await expect(page.locator('.toast-success', { hasText: 'copied' })).toBeVisible();
+});
+
+test('the bare-address "Copy" button (secondary, exact match to avoid "Copy prompt") copies just the address', async ({ page }) => {
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await openCliSetup(page);
+  await page.locator('.cli-setup-modal button', { hasText: /^📋 Copy$/ }).click();
   const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
   expect(clipboardText).toBe('http://localhost:4173/');
-  await expect(page.locator('.toast-success', { hasText: 'copied' })).toBeVisible();
+  await expect(page.locator('.toast-success', { hasText: 'Address copied' })).toBeVisible();
 });
 
 test('reachable from the Command Palette too', async ({ page }) => {

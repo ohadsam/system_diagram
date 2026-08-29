@@ -65,13 +65,13 @@
     top: 0;
     right: 0;
     bottom: 0;
-    width: min(92vw, 340px);
+    width: min(92vw, var(--ai-chat-panel-width));
     z-index: var(--z-panel);
     box-shadow: var(--shadow-lg);
   }
 
   #ai-chat-panel.open.dock-floating {
-    width: min(88vw, 340px);
+    width: min(88vw, var(--ai-chat-panel-width));
   }
 
   #outline-panel.open {

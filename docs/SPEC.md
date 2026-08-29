@@ -2114,15 +2114,19 @@ invoked fresh each time — but every prompt this feature builds additionally em
   protocol documented for an external AI/CLI tool reading it cold.
 
 ### 4.85 Working with CLI
-A "🖥️ Working with CLI" dialog (Help menu, or Command Palette) directly answers the
-one thing 4.83's guide itself can't: an AI CLI tool has no built-in way to discover
-this specific app instance's address — there is no API, registry, or DNS trick that
-hands a generic CLI tool a URL it was never told. The dialog shows the *live*,
+A "🖥️ Working with CLI" dialog (Help menu, or Command Palette) directly answers two
+things 4.83's guide itself can't: an AI CLI tool has no built-in way to discover this
+specific app instance's address — there is no API, registry, or DNS trick that hands
+a generic CLI tool a URL it was never told — and even once it has the bare address, a
+plain domain doesn't tell it *which file* to read, since there's no universal
+convention that makes a generic CLI check `/llms.txt` just because it was handed a
+URL. So the dialog's primary, first action is a ready-to-copy prompt that already
+names the exact file to fetch (`<address>llms.txt`), computed from the *live*,
 auto-detected base URL of the page actually running right now (stripping a trailing
 `index.html`, working correctly for GitHub Pages, a custom domain, or a local dev
-server), a one-click "Copy" button, and a ready-to-paste prompt telling the CLI to
-fetch `<address>llms.txt` — removing all guesswork from the one manual step this
-app's zero-backend design can't avoid.
+server) — removing all guesswork from the one manual step this app's zero-backend
+design can't avoid. The bare address is still offered, demoted to a secondary "Copy"
+fallback for someone building their own request.
 
 ### 4.86 AI Chat
 A "🤖 AI Chat" panel (Tools menu, or Command Palette) — a fast, in-app live chat with
@@ -2134,7 +2138,9 @@ transcript as "🗨️ AI Conversation" (4.84) — both are the same ongoing con
 about the diagram, just two different UIs on top of it, so switching from hand-off to
 live chat (or back) mid-conversation carries every prior turn along. A reply can
 propose a diagram update using the same patch format as Edit with AI (4.38),
-previewed and applied inline right under the message that proposed it.
+previewed and applied inline right under the message that proposed it. Resizable in
+every dock mode (drag the left edge docked-right, top edge docked-bottom,
+bottom-right corner while floating), with the picked size persisted per mode.
 
 Unlike every other side panel in this app (always docked to one side), this one can
 be positioned three ways: docked to the right (in-flow, like AI Design Review),

@@ -138,6 +138,62 @@ test('dock mode buttons switch the panel between right/bottom/floating', async (
   await expect(page.locator('#ai-chat-panel')).toHaveClass(/dock-floating/);
 });
 
+test('dock-right panel can be resized by dragging its left edge, and the new width persists after reopening', async ({ page }) => {
+  await openAiChat(page);
+  const panel = page.locator('#ai-chat-panel');
+  const before = await panel.boundingBox();
+  const handleBox = await page.locator('.ai-chat-resize-w').boundingBox();
+
+  await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(handleBox.x - 100, handleBox.y + handleBox.height / 2, { steps: 10 });
+  await page.mouse.up();
+
+  const after = await panel.boundingBox();
+  expect(after.width).toBeGreaterThan(before.width + 50);
+
+  await page.reload();
+  await dismissHints(page);
+  await openAiChat(page);
+  const reopened = await page.locator('#ai-chat-panel').boundingBox();
+  expect(Math.abs(reopened.width - after.width)).toBeLessThan(5);
+});
+
+test('dock-bottom panel can be resized by dragging its top edge', async ({ page }) => {
+  await openAiChat(page);
+  await page.locator('.ai-chat-dock-btn[title="Dock to the bottom"]').click();
+  await expect(page.locator('#ai-chat-panel')).toHaveClass(/dock-bottom/);
+  const panel = page.locator('#ai-chat-panel');
+  const before = await panel.boundingBox();
+  const handleBox = await page.locator('.ai-chat-resize-h').boundingBox();
+
+  await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y - 100, { steps: 10 });
+  await page.mouse.up();
+
+  const after = await panel.boundingBox();
+  expect(after.height).toBeGreaterThan(before.height + 50);
+});
+
+test('floating panel can be resized from its corner grip, changing both width and height', async ({ page }) => {
+  await openAiChat(page);
+  await page.locator('.ai-chat-dock-btn[title^="Float"]').click();
+  await expect(page.locator('#ai-chat-panel')).toHaveClass(/dock-floating/);
+  const panel = page.locator('#ai-chat-panel');
+  const before = await panel.boundingBox();
+  const handleBox = await page.locator('.ai-chat-resize-corner').boundingBox();
+
+  await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(handleBox.x + 80, handleBox.y + 80, { steps: 10 });
+  await page.mouse.up();
+
+  const after = await panel.boundingBox();
+  expect(after.width).toBeGreaterThan(before.width + 40);
+  expect(after.height).toBeGreaterThan(before.height + 40);
+});
+
 test('"Clear conversation" empties the transcript after confirming', async ({ page }) => {
   await configureDirectClaude(page);
   await openAiChat(page);

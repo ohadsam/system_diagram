@@ -1095,6 +1095,17 @@ npm test
   `style.left`/`style.top` (JS) with zero conflict-clearing code. Don't
   "fix" this by adding `el.style.right = ''` defensively — it isn't needed
   and just adds a line that looks load-bearing but isn't.
+- **A drag-to-resize handle can't just set an inline `width`/`height` on an
+  element whose size comes from `flex: 0 0 var(--some-var)`** — flex-basis
+  wins over the plain `width`/`height` properties for a flex item, so an
+  inline `el.style.width = '400px'` silently does nothing while the element
+  stays at its flex-basis size. `panel/aiChatPanel.js`'s resize handles
+  (added alongside the dock-mode/floating-position system above) instead
+  write to the CSS custom property itself
+  (`rootEl.style.setProperty('--ai-chat-panel-width', '400px')`) — since
+  every dock mode's own stylesheet rule already reads that var for both its
+  `flex-basis` and its plain `width`, overriding the var's value reaches
+  both cases without needing separate logic per dock mode.
 - **Never hardcode or guess this app's own deployed URL anywhere** (a chat
   reply, a doc, a code comment) — read it live via
   `core/appUrl.js#computeAppBaseUrl(window.location.href)` instead. This

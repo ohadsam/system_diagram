@@ -85,6 +85,11 @@
 #ai-chat-panel {
   display: none;
   flex-direction: column;
+  /* Anchors the .ai-chat-resize-handle (panel.css) added by aiChatPanel.js
+     in every dock mode — dock-bottom/dock-floating already set position:
+     fixed below, which also establishes a containing block, so this only
+     actually matters for dock-right (otherwise static). */
+  position: relative;
 }
 
 #ai-chat-panel.open {

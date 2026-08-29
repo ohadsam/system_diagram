@@ -2,9 +2,23 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.45.0';
+export const APP_VERSION = '1.46.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.46.0',
+    date: '2026-08-29',
+    highlights: [
+      'The "🤖 AI Chat" panel can now be resized — drag its left edge while docked to the side, its top edge while docked to the bottom, or its bottom-right corner while floating. The size you pick sticks across reopening the panel, independently for each dock mode.',
+    ],
+  },
+  {
+    version: '1.45.1',
+    date: '2026-08-29',
+    highlights: [
+      'Fixed "🖥️ Working with CLI" (Help menu, or Ctrl/Cmd+K): a bare web address doesn\'t tell a CLI tool which file to fetch — there\'s no standard convention that makes it check `/llms.txt` just because it was handed a domain. The dialog\'s primary, first action is now a ready-made prompt that already names the exact file (`<address>llms.txt`); the bare address is still offered, but demoted to a secondary fallback for building your own request.',
+    ],
+  },
   {
     version: '1.45.0',
     date: '2026-08-29',

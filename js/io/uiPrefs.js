@@ -52,6 +52,15 @@ export const DEFAULT_UI_PREFS = {
   // was left instead of snapping back to a default corner every time. null
   // until the user has dragged it at least once.
   aiChatFloatingPos: null,
+  // Manually-resized panel dimensions (px), one per CSS var they override
+  // in css/variables.css — null means "use that var's own default", same
+  // convention as aiChatFloatingPos above. aiChatWidth backs BOTH dock-right
+  // and dock-floating (they already share one CSS var, --ai-chat-panel-width,
+  // so one saved width covers both); the two heights are independent since
+  // dock-bottom/dock-floating each have their own var.
+  aiChatWidth: null,
+  aiChatBottomHeight: null,
+  aiChatFloatingHeight: null,
 };
 
 export function getUiPrefs() {
@@ -66,6 +75,9 @@ export function getUiPrefs() {
     aiChatFloatingPos: (stored.aiChatFloatingPos && typeof stored.aiChatFloatingPos.x === 'number' && typeof stored.aiChatFloatingPos.y === 'number')
       ? { x: stored.aiChatFloatingPos.x, y: stored.aiChatFloatingPos.y }
       : null,
+    aiChatWidth: typeof stored.aiChatWidth === 'number' ? stored.aiChatWidth : null,
+    aiChatBottomHeight: typeof stored.aiChatBottomHeight === 'number' ? stored.aiChatBottomHeight : null,
+    aiChatFloatingHeight: typeof stored.aiChatFloatingHeight === 'number' ? stored.aiChatFloatingHeight : null,
   };
 }
 
