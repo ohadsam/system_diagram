@@ -63,6 +63,7 @@ import { openHistoryTimelineModal } from './historyTimelineModal.js';
 import { openQuickStartModal } from './quickStartModal.js';
 import { openImportFromImageModal } from './importFromImageModal.js';
 import { openAiEditModal } from './aiEditModal.js';
+import { openAiConversationModal } from './aiConversationModal.js';
 import { openC4ContextModal } from './c4ContextModal.js';
 import { openImportSqlModal } from './importSqlModal.js';
 import { openTemplateGalleryModal } from './templateGalleryModal.js';
@@ -155,6 +156,7 @@ function buildAppCommands() {
     { id: 'quick-start', label: '🪄 AI Quick Start', keywords: ['ai', 'quick start', 'onboarding', 'describe'], run: openQuickStartModal },
     { id: 'import-from-image', label: '🖼️ Import from Image', keywords: ['ai', 'import', 'image', 'screenshot', 'sketch'], run: openImportFromImageModal },
     { id: 'ai-edit', label: '💬 Edit with AI', keywords: ['ai', 'edit', 'patch', 'change'], run: openAiEditModal },
+    { id: 'ai-conversation', label: '🗨️ AI Conversation', keywords: ['ai', 'conversation', 'chat', 'cli', 'continue', 'transcript'], run: openAiConversationModal },
     { id: 'c4-context', label: '🧩 C4 Context Diagram', keywords: ['c4', 'context', 'model'], run: openC4ContextModal },
     { id: 'import-sql', label: '📥 Import from SQL', keywords: ['import', 'sql', 'ddl', 'er diagram', 'entity'], run: openImportSqlModal },
     { id: 'template-gallery', label: '🖼️ Template Gallery', keywords: ['template', 'gallery', 'reference architecture', 'pattern'], run: openTemplateGalleryModal },

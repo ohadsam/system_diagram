@@ -110,6 +110,32 @@ Keep this in sync with `PLAN.md` as stages complete.
   field (with autocomplete) on custom components, grouping them into
   collapsible 📁 sub-groups in the sidebar.
 
+## v1.44.0 (2026-08-29)
+
+**AI Conversation** — an ongoing, reopenable back-and-forth about the current diagram
+(Create menu, or Command Palette), building on v1.43.0's AI/CLI Integration guide: a
+genuine multi-turn conversation with a stateless AI (a browser chat tab, or an AI CLI
+tool invoked fresh each time) isn't possible without a server, so instead this feature
+threads the whole prior transcript into every prompt it builds — the app itself repeats
+the necessary context rather than the AI remembering anything on its own.
+
+- New `core/aiConversation.js` (`buildConversationPrompt`, `extractConversationReply`,
+  `createTurn` — pure, no DOM) and `io/aiConversationStore.js` (transcript persistence,
+  a single browser-level setting like AI provider keys — excluded from JSON export,
+  full backup, and duplicate-project, same as those).
+- New "🗨️ AI Conversation" modal (`modals/aiConversationModal.js`) — unlike this app's
+  other AI wizards, it never auto-closes: finishing a round returns to step 1 so the
+  conversation can keep going, with the full transcript shown above the step UI every
+  time the modal is (re)opened.
+- A reply can propose a diagram update using the exact same PATCH JSON format as
+  "💬 Edit with AI" — previewed and applied as one undoable step — or be pure prose
+  with no diagram change at all.
+- `io/aiEditDesign.js` now exports `buildPatchRules`, `EXAMPLE_PATCH_JSON`, and
+  `summarizeCurrentProject` so this new feature reuses the exact same patch-format
+  prompt fragment instead of duplicating it.
+- Documented in `docs/AI_INTEGRATION.md`'s new "Continuing the Conversation" section,
+  written for an external AI/CLI tool reading the protocol cold.
+
 ## v1.43.0 (2026-08-29)
 
 **AI / CLI Integration** — this app has no backend, so instead of an API, this batch

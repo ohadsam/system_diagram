@@ -15,7 +15,7 @@ const INSTRUCTION_LIMIT = 4000;
 const PLACEABLE_SHAPES = SHAPES.filter((s) => s !== 'rows');
 const ROUTING_CHOICES = ROUTINGS.filter((r) => r !== 'magic');
 
-const EXAMPLE_PATCH_JSON = `{
+export const EXAMPLE_PATCH_JSON = `{
   "addNodes": [
     { "id": "new1", "x": 460, "y": 320, "w": 160, "h": 84, "shape": "cylinder", "text": "Redis Cache", "icon": "⚡", "fill": "#FFF7ED", "stroke": "#EA580C" }
   ],
@@ -34,13 +34,31 @@ const EXAMPLE_PATCH_JSON = `{
  * reference existing ids and geometry — kept far smaller than a full
  * export (drops history/versions/animations/comments/etc.) since this text
  * gets embedded directly into the prompt and every model has a context
- * budget. */
-function summarizeCurrentProject(project) {
+ * budget. Exported for core/aiConversation.js's own prompt builder, which
+ * embeds the same trimmed projection into every conversation turn. */
+export function summarizeCurrentProject(project) {
   return JSON.stringify({
     name: project.name,
     nodes: project.nodes.map((n) => ({ id: n.id, x: n.x, y: n.y, w: n.w, h: n.h, shape: n.shape, text: n.text, icon: n.icon, fill: n.fill, stroke: n.stroke })),
     edges: project.edges.map((e) => ({ id: e.id, from: e.from, to: e.to, label: e.label, routing: e.routing })),
   });
+}
+
+/** Shared between buildEditPrompt below and core/aiConversation.js's own
+ * patch-format prompt — both ask for the exact same PATCH JSON shape, so
+ * the field rules are worth keeping in one place rather than hand-copied
+ * twice (see aiGenerateDesign.js#buildComponentGraphRules for the same
+ * reasoning applied to the full-project JSON shape). */
+export function buildPatchRules() {
+  return [
+    '- Only include the keys you actually need — omit or leave empty any of addNodes/addEdges/updateNodes/updateEdges/removeNodeIds/removeEdgeIds that don\'t apply.',
+    '- `addNodes`/`addEdges` are brand-new items: give each a short new "id" not already used above (e.g. "new1", "new2", ...) — never reuse an existing id here.',
+    `- A new node's "shape" must be one of: ${PLACEABLE_SHAPES.join(', ')}. Place it at x/y coordinates that don't overlap an existing node (leave at least 220px horizontal / 140px vertical clearance).`,
+    `- A new edge's "routing" must be one of: ${ROUTING_CHOICES.join(', ')}. Its "from"/"to" must be an existing node's id or one of this same patch's own new node ids.`,
+    '- `updateNodes`/`updateEdges` are partial patches: each needs the existing "id" plus only the fields being changed — don\'t repeat fields that stay the same.',
+    '- `removeNodeIds`/`removeEdgeIds` are plain arrays of existing ids to delete. Removing a node also removes any edge attached to it automatically — don\'t also list that edge in removeEdgeIds.',
+    '- Don\'t rewrite or reposition anything the request doesn\'t call for — a small, targeted patch is much more useful than a wholesale redo.',
+  ];
 }
 
 export function buildEditPrompt({ project, instruction = '' }) {
@@ -62,13 +80,7 @@ export function buildEditPrompt({ project, instruction = '' }) {
   lines.push('```');
   lines.push('');
   lines.push('Rules:');
-  lines.push('- Only include the keys you actually need — omit or leave empty any of addNodes/addEdges/updateNodes/updateEdges/removeNodeIds/removeEdgeIds that don\'t apply.');
-  lines.push('- `addNodes`/`addEdges` are brand-new items: give each a short new "id" not already used above (e.g. "new1", "new2", ...) — never reuse an existing id here.');
-  lines.push(`- A new node's "shape" must be one of: ${PLACEABLE_SHAPES.join(', ')}. Place it at x/y coordinates that don't overlap an existing node (leave at least 220px horizontal / 140px vertical clearance).`);
-  lines.push(`- A new edge's "routing" must be one of: ${ROUTING_CHOICES.join(', ')}. Its "from"/"to" must be an existing node's id or one of this same patch's own new node ids.`);
-  lines.push('- `updateNodes`/`updateEdges` are partial patches: each needs the existing "id" plus only the fields being changed — don\'t repeat fields that stay the same.');
-  lines.push('- `removeNodeIds`/`removeEdgeIds` are plain arrays of existing ids to delete. Removing a node also removes any edge attached to it automatically — don\'t also list that edge in removeEdgeIds.');
-  lines.push('- Don\'t rewrite or reposition anything the request doesn\'t call for — a small, targeted patch is much more useful than a wholesale redo.');
+  lines.push(...buildPatchRules());
   return lines.join('\n');
 }
 

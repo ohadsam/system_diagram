@@ -2077,6 +2077,42 @@ hand a generated diagram back to the user:
   detected and decoded the same way method A's own link would be, so either output
   format works in the same box regardless of which the CLI could actually produce.
 
+### 4.84 AI Conversation
+An ongoing, reopenable back-and-forth about the current diagram (Create menu, or
+Command Palette), unlike 4.38's ("Edit with AI") one-shot prompt-and-paste. The same
+prepare/hand-off/paste-back mechanism, no API key, applies here too — this app has no
+backend and cannot keep a live connection open to a browser chat tab or an AI CLI tool
+invoked fresh each time — but every prompt this feature builds additionally embeds the
+**entire prior transcript**, not just the new message:
+
+- **Transcript persistence** (`io/aiConversationStore.js`) — every turn (the user's own
+  message, and the AI's reply) is appended to a transcript stored the same way as
+  4.83's own delivery mechanism needs no server: plain browser storage, not project
+  data. Like 4.83's AI provider keys or usage stats, it's a browser/app setting, so
+  it's excluded from JSON export, full backup (4.7.3), and duplicate-project — reopening
+  the modal later resumes the same conversation regardless of which project happens to
+  be open, and "🗑️ Clear conversation" empties it explicitly.
+- **Prompt building** (`core/aiConversation.js#buildConversationPrompt`) — every prompt
+  includes: (1) the most recent turns (capped, so a very long conversation's prompt
+  doesn't grow without bound), each labeled `[You (the user)]:`/`[AI]:`; (2) the
+  diagram's **current** state, always freshly read (never a frozen per-turn copy), so
+  it reflects any updates applied earlier in the same conversation; (3) the new
+  message. This is the only honest way a stateless AI — including an AI CLI tool that
+  starts a fresh context on every invocation — can stay "aware" across turns: the app
+  itself repeats the necessary context rather than any real memory existing on either
+  side.
+- **Replies** use the exact same PATCH JSON shape as 4.38's Edit with AI
+  (`{addNodes, addEdges, updateNodes, updateEdges, removeNodeIds, removeEdgeIds}`),
+  parsed and previewed the same way (`summarizePatch`) before an explicit "Apply
+  update & continue" applies it as one undoable step. A reply can also be pure prose
+  with no patch at all (e.g. answering a question) — the modal never assumes a change
+  was intended.
+- **Never auto-closes.** Unlike other AI wizards here, finishing a round returns to
+  step 1 instead of closing the modal, since the point is an ongoing conversation, not
+  a single edit.
+- See `docs/AI_INTEGRATION.md`'s "Continuing the Conversation" section for the same
+  protocol documented for an external AI/CLI tool reading it cold.
+
 ## 7. Out of scope for v1 (ideas for later, see PLAN.md §7)
 
 Versioned history beyond in-session undo/redo (superseded by 4.17/4.63

@@ -181,6 +181,69 @@ description. Give every node a real, distinct position (the spacing rule above) 
 the app's own auto-layout safety net only kicks in when almost every node shares the
 same position, and does a plain grid, not something spec-aware.
 
+## Continuing the Conversation
+
+Everything above covers a single hand-off: one prompt, one diagram back. This app also
+has a "🗨️ AI Conversation" feature (Create menu) for an ongoing back-and-forth about a
+diagram — worth knowing about if the user is going through you (an AI CLI tool) turn
+after turn, since it changes what each prompt you receive looks like and what shape
+your reply should take.
+
+**Be honest about what this actually is.** This app has no backend, so it cannot keep
+a live, always-listening connection open to you the way a real chat session would.
+There is no server-push, no webhook, no background process watching for your reply —
+every single round still requires the user to copy your reply back in by hand, exactly
+like the one-shot flow above. What genuinely is different: **the app itself carries
+the whole conversation forward for you.** Every prompt it builds already contains a
+`--- CONVERSATION SO FAR ---` block replaying the recent turns (labeled `[You (the
+user)]:`/`[AI]:`) plus the diagram's current state, so you never need your own memory
+of earlier turns — treat each prompt as fully self-contained, because it is. Don't
+tell the user you're "staying connected" or "listening" between messages; say instead
+that each of your replies gets fed back into the app so the next prompt already knows
+everything discussed so far.
+
+**What a prompt from this feature looks like** (abbreviated):
+
+```
+You're in an ongoing conversation about the system design diagram below...
+
+--- CONVERSATION SO FAR ---
+[You (the user)]: Add a cache next to the gateway.
+[AI]: Sure, I'll add a cache for you. (a diagram update from this reply was applied)
+--- END CONVERSATION ---
+
+Here is the diagram's CURRENT state (a trimmed projection...):
+```json
+{ "nodes": [...], "edges": [...] }
+```
+
+New message from the user:
+--- MESSAGE START ---
+Now add a queue between the two.
+--- MESSAGE END ---
+```
+
+**How to reply:** a short, real, plain-language reply (this is what the user actually
+sees — not a restatement of the JSON), and only *if* the change calls for it, exactly
+one fenced ` ```json ` block after your message containing a patch object:
+
+```json
+{
+  "addNodes": [{ "id": "new1", "x": 460, "y": 40, "w": 160, "h": 84, "shape": "cylinder", "text": "Message Queue", "icon": "📬" }],
+  "addEdges": [{ "id": "newe1", "from": "<an existing node id from the diagram above>", "to": "new1", "label": "publishes" }]
+}
+```
+
+This is the exact same `{addNodes, addEdges, updateNodes, updateEdges, removeNodeIds,
+removeEdgeIds}` patch shape as the rest of this guide — see "The JSON schema" above
+for the full field reference. A few things specific to a patch inside a conversation:
+`addNodes`/`addEdges` need a brand-new id not already used anywhere in the diagram
+above (`"new1"`, `"new2"`, ...); `from`/`to` on a new edge must be an id that's either
+already in the diagram or one of this same patch's own new node ids — never invent an
+id for an existing node. If you're just answering a question or the user didn't ask
+for a change, skip the JSON block entirely — a pure-prose reply is completely normal
+here and won't be misread as "nothing happened."
+
 ## Template: what to tell the user
 
 Adapt one of these once you've generated the diagram:

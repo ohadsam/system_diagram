@@ -24,8 +24,8 @@ index.html ──► js/main.js
                  ├─ core/kioskMode.js    (Presenter Mode's on/off pub-sub)
                  ├─ core/animationPlayback.js (Diagram Animation's step-through state machine)
                  ├─ canvas/animationOverlay.js (Diagram Animation's floating playback controls + draw layer)
-                 ├─ modals/*.js          (incl. modals/generateDesignModal.js, modals/replicationModal.js, modals/sequenceDiagramModal.js, modals/aiEditModal.js, modals/customLintRulesModal.js, modals/globalSearchModal.js, modals/commentsListModal.js, modals/templateGalleryModal.js, modals/importSqlModal.js, modals/c4ContextModal.js, modals/quickStartModal.js, modals/importFromImageModal.js, modals/collaborationModal.js, modals/autoAnimationPrompt.js, modals/aiAskModal.js, modals/aiLayoutModal.js, modals/aiDiffExplainModal.js, modals/diagramDescriptionModal.js)
-                 ├─ io/*.js              (localStorage/IndexedDB, file, image/pdf/svg export, incl. io/projectTabs.js, io/duplicateTabWarning.js, io/exportAnimation.js, io/aiEditDesign.js, io/customLintRules.js, io/i18n.js, io/storage.js, io/indexedDbStore.js, io/exportSvg.js, io/globalProjectSearch.js, io/sqlDdlImport.js, io/serviceWorker.js, io/exportPulumi.js, io/exportCloudFormation.js, io/exportKubernetes.js, io/autoSuggest.js, io/autoSuggestWatcher.js, io/exportAnimationPptx.js, io/exportAnimationVideo.js, io/aiLayoutSuggest.js, io/aiDiffExplain.js, io/aiCostOptimize.js, io/export3dVideo.js)
+                 ├─ modals/*.js          (incl. modals/generateDesignModal.js, modals/replicationModal.js, modals/sequenceDiagramModal.js, modals/aiEditModal.js, modals/aiConversationModal.js, modals/customLintRulesModal.js, modals/globalSearchModal.js, modals/commentsListModal.js, modals/templateGalleryModal.js, modals/importSqlModal.js, modals/c4ContextModal.js, modals/quickStartModal.js, modals/importFromImageModal.js, modals/collaborationModal.js, modals/autoAnimationPrompt.js, modals/aiAskModal.js, modals/aiLayoutModal.js, modals/aiDiffExplainModal.js, modals/diagramDescriptionModal.js)
+                 ├─ io/*.js              (localStorage/IndexedDB, file, image/pdf/svg export, incl. io/projectTabs.js, io/duplicateTabWarning.js, io/exportAnimation.js, io/aiEditDesign.js, io/aiConversationStore.js, io/customLintRules.js, io/i18n.js, io/storage.js, io/indexedDbStore.js, io/exportSvg.js, io/globalProjectSearch.js, io/sqlDdlImport.js, io/serviceWorker.js, io/exportPulumi.js, io/exportCloudFormation.js, io/exportKubernetes.js, io/autoSuggest.js, io/autoSuggestWatcher.js, io/exportAnimationPptx.js, io/exportAnimationVideo.js, io/aiLayoutSuggest.js, io/aiDiffExplain.js, io/aiCostOptimize.js, io/export3dVideo.js)
                  ├─ core/animationAutoBuild.js (Diagram Animation's post-AI-generation walkthrough builder)
                  ├─ core/animationVideoTiming.js (pure per-step screen-time math for io/exportAnimationVideo.js)
                  ├─ core/diagramDescription.js, core/diagramHealth.js, core/versionBranches.js
@@ -4315,6 +4315,58 @@ needed no changes beyond branching on which path produced the `project`.
 Levels" section above for why Help stays ungated) and a matching Command Palette
 entry both just `window.open('docs/AI_INTEGRATION.md', ...)` — the guide is the
 single source of truth; neither entry point duplicates its content.
+
+## AI Conversation (`core/aiConversation.js`, `io/aiConversationStore.js`, `modals/aiConversationModal.js`)
+
+An ongoing, reopenable back-and-forth about the current diagram — the multi-turn
+sibling of `io/aiEditDesign.js`'s one-shot Edit with AI. Same zero-backend
+prepare/hand-off/paste-back mechanism (see the "Edit with AI" section above), but this
+feature additionally threads the **entire prior transcript** into every prompt it
+builds, so a stateless AI — a browser chat tab, or an AI CLI tool invoked fresh each
+time from a terminal — can stay "aware" of everything already discussed without this
+app having any live channel to that process. There's no way around user-mediated
+copy/paste each round (no server exists to push a message to a running CLI process),
+so "continuing the conversation" here means the app repeats the necessary context in
+full rather than the AI genuinely remembering anything across turns — see
+`docs/AI_INTEGRATION.md`'s "Continuing the Conversation" section for this same
+protocol documented for an AI/CLI tool reading it cold.
+
+`core/aiConversation.js` is pure/DOM-free, deliberately reusing rather than
+duplicating `io/aiEditDesign.js`'s machinery: `buildPatchRules()`, `EXAMPLE_PATCH_JSON`
+and `summarizeCurrentProject()` were extracted out of that file (as exports) so both
+modules build an identical patch-format prompt fragment from one source of truth.
+`buildConversationPrompt({turns, newMessage, project})` assembles, in order: the most
+recent turns (capped at `MAX_TRANSCRIPT_TURNS_IN_PROMPT`, so a very long-running
+conversation's prompt doesn't grow without bound — the diagram's own *current* state,
+always attached fresh below, is what actually matters for continuity, not every early
+message once a design has moved past them) each labeled `[You (the user)]:`/`[AI]:`;
+the diagram's current state via the shared `summarizeCurrentProject`; and the new
+message. `extractConversationReply(text)` splits a pasted reply into its plain-message
+part and an optional patch (reusing `aiEditDesign.js#extractPatchJSON`/`normalizePatch`
+verbatim) — never throws, and a reply that's pure prose with no fenced JSON block
+renders naturally as a plain transcript turn instead of erroring.
+
+`io/aiConversationStore.js` persists the transcript (`{turns: [...]}`) via the same
+plain `readJSON`/`writeJSON` shape as `io/usageStats.js`. It's a single global key, not
+per-project — a conversation is a train of thought the user is having *about*
+whichever diagram happens to be open, not project data itself, so (like
+`io/uiPrefs.js`/`io/aiProviderKeys.js`) it's deliberately excluded from JSON export,
+full backup (`io/fullBackup.js` only ever serializes the specific keys it names, never
+a generic localStorage sweep, so a new store like this one needs no opt-out — it's
+excluded by construction unless someone later wires it in on purpose), and
+duplicate-project.
+
+`modals/aiConversationModal.js` follows the same 3-step
+prepare/copy/paste-back shape every other AI modal here uses, with one structural
+difference: **it never auto-closes**. Finishing a round (`finishTurn`) appends the new
+turn(s) to the store and resets back to step 1 instead of closing the dialog, since the
+point of this modal is an ongoing conversation, not a single edit — the persistent
+transcript renders above the step UI on every `renderAll()` regardless of which step is
+active, so reopening the modal later resumes exactly where the conversation left off.
+A patch reply is previewed with the same `summarizePatch`/`applyAiEditPatch` used by
+Edit with AI, applied as one undoable step; a reply can also carry no patch at all
+(e.g. answering a question), in which case the round just adds the turn with no
+diagram change.
 
 ## Security notes
 

@@ -39,6 +39,7 @@ import { openBackupModal } from '../modals/backupModal.js';
 import { openWhatsNewModal } from '../modals/whatsNewModal.js';
 import { openReplicationModal } from '../modals/replicationModal.js';
 import { openAiEditModal } from '../modals/aiEditModal.js';
+import { openAiConversationModal } from '../modals/aiConversationModal.js';
 import { openAiLayoutModal } from '../modals/aiLayoutModal.js';
 import { openDiagramDescriptionModal } from '../modals/diagramDescriptionModal.js';
 import { openInterviewModeModal } from '../modals/interviewModeModal.js';
@@ -549,6 +550,12 @@ function buildCreateGroupButtons() {
     text: '💬 Edit with AI',
     onClick: openAiEditModal,
   });
+  const aiConversationBtn = el('button', {
+    type: 'button', class: 'btn',
+    title: 'AI Conversation: an ongoing back-and-forth about this diagram — every message carries the full conversation so far, so your AI (including an AI CLI tool) never needs re-briefing',
+    text: '🗨️ AI Conversation',
+    onClick: openAiConversationModal,
+  });
   const replicateBtn = el('button', { type: 'button', class: 'btn', title: 'Replicate: link components to auto-mirror across two sides', text: '🔁 Replicate', onClick: openReplicationModal });
   const sequenceDiagramBtn = el('button', { type: 'button', class: 'btn', title: 'Create a sequence/communication-flow diagram: titled lifelines with messages between them', text: '🔀 Sequence Diagram', onClick: openSequenceDiagramModal });
   const importMermaidBtn = el('button', { type: 'button', class: 'btn', title: 'Import a sequence diagram from pasted Mermaid sequenceDiagram text', text: '📥 Import from Mermaid', onClick: openImportSequenceMermaidModal });
@@ -577,7 +584,7 @@ function buildCreateGroupButtons() {
   return buildGatedButtonList(
     [newComponentBtn, quickStartBtn, generateDesignBtn, templateGalleryBtn, demoProjectsBtn, defaultsBtn],
     [
-      { packId: 'ai-tools', buttons: [importFromImageBtn, aiEditBtn] },
+      { packId: 'ai-tools', buttons: [importFromImageBtn, aiEditBtn, aiConversationBtn] },
       { packId: 'diagram-types', buttons: [replicateBtn, sequenceDiagramBtn, importMermaidBtn, importSqlBtn, c4ContextBtn] },
     ],
   );

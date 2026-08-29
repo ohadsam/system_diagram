@@ -426,7 +426,9 @@ body.resizing-details-panel {
 }
 
 .ai-edit-instruction,
-.ai-edit-response {
+.ai-edit-response,
+.ai-conversation-draft,
+.ai-conversation-response {
   margin-top: var(--space-2);
 }
 
@@ -468,6 +470,76 @@ body.resizing-details-panel {
 
 .ai-edit-warning {
   color: var(--color-danger);
+  font-size: 13px;
+  margin-top: var(--space-2);
+}
+
+/* modals/aiConversationModal.js — the persistent transcript shown above
+   the per-round wizard steps every time the modal (re)opens. */
+.ai-conversation-transcript {
+  margin-bottom: var(--space-3);
+}
+
+.ai-conversation-empty {
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-style: italic;
+}
+
+.ai-conversation-turns {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: var(--space-1);
+}
+
+.ai-conversation-turn {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  max-width: 90%;
+}
+
+.ai-conversation-turn-user {
+  align-self: flex-end;
+  background: var(--color-primary-soft);
+}
+
+.ai-conversation-turn-ai {
+  align-self: flex-start;
+  background: var(--color-surface-alt);
+}
+
+.ai-conversation-turn-who {
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-muted);
+}
+
+.ai-conversation-turn-message {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ai-conversation-turn-badge {
+  font-size: 11px;
+  color: var(--color-success);
+}
+
+.ai-conversation-clear {
+  margin-top: var(--space-2);
+  color: var(--color-danger);
+}
+
+.ai-conversation-preview-message {
+  white-space: pre-wrap;
   font-size: 13px;
   margin-top: var(--space-2);
 }

@@ -2,9 +2,18 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.43.0';
+export const APP_VERSION = '1.44.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.44.0',
+    date: '2026-08-29',
+    highlights: [
+      'New "🗨️ AI Conversation" (Create menu, or Ctrl/Cmd+K) — an ongoing, reopenable back-and-forth about the current diagram instead of a one-shot prompt: every message you send carries the whole conversation so far (and the diagram\'s current state), so your AI — including an AI CLI tool run fresh each time from a terminal — never needs re-briefing. A reply can just be a plain answer, or also propose a diagram update (previewed and applied the same way as "💬 Edit with AI").',
+      'The transcript persists across reopening the modal (it\'s a standalone browser setting, not part of the diagram itself, so it\'s excluded from JSON export/backup/duplicate-project) and can be cleared at any time.',
+      'This is a documented protocol, not a live connection — this app has no server to keep a real, always-listening channel open to a CLI tool, so "awareness" works by re-sending the full history with every message rather than the AI remembering anything on its own. See `docs/AI_INTEGRATION.md`\'s "Continuing the Conversation" section for the exact format an AI/CLI tool should expect.',
+    ],
+  },
   {
     version: '1.43.0',
     date: '2026-08-29',

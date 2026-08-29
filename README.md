@@ -207,6 +207,15 @@ Or open `index.html` directly in a browser.
   (built with a documented, runnable gzip + base64url recipe — no copy/paste
   at all) or as JSON to paste into "Generate Design from Spec"/"AI Quick
   Start" or import as a file.
+- **🗨️ AI Conversation** — an ongoing, reopenable back-and-forth about the
+  current diagram, unlike Edit with AI's one-shot prompt: every message you
+  send carries the whole conversation so far (and the diagram's current
+  state), so your AI — including an AI CLI tool run fresh each time from a
+  terminal — never needs re-briefing. A reply can be a plain answer, or also
+  propose a diagram update (previewed and applied the same way as Edit with
+  AI). The transcript persists across reopening the modal and can be cleared
+  any time — it's a browser setting, not part of the diagram, so it's left
+  out of JSON export/backup/duplicate-project.
 - **🔁 Replicate** — link a selection to a live-mirrored second side
   (Active-Active / Active-Passive / Primary-Replica). Add, move, resize,
   restyle or rename a component on either side and its peer follows

@@ -229,6 +229,7 @@
       <li><a href="#quick-start">AI Quick Start</a></li>
       <li><a href="#import-from-image">Import from Image</a></li>
       <li><a href="#ai-edit">Edit with AI</a></li>
+      <li><a href="#ai-conversation">AI Conversation</a></li>
       <li><a href="#replication">Live Replication</a></li>
       <li><a href="#collaboration">Live Collaboration</a></li>
       <li><a href="#sequence-diagram">Sequence Diagrams</a></li>
@@ -595,6 +596,18 @@
         <li><strong>Paste the AI's result and preview</strong> — paste its reply back in and click "Preview changes" for a plain-English list of exactly what will be added, changed, or removed before anything touches your diagram. Click "Apply changes" to make it real in one step (<kbd>Ctrl/Cmd</kbd>+<kbd>Z</kbd> undoes the whole patch at once), or go back and try a different instruction/reply if the preview isn't what you wanted.</li>
       </ol>
       <div class="tip">🛡️ A patch can only add, update, or remove — it never renames an existing component's internal id or silently moves it, so it can't desync an edge, an animation step, or a saved version that refers to that component. An unusable or unrecognizable reply shows an inline error (or an empty preview) and keeps your text so you can fix and retry.</div>
+    </section>
+
+    <section id="ai-conversation">
+      <h2><span class="icon-badge">🗨️</span> AI Conversation</h2>
+      <p>Click "🗨️ AI Conversation" ("✨ Create" menu) for an <strong>ongoing, reopenable</strong> back-and-forth about the current diagram, instead of Edit with AI's one-shot prompt above. Every message you send from here on carries the <strong>whole conversation so far</strong>, plus the diagram's current state, so your AI — including an AI CLI tool run fresh each time from a terminal — never needs re-briefing.</p>
+      <ol>
+        <li><strong>Type your message</strong> — a question, a requested change, or both. The transcript above this step shows everything discussed so far in this conversation.</li>
+        <li><strong>Copy the prompt to your AI</strong> — automatically built to include the full transcript and the diagram's current JSON, so a stateless AI (or a CLI tool starting a fresh context each time) has complete context in one message.</li>
+        <li><strong>Paste the reply back in</strong> — its plain-language message is added to the transcript either way; if it also proposed a diagram change (the same patch format as Edit with AI), preview and apply it as one undoable step.</li>
+      </ol>
+      <p>The modal returns to step 1 after each round instead of closing, so you can keep the conversation going — reopen it any time later and it resumes exactly where you left off. "🗑️ Clear conversation" empties the transcript for good (this can't be undone), and it's excluded from JSON export, full backup, and duplicate-project, since it's a browser setting about your ongoing chat, not part of the diagram itself.</p>
+      <div class="tip">📡 This app has no server, so there's no live/automatic listening between messages — every round still needs you to copy the reply back in by hand. What's different from a one-shot prompt is that the app repeats the whole conversation for you each time, so the AI doesn't need to remember anything on its own. See <a href="#ai-cli-integration">AI / CLI Integration</a> if you're driving this from an AI CLI tool rather than a browser chat.</div>
     </section>
 
     <section id="replication">
