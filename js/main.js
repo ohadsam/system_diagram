@@ -7,6 +7,7 @@ import { initSidebar, configureSidebar } from './sidebar/sidebar.js';
 import { initToolbar } from './toolbar/toolbar.js';
 import { initDetailsPanel, close as closeDetailsPanel } from './panel/detailsPanel.js';
 import { initAiReviewPanel, close as closeAiReviewPanel } from './panel/aiReviewPanel.js';
+import { initAiChatPanel, close as closeAiChatPanel } from './panel/aiChatPanel.js';
 import { initOutlinePanel } from './panel/outlinePanel.js';
 import { initAnimationPanel } from './panel/animationPanel.js';
 import { initAnimationOverlay } from './canvas/animationOverlay.js';
@@ -123,6 +124,7 @@ function initKeyboardShortcuts() {
       hideContextMenu();
       closeDetailsPanel();
       closeAiReviewPanel();
+      closeAiChatPanel();
       if (isKioskMode()) setKioskMode(false);
     } else if (e.key === ' ' && !e.repeat) {
       // Hold Space to temporarily pan (Hand tool) no matter which tool is
@@ -217,6 +219,7 @@ async function boot() {
   initToolbar(document.getElementById('toolbar'));
   initDetailsPanel(document.getElementById('details-panel'));
   initAiReviewPanel(document.getElementById('ai-review-panel'));
+  initAiChatPanel(document.getElementById('ai-chat-panel'));
   initOutlinePanel(document.getElementById('outline-panel'));
   initAnimationPanel(document.getElementById('animation-panel'));
 

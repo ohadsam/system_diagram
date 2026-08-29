@@ -9,9 +9,7 @@
 // unattended background check the user didn't explicitly ask for this time.
 import * as store from '../core/store.js';
 import { buildSuggestionsPrompt, extractSuggestionsArray } from './aiReview.js';
-import { isLocalModeActive, isDirectModeActive, getAiProviderSettings, getConfiguredDirectProviders } from './aiProviderKeys.js';
-import { generateLocal } from './webllmEngine.js';
-import { sendPromptDirect } from './aiDirectCall.js';
+import { sendPromptAutomatic } from './aiAutoSend.js';
 
 /** @returns {Promise<{ok:true, data:object[]}|{ok:false, error:string}>} */
 export async function runAutomaticSuggestions() {
@@ -25,16 +23,7 @@ export async function runAutomaticSuggestions() {
     hasSequenceDiagram: state.nodes.some((n) => n.shape === 'lifeline'),
   });
 
-  let sendResult;
-  if (isLocalModeActive()) {
-    sendResult = await generateLocal({ modelId: getAiProviderSettings().localModel, prompt });
-  } else if (isDirectModeActive()) {
-    const providers = getConfiguredDirectProviders();
-    if (!providers.length) return { ok: false, error: 'No configured Direct API provider.' };
-    sendResult = await sendPromptDirect(providers[0], { prompt });
-  } else {
-    return { ok: false, error: 'Automatic sending is not configured.' };
-  }
+  const sendResult = await sendPromptAutomatic({ prompt });
   if (!sendResult.ok) return sendResult;
   return extractSuggestionsArray(sendResult.text);
 }

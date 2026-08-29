@@ -24,3 +24,14 @@ export function appendConversationTurn(turn) {
 export function clearConversation() {
   writeJSON(KEY, DEFAULT_STATE);
 }
+
+/** Flags an existing turn as having had its patch applied — used by
+ * panel/aiChatPanel.js, where a patch arrives inline in the transcript
+ * (unlike modals/aiConversationModal.js's wizard, which decides
+ * apply-or-not before the turn is ever written) so the "✓ diagram updated"
+ * badge can be added retroactively once the user actually clicks Apply. */
+export function markPatchApplied(turnId) {
+  const turns = getConversationTurns().map((t) => (t.id === turnId ? { ...t, patchApplied: true } : t));
+  writeJSON(KEY, { turns });
+  return turns;
+}

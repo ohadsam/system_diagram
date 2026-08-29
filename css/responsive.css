@@ -56,6 +56,24 @@
     box-shadow: var(--shadow-lg);
   }
 
+  /* Only the 'right' dock mode needs converting to an overlay here — the
+     'bottom'/'floating' modes are already `position: fixed` at every width
+     (see layout.css), so they don't force the layout to make room for them
+     the way an in-flow docked panel would on a narrow screen. */
+  #ai-chat-panel.open.dock-right {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(92vw, 340px);
+    z-index: var(--z-panel);
+    box-shadow: var(--shadow-lg);
+  }
+
+  #ai-chat-panel.open.dock-floating {
+    width: min(88vw, 340px);
+  }
+
   #outline-panel.open {
     position: absolute;
     top: 0;
@@ -115,6 +133,7 @@
 
   [dir="rtl"] #details-panel.open,
   [dir="rtl"] #ai-review-panel.open,
+  [dir="rtl"] #ai-chat-panel.open.dock-right,
   [dir="rtl"] #outline-panel.open,
   [dir="rtl"] #animation-panel.open {
     right: auto;

@@ -216,6 +216,14 @@ Or open `index.html` directly in a browser.
   AI). The transcript persists across reopening the modal and can be cleared
   any time — it's a browser setting, not part of the diagram, so it's left
   out of JSON export/backup/duplicate-project.
+- **🖥️ Working with CLI** (Help menu, or Ctrl/Cmd+K) — shows the live, auto-detected
+  address of this exact app instance (not a guess) to give an AI CLI tool, plus a
+  ready-to-copy prompt telling it where to start reading.
+- **🤖 AI Chat** (Tools menu, once Direct API mode or Local AI mode is set up) — a
+  fast, in-app live chat with your configured AI, no copy/paste. Dock it to the side,
+  pin it to the bottom, or drag it anywhere on screen as a floating card. Shares the
+  exact same ongoing conversation as AI Conversation above — switch between hand-off
+  and live chat mid-conversation without losing context.
 - **🔁 Replicate** — link a selection to a live-mirrored second side
   (Active-Active / Active-Passive / Primary-Replica). Add, move, resize,
   restyle or rename a component on either side and its peer follows

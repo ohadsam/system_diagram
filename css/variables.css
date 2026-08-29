@@ -70,6 +70,11 @@
   --ai-panel-width: 380px;
   --outline-panel-width: 260px;
   --animation-panel-width: 300px;
+  /* panel/aiChatPanel.js — dock-right width, dock-bottom drawer height, and
+     the floating card's width/height (used by all three dock modes). */
+  --ai-chat-panel-width: 340px;
+  --ai-chat-panel-bottom-height: min(46vh, 380px);
+  --ai-chat-panel-floating-height: min(70vh, 520px);
 
   --z-canvas: 1;
   --z-panel: 25;

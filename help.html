@@ -230,6 +230,7 @@
       <li><a href="#import-from-image">Import from Image</a></li>
       <li><a href="#ai-edit">Edit with AI</a></li>
       <li><a href="#ai-conversation">AI Conversation</a></li>
+      <li><a href="#ai-chat">AI Chat</a></li>
       <li><a href="#replication">Live Replication</a></li>
       <li><a href="#collaboration">Live Collaboration</a></li>
       <li><a href="#sequence-diagram">Sequence Diagrams</a></li>
@@ -245,6 +246,7 @@
       <li><a href="#review-status">Review Status</a></li>
       <li><a href="#feature-levels">Feature Level (Basic/Advanced/Custom)</a></li>
       <li><a href="#ai-cli-integration">AI / CLI Integration</a></li>
+      <li><a href="#cli-setup">Working with CLI</a></li>
       <li><a href="#offline">Offline &amp; installable</a></li>
       <li><a href="#language">Language &amp; RTL</a></li>
       <li><a href="#3d-presentation">3D Presentation Mode</a></li>
@@ -610,6 +612,14 @@
       <div class="tip">📡 This app has no server, so there's no live/automatic listening between messages — every round still needs you to copy the reply back in by hand. What's different from a one-shot prompt is that the app repeats the whole conversation for you each time, so the AI doesn't need to remember anything on its own. See <a href="#ai-cli-integration">AI / CLI Integration</a> if you're driving this from an AI CLI tool rather than a browser chat.</div>
     </section>
 
+    <section id="ai-chat">
+      <h2><span class="icon-badge">🤖</span> AI Chat</h2>
+      <p>Once <a href="#ai-direct-mode">Direct API mode or Local AI mode</a> is set up, "🤖 AI Chat" ("🛠️ Tools" menu) is a fast, in-app live chat with your configured AI — type a message, hit Enter, get a reply, no copy/paste. It's genuinely the same conversation as <a href="#ai-conversation">🗨️ AI Conversation</a> above, just a different way to have it: send a message from the wizard, then switch to the live chat later (or the other way around), and it picks up exactly where you left off, with every earlier turn intact.</p>
+      <p>A reply can just answer in plain language, or also propose a diagram update — shown as a small preview card right under that message, with "✓ Apply update" and "Dismiss" buttons, applied as one undoable step exactly like Edit with AI.</p>
+      <p><strong>Position it wherever's out of your way</strong> — the three buttons in its header switch between docking to the right (like AI Design Review), pinning as a drawer along the bottom, or floating as a draggable card you can drag anywhere on screen by its header (its position is remembered). Nothing else in this app can be repositioned this way.</p>
+      <div class="tip">🔌 Haven't set up Direct API or Local AI yet? Opening AI Chat shows a short setup nudge instead, with a shortcut straight to <a href="#ai-direct-mode">AI Providers settings</a> — or use <a href="#ai-conversation">🗨️ AI Conversation</a> instead, which works with any AI via copy/paste, no setup required.</div>
+    </section>
+
     <section id="replication">
       <h2><span class="icon-badge">🔁</span> Live Replication</h2>
       <p>Click "🔁" in the toolbar to link a selection of components to a live-mirrored second side. Unlike the one-time Design Pattern blueprints (see above), this relationship keeps going as you keep editing.</p>
@@ -758,6 +768,12 @@
         <li><strong>JSON to paste or import</strong> — otherwise, it gives you plain JSON: paste it into "Create" → "🧠 Generate Design from Spec" or "🪄 AI Quick Start"'s last step (skip straight past the earlier steps — pasting is all that matters), or save it as a file and use "File" → "⬆️ Import JSON". Either paste-back box also accepts a share link pasted as plain text, so whichever format the tool produced works the same way.</li>
       </ul>
       <p>A root-level <code>llms.txt</code> file also points at this guide, for AI tools that check for it automatically.</p>
+    </section>
+
+    <section id="cli-setup">
+      <h2><span class="icon-badge">🖥️</span> Working with CLI</h2>
+      <p>The guide above assumes the AI CLI tool already knows where to find this app — but it can't discover that on its own; there's no API or registry that hands it your address. "Help" → "🖥️ Working with CLI" (or the Command Palette) is a short dialog that answers exactly that: it shows the <strong>live, auto-detected address</strong> of this exact page — not a guess — with a one-click "📋 Copy" button, plus a ready-to-paste prompt telling the CLI to fetch <code>&lt;that address&gt;llms.txt</code> and take it from there.</p>
+      <p>The address is read straight off the page you're actually looking at, so it's always correct regardless of whether this app is running on GitHub Pages, a custom domain, or a local dev server — there's nothing to configure or keep in sync.</p>
     </section>
 
     <section id="offline">

@@ -2113,6 +2113,34 @@ invoked fresh each time — but every prompt this feature builds additionally em
 - See `docs/AI_INTEGRATION.md`'s "Continuing the Conversation" section for the same
   protocol documented for an external AI/CLI tool reading it cold.
 
+### 4.85 Working with CLI
+A "🖥️ Working with CLI" dialog (Help menu, or Command Palette) directly answers the
+one thing 4.83's guide itself can't: an AI CLI tool has no built-in way to discover
+this specific app instance's address — there is no API, registry, or DNS trick that
+hands a generic CLI tool a URL it was never told. The dialog shows the *live*,
+auto-detected base URL of the page actually running right now (stripping a trailing
+`index.html`, working correctly for GitHub Pages, a custom domain, or a local dev
+server), a one-click "Copy" button, and a ready-to-paste prompt telling the CLI to
+fetch `<address>llms.txt` — removing all guesswork from the one manual step this
+app's zero-backend design can't avoid.
+
+### 4.86 AI Chat
+A "🤖 AI Chat" panel (Tools menu, or Command Palette) — a fast, in-app live chat with
+whichever automatic AI mode is configured (4.53 Direct API mode, or Local AI mode),
+for anyone who doesn't want 4.84's copy/paste hand-off wizard. Genuinely useless
+without an automatic mode configured (there's no live chat without one), so it shows
+a setup nudge instead until one is. Deliberately shares the exact same underlying
+transcript as "🗨️ AI Conversation" (4.84) — both are the same ongoing conversation
+about the diagram, just two different UIs on top of it, so switching from hand-off to
+live chat (or back) mid-conversation carries every prior turn along. A reply can
+propose a diagram update using the same patch format as Edit with AI (4.38),
+previewed and applied inline right under the message that proposed it.
+
+Unlike every other side panel in this app (always docked to one side), this one can
+be positioned three ways: docked to the right (in-flow, like AI Design Review),
+pinned as a drawer along the bottom, or dragged anywhere on screen as a floating
+card — the last-used floating position is remembered.
+
 ## 7. Out of scope for v1 (ideas for later, see PLAN.md §7)
 
 Versioned history beyond in-session undo/redo (superseded by 4.17/4.63

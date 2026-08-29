@@ -19,13 +19,14 @@ index.html ──► js/main.js
                  ├─ toolbar/toolbar.js   (reads store selection, writes via store)
                  ├─ panel/detailsPanel.js
                  ├─ panel/aiReviewPanel.js
+                 ├─ panel/aiChatPanel.js (in-app live chat, dock-right/bottom/floating)
                  ├─ panel/outlinePanel.js (searchable canvas table-of-contents)
                  ├─ panel/animationPanel.js (Diagram Animation's step list/editor)
                  ├─ core/kioskMode.js    (Presenter Mode's on/off pub-sub)
                  ├─ core/animationPlayback.js (Diagram Animation's step-through state machine)
                  ├─ canvas/animationOverlay.js (Diagram Animation's floating playback controls + draw layer)
-                 ├─ modals/*.js          (incl. modals/generateDesignModal.js, modals/replicationModal.js, modals/sequenceDiagramModal.js, modals/aiEditModal.js, modals/aiConversationModal.js, modals/customLintRulesModal.js, modals/globalSearchModal.js, modals/commentsListModal.js, modals/templateGalleryModal.js, modals/importSqlModal.js, modals/c4ContextModal.js, modals/quickStartModal.js, modals/importFromImageModal.js, modals/collaborationModal.js, modals/autoAnimationPrompt.js, modals/aiAskModal.js, modals/aiLayoutModal.js, modals/aiDiffExplainModal.js, modals/diagramDescriptionModal.js)
-                 ├─ io/*.js              (localStorage/IndexedDB, file, image/pdf/svg export, incl. io/projectTabs.js, io/duplicateTabWarning.js, io/exportAnimation.js, io/aiEditDesign.js, io/aiConversationStore.js, io/customLintRules.js, io/i18n.js, io/storage.js, io/indexedDbStore.js, io/exportSvg.js, io/globalProjectSearch.js, io/sqlDdlImport.js, io/serviceWorker.js, io/exportPulumi.js, io/exportCloudFormation.js, io/exportKubernetes.js, io/autoSuggest.js, io/autoSuggestWatcher.js, io/exportAnimationPptx.js, io/exportAnimationVideo.js, io/aiLayoutSuggest.js, io/aiDiffExplain.js, io/aiCostOptimize.js, io/export3dVideo.js)
+                 ├─ modals/*.js          (incl. modals/generateDesignModal.js, modals/replicationModal.js, modals/sequenceDiagramModal.js, modals/aiEditModal.js, modals/aiConversationModal.js, modals/cliSetupModal.js, modals/customLintRulesModal.js, modals/globalSearchModal.js, modals/commentsListModal.js, modals/templateGalleryModal.js, modals/importSqlModal.js, modals/c4ContextModal.js, modals/quickStartModal.js, modals/importFromImageModal.js, modals/collaborationModal.js, modals/autoAnimationPrompt.js, modals/aiAskModal.js, modals/aiLayoutModal.js, modals/aiDiffExplainModal.js, modals/diagramDescriptionModal.js)
+                 ├─ io/*.js              (localStorage/IndexedDB, file, image/pdf/svg export, incl. io/projectTabs.js, io/duplicateTabWarning.js, io/exportAnimation.js, io/aiEditDesign.js, io/aiConversationStore.js, io/aiAutoSend.js, io/customLintRules.js, io/i18n.js, io/storage.js, io/indexedDbStore.js, io/exportSvg.js, io/globalProjectSearch.js, io/sqlDdlImport.js, io/serviceWorker.js, io/exportPulumi.js, io/exportCloudFormation.js, io/exportKubernetes.js, io/autoSuggest.js, io/autoSuggestWatcher.js, io/exportAnimationPptx.js, io/exportAnimationVideo.js, io/aiLayoutSuggest.js, io/aiDiffExplain.js, io/aiCostOptimize.js, io/export3dVideo.js)
                  ├─ core/animationAutoBuild.js (Diagram Animation's post-AI-generation walkthrough builder)
                  ├─ core/animationVideoTiming.js (pure per-step screen-time math for io/exportAnimationVideo.js)
                  ├─ core/diagramDescription.js, core/diagramHealth.js, core/versionBranches.js
@@ -4367,6 +4368,67 @@ A patch reply is previewed with the same `summarizePatch`/`applyAiEditPatch` use
 Edit with AI, applied as one undoable step; a reply can also carry no patch at all
 (e.g. answering a question), in which case the round just adds the turn with no
 diagram change.
+
+## Working with CLI (`core/appUrl.js`, `modals/cliSetupModal.js`)
+
+Answers the one question the AI/CLI Integration guide above can't answer for itself:
+an AI CLI tool has no built-in way to discover *this* running instance's address —
+there's no API, registry, or DNS trick that hands a generic CLI tool a URL it was
+never told. `core/appUrl.js#computeAppBaseUrl(href)` is a small pure function (easily
+unit-tested without a DOM) that strips everything after the last `/` in the URL's
+path — turning `.../system_diagram/index.html` into `.../system_diagram/` — so the
+modal shows the *live* address of whatever's actually running (GitHub Pages, a custom
+domain, a local dev server) rather than a guessed one. This directly replaced an
+earlier, weaker approach from this project's own history: before this modal existed,
+answering "what URL do I give the CLI" meant guessing from the repo's owner/name on
+GitHub Pages's default URL scheme, with no way to verify it was actually live from a
+sandboxed environment — reading it straight off `window.location` needs no such
+guess. `modals/cliSetupModal.js` renders this address plus a ready-to-copy prompt
+telling the CLI to fetch `<address>llms.txt`.
+
+## AI Chat (`io/aiAutoSend.js`, `panel/aiChatPanel.js`)
+
+A fast, in-app live chat with whichever automatic AI mode is configured (Direct API
+mode or Local AI mode — `io/aiProviderKeys.js#isAutomaticSendConfigured`), for anyone
+who doesn't want AI Conversation's copy/paste hand-off wizard. Deliberately reuses
+that feature's exact transcript (`io/aiConversationStore.js`) and prompt builder
+(`core/aiConversation.js#buildConversationPrompt`/`extractConversationReply`)
+verbatim — both are the same ongoing conversation about the diagram, just two
+different UIs on top of it, so switching from hand-off to live chat (or back)
+mid-conversation carries every prior turn along rather than starting a second,
+disconnected thread. This needed zero changes to `core/aiConversation.js`: the
+prompt format (full transcript replay + current diagram state) is exactly what a
+live chat needs too, so nothing had to be invented for this feature beyond the
+panel's own send/render loop.
+
+`io/aiAutoSend.js#sendPromptAutomatic({prompt, imageBase64, onProgress})` is a small
+shared dispatcher — Local AI mode, or the first configured Direct API provider —
+extracted out of `io/autoSuggest.js` once this became the second caller needing the
+exact same three-way branch (Local AI / Direct API / "not configured" error). Text
+matters here: unlike `panel/aiReviewPanel.js`'s full flow, this panel never captures
+a diagram screenshot (no `html2canvas` pass) — a live chat's whole value proposition
+is speed, and text alone gets both the diagram JSON and the message across.
+
+A reply's optional diagram-change patch (same format as Edit with AI) is previewed
+and applied *inline*, right under the message that proposed it — a small
+`pendingPatch = {turnId, patch}` kept in module state (not persisted; the transcript
+only stores the `patchApplied` boolean flag once applied, via the store's new
+`markPatchApplied(turnId)`), rather than a separate wizard step the way
+`modals/aiConversationModal.js` handles it. That fits this panel's whole design
+intent: stay open and fast, not walk through steps.
+
+**Positioning** (`io/uiPrefs.js#aiChatDockMode` — `'right'`/`'bottom'`/`'floating'`,
+plus `aiChatFloatingPos` for the floating card's last dragged position) is the one
+way this panel breaks from every other side panel in this app (always docked to one
+side): it can also pin to the bottom as a fixed drawer, or float as a draggable card
+positioned via plain `pointerdown`/`pointermove`/`pointerup` listeners on its own
+header (pointer capture keeps the drag tracking correctly even if the pointer moves
+faster than the header's bounds). `css/layout.css`'s `#ai-chat-panel.open.dock-*`
+rules are the only ones in this app with three mutually-exclusive positioning modes
+on one element — `dock-right` stays in-flow exactly like `#ai-review-panel`;
+`dock-bottom`/`dock-floating` switch to `position: fixed`, so only `dock-right` needs
+a mobile drawer-overlay override in `css/responsive.css` (the fixed modes are already
+overlays at every width).
 
 ## Security notes
 

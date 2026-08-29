@@ -81,6 +81,8 @@ import '../modals/subDiagramModal.js';
 // and canvas/commentPins.js's pin click handler), not a toolbar button.
 import '../modals/commentModal.js';
 import { toggleAiReviewPanel, openWithAutoSuggestions } from '../panel/aiReviewPanel.js';
+import { toggleAiChatPanel } from '../panel/aiChatPanel.js';
+import { openCliSetupModal } from '../modals/cliSetupModal.js';
 import { initAutoSuggestWatcher } from '../io/autoSuggestWatcher.js';
 import { openGenerateDesignModal } from '../modals/generateDesignModal.js';
 import { openImportFromImageModal } from '../modals/importFromImageModal.js';
@@ -690,6 +692,12 @@ function buildToolsGroupButtons() {
       toggleAiReviewPanel();
     },
   }, [el('span', { text: '🤖 AI Design Review' }), autoSuggestBadge]);
+  const aiChatBtn = el('button', {
+    type: 'button', class: 'btn',
+    title: '🤖 AI Chat: a fast, in-app live chat with your Direct API / Local AI setup — dock it to the side, the bottom, or float it anywhere on screen',
+    text: '🤖 AI Chat',
+    onClick: () => toggleAiChatPanel(),
+  });
   initAutoSuggestWatcher((findings) => {
     pendingAutoSuggestFindings = findings;
     autoSuggestBadge.textContent = '💡';
@@ -851,7 +859,7 @@ function buildToolsGroupButtons() {
   return buildGatedButtonList(
     [gridBtn, alignGuidesBtn, themeBtn, languageBtn, outlineBtn, commentsBtn],
     [
-      { packId: 'ai-tools', buttons: [aiReviewBtn, aiLayoutBtn] },
+      { packId: 'ai-tools', buttons: [aiReviewBtn, aiChatBtn, aiLayoutBtn] },
       { packId: 'collaboration', buttons: [collabBtn] },
       { packId: 'analysis', buttons: [lintBtn, costBtn, describeBtn, interviewBtn, reviewStatusBtn] },
       { packId: 'layout-tools', buttons: [autoArrangeBtn, distributeBtn, scaleBtn] },
@@ -868,6 +876,10 @@ function buildHelpGroupButtons() {
   const aiIntegrationBtn = el('button', {
     type: 'button', class: 'btn', title: 'A guide for AI agents/CLI tools (Claude Code, etc.) to generate a diagram for this app and hand it to you', text: '🤖 AI / CLI Integration',
     onClick: () => window.open('docs/AI_INTEGRATION.md', '_blank', 'noopener'),
+  });
+  const cliSetupBtn = el('button', {
+    type: 'button', class: 'btn', title: 'The exact address to give an AI CLI tool so it can start working with this app', text: '🖥️ Working with CLI',
+    onClick: () => openCliSetupModal(),
   });
   const hintsBtn = el('button', {
     type: 'button', class: 'btn', title: 'Show hints again', text: '💡 Show hints again',
@@ -890,7 +902,7 @@ function buildHelpGroupButtons() {
     type: 'button', class: 'btn', title: 'Show the getting-started checklist again', text: '🚀 Getting Started',
     onClick: openOnboardingChecklistWidget,
   });
-  return [helpBtn, aiIntegrationBtn, hintsBtn, hintsToggleBtn, whatsNewBtn, onboardingBtn];
+  return [helpBtn, aiIntegrationBtn, cliSetupBtn, hintsBtn, hintsToggleBtn, whatsNewBtn, onboardingBtn];
 }
 
 /** Short human summary of the current selection, shown in the contextual

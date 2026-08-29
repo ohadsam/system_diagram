@@ -77,6 +77,63 @@
   overflow-y: auto;
 }
 
+/* panel/aiChatPanel.js — unlike every other side panel above, this one has
+   three positions (io/uiPrefs.js#aiChatDockMode): docked to the right
+   in-flow just like #ai-review-panel, a fixed drawer along the bottom, or
+   a freely draggable floating card. Only one of the three .dock-* rules
+   below is ever active at a time (aiChatPanel.js keeps the others removed). */
+#ai-chat-panel {
+  display: none;
+  flex-direction: column;
+}
+
+#ai-chat-panel.open {
+  display: flex;
+}
+
+#ai-chat-panel.open.dock-right {
+  flex: 0 0 var(--ai-chat-panel-width);
+  width: var(--ai-chat-panel-width);
+  border-left: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+#ai-chat-panel.open.dock-bottom {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--ai-chat-panel-bottom-height);
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-lg);
+  z-index: var(--z-panel);
+}
+
+#ai-chat-panel.open.dock-floating {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  width: min(92vw, var(--ai-chat-panel-width));
+  height: var(--ai-chat-panel-floating-height);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-lg);
+  z-index: var(--z-panel);
+  /* aiChatPanel.js sets an explicit left/top once dragged — clearing
+     right/bottom itself (not here) so a drag doesn't fight this default
+     corner position. */
+}
+
+/* RTL mirror (see io/i18n.js's header comment) — only affects the default,
+   never-yet-dragged corner; once aiChatPanel.js sets an inline left/top
+   after a drag, that always wins regardless of direction. */
+[dir="rtl"] #ai-chat-panel.open.dock-floating {
+  right: auto;
+  left: 24px;
+}
+
 #outline-panel {
   flex: 0 0 0;
   width: 0;
@@ -125,6 +182,7 @@ body.kiosk-mode #sidebar,
 body.kiosk-mode #details-panel,
 body.kiosk-mode #outline-panel,
 body.kiosk-mode #ai-review-panel,
+body.kiosk-mode #ai-chat-panel,
 body.kiosk-mode #animation-panel,
 body.kiosk-mode .suggestion-banner {
   display: none;

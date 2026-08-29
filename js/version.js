@@ -2,9 +2,17 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.44.0';
+export const APP_VERSION = '1.45.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.45.0',
+    date: '2026-08-29',
+    highlights: [
+      'New "🖥️ Working with CLI" (Help menu, or Ctrl/Cmd+K) — a dialog showing the exact, live address of this app instance to give an AI CLI tool, auto-detected from the page itself (not a guess), plus a ready-to-copy prompt telling the CLI where to start reading.',
+      'New "🤖 AI Chat" (Tools menu, once Direct API mode or Local AI mode is set up) — a fast, in-app live chat with your configured AI, no copy/paste. Dock it to the side, pin it to the bottom, or drag it anywhere on screen as a floating card. It shares the exact same ongoing conversation as "🗨️ AI Conversation" — switch between hand-off and live chat mid-conversation without losing context. A reply can also propose a diagram update, previewed and applied inline the same way as Edit with AI.',
+    ],
+  },
   {
     version: '1.44.0',
     date: '2026-08-29',

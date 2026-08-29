@@ -544,6 +544,106 @@ body.resizing-details-panel {
   margin-top: var(--space-2);
 }
 
+/* panel/aiChatPanel.js — reuses every .ai-conversation-turn*/.ai-edit-*
+   class above verbatim for the same visual language as the modal, plus
+   its own header/input-row chrome. #ai-chat-panel itself is display:flex
+   column (layout.css), so header/body/input-row stack and only .ai-chat-body
+   scrolls — the input stays put like a real chat, never scrolled away. */
+.ai-chat-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  flex: 0 0 auto;
+}
+
+.ai-chat-title {
+  margin: 0;
+  font-size: 14px;
+  flex: 1 1 auto;
+}
+
+.ai-chat-draggable {
+  cursor: move;
+}
+
+.ai-chat-dock-controls {
+  display: flex;
+  gap: 2px;
+}
+
+.ai-chat-close {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  padding: 4px 6px;
+  color: var(--color-text-muted);
+}
+
+.ai-chat-close:hover {
+  color: var(--color-text);
+}
+
+.ai-chat-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: var(--space-3);
+}
+
+.ai-chat-transcript {
+  margin-bottom: 0;
+}
+
+/* Fills .ai-chat-body's own scroll area instead of the modal's bounded
+   280px list — the panel already has exactly one scrollable region. */
+.ai-chat-transcript .ai-conversation-turns {
+  max-height: none;
+}
+
+.ai-chat-thinking {
+  opacity: 0.7;
+}
+
+.ai-chat-patch-card {
+  align-self: flex-start;
+  max-width: 90%;
+  margin-top: -4px;
+}
+
+.ai-chat-setup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+
+.ai-chat-setup-alt {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.ai-chat-input-row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-end;
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--color-border);
+  flex: 0 0 auto;
+}
+
+.ai-chat-input {
+  flex: 1 1 auto;
+  resize: vertical;
+  min-height: 40px;
+}
+
+.ai-chat-send-btn {
+  flex: 0 0 auto;
+}
+
 .replication-pair-list {
   display: flex;
   flex-direction: column;

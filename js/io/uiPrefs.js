@@ -10,6 +10,11 @@ const KEY = 'prefs';
 const listeners = new Set();
 
 export const CONTEXT_ROW_MODES = ['floating', 'pinned-top', 'pinned-bottom'];
+// panel/aiChatPanel.js's own screen position — 'right' behaves like the AI
+// Design Review panel (in-flow, docked), 'bottom' is a fixed drawer along
+// the bottom edge, 'floating' is a freely draggable card (see
+// aiChatFloatingPos below).
+export const AI_CHAT_DOCK_MODES = ['right', 'bottom', 'floating'];
 // 'system' follows the OS-level prefers-color-scheme; 'light'/'dark' is an
 // explicit override — see css/variables.css's dark-mode token block and
 // io/theme.js, which is what actually applies this to the page.
@@ -41,6 +46,12 @@ export const DEFAULT_UI_PREFS = {
   // larger, separate content-translation project); this only affects the
   // toolbar/panels/modals' own copy.
   language: 'en',
+  aiChatDockMode: 'right',
+  // Only meaningful in 'floating' mode — the floating card's last dragged
+  // position ({x, y} viewport px from the top-left) so it reopens where it
+  // was left instead of snapping back to a default corner every time. null
+  // until the user has dragged it at least once.
+  aiChatFloatingPos: null,
 };
 
 export function getUiPrefs() {
@@ -51,6 +62,10 @@ export function getUiPrefs() {
     contextRowMode: CONTEXT_ROW_MODES.includes(stored.contextRowMode) ? stored.contextRowMode : DEFAULT_UI_PREFS.contextRowMode,
     theme: THEME_MODES.includes(stored.theme) ? stored.theme : DEFAULT_UI_PREFS.theme,
     language: LANGUAGES.includes(stored.language) ? stored.language : DEFAULT_UI_PREFS.language,
+    aiChatDockMode: AI_CHAT_DOCK_MODES.includes(stored.aiChatDockMode) ? stored.aiChatDockMode : DEFAULT_UI_PREFS.aiChatDockMode,
+    aiChatFloatingPos: (stored.aiChatFloatingPos && typeof stored.aiChatFloatingPos.x === 'number' && typeof stored.aiChatFloatingPos.y === 'number')
+      ? { x: stored.aiChatFloatingPos.x, y: stored.aiChatFloatingPos.y }
+      : null,
   };
 }
 

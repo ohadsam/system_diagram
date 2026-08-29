@@ -57,6 +57,7 @@ import { exportPDF } from '../io/exportPdf.js';
 import { showToast } from '../utils/toast.js';
 import { resetHints } from '../hints/hints.js';
 import { toggleAiReviewPanel } from '../panel/aiReviewPanel.js';
+import { toggleAiChatPanel } from '../panel/aiChatPanel.js';
 import { openGlobalSearchModal } from './globalSearchModal.js';
 import { openAddTabModal } from './addTabModal.js';
 import { openHistoryTimelineModal } from './historyTimelineModal.js';
@@ -64,6 +65,7 @@ import { openQuickStartModal } from './quickStartModal.js';
 import { openImportFromImageModal } from './importFromImageModal.js';
 import { openAiEditModal } from './aiEditModal.js';
 import { openAiConversationModal } from './aiConversationModal.js';
+import { openCliSetupModal } from './cliSetupModal.js';
 import { openC4ContextModal } from './c4ContextModal.js';
 import { openImportSqlModal } from './importSqlModal.js';
 import { openTemplateGalleryModal } from './templateGalleryModal.js';
@@ -112,6 +114,7 @@ function buildAppCommands() {
     { id: 'check-diagram', label: '🔍 Check Diagram', keywords: ['lint', 'check', 'validate', 'issues'], run: openDiagramLintModal },
     { id: 'cost-breakdown', label: '💰 Cost Breakdown', keywords: ['cost', 'price', 'budget', 'monthly', 'total'], run: openCostBreakdownModal },
     { id: 'ai-review', label: '🤖 AI Design Review', keywords: ['ai', 'review', 'feedback'], run: toggleAiReviewPanel },
+    { id: 'ai-chat', label: '🤖 AI Chat', keywords: ['ai', 'chat', 'direct', 'local', 'live', 'conversation'], run: toggleAiChatPanel },
     { id: 'generate-design', label: '🧠 Generate Design from Spec', keywords: ['ai', 'generate', 'spec'], run: openGenerateDesignModal },
     { id: 'sequence-diagram', label: '🔀 Sequence Diagram wizard', keywords: ['sequence', 'lifeline', 'uml'], run: openSequenceDiagramModal },
     { id: 'import-mermaid', label: '📥 Import from Mermaid', keywords: ['import', 'mermaid', 'sequence'], run: openImportSequenceMermaidModal },
@@ -203,6 +206,7 @@ function buildAppCommands() {
     { id: 'review-status', label: '📝 Review Status', keywords: ['review', 'status', 'draft', 'approved', 'approval'], run: () => openReviewStatusModal() },
     { id: 'feature-level', label: '🧩 Feature Level Settings', keywords: ['feature level', 'basic', 'advanced', 'custom', 'hide', 'show', 'simplify', 'toolbar'], run: () => openDefaultSettingsModal({ scrollToFeatureLevel: true }) },
     { id: 'ai-cli-integration', label: '🤖 AI / CLI Integration', keywords: ['ai', 'cli', 'agent', 'integration', 'api', 'llms.txt', 'claude code', 'share link'], run: () => window.open('docs/AI_INTEGRATION.md', '_blank', 'noopener') },
+    { id: 'cli-setup', label: '🖥️ Working with CLI', keywords: ['cli', 'address', 'url', 'setup', 'agent', 'claude code'], run: openCliSetupModal },
   ];
 }
 

@@ -149,6 +149,8 @@ this repo" quick-start.
 | Change Flow Simulation (the ambient traffic dots) | `js/canvas/connector.js#createEdgeEl` (the `.flow-dot`/`<animateMotion>`/`<mpath>` per edge) + `js/canvas/canvas.js#setFlowSimulationEnabled` (the `.edge-layer.flow-simulation-on` class toggle + `pauseAnimations()`/`unpauseAnimations()`) + `css/connector.css` (`.flow-dot` visibility rules) — see docs/ARCHITECTURE.md's "Flow Simulation" section for why this is O(1) regardless of diagram size. |
 | Change Edit with AI (the incremental-patch AI feature) | `js/io/aiEditDesign.js` (`buildEditPrompt`, `normalizePatch`, `summarizePatch`, the `sanitize*` field allow-lists) + `js/modals/aiEditModal.js` (the 3-step wizard UI) + `js/canvas/canvas.js#applyAiEditPatch` (the atomic dispatch that actually mutates the project). Same "not an API integration" constraint as AI Design Review/Generate Design. **Read** docs/ARCHITECTURE.md's "Edit with AI" section before touching id-remapping or the update-field sanitizers — an update must never be able to rename an id or move a node via a patch. |
 | Change AI Conversation (the multi-turn AI feature) | `js/core/aiConversation.js` (`buildConversationPrompt`, `extractConversationReply`, `createTurn` — pure/DOM-free) + `js/io/aiConversationStore.js` (transcript persistence, one global key, excluded from export/backup/duplicate-project) + `js/modals/aiConversationModal.js` (the 3-step wizard that never auto-closes — it returns to step 1 after each round). Reuses `js/io/aiEditDesign.js`'s patch format/preview/apply verbatim (`buildPatchRules`, `EXAMPLE_PATCH_JSON`, `summarizeCurrentProject` are exported from there specifically so this module doesn't duplicate them) — don't reintroduce a second patch-rules string if you touch either file. **Read** docs/ARCHITECTURE.md's "AI Conversation" section before changing `MAX_TRANSCRIPT_TURNS_IN_PROMPT` or the transcript-replay format — the whole point of this feature is that a stateless AI/CLI invocation gets full context from the prompt text alone. |
+| Change AI Chat (the in-app live chat) | `js/panel/aiChatPanel.js` (dock-right/bottom/floating panel — see `io/uiPrefs.js#aiChatDockMode`/`aiChatFloatingPos`) + `js/io/aiAutoSend.js` (`sendPromptAutomatic` — the shared "call whichever automatic mode is configured" dispatcher, also used by `io/autoSuggest.js`). **Reuses AI Conversation's exact transcript and prompt builder** (`io/aiConversationStore.js`, `core/aiConversation.js`) rather than a separate one — the two features are the same underlying conversation with two different UIs, so don't fork the prompt format between them. A patch reply is previewed inline (`pendingPatch` module state, not persisted) rather than as a wizard step; applying it calls the new `io/aiConversationStore.js#markPatchApplied(turnId)` to retroactively flag the turn. |
+| Change Working with CLI (the "what address do I give the CLI" dialog) | `js/core/appUrl.js#computeAppBaseUrl` (pure, unit-tested — strips a trailing filename off `window.location.href`'s path) + `js/modals/cliSetupModal.js`. Never hardcode or guess this app's deployed URL anywhere (in docs, in chat, in code) — always compute it live from `window.location`, since that's the entire point of this feature over the old approach of guessing from the repo's GitHub Pages URL scheme. |
 | Change Custom Lint Rules | `js/io/customLintRules.js` (storage — `{id, name, type, categoryA, categoryB, max, enabled}`, `RULE_TYPES`) + `js/core/diagramLint.js#computeCustomLint` (pure evaluator, same findings shape as the built-in `computeDiagramLint`) + `js/modals/customLintRulesModal.js` (the rule builder, category dropdowns sourced from `data/index.js#CATEGORIES`) + `js/modals/diagramLintModal.js` (concatenates both finding arrays) |
 | Change threaded comment replies | `js/core/project.js#createReply` (`{id, text, createdAt}`, nested in a comment's `replies` array — not a new top-level project collection) + `js/canvas/canvas.js#addCommentReply`/`#deleteCommentReply` + `js/modals/commentModal.js` (the thread UI — subscribes to `store.subscribe('change', ...)` and uses `rerenderPreservingUiState` so typing a reply doesn't lose focus on the dispatch-triggered rebuild) |
 | Change the Language/RTL toggle or add a translated string | `js/io/i18n.js` (`t(key)`, the `en`/`he` string tables, `getLanguage`/`setLanguage`, `applyLanguageToDocument`) + `js/io/uiPrefs.js` (`language` field, `LANGUAGES`) + the toolbar's language button in `js/toolbar/toolbar.js#buildToolsGroupButtons` (calls `window.location.reload()` after switching — see "Common pitfalls" below for why). A new `[dir="rtl"]` override is only needed for an element using literal `left`/`right` under `position: fixed`/`absolute` — plain flex-row layout mirrors automatically, see docs/ARCHITECTURE.md's "Language / RTL" section. |
@@ -1082,3 +1084,23 @@ npm test
   `tests/e2e/aiConversation.spec.js`'s first test: fetch the actual id via
   `await page.locator('.node').first().getAttribute('data-node-id')` and
   interpolate it into the fixture reply instead of guessing.
+- **A draggable floating panel with a CSS-defined default corner position
+  (e.g. `right: 24px; bottom: 24px`) doesn't need its JS drag handler to
+  explicitly clear `right`/`bottom` once it sets an inline `left`/`top`.**
+  Per CSS2.1 §10.3.7, when `left`, `right`, and an explicit `width` are all
+  present on the same box, `right` is over-constrained and its computed
+  value is silently ignored (recomputed from `left` + `width`) — this is
+  exactly how `panel/aiChatPanel.js`'s floating dock mode's default
+  bottom-right corner (CSS) coexists with a later drag's inline
+  `style.left`/`style.top` (JS) with zero conflict-clearing code. Don't
+  "fix" this by adding `el.style.right = ''` defensively — it isn't needed
+  and just adds a line that looks load-bearing but isn't.
+- **Never hardcode or guess this app's own deployed URL anywhere** (a chat
+  reply, a doc, a code comment) — read it live via
+  `core/appUrl.js#computeAppBaseUrl(window.location.href)` instead. This
+  app can be deployed at any GitHub Pages path, a custom domain, or run
+  from a local dev server, and guessing from the repo's owner/name (as an
+  earlier answer in this project's own history had to, before this helper
+  existed, because the sandboxed session couldn't reach the live site to
+  verify it) is exactly the failure mode `modals/cliSetupModal.js` exists
+  to eliminate.

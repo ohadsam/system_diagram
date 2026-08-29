@@ -110,6 +110,33 @@ Keep this in sync with `PLAN.md` as stages complete.
   field (with autocomplete) on custom components, grouping them into
   collapsible 📁 sub-groups in the sidebar.
 
+## v1.45.0 (2026-08-29)
+
+**Working with CLI** and **AI Chat** — two additions answering "how does a CLI tool
+actually get connected to this app" from both directions:
+
+- New "🖥️ Working with CLI" dialog (Help menu, or Command Palette) — shows the *live*,
+  auto-detected base URL of the app instance actually running right now
+  (`core/appUrl.js#computeAppBaseUrl`, working correctly for GitHub Pages, a custom
+  domain, or a local dev server), a one-click "Copy" button, and a ready-to-paste
+  prompt telling an AI CLI tool to fetch `<address>llms.txt`. This replaces guessing
+  the app's own URL from its repo name with reading it straight off the page.
+- New "🤖 AI Chat" panel (Tools menu, or Command Palette) — a fast, in-app live chat
+  with whichever automatic AI mode is configured (Direct API mode or Local AI mode),
+  no copy/paste. Shows a setup nudge instead until one is configured. Dock it to the
+  right, pin it to the bottom, or drag it anywhere on screen as a floating card
+  (`io/uiPrefs.js#aiChatDockMode`/`aiChatFloatingPos`) — the first panel in this app
+  with more than one screen position.
+- AI Chat deliberately shares the exact same transcript and prompt format as
+  "🗨️ AI Conversation" (`io/aiConversationStore.js`, `core/aiConversation.js`) —
+  both are the same ongoing conversation about the diagram, so switching between
+  hand-off and live chat mid-conversation keeps every prior turn. A reply's proposed
+  diagram change previews and applies inline, right under the message that proposed
+  it, using the same patch format as Edit with AI.
+- `io/aiAutoSend.js` extracts the "call whichever automatic mode is configured"
+  dispatch (Local AI, or the first configured Direct API provider) out of
+  `io/autoSuggest.js`, now shared by both.
+
 ## v1.44.0 (2026-08-29)
 
 **AI Conversation** — an ongoing, reopenable back-and-forth about the current diagram

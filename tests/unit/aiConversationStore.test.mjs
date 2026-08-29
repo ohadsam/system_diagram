@@ -1,7 +1,7 @@
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { installMemoryLocalStorage } from './testSupport.mjs';
-import { getConversationTurns, appendConversationTurn, clearConversation } from '../../js/io/aiConversationStore.js';
+import { getConversationTurns, appendConversationTurn, clearConversation, markPatchApplied } from '../../js/io/aiConversationStore.js';
 
 const resetStorage = installMemoryLocalStorage();
 beforeEach(() => resetStorage());
@@ -25,4 +25,19 @@ test('clearConversation empties the transcript', () => {
   appendConversationTurn({ id: 't1', role: 'user', message: 'hi' });
   clearConversation();
   assert.deepEqual(getConversationTurns(), []);
+});
+
+test('markPatchApplied flags only the matching turn, leaving the rest untouched', () => {
+  appendConversationTurn({ id: 't1', role: 'user', message: 'hi', patchApplied: false });
+  appendConversationTurn({ id: 't2', role: 'ai', message: 'sure', patchApplied: false });
+  const turns = markPatchApplied('t2');
+  assert.equal(turns[0].patchApplied, false);
+  assert.equal(turns[1].patchApplied, true);
+  assert.deepEqual(getConversationTurns(), turns);
+});
+
+test('markPatchApplied is a no-op when the id does not match any turn', () => {
+  appendConversationTurn({ id: 't1', role: 'user', message: 'hi', patchApplied: false });
+  const turns = markPatchApplied('does-not-exist');
+  assert.equal(turns[0].patchApplied, false);
 });
