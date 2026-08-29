@@ -1050,3 +1050,21 @@ npm test
   a short, generic label could plausibly appear as a substring of another
   field's own text (an option, a placeholder, a neighboring label) rather
   than assuming a `.field`-scoped locator is automatically unambiguous.
+
+- **A test that locates a style-editor field by ordinal position
+  (`.toolbar-row-context select`.`nth(N)`, `input[type=checkbox]`.`nth(N)`)
+  silently breaks the next time a batch inserts a *new* field anywhere
+  before that index in `styleEditor.js` — no error at write time, just a
+  wrong element selected at test time.** This shipped for real: the style-
+  presets batch (v1.42.0) inserted a new Border-style `<select>` before
+  Shape and a new Drop-shadow checkbox before Show-icon, silently shifting
+  three older tests' `.nth(1)`/`.nth(2)` indices onto the wrong control —
+  `custom-and-shapes.spec.js`, `largeDiagramPerf.spec.js`, and
+  `node-defaults-and-panel.spec.js` all failed a batch later, once a truly
+  complete e2e run finally exercised them again. Always locate a style-
+  editor field by its own label — `.toolbar-row-context .field, { hasText:
+  'Text position' }).locator('select')` or `.field-checkbox` for a
+  checkbox (see the `field()`/`checkbox()` helpers in `utils/formControls.js`
+  for the exact wrapper classes) — never by counting position, in this row
+  or any other list of same-tag sibling controls that future batches are
+  likely to keep extending.
