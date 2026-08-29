@@ -9,6 +9,10 @@
 import { validateProject } from '../core/project.js';
 
 const HASH_PREFIX = '#share=';
+// Matches a share link's hash whether it's pasted bare (just the hash) or
+// embedded in a full URL (e.g. an AI CLI tool prints "open this link:
+// https://.../index.html#share=H4sI...") — see findShareHashInText below.
+const SHARE_HASH_RE = /#share=[A-Za-z0-9_-]+/;
 
 function toBase64Url(buf) {
   let binary = '';
@@ -32,6 +36,20 @@ export async function buildShareUrl(project) {
   const stream = new Blob([json]).stream().pipeThrough(new CompressionStream('gzip'));
   const compressed = await new Response(stream).arrayBuffer();
   return `${location.origin}${location.pathname}${HASH_PREFIX}${toBase64Url(compressed)}`;
+}
+
+/** Pure text scan (no decoding) — pulls a `#share=...` hash out of arbitrary
+ * pasted text, whether it's the bare hash or embedded in a full URL. Lets
+ * any "paste the AI's result" box (modals/generateDesignModal.js,
+ * modals/quickStartModal.js) accept a share link exactly the same way it
+ * already accepts raw JSON: an AI CLI tool that built a share link (see
+ * docs/AI_INTEGRATION.md) but can't literally open a browser tab itself
+ * just prints the link for the user to paste back, same gesture either way.
+ * @param {string} text @returns {string|null} the matched "#share=..." hash, or null. */
+export function findShareHashInText(text) {
+  if (!text) return null;
+  const match = text.match(SHARE_HASH_RE);
+  return match ? match[0] : null;
 }
 
 /** @param {string} hash `location.hash`, e.g. "#share=..."

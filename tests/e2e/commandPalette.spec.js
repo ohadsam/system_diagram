@@ -77,7 +77,7 @@ test('every action added across recent batches is reachable from the palette (re
     '🪄 AI Beautify Layout', '📃 Describe Diagram', '🖥️ Presenter Mode', '🎞️ Diagram Animation',
     '💫 Flow Simulation', '🧊 3D Presentation', "🆕 What's New",
     '🎓 Interview Mode', '🔗 Import from URL/Gist', '🗺️ System Map', '🧩 Export PDF (Poster)', '📝 Review Status',
-    '🧩 Feature Level Settings',
+    '🧩 Feature Level Settings', '🤖 AI / CLI Integration',
   ];
   for (const label of expectedLabels) {
     await page.keyboard.press('ControlOrMeta+k');

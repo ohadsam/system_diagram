@@ -80,6 +80,35 @@ test('the full wizard: setup nudge (skipped) → describe → prompt → pasted 
   await page.locator('.auto-animation-modal button', { hasText: 'Skip' }).click();
 });
 
+test('the paste step also accepts a pasted share link instead of raw JSON, with no rationale shown', async ({ page }) => {
+  // Same AI/CLI integration path as generate-design-from-spec.spec.js — a
+  // share link decodes straight to a project, which never carries a
+  // "rationale" (that's Quick Start's own AI-response field, not part of
+  // the project schema), so the "done" step should just skip that section.
+  const shareUrl = await page.evaluate(async () => {
+    const { buildShareUrl } = await import('/js/io/shareLink.js');
+    const { createEmptyProject, createNode } = await import('/js/core/project.js');
+    const project = createEmptyProject('Shared Diagram');
+    project.nodes.push(createNode(null, 40, 40, { text: 'From CLI' }));
+    return buildShareUrl(project);
+  });
+
+  await openToolbarGroup(page, 'Create');
+  await page.locator('#toolbar button', { hasText: 'AI Quick Start' }).click();
+  await page.locator('.generate-design-modal button', { hasText: 'Skip' }).click();
+  await page.locator('.quick-start-description').fill('Irrelevant description — this path skips straight to pasting.');
+  await page.locator('.generate-design-modal button', { hasText: 'Next' }).click();
+  await page.locator('.generate-design-modal button', { hasText: 'Next' }).click();
+
+  await page.locator('.generate-design-response').fill(shareUrl);
+  await page.locator('.generate-design-modal button', { hasText: 'Create diagram' }).click();
+
+  await expect.poll(() => nodeCount(page)).toBe(1);
+  await expect(page.locator('.node', { hasText: 'From CLI' })).toBeVisible();
+  await expect(page.locator('.modal-step-indicator')).toHaveText('Your diagram');
+  await expect(page.locator('.quick-start-overview')).toHaveCount(0);
+});
+
 test('the setup nudge is skipped entirely once an automatic AI mode is configured', async ({ page }) => {
   await page.evaluate(() => {
     localStorage.setItem('sdb:v1:aiProviderKeys', JSON.stringify({ mode: 'direct', providers: { anthropic: { apiKey: 'sk-test-key' } } }));

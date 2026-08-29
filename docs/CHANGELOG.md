@@ -110,6 +110,32 @@ Keep this in sync with `PLAN.md` as stages complete.
   field (with autocomplete) on custom components, grouping them into
   collapsible 📁 sub-groups in the sidebar.
 
+## v1.43.0 (2026-08-29)
+
+**AI / CLI Integration** — this app has no backend, so instead of an API, this batch
+publishes a document any AI agent or CLI tool (Claude Code, or any other) can read to
+learn its own JSON format, plus two zero-server ways to hand a generated diagram back
+to the user:
+
+- New `docs/AI_INTEGRATION.md` — a standalone guide written to be read cold by an AI
+  agent: the full project JSON schema (nodes/edges, the sequence-diagram alternate
+  shape), a complete example, and both delivery methods below. Kept in sync by hand
+  with `io/aiGenerateDesign.js`'s own in-app example JSON.
+- New root-level `llms.txt` pointing at the guide, following the emerging convention
+  several AI tools already check.
+- **Delivery method A — a direct share link.** The guide documents `io/shareLink.js`'s
+  exact gzip + base64url encoding with runnable Python/Node snippets, so a CLI tool
+  with code execution can build a real, clickable `#share=...` link itself — no
+  copy/paste of raw JSON at all.
+- **Delivery method B — paste or file import.** `io/shareLink.js#findShareHashInText`
+  is a new small pure text scanner that pulls a share hash out of arbitrary pasted
+  text (bare, or embedded in a full URL). Both `modals/generateDesignModal.js`'s and
+  `modals/quickStartModal.js`'s existing "paste the AI's result" steps check this
+  before falling back to raw-JSON extraction, so the same paste box works for either
+  delivery method a CLI tool managed to produce.
+- New "🤖 AI / CLI Integration" entry point in the toolbar's Help menu and the
+  Command Palette, both just opening the guide.
+
 ## v1.42.0 (2026-08-28)
 
 **Six new component-styling options**, expanding the per-node style editor (`toolbar/styleEditor.js`)

@@ -1,0 +1,18 @@
+# System Design Diagram Builder
+
+> A 100% client-side, no-backend, no-account web app for building system
+> architecture diagrams (600+ predefined components, sequence diagrams, and more).
+> Everything runs in the browser — there is no API server to call.
+
+An AI agent or CLI tool that wants to generate a diagram for a user of this app
+should read the full integration guide below before producing anything — it defines
+the exact JSON format this app understands and the two zero-server ways to hand a
+generated diagram to the user (a direct link, or paste/import).
+
+## Docs
+
+- [AI / CLI Integration Guide](docs/AI_INTEGRATION.md): the JSON schema, a direct
+  share-link encoding method with runnable code, and paste/import instructions.
+- [Functional Specification](docs/SPEC.md): every feature this app supports, in
+  detail.
+- [User Guide](help.html): the in-app guide, written for a human.

@@ -4271,6 +4271,51 @@ property or needing to know about each other.
 all, just a shortcut that sets `w`/`h` to one of three fixed pairs, the same "convenience action, not
 a persisted concept" tier as `core/diagramTheme.js`'s recolor and the style presets above.
 
+## AI / CLI Integration (`docs/AI_INTEGRATION.md`, `llms.txt`, `js/io/shareLink.js#findShareHashInText`)
+
+This app has no backend, so "integrating" an external AI CLI tool (Claude Code, or
+any other agent with its own model access) can't mean exposing a REST API — it means
+publishing a document the tool can read that teaches it this app's own JSON format,
+plus giving it a way to hand a generated diagram to the user without a server in the
+loop either.
+
+**`docs/AI_INTEGRATION.md`** is a standalone guide, written to be read cold by an AI
+agent (not a person, and not assuming any other context from this repo) — the full
+project JSON schema, a complete example, the sequence-diagram alternate shape, and
+both delivery methods below. **`llms.txt`** (repo root) is a short pointer file
+following the emerging `llms.txt` convention several AI tools already check,
+linking to the full guide. Both are plain files served as-is by GitHub Pages (no
+`.nojekyll` needed — Jekyll only transforms a Markdown file that starts with `---`
+front matter; a plain `.md`/`.txt` file with none is copied through untouched), so
+they're fetchable at predictable URLs without any app code running.
+
+**Delivery method A — a direct share link.** The guide documents `js/io/shareLink.js`'s
+own gzip + base64url encoding precisely enough (with runnable Python/Node snippets)
+that a CLI tool with code execution can reproduce it exactly and build a real,
+clickable `#share=...` link itself, without ever touching this app's code. Gzip is
+a standard, universally-implemented format (RFC 1952) and `CompressionStream`/
+`DecompressionStream('gzip')` (this app's own encode/decode) round-trip with
+anything else's standard gzip implementation, so there's no compatibility gap to
+document further.
+
+**Delivery method B — paste or file import.** `js/io/shareLink.js#findShareHashInText`
+is a small, pure text scanner (`/#share=[A-Za-z0-9_-]+/`) that pulls a share hash out
+of arbitrary pasted text — bare, or embedded in a full URL a CLI tool printed for the
+user to click. `modals/generateDesignModal.js` and `modals/quickStartModal.js`'s
+existing "paste the AI's result" steps both check this *before* falling back to
+`io/aiGenerateDesign.js#extractProjectJSON`, so the exact same paste box accepts
+either a share link or raw JSON — the CLI tool doesn't need to know or care which
+delivery method it managed to use. Decoding a share link goes through
+`loadProjectFromHash` (async, since it uses `DecompressionStream`), which already
+runs `validateProject` internally, so both modals' downstream success/error handling
+needed no changes beyond branching on which path produced the `project`.
+
+**Discoverability**: a "🤖 AI / CLI Integration" button in the toolbar's Help dropdown
+(`toolbar.js#buildHelpGroupButtons`, never feature-level-gated — see the "Feature
+Levels" section above for why Help stays ungated) and a matching Command Palette
+entry both just `window.open('docs/AI_INTEGRATION.md', ...)` — the guide is the
+single source of truth; neither entry point duplicates its content.
+
 ## Security notes
 
 - No `innerHTML` is ever fed unsanitized/user-provided strings; text

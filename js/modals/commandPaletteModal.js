@@ -200,6 +200,7 @@ function buildAppCommands() {
     { id: 'export-poster', label: '🧩 Export PDF (Poster)', keywords: ['pdf', 'poster', 'print', 'tile', 'pages'], run: () => openExportPosterModal() },
     { id: 'review-status', label: '📝 Review Status', keywords: ['review', 'status', 'draft', 'approved', 'approval'], run: () => openReviewStatusModal() },
     { id: 'feature-level', label: '🧩 Feature Level Settings', keywords: ['feature level', 'basic', 'advanced', 'custom', 'hide', 'show', 'simplify', 'toolbar'], run: () => openDefaultSettingsModal({ scrollToFeatureLevel: true }) },
+    { id: 'ai-cli-integration', label: '🤖 AI / CLI Integration', keywords: ['ai', 'cli', 'agent', 'integration', 'api', 'llms.txt', 'claude code', 'share link'], run: () => window.open('docs/AI_INTEGRATION.md', '_blank', 'noopener') },
   ];
 }
 

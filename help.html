@@ -243,6 +243,7 @@
       <li><a href="#export-poster">Export PDF (Poster)</a></li>
       <li><a href="#review-status">Review Status</a></li>
       <li><a href="#feature-levels">Feature Level (Basic/Advanced/Custom)</a></li>
+      <li><a href="#ai-cli-integration">AI / CLI Integration</a></li>
       <li><a href="#offline">Offline &amp; installable</a></li>
       <li><a href="#language">Language &amp; RTL</a></li>
       <li><a href="#3d-presentation">3D Presentation Mode</a></li>
@@ -449,7 +450,7 @@
         <li><strong>Export PNG / PDF / SVG</strong> — a rendered image of your diagram, ready to paste into docs or slides. "🔺 Export SVG" is a scalable vector image that stays crisp at any zoom, unlike PNG. If your project has one or more <a href="#sequence-diagram">sequence-diagram</a> groups, each one also exports as its own extra PNG file (alongside the main diagram's) or extra PDF page, cropped tightly to just that group's own content.</li>
         <li><strong>🔎 Search All Projects</strong> — finds text across <em>every</em> saved project in this browser at once, not just the one currently open, with a snippet preview per match and a one-click "Load".</li>
         <li><strong>🌐 Export to...</strong> — sends the <em>whole</em> diagram to another tool: "📋 Copy as Mermaid" (or "🔗 Open Mermaid Live Editor", which copies it and opens the site to paste into), a downloadable <code>.drawio</code> file for draw.io/diagrams.net (with a "🔗 Open draw.io" link), the same file for Lucidchart's own importer ("🔗 Open Lucidchart"), or an Infrastructure-as-Code starter file with one resource block per recognized AWS component on the canvas — <strong>Terraform</strong>, <strong>Pulumi</strong> (TypeScript), <strong>AWS CloudFormation</strong> (YAML), or <strong>Kubernetes</strong> manifests (YAML), whichever matches your team's tooling. Best-effort — each format has its own shape/style vocabulary, so this isn't always a perfectly lossless round-trip, and every IaC file is a starting point to edit, not something meant to deploy as-is.</li>
-        <li><strong>🔗 Share</strong> — generates a link that encodes the whole diagram directly in the URL itself (gzip-compressed) — there's no backend, so nothing is actually uploaded anywhere. Opening the link loads an independent local copy into whoever opens it; it doesn't stay in sync with further edits on either end.</li>
+        <li><strong>🔗 Share</strong> — generates a link that encodes the whole diagram directly in the URL itself (gzip-compressed) — there's no backend, so nothing is actually uploaded anywhere. Opening the link loads an independent local copy into whoever opens it; it doesn't stay in sync with further edits on either end. The exact encoding is also documented for AI/CLI tools — see <a href="#ai-cli-integration">AI / CLI Integration</a>.</li>
       </ul>
       <h3>Bulk export/import &amp; full backup</h3>
       <p>Beyond single-project/single-library files, you can export/import in bulk:</p>
@@ -733,6 +734,17 @@
       </ul>
       <p>The File/Create/Tools menus organize their buttons under these same 7 labeled sections no matter which mode you're in — even in Advanced mode, grouping makes the longer menus (Tools especially) much easier to scan. Nothing here ever touches your diagram, and every action — hidden or not — stays reachable by searching for it in the Command Palette (<kbd>Ctrl/Cmd</kbd>+<kbd>K</kbd>).</p>
       <div class="tip">🌱 The very first time you open this app in a browser, it starts in Basic mode with a compact sidebar (below) automatically. If you'd already been using this app before this feature existed, nothing changes for you — your toolbar and sidebar stay exactly as they were. If you're in Basic mode and keep using the app for a few sessions, a small dismissible note will eventually suggest exploring the rest of the toolset — "Not now" just defers it, "Don't ask again" turns it off for good.</div>
+    </section>
+
+    <section id="ai-cli-integration">
+      <h2><span class="icon-badge">🤖</span> AI / CLI Integration</h2>
+      <p>This app has no backend, so instead of an API, there's a document any AI CLI tool (Claude Code, or any other AI agent with its own model access) can read to learn how to generate a diagram for you: "Help" → "🤖 AI / CLI Integration" (or search it in the Command Palette) opens <a href="docs/AI_INTEGRATION.md" target="_blank" rel="noopener">docs/AI_INTEGRATION.md</a> — the full JSON schema this app understands, a complete example, and instructions for handing a generated diagram back to you.</p>
+      <p>If you're asking an AI CLI tool to build you a diagram, just point it at that document (or paste its contents in) and describe what you want. It can hand the result back to you one of two ways:</p>
+      <ul>
+        <li><strong>A direct link</strong> — if the tool can run code, it can build a real "🔗 Share"-style link itself (the guide documents the exact encoding) and just tell you to open it. No copy/paste at all.</li>
+        <li><strong>JSON to paste or import</strong> — otherwise, it gives you plain JSON: paste it into "Create" → "🧠 Generate Design from Spec" or "🪄 AI Quick Start"'s last step (skip straight past the earlier steps — pasting is all that matters), or save it as a file and use "File" → "⬆️ Import JSON". Either paste-back box also accepts a share link pasted as plain text, so whichever format the tool produced works the same way.</li>
+      </ul>
+      <p>A root-level <code>llms.txt</code> file also points at this guide, for AI tools that check for it automatically.</p>
     </section>
 
     <section id="offline">

@@ -2053,6 +2053,30 @@ The per-node style editor (4.5) gains six new controls, all in the same contextu
 - **Size presets** — S/M/L buttons next to Width/Height for quickly matching a component to one of
   three common sizes (120×60, 160×84, 220×120), a shortcut rather than a new field.
 
+### 4.83 AI / CLI Integration
+Since this app is 100% client-side with no backend, "integrating" an external AI CLI
+tool (Claude Code, or any other agent with its own model access) means giving it a
+document it can read to learn this app's own JSON format, plus a zero-server way to
+hand a generated diagram back to the user:
+
+- **`docs/AI_INTEGRATION.md`** — a standalone guide, written for an AI agent, covering
+  the full project JSON schema (nodes/edges, the sequence-diagram alternate shape),
+  a complete example, and both delivery methods below. Discoverable via a root-level
+  `llms.txt` (the emerging convention many AI tools check), the toolbar's Help menu
+  ("🤖 AI / CLI Integration"), and the Command Palette.
+- **Delivery method A — a direct share link.** The guide documents the exact
+  gzip + base64url encoding this app's own "🔗 Share" feature already uses (4.8),
+  with runnable Python/Node snippets, so a CLI tool with code execution can build a
+  real, directly-clickable `#share=...` link itself — no copy/paste of raw JSON at
+  all.
+- **Delivery method B — paste or file import.** For a tool that can't run code: paste
+  the JSON into "Generate Design from Spec" or "AI Quick Start"'s last step (which
+  already extracts JSON from arbitrary surrounding text — 4.13), or save it as a
+  `.json` file and use "⬆️ Import JSON" (4.8). Both paste-back boxes above **also**
+  accept a share link pasted as plain text (bare hash or embedded in a full URL) —
+  detected and decoded the same way method A's own link would be, so either output
+  format works in the same box regardless of which the CLI could actually produce.
+
 ## 7. Out of scope for v1 (ideas for later, see PLAN.md §7)
 
 Versioned history beyond in-session undo/redo (superseded by 4.17/4.63

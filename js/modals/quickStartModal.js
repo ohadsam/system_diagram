@@ -17,6 +17,7 @@ import { el, clear } from '../utils/dom.js';
 import * as store from '../core/store.js';
 import { validateProject } from '../core/project.js';
 import { buildQuickStartPrompt, extractProjectJSON, autoArrangeIfNeeded } from '../io/aiGenerateDesign.js';
+import { findShareHashInText, loadProjectFromHash } from '../io/shareLink.js';
 import { showToast } from '../utils/toast.js';
 import { confirmAction } from './confirmModal.js';
 import { buildAiProviderActions } from '../utils/aiProviderActions.js';
@@ -146,7 +147,7 @@ export function openQuickStartModal() {
         }
 
         function renderPaste() {
-          body.appendChild(el('p', { class: 'modal-hint', text: "Paste the AI's whole reply below — the JSON code block plus any surrounding text is fine, it'll be picked out automatically." }));
+          body.appendChild(el('p', { class: 'modal-hint', text: "Paste the AI's whole reply below — the JSON code block plus any surrounding text is fine, it'll be picked out automatically. A CLI tool that built you a share link instead (see docs/AI_INTEGRATION.md) works here too — paste the link itself." }));
           const responseArea = el('textarea', {
             class: 'ai-review-response generate-design-response',
             rows: 12,
@@ -165,9 +166,23 @@ export function openQuickStartModal() {
           actions.appendChild(el('button', {
             type: 'button', class: 'btn btn-primary', text: 'Create diagram',
             onClick: async () => {
-              const extracted = extractProjectJSON(responseArea.value);
-              if (!extracted.ok) { pasteError = extracted.error; renderStep(); return; }
-              const validated = validateProject(extracted.data);
+              // A share link (docs/AI_INTEGRATION.md's "no copy/paste of raw
+              // JSON at all" path) decodes straight to a project and never
+              // carries a "rationale" (checked first, since its hash could
+              // otherwise be mistaken for noise around a JSON block by
+              // extractProjectJSON below).
+              const shareHash = findShareHashInText(responseArea.value);
+              let validated;
+              let extracted = null;
+              if (shareHash) {
+                const project = await loadProjectFromHash(shareHash);
+                if (!project) { pasteError = "That looked like a share link but it couldn't be decoded — check you copied the whole link."; renderStep(); return; }
+                validated = { ok: true, project };
+              } else {
+                extracted = extractProjectJSON(responseArea.value);
+                if (!extracted.ok) { pasteError = extracted.error; renderStep(); return; }
+                validated = validateProject(extracted.data);
+              }
               if (!validated.ok || !validated.project.nodes.length) {
                 pasteError = "That didn't look like a valid design — no components were found. Check the AI's reply matches the requested JSON shape, or try again.";
                 renderStep();
@@ -187,7 +202,7 @@ export function openQuickStartModal() {
               }
               store.loadProject(project);
               createdProject = project;
-              rationale = extracted.data && typeof extracted.data.rationale === 'object' ? extracted.data.rationale : null;
+              rationale = extracted?.data && typeof extracted.data.rationale === 'object' ? extracted.data.rationale : null;
               showToast(`Generated a design with ${project.nodes.length} component${project.nodes.length === 1 ? '' : 's'}.`, 'success', 2600);
               step = 'done';
               renderStep();

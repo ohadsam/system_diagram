@@ -11,6 +11,10 @@ const SPEC_TEXT_LIMIT = 16000;
 const PLACEABLE_SHAPES = SHAPES.filter((s) => s !== 'rows');
 const ROUTING_CHOICES = ROUTINGS.filter((r) => r !== 'magic'); // "magic" needs live obstacle data the AI can't have
 
+// Kept in sync by hand with docs/AI_INTEGRATION.md's own copy of this same
+// example — that doc is written for an *external* AI/CLI tool that never
+// sees this in-app prompt, so it needs its own up-to-date copy of the
+// schema. Update both together if this shape changes.
 const EXAMPLE_JSON = `{
   "name": "Example Order Service",
   "nodes": [

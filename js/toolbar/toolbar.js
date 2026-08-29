@@ -858,6 +858,10 @@ function buildHelpGroupButtons() {
     type: 'button', class: 'btn', title: 'Help & user guide', text: '❓ Help & Guide',
     onClick: () => window.open('help.html', '_blank', 'noopener'),
   });
+  const aiIntegrationBtn = el('button', {
+    type: 'button', class: 'btn', title: 'A guide for AI agents/CLI tools (Claude Code, etc.) to generate a diagram for this app and hand it to you', text: '🤖 AI / CLI Integration',
+    onClick: () => window.open('docs/AI_INTEGRATION.md', '_blank', 'noopener'),
+  });
   const hintsBtn = el('button', {
     type: 'button', class: 'btn', title: 'Show hints again', text: '💡 Show hints again',
     onClick: () => { resetHints(); updateHintsToggle(); showToast('Hints restarted.', 'info', 1800); },
@@ -879,7 +883,7 @@ function buildHelpGroupButtons() {
     type: 'button', class: 'btn', title: 'Show the getting-started checklist again', text: '🚀 Getting Started',
     onClick: openOnboardingChecklistWidget,
   });
-  return [helpBtn, hintsBtn, hintsToggleBtn, whatsNewBtn, onboardingBtn];
+  return [helpBtn, aiIntegrationBtn, hintsBtn, hintsToggleBtn, whatsNewBtn, onboardingBtn];
 }
 
 /** Short human summary of the current selection, shown in the contextual

@@ -2,9 +2,19 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.42.0';
+export const APP_VERSION = '1.43.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.43.0',
+    date: '2026-08-29',
+    highlights: [
+      'New "🤖 AI / CLI Integration" guide (Help menu, or Ctrl/Cmd+K) — a standalone document at `docs/AI_INTEGRATION.md` written for an AI CLI tool (Claude Code, or any other AI agent) explaining exactly how to generate a diagram for this app and hand it back to you, with zero backend involved either way.',
+      'A share link (🔗 Share) can now be built entirely outside this app by any tool that can run code — the guide documents the exact encoding with runnable Python/Node snippets, so an AI CLI tool can hand you a real, clickable link with no copy/paste at all.',
+      '"Generate Design from Spec" and "AI Quick Start"\'s "paste the AI\'s result" step now also accepts a share link pasted as plain text (not just raw JSON) — whichever format an AI/CLI tool managed to produce works in the same box.',
+      'Added a root-level `llms.txt` pointing AI tools that check for it at the new integration guide.',
+    ],
+  },
   {
     version: '1.42.0',
     date: '2026-08-28',

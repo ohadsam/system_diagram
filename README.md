@@ -199,6 +199,14 @@ Or open `index.html` directly in a browser.
   links as above) that guides the AI to reply with a design in this app's
   own format, then paste that reply back in and it's imported straight
   onto the canvas as real, editable components.
+- **🤖 AI / CLI Integration** (Help menu, or Ctrl/Cmd+K) — this app has no
+  backend, so instead of an API there's [`docs/AI_INTEGRATION.md`](docs/AI_INTEGRATION.md)
+  (and a root-level `llms.txt` pointing at it): a standalone guide any AI CLI
+  tool (Claude Code, or any other) can read to learn the exact JSON format
+  and generate a diagram for you, either as a direct clickable share link
+  (built with a documented, runnable gzip + base64url recipe — no copy/paste
+  at all) or as JSON to paste into "Generate Design from Spec"/"AI Quick
+  Start" or import as a file.
 - **🔁 Replicate** — link a selection to a live-mirrored second side
   (Active-Active / Active-Passive / Primary-Replica). Add, move, resize,
   restyle or rename a component on either side and its peer follows

@@ -132,6 +132,32 @@ test('generating a design when the canvas already has content asks for confirmat
   await expect.poll(() => nodeCount(page)).toBe(3);
 });
 
+test('step 3 also accepts a pasted share link instead of raw JSON (the AI/CLI integration path)', async ({ page }) => {
+  // Simulates an AI CLI tool that built a share link per docs/AI_INTEGRATION.md
+  // (js/io/shareLink.js#buildShareUrl) and printed it for the user to paste
+  // back, instead of raw JSON — the same box has to accept both.
+  const shareUrl = await page.evaluate(async () => {
+    const { buildShareUrl } = await import('/js/io/shareLink.js');
+    const { createEmptyProject, createNode } = await import('/js/core/project.js');
+    const project = createEmptyProject('Shared Diagram');
+    project.nodes.push(createNode(null, 40, 40, { text: 'From CLI' }));
+    return buildShareUrl(project);
+  });
+
+  await openToolbarGroup(page, 'Create');
+  await page.locator('#toolbar button', { hasText: 'Generate Design' }).click();
+  await page.locator('.generate-design-spec').fill('Irrelevant spec text — this path skips straight to pasting.');
+  await page.locator('.generate-design-modal button', { hasText: 'Next' }).click();
+  await page.locator('.generate-design-modal button', { hasText: 'Next' }).click();
+
+  await page.locator('.generate-design-response').fill(`Here's your diagram, open this link: ${shareUrl}`);
+  await page.locator('.generate-design-modal button', { hasText: 'Generate design' }).click();
+
+  await expect(page.locator('.generate-design-modal')).not.toBeVisible();
+  await expect.poll(() => nodeCount(page)).toBe(1);
+  await expect(page.locator('.node', { hasText: 'From CLI' })).toBeVisible();
+});
+
 test('the Back button returns to the previous step without losing entered spec text', async ({ page }) => {
   await openToolbarGroup(page, 'Create');
   await page.locator('#toolbar button', { hasText: 'Generate Design' }).click();
