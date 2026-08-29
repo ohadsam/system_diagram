@@ -47,12 +47,11 @@ test('per-node style editor can override text position and icon visibility indep
   await page.locator('.node').first().click({ force: true });
   await expect(page.locator('.toolbar-row-context')).toBeVisible();
 
-  const showIconCheckbox = page.locator('.toolbar-row-context input[type=checkbox]').nth(1);
+  const showIconCheckbox = page.locator('.toolbar-row-context .field-checkbox', { hasText: 'Show icon' }).locator('input[type=checkbox]');
   await showIconCheckbox.uncheck();
   await expect(page.locator('.node').first().locator('.node-icon')).toHaveCount(0);
 
-  // select order in styleEditor.js: Shape(0), Align(1), Text position(2)
-  await page.locator('.toolbar-row-context select').nth(2).selectOption('below');
+  await page.locator('.toolbar-row-context .field', { hasText: 'Text position' }).locator('select').selectOption('below');
   await expect(page.locator('.node').first().locator('.node-external-label')).toHaveClass(/pos-below/);
 });
 

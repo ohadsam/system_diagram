@@ -65,7 +65,9 @@ test('diamond and hexagon shapes render a border that hugs their clip-path outli
   const node = page.locator('.node').first();
   await node.click();
 
-  const shapeSelect = page.locator('.toolbar-row-context select').first();
+  // Anchored to the start: a plain 'Shape' substring match (case-insensitive)
+  // would also match other fields — see styleEditor.js's field labels.
+  const shapeSelect = page.locator('.toolbar-row-context .field', { hasText: /^Shape/ }).locator('select');
   for (const shape of ['diamond', 'hexagon']) {
     await shapeSelect.selectOption(shape);
     await expect(page.locator(`.node[data-shape="${shape}"]`)).toHaveCount(1);

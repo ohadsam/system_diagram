@@ -16,8 +16,7 @@ test('an off-screen node with an external label is still measured correctly (con
   const node = page.locator('.node').first();
   await node.click({ force: true });
   await expect(page.locator('.toolbar-row-context')).toBeVisible();
-  // select order in styleEditor.js: Shape(0), Align(1), Text position(2)
-  await page.locator('.toolbar-row-context select').nth(2).selectOption('above');
+  await page.locator('.toolbar-row-context .field', { hasText: 'Text position' }).locator('select').selectOption('above');
   await expect(node.locator('.node-external-label')).toHaveClass(/pos-above/);
 
   // Pan the canvas far away with the Hand tool so the node (and its label)
