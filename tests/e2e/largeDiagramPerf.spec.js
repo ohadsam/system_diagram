@@ -34,6 +34,12 @@ test('an off-screen node with an external label is still measured correctly (con
   const offscreenBox = await node.boundingBox();
   expect(offscreenBox.x + offscreenBox.width < 0 || offscreenBox.y + offscreenBox.height < 0).toBe(true);
 
+  // Deselect first: the node from step 17 is still selected, and the "⛶"
+  // button now fits just the current selection when something is selected
+  // (see smartAssists.spec.js) — this test wants whole-diagram Fit to
+  // Screen specifically, so its title/aria-label wouldn't read "Fit to
+  // screen" otherwise.
+  await page.keyboard.press('Escape');
   await page.locator('button[aria-label="Fit to screen"]').click();
 
   // If the label's true bounds had been silently treated as zero-size while

@@ -1760,3 +1760,65 @@
 .feature-pack-row {
   cursor: help;
 }
+
+/* modals/managePinnedActionsModal.js */
+.pinned-actions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 220px;
+  overflow-y: auto;
+  margin-top: var(--space-2);
+}
+
+.pinned-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 4px var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.pinned-actions-row:hover {
+  background: var(--color-surface-alt);
+}
+
+.pinned-actions-label {
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pinned-actions-row-controls {
+  display: flex;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+
+.pinned-actions-checkbox-row {
+  /* Overrides .pinned-actions-row's justify-content: space-between (meant
+     for a Pinned row's label-left/controls-right layout) — a checkbox row
+     is just "checkbox, then its label" and should hug the left edge, not
+     stretch the label all the way to the right. */
+  justify-content: flex-start;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.pinned-actions-search {
+  width: 100%;
+  margin-top: var(--space-2);
+}
+
+.pinned-actions-empty {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  padding: var(--space-2);
+}
+
+/* modals/findReplaceModal.js */
+.find-replace-count {
+  min-height: 1.4em;
+}

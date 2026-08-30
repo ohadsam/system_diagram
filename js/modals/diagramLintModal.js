@@ -10,6 +10,7 @@ import { el, clear } from '../utils/dom.js';
 import * as store from '../core/store.js';
 import { computeDiagramLint, computeCustomLint } from '../core/diagramLint.js';
 import { computeDiagramHealth } from '../core/diagramHealth.js';
+import { boundsOfBoxes } from '../core/geometry.js';
 import { resolveComponentDef, applyLintAutoFix } from '../canvas/canvas.js';
 import { centerOn } from '../canvas/viewport.js';
 import { getCustomLintRules } from '../io/customLintRules.js';
@@ -24,12 +25,9 @@ const FIX_LABEL = {
 function selectAndCenter(nodeIds) {
   const state = store.getState();
   const nodes = state.nodes.filter((n) => nodeIds.includes(n.id));
-  if (!nodes.length) return;
-  const minX = Math.min(...nodes.map((n) => n.x));
-  const minY = Math.min(...nodes.map((n) => n.y));
-  const maxX = Math.max(...nodes.map((n) => n.x + n.w));
-  const maxY = Math.max(...nodes.map((n) => n.y + n.h));
-  centerOn((minX + maxX) / 2, (minY + maxY) / 2);
+  const bounds = boundsOfBoxes(nodes);
+  if (!bounds) return;
+  centerOn(bounds.x + bounds.w / 2, bounds.y + bounds.h / 2);
   store.select(nodeIds, []);
 }
 

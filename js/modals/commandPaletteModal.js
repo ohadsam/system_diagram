@@ -21,7 +21,7 @@ import { filterCommands } from '../toolbar/commandPalette.js';
 import {
   deleteSelection, duplicateSelection, autoArrangeAll, distributeSequenceDiagram, duplicateProjectAsNew,
   addRelatedComponent, addLayerToNode, instantiatePatternNearNode, instantiatePatternAtCenter, addComponentAtCenter,
-  resolveComponentDef, clearCanvas, setFocusMode, addCommentAtCenter,
+  resolveComponentDef, clearCanvas, setFocusMode, addCommentAtCenter, fitToSelection, fitToScreen,
 } from '../canvas/canvas.js';
 import * as viewport from '../canvas/viewport.js';
 import { openSaveAsModal } from './saveAsModal.js';
@@ -66,6 +66,8 @@ import { openImportFromImageModal } from './importFromImageModal.js';
 import { openAiEditModal } from './aiEditModal.js';
 import { openAiConversationModal } from './aiConversationModal.js';
 import { openCliSetupModal } from './cliSetupModal.js';
+import { openFindReplaceModal } from './findReplaceModal.js';
+import { openManagePinnedActionsModal } from './managePinnedActionsModal.js';
 import { openC4ContextModal } from './c4ContextModal.js';
 import { openImportSqlModal } from './importSqlModal.js';
 import { openTemplateGalleryModal } from './templateGalleryModal.js';
@@ -86,7 +88,7 @@ import { LANGUAGES } from '../io/uiPrefs.js';
 const MAX_COMPONENT_RESULTS = 8;
 const MAX_RELATED_PER_KIND = 3;
 
-function buildAppCommands() {
+export function buildAppCommands() {
   return [
     { id: 'new', label: '🆕 New diagram', keywords: ['new', 'blank', 'start'], run: async () => {
       const ok = await confirmAction({ title: 'Start a new diagram?', message: 'This clears the canvas. Undo (Ctrl/Cmd+Z) can bring it back.', confirmLabel: 'Start new', danger: false });
@@ -207,6 +209,17 @@ function buildAppCommands() {
     { id: 'feature-level', label: '🧩 Feature Level Settings', keywords: ['feature level', 'basic', 'advanced', 'custom', 'hide', 'show', 'simplify', 'toolbar'], run: () => openDefaultSettingsModal({ scrollToFeatureLevel: true }) },
     { id: 'ai-cli-integration', label: '🤖 AI / CLI Integration', keywords: ['ai', 'cli', 'agent', 'integration', 'api', 'llms.txt', 'claude code', 'share link'], run: () => window.open('docs/AI_INTEGRATION.md', '_blank', 'noopener') },
     { id: 'cli-setup', label: '🖥️ Working with CLI', keywords: ['cli', 'address', 'url', 'setup', 'agent', 'claude code'], run: openCliSetupModal },
+    { id: 'find-replace', label: '🔎 Find & Replace', keywords: ['find', 'replace', 'rename', 'search'], run: openFindReplaceModal },
+    { id: 'zoom-fit-selection', label: '🔎 Fit to Selection', keywords: ['zoom', 'fit', 'selection'], run: () => (store.getSelection().nodeIds.length ? fitToSelection() : fitToScreen()) },
+    { id: 'manage-pinned-actions', label: '📌 Manage Pinned Toolbar Actions', keywords: ['pin', 'pinned', 'toolbar', 'customize', 'quick access'], run: () => openManagePinnedActionsModal(buildAppCommands()) },
+    {
+      id: 'toggle-lint-nudges', label: '🔔 Toggle Diagram Nudges', keywords: ['lint', 'nudge', 'notification', 'check diagram'],
+      run: () => {
+        const next = !getUiPrefs().proactiveLintNudges;
+        saveUiPrefs({ proactiveLintNudges: next });
+        document.querySelector('#toolbar button[title^="Diagram Nudges"]')?.classList.toggle('active', next);
+      },
+    },
   ];
 }
 

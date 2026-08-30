@@ -110,6 +110,40 @@ Keep this in sync with `PLAN.md` as stages complete.
   field (with autocomplete) on custom components, grouping them into
   collapsible 📁 sub-groups in the sidebar.
 
+## v1.47.0 (2026-08-30)
+
+**Six small "ease the user" additions** — automatic/proactive assists plus a
+few discoverability/editing conveniences:
+
+- **Smart default edge labels** (`core/smartEdgeLabels.js`) — a freshly-drawn
+  connector now guesses a sensible label from what its two ends actually are
+  (category-pair table plus a few name-based rules for gateways/queues),
+  e.g. "reads/writes" for a service into a database, "routes to" from a load
+  balancer, "publishes to"/"delivers to" around a queue depending on
+  direction. Never overrides a label you already set yourself.
+- **Smart duplicate naming** (`core/duplicateNaming.js`) — duplicating a
+  component now auto-increments its name ("Auth Service" → "Auth Service 2")
+  the way a file manager suggests "copy 2", instead of leaving an
+  identical-looking twin. `duplicateEntireCanvas` (a whole-canvas mirror, not
+  the "avoid two same-named siblings" case this exists for) opts out.
+- **"Fit to selection"** (`canvas.js#fitToSelection`) — the toolbar's "⛶" fit
+  button now fits just the current selection once something is selected,
+  falling back to fitting the whole diagram otherwise. Same button, no new
+  toolbar clutter.
+- **"🔎 Find & Replace"** (Tools menu, or Ctrl/Cmd+K) — renames a term across
+  every component/connector label and notes field in one undoable step
+  (`core/findReplace.js`), instead of clicking into each one by hand.
+- **"📌 Manage Pinned Toolbar Actions"** (Ctrl/Cmd+K) — pin your most-used
+  actions (the exact same list ⌘K already searches,
+  `commandPaletteModal.js#buildAppCommands`) as always-visible toolbar
+  buttons, in whatever order you like, via a new second toolbar row
+  (`toolbar/pinnedActionsBar.js`) hidden until you pin something.
+- **"🔔 Diagram Nudges"** (on by default, Tools menu) — a quiet toolbar badge
+  the moment "🔍 Check Diagram" would find something new
+  (`io/lintWatcher.js`), instead of only finding out once you remember to
+  open it yourself. Deterministic and offline, same as Check Diagram itself
+  — never makes a network call.
+
 ## v1.46.0 (2026-08-29)
 
 **"🤖 AI Chat" is now resizable in every dock mode.** Drag its left edge while

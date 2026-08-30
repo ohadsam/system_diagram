@@ -20,7 +20,8 @@ import { getComponentById } from '../data/index.js';
 import { getCustomComponents } from '../io/customComponents.js';
 import { buildCreationOverrides } from '../io/nodeDefaults.js';
 import { el, svgEl, clear } from '../utils/dom.js';
-import { rectsIntersect, pickBestSides, sideAnchor, computeAnchorOffset } from '../core/geometry.js';
+import { rectsIntersect, pickBestSides, sideAnchor, computeAnchorOffset, boundsOfBoxes } from '../core/geometry.js';
+import { nextDuplicateName } from '../core/duplicateNaming.js';
 import { nextId } from '../core/id.js';
 import { sanitizeAddNode, sanitizeAddEdge, sanitizeNodeUpdateFields, sanitizeEdgeUpdateFields } from '../io/aiEditDesign.js';
 import { showToast } from '../utils/toast.js';
@@ -1868,12 +1869,21 @@ export function deleteSelection() {
   store.select([], []);
 }
 
-export function duplicateSelection() {
+/** @param {{renameDuplicates?: boolean}} [opts] renameDuplicates (default
+ * true) auto-increments a cloned node's name ("Auth Service" → "Auth
+ * Service 2") the same way a file manager suggests "copy 2" — removes the
+ * small manual rename step that duplicating a component used to always
+ * leave behind. duplicateEntireCanvas below opts out: cloning *everything*
+ * on the canvas is a whole-diagram mirror, not the "avoid two same-named
+ * siblings" problem this exists to solve, so renaming every single node
+ * there would just be noise. */
+export function duplicateSelection({ renameDuplicates = true } = {}) {
   const selection = store.getSelection();
   if (!selection.nodeIds.length && !selection.edgeIds.length) return;
   const state = store.getState();
   const idMap = new Map();
   const groupIdMap = new Map();
+  const usedNames = state.nodes.map((n) => n.text).filter(Boolean);
   const newNodes = selection.nodeIds
     .map((id) => state.nodes.find((n) => n.id === id))
     .filter(Boolean)
@@ -1884,7 +1894,9 @@ export function duplicateSelection() {
         if (!groupIdMap.has(oldGroupId)) groupIdMap.set(oldGroupId, nextId('group'));
         newGroupId = groupIdMap.get(oldGroupId);
       }
-      const clone = createNode(null, n.x + 24, n.y + 24, { ...rest, groupId: newGroupId });
+      const text = renameDuplicates && n.text ? nextDuplicateName(n.text, usedNames) : n.text;
+      if (text !== n.text) usedNames.push(text);
+      const clone = createNode(null, n.x + 24, n.y + 24, { ...rest, text, groupId: newGroupId });
       idMap.set(n.id, clone.id);
       return clone;
     });
@@ -1957,7 +1969,7 @@ export function duplicateEntireCanvas() {
   const state = store.getState();
   if (!state.nodes.length && !state.edges.length) return;
   store.select(state.nodes.map((n) => n.id), state.edges.map((e) => e.id));
-  duplicateSelection();
+  duplicateSelection({ renameDuplicates: false });
 }
 
 /** Clones the whole project (see core/project.js#duplicateProject) and
@@ -2217,6 +2229,21 @@ export function fitToScreen() {
   const bounds = getContentBounds();
   if (bounds) viewport.fitToContent(bounds);
   else viewport.resetViewport();
+}
+
+/** Zooms/pans to fit just the selected node(s) — useful once a diagram gets
+ * large enough that "Fit to screen" zooms out further than you want when
+ * you only care about one subsystem right now. Falls back to fitToScreen()
+ * when nothing's selected, so toolbar/zoomControls.js's "⛶" button can call
+ * this unconditionally and always do something reasonable either way. */
+export function fitToSelection() {
+  const selection = store.getSelection();
+  if (!selection.nodeIds.length) { fitToScreen(); return; }
+  const state = store.getState();
+  const nodes = state.nodes.filter((n) => selection.nodeIds.includes(n.id));
+  const bounds = boundsOfBoxes(nodes);
+  if (bounds) viewport.fitToContent(bounds);
+  else fitToScreen();
 }
 
 /** Rearranges every node into a layered top-to-bottom layout based on

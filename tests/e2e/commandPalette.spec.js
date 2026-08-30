@@ -79,6 +79,7 @@ test('every action added across recent batches is reachable from the palette (re
     '🎓 Interview Mode', '🔗 Import from URL/Gist', '🗺️ System Map', '🧩 Export PDF (Poster)', '📝 Review Status',
     '🧩 Feature Level Settings', '🤖 AI / CLI Integration', '🗨️ AI Conversation',
     '🤖 AI Chat', '🖥️ Working with CLI',
+    '🔎 Find & Replace', '🔎 Fit to Selection', '📌 Manage Pinned Toolbar Actions', '🔔 Toggle Diagram Nudges',
   ];
   for (const label of expectedLabels) {
     await page.keyboard.press('ControlOrMeta+k');

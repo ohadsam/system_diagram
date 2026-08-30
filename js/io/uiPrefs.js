@@ -61,6 +61,20 @@ export const DEFAULT_UI_PREFS = {
   aiChatWidth: null,
   aiChatBottomHeight: null,
   aiChatFloatingHeight: null,
+  // io/lintWatcher.js — a quiet toolbar-badge nudge the moment "Check
+  // Diagram" would find something new, rather than only finding out once
+  // you remember to open it yourself. On by default (unlike showMinimap/
+  // showGrid/flowSimulation above): this never makes a network call or adds
+  // visual clutter to the canvas itself, it just lights up an already-
+  // present toolbar button, so there's no "empty canvas" cost to defaulting
+  // it on the way there would be for those.
+  proactiveLintNudges: true,
+  // toolbar/pinnedActionsBar.js — command ids (matching
+  // modals/commandPaletteModal.js#buildAppCommands' own `id`s) the user has
+  // chosen to pin as always-visible toolbar buttons, in display order.
+  // Empty by default so nobody sees this row until they explicitly pin
+  // something themselves.
+  pinnedActionIds: [],
 };
 
 export function getUiPrefs() {
@@ -78,6 +92,8 @@ export function getUiPrefs() {
     aiChatWidth: typeof stored.aiChatWidth === 'number' ? stored.aiChatWidth : null,
     aiChatBottomHeight: typeof stored.aiChatBottomHeight === 'number' ? stored.aiChatBottomHeight : null,
     aiChatFloatingHeight: typeof stored.aiChatFloatingHeight === 'number' ? stored.aiChatFloatingHeight : null,
+    proactiveLintNudges: typeof stored.proactiveLintNudges === 'boolean' ? stored.proactiveLintNudges : DEFAULT_UI_PREFS.proactiveLintNudges,
+    pinnedActionIds: Array.isArray(stored.pinnedActionIds) ? stored.pinnedActionIds.filter((id) => typeof id === 'string') : DEFAULT_UI_PREFS.pinnedActionIds,
   };
 }
 

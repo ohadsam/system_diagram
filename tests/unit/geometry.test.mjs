@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   clamp, sideAnchor, closestSide, rectsIntersect, pointInRect, snap,
   straightPath, orthogonalPath, curvedPath, buildPath, distance, pickBestSides,
-  computeAnchorOffset,
+  computeAnchorOffset, boundsOfBoxes,
 } from '../../js/core/geometry.js';
 
 test('clamp keeps values within range', () => {
@@ -125,4 +125,21 @@ test('pickBestSides falls back to center-delta comparison for overlapping/nested
   const result = pickBestSides(from, to);
   assert.ok(['left', 'right', 'top', 'bottom'].includes(result.fromSide));
   assert.ok(['left', 'right', 'top', 'bottom'].includes(result.toSide));
+});
+
+test('boundsOfBoxes returns null for an empty list', () => {
+  assert.equal(boundsOfBoxes([]), null);
+});
+
+test('boundsOfBoxes covers a single box exactly', () => {
+  assert.deepEqual(boundsOfBoxes([{ x: 10, y: 20, w: 100, h: 50 }]), { x: 10, y: 20, w: 100, h: 50 });
+});
+
+test('boundsOfBoxes covers the min/max extent of several boxes', () => {
+  const boxes = [
+    { x: 0, y: 0, w: 50, h: 50 },
+    { x: 200, y: 100, w: 40, h: 40 },
+    { x: -20, y: 300, w: 30, h: 30 },
+  ];
+  assert.deepEqual(boundsOfBoxes(boxes), { x: -20, y: 0, w: 260, h: 330 });
 });

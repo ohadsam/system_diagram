@@ -199,6 +199,12 @@ this repo" quick-start.
 | Change the progressive-unlock suggestion banner | `js/io/usageStats.js` (session-count + shown-milestones tracking) + `js/core/featureLevels.js#getDueSuggestionMilestone`/`SUGGESTION_MILESTONES` (pure) + `js/hints/featureSuggestionBanner.js` (the dismissible card UI) |
 | Change the compact sidebar toggle | `js/io/librarySettings.js`'s `compactSidebar` field + `js/sidebar/sidebar.js`'s `.sidebar-compact-toggle` button and `renderList()`'s `showBuiltinCategories` gate (search always bypasses it) |
 | Change node style presets / corner radius / border style / drop shadow / opacity / size presets | `js/core/stylePresets.js` (pure preset definitions + `getStylePresetFields`) + `js/toolbar/styleEditor.js` (`buildStylePresetRow`, the Corner Radius/Border Style/Drop Shadow/Opacity fields, the S/M/L size-preset row) + `js/core/project.js` (`cornerRadius`/`borderStyle`/`dropShadow`/`opacity` fields + `BORDER_STYLES`) + `js/canvas/node.js#updateNodeEl`. See "Common pitfalls" below before wiring a new per-node style field straight to `body.style.<prop>`. |
+| Change the proactive Diagram Nudges lint badge | `js/io/lintWatcher.js` (`pickNewFinding(findings, seenIds)` is the pure decision function; `initLintWatcher` is the debounced `store` `'change'` watcher, modeled on `js/io/autoSuggestWatcher.js`) + `js/toolbar/toolbar.js` (the badge span nested in the "🔍 Check Diagram" button) + `js/io/uiPrefs.js#proactiveLintNudges` (default `true` — this watcher is fully offline/deterministic, unlike the AI-suggestion one it's modeled on). See "Common pitfalls" below re: `.edge-label` visibility if a lint check ever needs to read edge labels. |
+| Change smart default connector labels | `js/core/smartEdgeLabels.js#suggestEdgeLabel(fromDef, toDef)` (pure — name-pattern rules checked before a `categoryId->categoryId` lookup table) + `js/canvas/connectorInteractions.js`'s `onUp` (skipped for sequence-diagram message edges). See "Common pitfalls" below before adding a new name-pattern rule — which side it fires on is not automatically the side that matched. |
+| Change smart duplicate naming | `js/core/duplicateNaming.js#nextDuplicateName(baseName, existingNames)` (pure) + `js/canvas/canvas.js#duplicateSelection({ renameDuplicates = true })` — `duplicateEntireCanvas` passes `renameDuplicates: false` since a whole-canvas mirror shouldn't rename every node. |
+| Change "Fit to selection" / the "⛶" zoom button | `js/canvas/canvas.js#fitToSelection` + `js/core/geometry.js#boundsOfBoxes(boxes)` (pure min/max-extent helper, also used by `modals/diagramLintModal.js`'s select-and-center) + `js/toolbar/zoomControls.js` (branches on `store.getSelection().nodeIds.length`, keeps the button's title in sync via a `'selection'` store subscription) |
+| Change Find & Replace | `js/core/findReplace.js` (`countMatches`/`applyReplace(nodes, edges, {find, replaceWith, matchCase, includeNotes})` — builds an escaped-literal `RegExp` so special characters in the search term are treated literally) + `js/modals/findReplaceModal.js` (live match count, applies in one `store.dispatch`) |
+| Change pinnable toolbar actions | `js/toolbar/pinnedActionsBar.js#initPinnedActionsBar(container)` (renders pinned buttons, looked up fresh via `commandPaletteModal.js#buildAppCommands()`) + `js/modals/managePinnedActionsModal.js` (pin/unpin/reorder UI) + `js/io/uiPrefs.js#pinnedActionIds`. **Gotcha**: `managePinnedActionsModal.js` takes the command list as a parameter instead of importing `buildAppCommands` back from `commandPaletteModal.js`, to avoid a circular import — see docs/ARCHITECTURE.md's "Automatic/proactive assists" section. |
 | Change the AI/CLI integration guide or its schema | `docs/AI_INTEGRATION.md` (the guide itself — keep its example JSON in sync with `js/io/aiGenerateDesign.js`'s `EXAMPLE_JSON`/`SEQUENCE_EXAMPLE_JSON`, see that file's own comment) + `llms.txt` (repo-root pointer file) + `js/io/shareLink.js#findShareHashInText` (lets a pasted share link work anywhere raw JSON paste-back already does) + `js/toolbar/toolbar.js#buildHelpGroupButtons`/`js/modals/commandPaletteModal.js` (the two discovery entry points, both just `window.open` the guide). |
 
 ## Running things locally
@@ -1115,3 +1121,33 @@ npm test
   existed, because the sandboxed session couldn't reach the live site to
   verify it) is exactly the failure mode `modals/cliSetupModal.js` exists
   to eliminate.
+- **A rule table that fires a different label depending on which endpoint's
+  name matched must track which *side* the match happened on, not just
+  whether a match happened.** `core/smartEdgeLabels.js`'s gateway/queue name
+  rules read wrong on one side each: "routes to" belongs on a name-matched
+  *source* (a load balancer routing outbound), but "publishes to" belongs on
+  a name-matched *target* (a message arriving at a queue) — the opposite
+  side from the gateway case. A first draft wired both rules to the same
+  side and a unit test caught `suggestEdgeLabel(service, queue)` returning
+  "delivers to" instead of "publishes to". Fixed with explicit
+  `whenFromMatches`/`whenToMatches` fields per rule rather than one implicit
+  "primary side". Any future label-suggestion rule needs the same
+  case-by-case check, not an assumption that "the matched name" always means
+  the same side.
+- **The sidebar's component search is plain substring matching against the
+  full component name — a short, common search term can match more than one
+  component, and drag-by-search e2e helpers act on the first match.**
+  Searching `"Node.js"` to add the plain "Node.js" component instead matches
+  "Express (Node.js)" first, since that's an earlier substring hit — this
+  broke several `tests/e2e/smartAssists.spec.js` tests until they switched
+  to a term that uniquely matches one component (`"NestJS"` instead of
+  `"Node.js"`). When writing a new e2e test that adds a component by sidebar
+  search, pick a search term you've confirmed is unique, or verify via the
+  actual rendered node text rather than assuming the search term you typed
+  is what you got.
+- **A `.edge-label` SVG `<text>` element is always present in the DOM for
+  every edge — it's hidden via `label.style.display = 'none'` when
+  `edge.label` is falsy, never removed.** An e2e assertion for "this edge
+  has no label" must be `await expect(label).toHaveText('')` and/or
+  `toBeHidden()`, not `toHaveCount(0)` — the element exists whether or not
+  there's a label to show.

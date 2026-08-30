@@ -6,7 +6,18 @@ import { createEdge } from '../core/project.js';
 import { svgEl } from '../utils/dom.js';
 import { screenToCanvas } from './viewport.js';
 import { sideAnchor, pickBestSides, straightPath, computeAnchorOffset } from '../core/geometry.js';
+import { suggestEdgeLabel } from '../core/smartEdgeLabels.js';
+import { getComponentById } from '../data/index.js';
+import { getCustomComponents } from '../io/customComponents.js';
 import { focusEdge } from './canvas.js';
+
+// Local, import-cycle-free equivalent of canvas.js#resolveComponentDef (that
+// module already imports this one, so importing it back here would create a
+// cycle) — same two lookup sources, just inlined at the one call site that
+// needs it.
+function resolveDef(defId) {
+  return getComponentById(defId) || getCustomComponents().find((c) => c.id === defId) || null;
+}
 
 let draftLayer = null;
 
@@ -88,11 +99,19 @@ export function beginConnectFromNode(nodeId, side, e) {
       const fromOffset = computeAnchorOffset(fromNode, sides.fromSide, grabPoint);
       const toOffset = toNode ? computeAnchorOffset(toNode, sides.toSide, screenToCanvas(ev.clientX, ev.clientY)) : 0.5;
       const isMessage = toNode && fromNode.shape === 'lifeline' && toNode.shape === 'lifeline';
+      // A guessed default label ("reads/writes", "publishes to", ...) saves
+      // the small manual step of typing one in for the very common case
+      // where the two components' names/categories already say enough —
+      // see core/smartEdgeLabels.js. Skipped for a sequence-diagram message:
+      // those are read by their numbered badge, not a label, and default
+      // text there would just be visual noise on every arrow.
+      const suggestedLabel = !isMessage && toNode ? suggestEdgeLabel(resolveDef(fromNode.defId), resolveDef(toNode.defId)) : null;
       const edge = createEdge(nodeId, targetNodeId, {
         ...sides,
         fromOffset,
         toOffset,
         ...(isMessage ? { routing: 'straight' } : {}),
+        ...(suggestedLabel ? { label: suggestedLabel } : {}),
       });
       store.dispatch((d) => {
         d.edges.push(edge);

@@ -133,6 +133,30 @@
   gap: 4px;
 }
 
+/* toolbar/pinnedActionsBar.js — same [hidden]-override gotcha as
+   .toolbar-row-tabs above, plus flex-wrap since a long row of pinned
+   full-text buttons is exactly the kind of thing that forced page-wide
+   horizontal scroll before (see docs/AI_AGENT_GUIDE.md's toolbar-button
+   pitfall) if it can't wrap onto a second line at narrow widths. */
+.toolbar-row-pinned[hidden] {
+  display: none;
+}
+
+.toolbar-row-pinned {
+  padding: 4px var(--space-4);
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.pinned-actions-manage-btn {
+  opacity: 0.6;
+}
+
+.pinned-actions-manage-btn:hover {
+  opacity: 1;
+}
+
 .project-tab {
   display: flex;
   align-items: center;
@@ -662,6 +686,12 @@ body.kiosk-mode .kiosk-exit-btn {
 
 .toolbar-collab-badge {
   background: var(--color-success);
+}
+
+/* io/lintWatcher.js's proactive nudge — amber, not danger-red, since a
+   diagramLint finding is always severity: 'warning', never a hard error. */
+.toolbar-lint-nudge-badge {
+  background: var(--color-amber-text);
 }
 
 .toolbar-interview-badge {

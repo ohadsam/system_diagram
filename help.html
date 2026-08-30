@@ -225,6 +225,7 @@
       <li><a href="#ai-suggestions">AI-Powered Suggestions</a></li>
       <li><a href="#ai-security">AI Security Review</a></li>
       <li><a href="#check-diagram">Check Diagram</a></li>
+      <li><a href="#smart-assists">Smart Assists &amp; Editing Conveniences</a></li>
       <li><a href="#generate-design">Generate Design from Spec</a></li>
       <li><a href="#quick-start">AI Quick Start</a></li>
       <li><a href="#import-from-image">Import from Image</a></li>
@@ -553,8 +554,24 @@
       </ul>
       <p>Each finding is clickable — it closes the dialog and selects/centers the component(s) involved so you can fix it right away. The client-to-database and unrouted-replicas findings also offer a "🔧 Auto-fix" button — one click inserts a "Service Layer" (rerouting the direct connection through it) or a "Load Balancer" (connected to every replica) for you, as a single undoable step.</p>
       <div class="tip">💯 A "Health Score" badge (0-100) sits at the top of the dialog — 100 with no findings at all, minus 10 for each one. It's just a quick at-a-glance number derived from the same findings listed below it, nothing more sophisticated.</div>
+      <div class="tip">🔔 <strong>Diagram Nudges</strong>: a small amber dot appears on the "🔍 Check Diagram" button itself, without opening anything, the first time a new finding shows up as you edit — a quiet nudge instead of having to remember to re-run the check. Turn it off any time from the same "🔔 Diagram Nudges" toggle in the Tools menu, or via the Command Palette.</div>
       <h3>⚙️ Custom Lint Rules</h3>
       <p>Click "⚙️ Manage Custom Rules" at the bottom of the Check Diagram dialog to define your own checks on top of the built-in ones, for conventions specific to your team or project. Three rule types are available: <strong>"Requires connection"</strong> (every component in category A must connect to at least one component in category B — e.g. every Database must reach a Backup Service), <strong>"Forbidden connection"</strong> (no component in category A may connect directly to category B — e.g. Client/Frontend straight to Databases, your own stricter version of the built-in check above), and <strong>"Max count"</strong> (no more than N components from a given category — e.g. flag a diagram with more than one Load Balancer). Give each rule a short name, toggle it on/off without deleting it, or remove it entirely. Custom rules run alongside the built-in checks every time you open Check Diagram, and are saved in this browser (not part of the diagram's own JSON), so they apply across every project you open here.</p>
+    </section>
+
+    <section id="smart-assists">
+      <h2><span class="icon-badge">✨</span> Smart Assists &amp; Editing Conveniences</h2>
+      <p>A handful of small, automatic conveniences that quietly reduce busywork while you edit — none of them require any AI or internet connection:</p>
+      <ul>
+        <li><strong>Smart default connector labels</strong> — draw a connector between two components and, when the pairing is a common, recognizable one (a backend service to a database, a client to a load balancer, anything to a message queue, anything to a security/auth component...), a sensible label like "reads/writes" or "authenticates via" is filled in automatically. You can still edit or clear it like any other label — it's just a head start, and it only fills in when there's a confident match, otherwise it's left blank exactly like before.</li>
+        <li><strong>Smart duplicate naming</strong> — duplicate a single component (<kbd>Ctrl/Cmd</kbd>+<kbd>D</kbd>, or right-click → Duplicate) and its copy is automatically renamed with an incrementing number ("API Gateway" → "API Gateway 2" → "API Gateway 3"...) instead of leaving two identically-named components on the canvas. "Duplicate entire canvas" (mirroring the whole diagram) is unaffected — that's meant to read as the same diagram, so nothing there gets renamed.</li>
+        <li><strong>Fit to selection</strong> — the "⛶" zoom button in the toolbar now fits the view to whatever you currently have selected, when something is selected, instead of always fitting the entire diagram; its tooltip switches between "Fit to screen" and "Fit to selection" to match. Deselect (<kbd>Esc</kbd>) to go back to fitting everything.</li>
+      </ul>
+      <h3>🔎 Find &amp; Replace</h3>
+      <p>Open "🔎 Find &amp; Replace" (Tools menu, or Command Palette) to rename a term across every label and notes field on the canvas in one step — every component name, connector label, and notes field, both nodes and edges. Type your search term and see a live match count as you type; optionally match case or exclude notes fields. Click "Replace all" to apply everywhere at once as a single undoable step (<kbd>Ctrl/Cmd</kbd>+<kbd>Z</kbd> reverts it in one go).</p>
+      <div class="tip">🛡️ Your search term is always matched literally, even if it contains characters like <code>$</code>, <code>.</code>, or <code>*</code> that would normally have special meaning in a "find" pattern — it never behaves like a regular expression.</div>
+      <h3>📌 Pinnable toolbar actions</h3>
+      <p>Any action reachable from the Command Palette (<kbd>Ctrl/Cmd</kbd>+<kbd>K</kbd>) can be pinned as its own always-visible toolbar button, for whatever you use most and don't want to dig for. Open "📌 Manage Pinned Toolbar Actions" (Command Palette, or the "📌" button that appears once you've pinned at least one action) to check off actions to pin, reorder them with the ▲/▼ buttons, or unpin with ✕. Pinned actions appear as their own row just above the canvas tabs, and the row disappears entirely when nothing is pinned.</p>
     </section>
 
     <section id="generate-design">

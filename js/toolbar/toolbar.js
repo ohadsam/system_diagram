@@ -17,6 +17,7 @@ import { el, clear, rerenderPreservingUiState } from '../utils/dom.js';
 import {
   deleteSelection, duplicateSelection, groupSelection, ungroupSelection, selectionHasGroup, duplicateProjectAsNew,
   getSelectionScreenRect, autoArrangeAll, distributeSequenceDiagram, setFocusMode, setFlowSimulationEnabled,
+  resolveComponentDef,
 } from '../canvas/canvas.js';
 import { getBaseToolMode, setToolMode, onToolModeChange } from '../canvas/toolMode.js';
 import { onViewportChange, centerOn } from '../canvas/viewport.js';
@@ -63,11 +64,13 @@ import { openPresentationsModal } from '../modals/presentationsModal.js';
 import { openDiagramLintModal } from '../modals/diagramLintModal.js';
 import { openCommentsListModal } from '../modals/commentsListModal.js';
 import { openScaleDiagramModal } from '../modals/scaleDiagramModal.js';
+import { openFindReplaceModal } from '../modals/findReplaceModal.js';
 import { openDiagramThemeModal } from '../modals/diagramThemeModal.js';
 import { setMinimapVisible } from '../canvas/minimap.js';
 import { toggleOutlinePanel } from '../panel/outlinePanel.js';
 import { toggleAnimationPanel } from '../panel/animationPanel.js';
 import { initProjectTabsBar } from './projectTabsBar.js';
+import { initPinnedActionsBar } from './pinnedActionsBar.js';
 import { openAddTabModal } from '../modals/addTabModal.js';
 import { openCommandPaletteModal } from '../modals/commandPaletteModal.js';
 import { openCostBreakdownModal } from '../modals/costBreakdownModal.js';
@@ -84,6 +87,7 @@ import { toggleAiReviewPanel, openWithAutoSuggestions } from '../panel/aiReviewP
 import { toggleAiChatPanel } from '../panel/aiChatPanel.js';
 import { openCliSetupModal } from '../modals/cliSetupModal.js';
 import { initAutoSuggestWatcher } from '../io/autoSuggestWatcher.js';
+import { initLintWatcher } from '../io/lintWatcher.js';
 import { openGenerateDesignModal } from '../modals/generateDesignModal.js';
 import { openImportFromImageModal } from '../modals/importFromImageModal.js';
 import { openQuickStartModal } from '../modals/quickStartModal.js';
@@ -218,6 +222,12 @@ export function initToolbar(root) {
   // landed on top of the first-run tour's hint bubble.
   row1.appendChild(buildCanvasSearchGroup());
   root.appendChild(row1);
+
+  // Hidden (not just empty) until the user has pinned at least one action —
+  // see toolbar/pinnedActionsBar.js's own header comment.
+  const pinnedActionsRow = el('div', { class: 'toolbar-row toolbar-row-pinned', hidden: true });
+  root.appendChild(pinnedActionsRow);
+  initPinnedActionsBar(pinnedActionsRow);
 
   // Hidden (not just empty) until a second tab actually exists — see
   // toolbar/projectTabsBar.js's own header comment.
@@ -764,9 +774,34 @@ function buildToolsGroupButtons() {
     text: '📐 Scale Diagram',
     onClick: openScaleDiagramModal,
   });
+  const findReplaceBtn = el('button', {
+    type: 'button',
+    class: 'btn',
+    title: 'Find & Replace: rename a term across every component/connector label and notes field at once, in one undoable step',
+    text: '🔎 Find & Replace',
+    onClick: openFindReplaceModal,
+  });
+  const lintNudgeBadge = el('span', { class: 'toolbar-count-badge toolbar-lint-nudge-badge', hidden: true, title: 'A new issue was found — click to view' });
   const lintBtn = el('button', {
-    type: 'button', class: 'btn', title: 'Check Diagram: a few quick, offline structural checks (e.g. a client talking straight to a database, an unconnected component)', text: '🔍 Check Diagram',
-    onClick: openDiagramLintModal,
+    type: 'button', class: 'btn', title: 'Check Diagram: a few quick, offline structural checks (e.g. a client talking straight to a database, an unconnected component)', onClick: () => {
+      lintNudgeBadge.hidden = true;
+      openDiagramLintModal();
+    },
+  }, [el('span', { text: '🔍 Check Diagram' }), lintNudgeBadge]);
+  const lintNudgesBtn = el('button', {
+    type: 'button', class: `btn${getUiPrefs().proactiveLintNudges !== false ? ' active' : ''}`,
+    title: 'Diagram Nudges: get a quiet notification the moment "Check Diagram" would find something new, instead of only finding out when you open it yourself',
+    text: '🔔 Diagram Nudges',
+    onClick: () => {
+      const next = !lintNudgesBtn.classList.contains('active');
+      saveUiPrefs({ proactiveLintNudges: next });
+      lintNudgesBtn.classList.toggle('active', next);
+      if (!next) lintNudgeBadge.hidden = true;
+    },
+  });
+  initLintWatcher(resolveComponentDef, (finding, totalCount) => {
+    lintNudgeBadge.textContent = String(totalCount);
+    lintNudgeBadge.hidden = false;
   });
   const costBtn = el('button', {
     type: 'button', class: 'btn', title: 'Cost Breakdown: list every component with an estimated monthly cost (set per-component in its details panel) and the running total', text: '💰 Cost Breakdown',
@@ -861,8 +896,8 @@ function buildToolsGroupButtons() {
     [
       { packId: 'ai-tools', buttons: [aiReviewBtn, aiChatBtn, aiLayoutBtn] },
       { packId: 'collaboration', buttons: [collabBtn] },
-      { packId: 'analysis', buttons: [lintBtn, costBtn, describeBtn, interviewBtn, reviewStatusBtn] },
-      { packId: 'layout-tools', buttons: [autoArrangeBtn, distributeBtn, scaleBtn] },
+      { packId: 'analysis', buttons: [lintBtn, lintNudgesBtn, costBtn, describeBtn, interviewBtn, reviewStatusBtn] },
+      { packId: 'layout-tools', buttons: [autoArrangeBtn, distributeBtn, scaleBtn, findReplaceBtn] },
       { packId: 'visual-extras', buttons: [minimapBtn, focusModeBtn, diagramThemeBtn, presenterModeBtn, animationBtn, flowSimBtn, scene3dBtn] },
     ],
   );

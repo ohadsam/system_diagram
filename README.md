@@ -188,7 +188,14 @@ Or open `index.html` directly in a browser.
   Click a finding to jump straight to it. "⚙️ Manage Custom Rules" lets a
   team add its own parameterized checks — require a connection between two
   categories, forbid one, or cap how many of a category can appear —
-  evaluated alongside the built-in checks.
+  evaluated alongside the built-in checks. "🔔 Diagram Nudges" (on by
+  default) shows a quiet toolbar badge the moment a new finding would
+  appear, so you don't have to remember to open this yourself.
+- **🔎 Find & Replace** — renames a term across every component/connector
+  label and notes field in one undoable step.
+- **📌 Manage Pinned Toolbar Actions** (Ctrl/Cmd+K) — pin your most-used
+  actions (anything ⌘K can find) as always-visible toolbar buttons, in
+  whatever order you like.
 - **💬 Edit with AI** — the incremental sibling of Generate Design: describe
   a change in plain language, get a prompt (with the same one-click AI
   links) that embeds the current diagram, paste the reply back, and preview
@@ -440,6 +447,14 @@ Or open `index.html` directly in a browser.
   automatically, a returning visitor keeps everything they already had.
 - **Compact sidebar** — show just Favorites/Recently Used/My Components by
   default, with every category one click (or a search) away.
+- **Smart default connector labels** — a freshly-drawn connector guesses a
+  sensible label ("reads/writes", "routes to", "publishes to"/"delivers to")
+  from what its two ends actually are, instead of always starting blank.
+- **Smart duplicate naming** — duplicating a component auto-increments its
+  name ("Auth Service" → "Auth Service 2") instead of leaving an
+  identical-looking twin.
+- **Fit to selection** — the toolbar's "⛶" fit button fits just the current
+  selection once something is selected, not just the whole diagram.
 
 See [`help.html`](help.html) for the full interactive user guide.
 

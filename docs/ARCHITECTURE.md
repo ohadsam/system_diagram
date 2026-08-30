@@ -4455,6 +4455,103 @@ The final size is persisted on `pointerup` via `io/uiPrefs.js#aiChatWidth`
 var's own CSS default", so a visitor who's never resized the panel sees the exact
 same sizes as before this feature existed.
 
+## Automatic/proactive assists (`io/lintWatcher.js`, `core/smartEdgeLabels.js`, `core/duplicateNaming.js`, `core/findReplace.js`, `toolbar/pinnedActionsBar.js`, `modals/managePinnedActionsModal.js`, `modals/findReplaceModal.js`)
+
+Six small, independent conveniences, all following this app's "pure core + thin
+DOM layer" split so each has plain `node:test` coverage:
+
+- **Diagram Nudges** (`io/lintWatcher.js`) — a debounced (800ms, mirroring
+  `io/autoSuggestWatcher.js`'s pattern) `store` `'change'` watcher that reruns
+  `core/diagramLint.js#computeDiagramLint` in the background and lights a small
+  amber badge on the toolbar's "🔍 Check Diagram" button the first time a
+  *new* finding (one not already seen this session) appears — never opens
+  anything itself. `pickNewFinding(findings, seenIds)` is the pure decision
+  function (given today's findings and the set of finding-ids already shown,
+  return the one new finding to surface, or `null`); `initLintWatcher`
+  supplies the timer/store plumbing around it. Fully deterministic and
+  offline (no AI call), unlike the AI-suggestion watcher it's modeled on, so
+  it defaults to **on** (`io/uiPrefs.js#proactiveLintNudges`). The badge is
+  cleared as soon as the button is clicked, whether or not the modal is
+  actually opened afterward.
+- **Smart default edge labels** (`core/smartEdgeLabels.js`) — pure
+  `suggestEdgeLabel(fromDef, toDef)` looked up by `connectorInteractions.js`
+  each time a connector is completed; skipped for sequence-diagram message
+  edges (`isMessage`), and only fills the label when the user's own drag
+  didn't already produce one. Two rule tiers, checked in order: a small
+  name-pattern table for load-balancer/gateway/queue-shaped sources or
+  targets (name regexes take priority because "routes to"/"publishes to"
+  reads right regardless of what's on the *other* end), then a
+  `categoryId->categoryId` lookup table for common pairs (client→backend
+  "calls", backend→database "reads/writes", anything→security
+  "authenticates via", etc.). No confident match → label stays blank,
+  exactly like before this feature existed.
+
+  **Gotcha:** the load-balancer/gateway rule fires when the label's own verb
+  reads naturally from the matched side, which is *not* the same side for
+  every rule — "routes to" belongs to whichever endpoint *is* the gateway
+  (its own name matched), but "publishes to" belongs to the queue as the
+  *target*, so a message *arriving at* a name-matched queue gets "publishes
+  to" while one *leaving* a name-matched queue gets "delivers to". A first
+  pass wired both rules to fire off the same side and a unit test caught
+  `suggestEdgeLabel(service, queue)` returning "delivers to" instead of
+  "publishes to" — hence the rule table's explicit `whenFromMatches` vs.
+  `whenToMatches` fields rather than one implicit side.
+- **Smart duplicate naming** (`core/duplicateNaming.js`) — pure
+  `nextDuplicateName(baseName, existingNames)`: strips/reads a trailing
+  `" <number>"` off `baseName` if present, then finds the next free
+  `"<stem> <n>"` against the full existing-name set (handles gaps and
+  same-batch collisions). `canvas.js#duplicateSelection` now takes an
+  `{ renameDuplicates = true }` option and applies this per cloned node with
+  a non-empty name; `duplicateEntireCanvas` explicitly passes
+  `renameDuplicates: false` — a whole-canvas mirror is meant to read as the
+  same diagram, so renaming every node there would be wrong.
+- **Fit to selection** (`canvas.js#fitToSelection`, `toolbar/zoomControls.js`)
+  — the "⛶" toolbar button now fits the current selection's bounding box
+  (via the new `core/geometry.js#boundsOfBoxes(boxes)` pure helper — min/max
+  extent across a list of boxes, `null` for an empty list) when one or more
+  nodes are selected, falling back to today's fit-everything behavior
+  otherwise. `zoomControls.js` subscribes to `store.subscribe('selection',
+  ...)` to keep the button's `title`/`aria-label` in sync ("Fit to screen"
+  vs. "Fit to selection (N selected)"). `diagramLintModal.js`'s own
+  select-and-center helper was refactored onto the same `boundsOfBoxes`
+  helper rather than keeping its separate inline min/max math.
+- **Find & Replace** (`core/findReplace.js`, `modals/findReplaceModal.js`) —
+  `countMatches`/`applyReplace(nodes, edges, {find, replaceWith, matchCase,
+  includeNotes})` build an escaped-literal `RegExp` (`escapeRegExp`) so a
+  search term like `$5.00` is matched literally, not treated as a regex, then
+  scan/replace across every node's `text`/`notes` and every edge's
+  `label`/`notes`. The modal shows a live match count as you type and applies
+  everything in one `store.dispatch` (a single undo step).
+- **Pinnable toolbar actions** (`toolbar/pinnedActionsBar.js`,
+  `modals/managePinnedActionsModal.js`, `io/uiPrefs.js#pinnedActionIds`) —
+  lets a user promote any Command Palette action into an always-visible
+  toolbar button. `pinnedActionsBar.js#initPinnedActionsBar(container)`
+  renders one button per pinned id (looked up fresh each render via
+  `commandPaletteModal.js#buildAppCommands()`) plus a trailing "📌 Manage"
+  button, and hides its whole row (`container.hidden = true`) when nothing
+  is pinned; it re-renders on `io/uiPrefs.js#onUiPrefsChange`.
+
+  **Gotcha (circular import):** `commandPaletteModal.js` needs a "Manage
+  Pinned Actions..." entry, so it imports `managePinnedActionsModal.js` —
+  but `managePinnedActionsModal.js` also needs the full command list (to
+  search/pin from). Importing `buildAppCommands` back from
+  `commandPaletteModal.js` would create an import cycle, so instead
+  `openManagePinnedActionsModal(commands)` takes the command list as a
+  parameter; both real callers (`commandPaletteModal.js`'s own entry and
+  `pinnedActionsBar.js`'s "📌" button) each pass their own
+  `buildAppCommands()` result in. Same reasoning as the pre-existing
+  `connectorInteractions.js` → local `resolveDef` helper (rather than
+  importing `resolveComponentDef` back from `canvas.js`, which itself
+  imports `connectorInteractions.js`).
+
+  **Gotcha (focus loss):** an early draft of the modal's `render()`
+  re-rendered the *entire* body — including the search `<input>` — on every
+  keystroke, which destroys and recreates the input element and loses focus
+  after one character, a previously-documented pitfall in this repo. Fixed
+  by splitting into separate `renderPinned()`/`renderResults()` functions
+  that only touch their own result containers; the search `<input>` element
+  itself is created once and never torn down.
+
 ## Security notes
 
 - No `innerHTML` is ever fed unsanitized/user-provided strings; text

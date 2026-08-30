@@ -2147,6 +2147,38 @@ be positioned three ways: docked to the right (in-flow, like AI Design Review),
 pinned as a drawer along the bottom, or dragged anywhere on screen as a floating
 card — the last-used floating position is remembered.
 
+### 4.87 Automatic/proactive assists and editing conveniences
+A batch of small, deliberately unobtrusive additions:
+
+- **Smart default connector labels** — a freshly-drawn connector guesses a sensible
+  default label from what its two ends actually are (a curated category-pair table
+  plus a few name-based rules for gateways/queues, `core/smartEdgeLabels.js`), e.g.
+  "reads/writes" for a backend service into a database, "routes to" from a load
+  balancer, "publishes to"/"delivers to" around a queue depending on which side it's
+  on. Never overrides a label already set by the user; skipped for a sequence-diagram
+  message (those are read by their numbered badge, not a label).
+- **Smart duplicate naming** — duplicating a component auto-increments its name
+  ("Auth Service" → "Auth Service 2", `core/duplicateNaming.js`) instead of leaving
+  an identical-looking twin. `duplicateEntireCanvas` (a whole-canvas mirror) opts out,
+  since renaming every node there would just be noise.
+- **"Fit to selection"** — the toolbar's "⛶" fit button (`toolbar/zoomControls.js`)
+  fits just the current selection once something is selected
+  (`canvas.js#fitToSelection`), falling back to fitting the whole diagram otherwise.
+- **"🔎 Find & Replace"** (Tools menu, or Command Palette) — renames a term across
+  every component/connector label and notes field in one undoable step
+  (`core/findReplace.js`), with "match case" and "include notes" options and a live
+  match count before committing.
+- **"📌 Manage Pinned Toolbar Actions"** (Command Palette) — pin any action from the
+  Command Palette's own index (`commandPaletteModal.js#buildAppCommands`) as an
+  always-visible toolbar button, reorderable, via a second toolbar row
+  (`toolbar/pinnedActionsBar.js`) hidden until at least one action is pinned.
+- **"🔔 Diagram Nudges"** (Tools menu, on by default) — a quiet badge on the "🔍 Check
+  Diagram" toolbar button the moment a *new* finding appears (`io/lintWatcher.js`),
+  debounced the same way as the AI auto-suggest watcher but entirely deterministic —
+  no AI/API call, so it needs no configuration and stays on by default. Only ever
+  notifies once per newly-appeared finding per session; toggling it back on after
+  disabling doesn't retroactively flag whatever was already wrong.
+
 ## 7. Out of scope for v1 (ideas for later, see PLAN.md §7)
 
 Versioned history beyond in-session undo/redo (superseded by 4.17/4.63

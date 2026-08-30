@@ -2,9 +2,21 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.46.0';
+export const APP_VERSION = '1.47.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.47.0',
+    date: '2026-08-30',
+    highlights: [
+      'A new connector now guesses a sensible default label from what the two components actually are — "reads/writes" for a service into a database, "publishes to"/"delivers to" around a queue, "routes to" from a load balancer, and more — instead of always starting blank.',
+      'Duplicating a component now auto-increments its name ("Auth Service" → "Auth Service 2") instead of leaving an identical-looking twin next to the original.',
+      'The "⛶" zoom button now fits the current selection instead of the whole diagram once something is selected — handy once a diagram gets large and you only care about one subsystem right now.',
+      'New "🔎 Find & Replace" (Tools menu, or Ctrl/Cmd+K) — renames a term across every component/connector label and notes field in one undoable step, instead of clicking into each one by hand.',
+      'New "📌 Manage Pinned Toolbar Actions" (Ctrl/Cmd+K) — pin your most-used actions (anything ⌘K can already find) as always-visible toolbar buttons, in whatever order you like.',
+      'New "🔔 Diagram Nudges" (on by default, Tools menu) — a quiet toolbar badge the moment "🔍 Check Diagram" would find something new, instead of only finding out once you remember to open it yourself.',
+    ],
+  },
   {
     version: '1.46.0',
     date: '2026-08-29',

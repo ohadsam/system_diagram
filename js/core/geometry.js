@@ -176,3 +176,17 @@ export function snap(value, gridSize) {
   if (!gridSize) return value;
   return Math.round(value / gridSize) * gridSize;
 }
+
+/** Smallest {x,y,w,h} box covering every box in `boxes` (each a plain
+ * {x,y,w,h}, e.g. a node) — null for an empty list. Pulled out as a shared
+ * pure helper since the same min/max-of-nodes math was previously
+ * duplicated ad hoc wherever something needed to fit/center on a selection
+ * (see canvas/canvas.js#fitToSelection and modals/diagramLintModal.js). */
+export function boundsOfBoxes(boxes) {
+  if (!boxes.length) return null;
+  const minX = Math.min(...boxes.map((b) => b.x));
+  const minY = Math.min(...boxes.map((b) => b.y));
+  const maxX = Math.max(...boxes.map((b) => b.x + b.w));
+  const maxY = Math.max(...boxes.map((b) => b.y + b.h));
+  return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+}
