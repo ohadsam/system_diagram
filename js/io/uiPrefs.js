@@ -75,6 +75,13 @@ export const DEFAULT_UI_PREFS = {
   // Empty by default so nobody sees this row until they explicitly pin
   // something themselves.
   pinnedActionIds: [],
+  // toolbar.js's Tools dropdown — packIds (core/featureLevels.js#FEATURE_PACKS)
+  // whose section is currently collapsed there. Scoped to the Tools dropdown
+  // only (its File/Create siblings' labeled sections stay plain, non-
+  // clickable headers) since Tools is this app's one dropdown long enough
+  // (24+ buttons across 5 sections) for collapsing to matter. Empty by
+  // default — every section starts expanded, same as before this existed.
+  collapsedToolsSections: [],
 };
 
 export function getUiPrefs() {
@@ -94,6 +101,7 @@ export function getUiPrefs() {
     aiChatFloatingHeight: typeof stored.aiChatFloatingHeight === 'number' ? stored.aiChatFloatingHeight : null,
     proactiveLintNudges: typeof stored.proactiveLintNudges === 'boolean' ? stored.proactiveLintNudges : DEFAULT_UI_PREFS.proactiveLintNudges,
     pinnedActionIds: Array.isArray(stored.pinnedActionIds) ? stored.pinnedActionIds.filter((id) => typeof id === 'string') : DEFAULT_UI_PREFS.pinnedActionIds,
+    collapsedToolsSections: Array.isArray(stored.collapsedToolsSections) ? stored.collapsedToolsSections.filter((id) => typeof id === 'string') : DEFAULT_UI_PREFS.collapsedToolsSections,
   };
 }
 

@@ -92,7 +92,7 @@ test('AI Design Review shows a "⚡ Send directly" button only once Direct mode 
   await page.locator('.default-settings-modal button', { hasText: 'Cancel' }).click();
 
   await openToolbarGroup(page, 'Tools');
-  await page.locator('#toolbar button[title="AI Design Review"]').click();
+  await page.locator('#toolbar button', { hasText: '🤖 AI Design Review' }).click();
   await expect(page.locator('#ai-review-panel')).toHaveClass(/open/);
 
   const directBtn = page.locator('.ai-provider-direct-btn', { hasText: 'Send directly' });
@@ -118,7 +118,7 @@ test('a failed direct call shows an error toast and leaves the hand-off button u
   await page.locator('.default-settings-modal button', { hasText: 'Cancel' }).click();
 
   await openToolbarGroup(page, 'Tools');
-  await page.locator('#toolbar button[title="AI Design Review"]').click();
+  await page.locator('#toolbar button', { hasText: '🤖 AI Design Review' }).click();
 
   await page.route('https://api.anthropic.com/v1/messages', (route) => route.fulfill({
     status: 401,

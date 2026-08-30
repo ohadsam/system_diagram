@@ -150,18 +150,55 @@ const EDGE_MARGIN = 8;
  * pack's buttons ever lose the live subscriptions/badges they set up when
  * first created. A section with an empty `buttons` array is skipped
  * outright (a pack that contributed nothing to this particular panel).
+ *
+ * Only the `'tools'` dropdown's sections get a clickable, collapsible
+ * label (persisted per-packId in `io/uiPrefs.js#collapsedToolsSections`) —
+ * File and Create's own sections stay plain, non-interactive headers, since
+ * Tools is the one dropdown long enough (5 sections, 24+ buttons) for
+ * collapsing to actually help. The buttons themselves always live in a
+ * separate inner `.toolbar-dropdown-section-body` wrapper so collapsing
+ * only hides *that*, never the label — matches
+ * `toolbarDropdown.js#filterDropdownPanel`'s expectation of finding one.
+ * @param {string} dropdownId 'file' | 'create' | 'tools' — gates whether
+ *   this panel's sections get the collapsible-label treatment
  * @param {HTMLElement[]} coreButtons
  * @param {{packId: string, buttons: HTMLElement[]}[]} packSections
  */
-function buildGatedButtonList(coreButtons, packSections) {
+function buildGatedButtonList(dropdownId, coreButtons, packSections) {
   const prefs = getFeatureLevelPrefs();
+  const collapsed = new Set(getUiPrefs().collapsedToolsSections);
   const out = [...coreButtons];
   for (const { packId, buttons } of packSections) {
     if (!buttons.length) continue;
     const pack = FEATURE_PACKS.find((p) => p.id === packId);
     const section = el('div', { class: 'toolbar-dropdown-pack-section', 'data-pack-id': packId, hidden: !isPackEnabled(prefs, packId) });
-    section.appendChild(el('div', { class: 'toolbar-dropdown-section-label', text: `${pack.icon} ${pack.label}`, title: pack.description }));
-    for (const b of buttons) section.appendChild(b);
+    const body = el('div', { class: 'toolbar-dropdown-section-body' });
+    for (const b of buttons) body.appendChild(b);
+    if (dropdownId === 'tools') {
+      const startCollapsed = collapsed.has(packId);
+      body.classList.toggle('collapsed', startCollapsed);
+      const chevron = el('span', { class: 'toolbar-dropdown-section-chevron', text: startCollapsed ? '▸' : '▾', 'aria-hidden': 'true' });
+      const labelBtn = el('button', {
+        type: 'button',
+        class: 'toolbar-dropdown-section-label toolbar-dropdown-section-toggle',
+        title: `${pack.description} Click to ${startCollapsed ? 'expand' : 'collapse'}.`,
+        'aria-expanded': String(!startCollapsed),
+        onClick: () => {
+          const next = !body.classList.contains('collapsed');
+          body.classList.toggle('collapsed', next);
+          labelBtn.setAttribute('aria-expanded', String(!next));
+          labelBtn.title = `${pack.description} Click to ${next ? 'expand' : 'collapse'}.`;
+          chevron.textContent = next ? '▸' : '▾';
+          const current = new Set(getUiPrefs().collapsedToolsSections);
+          if (next) current.add(packId); else current.delete(packId);
+          saveUiPrefs({ collapsedToolsSections: [...current] });
+        },
+      }, [chevron, el('span', { text: `${pack.icon} ${pack.label}` })]);
+      section.appendChild(labelBtn);
+    } else {
+      section.appendChild(el('div', { class: 'toolbar-dropdown-section-label', text: `${pack.icon} ${pack.label}`, title: pack.description }));
+    }
+    section.appendChild(body);
     out.push(section);
   }
   return out;
@@ -195,7 +232,7 @@ export function initToolbar(root) {
   const spacer = el('div', { class: 'toolbar-spacer' });
   row1.appendChild(spacer);
   row1.appendChild(renderZoomControls());
-  const toolsDropdown = buildToolbarDropdown(t('toolbar.tools'), '🛠️', t('toolbar.tools.title'), buildToolsGroupButtons());
+  const toolsDropdown = buildToolbarDropdown(t('toolbar.tools'), '🛠️', t('toolbar.tools.title'), buildToolsGroupButtons(), { searchable: true });
   row1.appendChild(toolsDropdown);
   row1.appendChild(buildToolbarDropdown(t('toolbar.help'), '❓', t('toolbar.help.title'), buildHelpGroupButtons()));
   // Every pack's buttons are always built (see buildGatedButtonList) —
@@ -538,6 +575,7 @@ function buildFileGroupButtons() {
   // navigation, less-common export formats, versioning/history, backups —
   // and lives behind the 'advanced-io' pack (see core/featureLevels.js).
   return buildGatedButtonList(
+    'file',
     [newBtn, saveAsBtn, loadBtn, duplicateProjectBtn, exportJsonBtn, importJsonBtn, pngBtn, pdfBtn],
     [{ packId: 'advanced-io', buttons: [globalSearchBtn, addTabBtn, importUrlBtn, systemMapBtn, exportPosterBtn, svgBtn, exportDiagramBtn, shareBtn, versionHistoryBtn, historyTimelineBtn, presentationsBtn, backupBtn] }],
   );
@@ -594,6 +632,7 @@ function buildCreateGroupButtons() {
   // (sequence diagrams, C4, Replicate, Mermaid/SQL import) live behind
   // packs — see core/featureLevels.js.
   return buildGatedButtonList(
+    'create',
     [newComponentBtn, quickStartBtn, generateDesignBtn, templateGalleryBtn, demoProjectsBtn, defaultsBtn],
     [
       { packId: 'ai-tools', buttons: [importFromImageBtn, aiEditBtn, aiConversationBtn] },
@@ -691,7 +730,7 @@ function buildToolsGroupButtons() {
   const autoSuggestBadge = el('span', { class: 'toolbar-count-badge toolbar-auto-suggest-badge', hidden: true, title: 'New AI suggestions ready — click to view' });
   let pendingAutoSuggestFindings = null;
   const aiReviewBtn = el('button', {
-    type: 'button', class: 'btn', title: 'AI Design Review', onClick: () => {
+    type: 'button', class: 'btn', title: 'AI Design Review: get an AI critique of this diagram — review, explain, suggestions, or a security-focused pass', onClick: () => {
       if (pendingAutoSuggestFindings) {
         const findings = pendingAutoSuggestFindings;
         pendingAutoSuggestFindings = null;
@@ -892,6 +931,7 @@ function buildToolsGroupButtons() {
   // Basic-mode user able to create comments but not find them again).
   // Everything else groups into a pack — see core/featureLevels.js.
   return buildGatedButtonList(
+    'tools',
     [gridBtn, alignGuidesBtn, themeBtn, languageBtn, outlineBtn, commentsBtn],
     [
       { packId: 'ai-tools', buttons: [aiReviewBtn, aiChatBtn, aiLayoutBtn] },

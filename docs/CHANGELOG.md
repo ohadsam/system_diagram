@@ -110,6 +110,24 @@ Keep this in sync with `PLAN.md` as stages complete.
   field (with autocomplete) on custom components, grouping them into
   collapsible 📁 sub-groups in the sidebar.
 
+## v1.48.0 (2026-08-30)
+
+- **Tools dropdown search** — a "Search actions..." box at the top of the Tools menu
+  live-filters its 24+ buttons by name/tooltip as you type (`toolbar/toolbarDropdown.js`'s
+  new `filterDropdownPanel`, opt-in `searchable: true` — only the Tools dropdown uses
+  it). A whole section (label included) disappears once nothing in it matches; clears
+  and refocuses every time the menu reopens.
+- **Collapsible Tools sections** — every labeled section in the Tools dropdown (AI
+  Tools, Collaboration, Analysis & QA, Layout Tools, Visual & Presentation) now has a
+  clickable ▾/▸ header that hides/shows its buttons, persisted per-section across
+  reopening the menu and reloading the page (`io/uiPrefs.js#collapsedToolsSections`,
+  `toolbar.js#buildGatedButtonList`). A search match inside a collapsed section still
+  surfaces it, without touching the saved collapse choice. File and Create's own
+  section headers are unchanged (Tools is the one dropdown long enough to need this).
+- **Tooltip audit** — "🤖 AI Design Review" was the one Tools-dropdown button whose
+  tooltip was just its own name with no explanation; it now reads like every other
+  button's does.
+
 ## v1.47.0 (2026-08-30)
 
 **Six small "ease the user" additions** — automatic/proactive assists plus a

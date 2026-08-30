@@ -2,9 +2,18 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.47.0';
+export const APP_VERSION = '1.48.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.48.0',
+    date: '2026-08-30',
+    highlights: [
+      'The Tools menu (Tools ▾) now has a "Search actions..." box at the top — start typing to filter its 24+ buttons down to just what matches.',
+      'Every section in the Tools menu (AI Tools, Analysis & QA, Layout Tools, ...) can now be collapsed with a click on its header, and stays collapsed the next time you open the menu.',
+      'Filled in the one toolbar tooltip that was missing a real explanation ("🤖 AI Design Review" now says what it actually does).',
+    ],
+  },
   {
     version: '1.47.0',
     date: '2026-08-30',

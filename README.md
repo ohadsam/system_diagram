@@ -196,6 +196,9 @@ Or open `index.html` directly in a browser.
 - **📌 Manage Pinned Toolbar Actions** (Ctrl/Cmd+K) — pin your most-used
   actions (anything ⌘K can find) as always-visible toolbar buttons, in
   whatever order you like.
+- The **Tools menu** has a "Search actions..." box to filter its many
+  buttons as you type, and every section header (AI Tools, Analysis & QA,
+  ...) collapses/expands with a click, remembered the next time you open it.
 - **💬 Edit with AI** — the incremental sibling of Generate Design: describe
   a change in plain language, get a prompt (with the same one-click AI
   links) that embeds the current diagram, paste the reply back, and preview

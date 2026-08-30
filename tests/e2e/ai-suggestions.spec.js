@@ -24,7 +24,7 @@ async function enableDirectMode(page) {
 
 async function openAiReviewPanel(page) {
   await openToolbarGroup(page, 'Tools');
-  await page.locator('#toolbar button[title="AI Design Review"]').click();
+  await page.locator('#toolbar button', { hasText: '🤖 AI Design Review' }).click();
   await expect(page.locator('#ai-review-panel')).toHaveClass(/open/);
 }
 

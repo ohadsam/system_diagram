@@ -76,7 +76,7 @@ test('switching to Local AI mode shows a "Send to Local AI" button in AI Design 
   await page.locator('.default-settings-modal button', { hasText: 'Cancel' }).click();
 
   await openToolbarGroup(page, 'Tools');
-  await page.locator('#toolbar button[title="AI Design Review"]').click();
+  await page.locator('#toolbar button', { hasText: '🤖 AI Design Review' }).click();
   await expect(page.locator('#ai-review-panel')).toHaveClass(/open/);
 
   const localBtn = page.locator('.ai-provider-direct-btn', { hasText: 'Send to Local AI' });
@@ -98,7 +98,7 @@ test('a picked local model shows up in the "Send to Local AI" button label', asy
   await page.locator('.default-settings-modal button', { hasText: 'Cancel' }).click();
 
   await openToolbarGroup(page, 'Tools');
-  await page.locator('#toolbar button[title="AI Design Review"]').click();
+  await page.locator('#toolbar button', { hasText: '🤖 AI Design Review' }).click();
   await expect(page.locator('.ai-provider-direct-btn', { hasText: 'Send to Local AI (Qwen2.5 1.5B)' })).toHaveCount(1);
 });
 
@@ -112,7 +112,7 @@ test('clicking "Send to Local AI" on a WebGPU-unsupported browser fails fast wit
   await page.locator('.default-settings-modal button', { hasText: 'Cancel' }).click();
 
   await openToolbarGroup(page, 'Tools');
-  await page.locator('#toolbar button[title="AI Design Review"]').click();
+  await page.locator('#toolbar button', { hasText: '🤖 AI Design Review' }).click();
 
   await page.locator('.ai-provider-direct-btn', { hasText: 'Send to Local AI' }).click();
   await expect(page.locator('.toast-error', { hasText: 'WebGPU' })).toBeVisible();

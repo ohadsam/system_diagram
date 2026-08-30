@@ -4552,6 +4552,66 @@ DOM layer" split so each has plain `node:test` coverage:
   that only touch their own result containers; the search `<input>` element
   itself is created once and never torn down.
 
+## Tools dropdown: search, collapsible sections (`toolbar/toolbarDropdown.js`, `toolbar.js#buildGatedButtonList`)
+
+Three small additions scoped deliberately to the Tools dropdown — this app's
+longest, at 5 labeled sections and 24+ buttons — rather than made a blanket
+default across File/Create/Help too, since neither of those needs the extra
+chrome:
+
+- **Search** (`buildToolbarDropdown`'s opt-in `{ searchable: true }`, only
+  passed at the Tools call site) prepends a `<input type="search">` plus a
+  `.toolbar-dropdown-no-results` message to the panel.
+  `filterDropdownPanel(panel, noResultsEl, query)` runs on every keystroke:
+  it toggles `.search-hidden` on individual buttons whose text+title don't
+  match, and on a whole `.toolbar-dropdown-pack-section` once none of its
+  own buttons match (its label disappears with it). A pack section already
+  `[hidden]` from feature-level gating stays hidden regardless — search only
+  ever adds an *additional* reason to hide, never removes the real one.
+  Resets (`value = ''`, re-filter, refocus) every time the dropdown opens, so
+  a stale query never survives a close/reopen.
+- **Collapsible sections** — `buildGatedButtonList` now takes a `dropdownId`
+  first argument (`'file' | 'create' | 'tools'`); only `'tools'` turns each
+  section's `.toolbar-dropdown-section-label` into a real `<button>`
+  (`.toolbar-dropdown-section-toggle`) with a ▾/▸ chevron, toggling a
+  `.collapsed` class on a new `.toolbar-dropdown-section-body` wrapper
+  around that section's buttons — the label itself stays visible either way.
+  Persisted per-packId in `io/uiPrefs.js#collapsedToolsSections`. File and
+  Create's sections keep the old plain, non-interactive `<div>` label.
+
+  **Gotcha (search + collapse composition):** a section the user collapsed
+  needs its buttons to still surface when a search matches one — but
+  `filterDropdownPanel` must never *persist* that temporary visibility as a
+  real un-collapse, or the user's actual choice would silently reset the
+  next time they clear the search box. Solved with two independent CSS
+  classes on the same `.toolbar-dropdown-section-body`: `.collapsed`
+  (the real, persisted state, toggled only by clicking the label) and
+  `.search-force-open` (toggled only by `filterDropdownPanel`, purely
+  display, re-derived from scratch on every keystroke). `.collapsed.search-
+  force-open` wins via CSS specificity over `.collapsed` alone — see
+  `css/toolbar.css`.
+
+  **Gotcha (DOM restructuring broke vertical stacking):** moving each
+  section's buttons one level deeper — from being direct children of
+  `.toolbar-dropdown-pack-section` (`display: flex; flex-direction: column`)
+  into the new `.toolbar-dropdown-section-body` wrapper — silently broke
+  their layout the first time this was built: `.toolbar-dropdown-panel .btn`'s
+  own `width: 100%` rule did nothing useful once the immediate parent was a
+  plain block `<div>`, so the buttons (each `display: inline-flex` via
+  `.btn`) flowed side-by-side instead of stacking, visibly overflowing the
+  panel off the right edge of the screen. A visual-review screenshot with a
+  live search filtering that section is what caught it — the collapsed-
+  and-reopened static screenshot looked fine since the panel was narrow with
+  only one button per row at rest, and it only became obvious once two
+  differently-sized buttons ended up in the same forced-open row. Fixed by
+  giving `.toolbar-dropdown-section-body` the same `display: flex;
+  flex-direction: column` its former direct parent had.
+- **Tooltip completeness** — every Tools-dropdown button already had a
+  descriptive `title` before this batch (see the file's own header comment:
+  "EVERY button... must set a clear title") except `aiReviewBtn`, whose
+  title was just `'AI Design Review'` with no explanation of what clicking
+  it does — brought in line with the rest.
+
 ## Security notes
 
 - No `innerHTML` is ever fed unsanitized/user-provided strings; text

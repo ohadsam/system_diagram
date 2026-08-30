@@ -51,6 +51,42 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeOpenPanel();
 });
 
+/** Live-filters a searchable dropdown panel's buttons by visible text/title.
+ * Individual `<button>`s get a `.search-hidden` class; a whole
+ * `.toolbar-dropdown-pack-section` gets it too once none of its own buttons
+ * match, so its label disappears along with them. A pack section already
+ * hidden by feature-level gating (`[hidden]`) stays hidden regardless — this
+ * only ever adds an *additional* reason to hide, never removes the real one.
+ * A collapsed section's `.toolbar-dropdown-section-body` is force-opened
+ * (`.search-force-open`, see css/toolbar.css) while it has a live match, so
+ * a search can surface a result the user collapsed earlier, without
+ * touching — and later losing — their actual persisted collapse choice. */
+function filterDropdownPanel(panel, noResultsEl, query) {
+  const q = query.trim().toLowerCase();
+  const matchText = (btn) => `${btn.textContent} ${btn.title || ''}`.toLowerCase().includes(q);
+  let anyVisible = false;
+  for (const child of panel.children) {
+    if (child.tagName !== 'BUTTON' || child.classList.contains('toolbar-dropdown-section-toggle')) continue;
+    const match = !q || matchText(child);
+    child.classList.toggle('search-hidden', !match);
+    if (match) anyVisible = true;
+  }
+  panel.querySelectorAll('.toolbar-dropdown-pack-section').forEach((section) => {
+    const body = section.querySelector('.toolbar-dropdown-section-body');
+    const sectionButtons = body ? body.querySelectorAll('button') : [];
+    let sectionMatch = false;
+    sectionButtons.forEach((btn) => {
+      const match = !q || matchText(btn);
+      btn.classList.toggle('search-hidden', !match);
+      if (match) sectionMatch = true;
+    });
+    section.classList.toggle('search-hidden', !!q && !sectionMatch);
+    if (body) body.classList.toggle('search-force-open', !!q && sectionMatch);
+    if (sectionMatch && !section.hidden) anyVisible = true;
+  });
+  if (noResultsEl) noResultsEl.hidden = !q || anyVisible;
+}
+
 /**
  * @param {string} label visible text on the trigger button
  * @param {string} icon a single emoji shown before the label
@@ -59,14 +95,43 @@ document.addEventListener('keydown', (e) => {
  *   optionally `.toolbar-dropdown-section-label` header divs, or a
  *   `.toolbar-dropdown-pack-section` wrapper — see toolbar.js's
  *   `buildGatedButtonList`) to show in the panel
+ * @param {{searchable?: boolean}} [opts] `searchable: true` prepends a
+ *   "Search actions..." box that live-filters `buttons` — opt-in per
+ *   dropdown rather than a blanket default, since it's only worth the
+ *   extra chrome on this app's longest dropdown (Tools); see toolbar.js's
+ *   `initToolbar`.
  */
-export function buildToolbarDropdown(label, icon, title, buttons) {
+export function buildToolbarDropdown(label, icon, title, buttons, opts = {}) {
+  const { searchable = false } = opts;
   const root = el('div', { class: 'toolbar-dropdown' });
   const panel = el('div', { class: 'toolbar-dropdown-panel', role: 'menu', hidden: true });
+  let searchInput = null;
+  let noResultsEl = null;
+  if (searchable) {
+    searchInput = el('input', {
+      type: 'search',
+      class: 'toolbar-dropdown-search',
+      placeholder: 'Search actions...',
+      'aria-label': `Search ${label} actions`,
+      onInput: (e) => filterDropdownPanel(panel, noResultsEl, e.target.value),
+      // A plain <input> isn't a <button>, so the panel's own "close on
+      // button click" listener below never fires for it — this just stops
+      // the click from being treated as "outside the panel" by the
+      // document-level pointerdown-closes-open-panel listener above, were
+      // it ever attached higher up than `root`.
+      onClick: (e) => e.stopPropagation(),
+    });
+    noResultsEl = el('div', { class: 'toolbar-dropdown-no-results', text: 'No matching actions.', hidden: true });
+    panel.appendChild(searchInput);
+    panel.appendChild(noResultsEl);
+  }
   for (const b of buttons) panel.appendChild(b);
   // Close the panel once one of its own buttons has been used, so it
-  // doesn't sit open over the canvas after the action already ran.
+  // doesn't sit open over the canvas after the action already ran — except
+  // a section-collapse toggle (`.toolbar-dropdown-section-toggle`), which a
+  // user very plausibly clicks several times in a row while browsing.
   panel.addEventListener('click', (e) => {
+    if (e.target.closest('.toolbar-dropdown-section-toggle')) return;
     if (e.target.closest('button')) closeOpenPanel();
   });
 
@@ -108,10 +173,15 @@ export function buildToolbarDropdown(label, icon, title, buttons) {
         const willOpen = panel.hidden;
         closeOpenPanel();
         if (!willOpen) return;
+        if (searchInput) {
+          searchInput.value = '';
+          filterDropdownPanel(panel, noResultsEl, '');
+        }
         panel.hidden = false;
         trigger.setAttribute('aria-expanded', 'true');
         trigger.classList.add('active');
         positionPanel();
+        if (searchInput) requestAnimationFrame(() => searchInput.focus());
         openPanel = {
           root,
           close: () => {

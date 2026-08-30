@@ -74,7 +74,7 @@ test('"Clear canvas" on an already-empty canvas shows an info toast and skips th
 test('the AI Design Review panel opens, builds a prompt from the diagram, and accepts a spec attachment', async ({ page }) => {
   await addComponentByName(page, 'PostgreSQL');
   await openToolbarGroup(page, 'Tools');
-  await page.locator('#toolbar button[title="AI Design Review"]').click();
+  await page.locator('#toolbar button', { hasText: '🤖 AI Design Review' }).click();
   await expect(page.locator('#ai-review-panel')).toHaveClass(/open/);
 
   const prompt = page.locator('.ai-review-prompt');
@@ -93,7 +93,7 @@ test('the AI Design Review panel opens, builds a prompt from the diagram, and ac
 test('switching the AI panel from "Review" to "Explain" swaps the auto-generated prompt', async ({ page }) => {
   await addComponentByName(page, 'PostgreSQL');
   await openToolbarGroup(page, 'Tools');
-  await page.locator('#toolbar button[title="AI Design Review"]').click();
+  await page.locator('#toolbar button', { hasText: '🤖 AI Design Review' }).click();
 
   const prompt = page.locator('.ai-review-prompt');
   await expect(prompt).toHaveValue(/senior system design reviewer/);
@@ -115,7 +115,7 @@ test('the AI Design Review prompt asks sequence-diagram-specific questions when 
   await expect.poll(() => nodeCount(page)).toBe(2);
 
   await openToolbarGroup(page, 'Tools');
-  await page.locator('#toolbar button[title="AI Design Review"]').click();
+  await page.locator('#toolbar button', { hasText: '🤖 AI Design Review' }).click();
   const prompt = page.locator('.ai-review-prompt');
   await expect(prompt).toHaveValue(/sequence\/communication-flow diagram/);
   await expect(prompt).toHaveValue(/call order/);
@@ -124,7 +124,7 @@ test('the AI Design Review prompt asks sequence-diagram-specific questions when 
 test('pasting an AI response back into the panel saves it for the session with copy/remove controls', async ({ page }) => {
   await addComponentByName(page, 'Kafka');
   await openToolbarGroup(page, 'Tools');
-  await page.locator('#toolbar button[title="AI Design Review"]').click();
+  await page.locator('#toolbar button', { hasText: '🤖 AI Design Review' }).click();
 
   await page.locator('.ai-review-response').fill('Consider adding a dead-letter queue.');
   await page.locator('.ai-review-pasteback button', { hasText: 'Save to this session' }).click();
@@ -139,7 +139,7 @@ test('pasting an AI response back into the panel saves it for the session with c
 test('switching to a genuinely different project resets the AI review panel\'s scratch state', async ({ page }) => {
   await addComponentByName(page, 'Kafka');
   await openToolbarGroup(page, 'Tools');
-  await page.locator('#toolbar button[title="AI Design Review"]').click();
+  await page.locator('#toolbar button', { hasText: '🤖 AI Design Review' }).click();
   await page.locator('.ai-review-response').fill('Old response for the old project.');
   await page.locator('.ai-review-pasteback button', { hasText: 'Save to this session' }).click();
   await expect(page.locator('.ai-review-saved-card')).toHaveCount(1);

@@ -72,7 +72,7 @@ test('after enough component adds with Auto-suggest on, a badge appears and open
   const badge = page.locator('.toolbar-auto-suggest-badge');
   await expect(badge).toBeVisible({ timeout: 5000 });
 
-  await page.locator('#toolbar button[title="AI Design Review"]').click();
+  await page.locator('#toolbar button', { hasText: '🤖 AI Design Review' }).click();
   await expect(page.locator('#ai-review-panel')).toHaveClass(/open/);
   await expect(page.locator('.ai-review-mode-toggle button.btn-primary')).toHaveText('💡 Suggestions');
   await expect(page.locator('.ai-suggestion-title', { hasText: 'Redis Cache' })).toBeVisible();

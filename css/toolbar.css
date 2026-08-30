@@ -419,6 +419,70 @@
   margin-top: 0;
 }
 
+/* toolbar/toolbarDropdown.js's opt-in "Search actions..." box (only the
+   Tools dropdown passes `searchable: true` — this app's one dropdown long
+   enough, 24+ buttons, for a search box to earn its own row). */
+.toolbar-dropdown-search {
+  width: 100%;
+  margin-bottom: 4px;
+}
+
+.toolbar-dropdown-no-results {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  padding: var(--space-2);
+  text-align: center;
+}
+
+.toolbar-dropdown-panel .search-hidden {
+  display: none;
+}
+
+/* toolbar.js's `buildGatedButtonList` — only the Tools dropdown's section
+   labels are a real `<button>` (clickable to collapse/expand); File/Create
+   keep the plain, non-interactive `<div>` label from before this existed. */
+.toolbar-dropdown-section-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.toolbar-dropdown-section-chevron {
+  font-size: 9px;
+  width: 9px;
+  flex: 0 0 auto;
+}
+
+/* Buttons used to be direct flex children of `.toolbar-dropdown-pack-section`
+   itself (`display: flex; flex-direction: column` above) — now that they
+   live one level deeper, in this wrapper, it needs that same layout
+   repeated here, or each `.btn`'s own `width: 100%` does nothing useful
+   inside a plain block `<div>` and buttons wrap side-by-side instead of
+   stacking. */
+.toolbar-dropdown-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.toolbar-dropdown-section-body.collapsed {
+  display: none;
+}
+
+/* A live search match inside a collapsed section still needs to be seen —
+   overrides the rule above without touching the section's actual persisted
+   collapse state (toolbarDropdown.js#filterDropdownPanel only ever toggles
+   this class, never `.collapsed` itself). */
+.toolbar-dropdown-section-body.collapsed.search-force-open {
+  display: flex;
+}
+
 .toolbar-selection-count {
   align-self: center;
   font-size: 12px;

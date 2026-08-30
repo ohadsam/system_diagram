@@ -2179,6 +2179,29 @@ A batch of small, deliberately unobtrusive additions:
   notifies once per newly-appeared finding per session; toggling it back on after
   disabling doesn't retroactively flag whatever was already wrong.
 
+### 4.88 Tools dropdown: search, collapsible sections, tooltip audit
+Three usability additions scoped to the Tools dropdown specifically — this app's
+longest (5 labeled sections, 24+ buttons):
+
+- **Search** — a "Search actions..." box (`toolbar/toolbarDropdown.js`'s opt-in
+  `searchable: true`) live-filters the panel's buttons by their visible text and
+  title as you type. A whole section disappears (label included) once none of its
+  buttons match; a section the user has collapsed still surfaces a match inside it
+  (force-opened for display only, its persisted collapse choice untouched). Clears
+  itself and refocuses every time the dropdown reopens. Shows "No matching actions."
+  when nothing matches.
+- **Collapsible sections** — each of the Tools dropdown's 5 labeled section headers
+  (`toolbar.js#buildGatedButtonList`) is now a clickable toggle with a ▾/▸ chevron;
+  collapsing hides that section's buttons (not its label) and persists per-section
+  (`io/uiPrefs.js#collapsedToolsSections`) across reopening the dropdown and reloading
+  the page. File and Create's own labeled sections are unaffected — plain, non-
+  interactive headers, since neither dropdown is long enough for collapsing to help.
+- **Tooltip completeness** — every Tools-dropdown button already carried a
+  descriptive `title` before this batch except "🤖 AI Design Review" (just its own
+  name, no explanation), fixed here to match the rest ("AI Design Review: get an AI
+  critique of this diagram — review, explain, suggestions, or a security-focused
+  pass").
+
 ## 7. Out of scope for v1 (ideas for later, see PLAN.md §7)
 
 Versioned history beyond in-session undo/redo (superseded by 4.17/4.63

@@ -204,6 +204,7 @@ this repo" quick-start.
 | Change smart duplicate naming | `js/core/duplicateNaming.js#nextDuplicateName(baseName, existingNames)` (pure) + `js/canvas/canvas.js#duplicateSelection({ renameDuplicates = true })` — `duplicateEntireCanvas` passes `renameDuplicates: false` since a whole-canvas mirror shouldn't rename every node. |
 | Change "Fit to selection" / the "⛶" zoom button | `js/canvas/canvas.js#fitToSelection` + `js/core/geometry.js#boundsOfBoxes(boxes)` (pure min/max-extent helper, also used by `modals/diagramLintModal.js`'s select-and-center) + `js/toolbar/zoomControls.js` (branches on `store.getSelection().nodeIds.length`, keeps the button's title in sync via a `'selection'` store subscription) |
 | Change Find & Replace | `js/core/findReplace.js` (`countMatches`/`applyReplace(nodes, edges, {find, replaceWith, matchCase, includeNotes})` — builds an escaped-literal `RegExp` so special characters in the search term are treated literally) + `js/modals/findReplaceModal.js` (live match count, applies in one `store.dispatch`) |
+| Change the Tools dropdown's search box or collapsible sections | `js/toolbar/toolbarDropdown.js#buildToolbarDropdown`'s `{ searchable: true }` option (only passed for Tools — `filterDropdownPanel` does the live filtering) + `js/toolbar/toolbar.js#buildGatedButtonList`'s `dropdownId` param (only `'tools'` gets a clickable `.toolbar-dropdown-section-toggle` label) + `js/io/uiPrefs.js#collapsedToolsSections`. See "Common pitfalls" below before restructuring `.toolbar-dropdown-pack-section`'s DOM again — a wrapper div needs its own explicit `flex-direction: column`, it doesn't inherit one from a parent that used to be the direct container. |
 | Change pinnable toolbar actions | `js/toolbar/pinnedActionsBar.js#initPinnedActionsBar(container)` (renders pinned buttons, looked up fresh via `commandPaletteModal.js#buildAppCommands()`) + `js/modals/managePinnedActionsModal.js` (pin/unpin/reorder UI) + `js/io/uiPrefs.js#pinnedActionIds`. **Gotcha**: `managePinnedActionsModal.js` takes the command list as a parameter instead of importing `buildAppCommands` back from `commandPaletteModal.js`, to avoid a circular import — see docs/ARCHITECTURE.md's "Automatic/proactive assists" section. |
 | Change the AI/CLI integration guide or its schema | `docs/AI_INTEGRATION.md` (the guide itself — keep its example JSON in sync with `js/io/aiGenerateDesign.js`'s `EXAMPLE_JSON`/`SEQUENCE_EXAMPLE_JSON`, see that file's own comment) + `llms.txt` (repo-root pointer file) + `js/io/shareLink.js#findShareHashInText` (lets a pasted share link work anywhere raw JSON paste-back already does) + `js/toolbar/toolbar.js#buildHelpGroupButtons`/`js/modals/commandPaletteModal.js` (the two discovery entry points, both just `window.open` the guide). |
 
@@ -1121,6 +1122,23 @@ npm test
   existed, because the sandboxed session couldn't reach the live site to
   verify it) is exactly the failure mode `modals/cliSetupModal.js` exists
   to eliminate.
+- **Enriching a button's `title` from a bare label into a full sentence
+  breaks any test that locates it by an exact-match `[title="..."]`
+  attribute selector — that selector needs the *entire* title, not a
+  substring.** Rewriting `aiReviewBtn`'s title from `'AI Design Review'` to
+  a fuller `'AI Design Review: get an AI critique...'` (this repo's own
+  tooltip-completeness convention — every button needs a real explanation,
+  not just its own name) silently broke 13 call sites across 6 e2e spec
+  files that all used `page.locator('#toolbar button[title="AI Design
+  Review"]')` — invisible in a scoped test run, only surfaced once the full
+  suite ran and a batch of AI-panel tests (an area this specific change
+  never touched) failed with "waiting for locator" timeouts that looked
+  unrelated to the actual cause. Grep the whole `tests/e2e/` tree for a
+  button's *exact current* title string before changing it, and prefer
+  locating a button by its stable visible text (`{ hasText: '🤖 AI Design
+  Review' }`) over its title in new tests — the label rarely changes, the
+  explanatory tail of a title is exactly what a future batch is likely to
+  extend.
 - **A rule table that fires a different label depending on which endpoint's
   name matched must track which *side* the match happened on, not just
   whether a match happened.** `core/smartEdgeLabels.js`'s gateway/queue name
