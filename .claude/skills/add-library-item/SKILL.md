@@ -157,6 +157,21 @@ definePattern('pattern-my-thing', 'My Thing Pattern', '🎯', {
 ```
 
 Rules:
+- **`description` must explain the reasoning, not narrate the diagram.** This field is not just a
+  sidebar tooltip — it's rendered as the headline summary paragraph in "📖 Explain This Diagram"
+  (right-click an instantiated pattern → Explain; see `modals/groupExplanationModal.js` and
+  `core/groupExplanation.js`), so a one-line restatement of what's visually already on the canvas
+  ("OAuth 2.0 Authorization Code flow with PKCE — the standard for SPAs...") wastes that feature's
+  most prominent piece of real estate. Write 2-3 sentences that answer *why* the pattern is built
+  this way: what real problem or failure mode it solves, why the steps happen in this specific
+  order, and any non-obvious trade-off or gotcha a reader wouldn't get just from looking at the
+  boxes and arrows. Concretely, compare a weak version ("OAuth 2.0 Authorization Code flow with
+  PKCE — the standard for SPAs and mobile apps that can't keep a client secret.") against the
+  actual bar (`js/data/categories/sequence-templates.js#seq-pkce-flow`'s current description,
+  which explains *why* a public client can't hold a secret safely, what attack that gap enables,
+  and how the code_verifier/code_challenge split closes it) — every one of that file's 37
+  templates was rewritten to this bar in one batch after a review found the shorter form
+  "very basic" and not actually informative.
 - Every node's `defId` must resolve to a **real, already-existing** component or layer id
   somewhere in the library (built-in only — patterns can't reference "My Components").
   `componentData.test.mjs` enforces this and will fail the build if it doesn't.

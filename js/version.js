@@ -2,9 +2,16 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.49.1';
+export const APP_VERSION = '1.49.2';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.49.2',
+    date: '2026-08-31',
+    highlights: [
+      'Rewrote every "Sequence Diagram Templates" description (Login Flow, PKCE, Circuit Breaker Pattern, Two-Phase Commit, and 33 more) to explain the actual reasoning behind each flow — why it\'s built the way it is, what problem it solves, and what to watch out for — instead of just narrating what the diagram shows. These are the same descriptions "📖 Explain This Diagram" surfaces as its summary paragraph, so that feature is now meaningfully more informative too.',
+    ],
+  },
   {
     version: '1.49.1',
     date: '2026-08-31',

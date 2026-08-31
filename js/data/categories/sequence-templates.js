@@ -57,7 +57,7 @@ function fragment(id, name, icon, fragmentType, description) {
 
 export const components = [
   definePattern('seq-login-flow', 'Login Flow', '🔐', {
-    description: 'Client authenticates through a server, an auth service, and a users database.',
+    description: 'A layered login: the server never touches the database directly, delegating credential checks to a dedicated auth service that can be reused, scaled, or swapped independently. The password itself is never compared as plaintext — the stored value is a hash, so the auth service verifies by re-hashing the submitted password and comparing hashes, meaning even a full database leak doesn\'t hand out real passwords. The returned session token (via Set-Cookie) lets the browser stay authenticated on future requests without resending credentials every time.',
     tags: ['sequence', 'auth'],
     groupOnInstantiate: true,
     nodes: lifelines('Client', 'Server', 'Auth Service', 'Users DB'),
@@ -73,7 +73,7 @@ export const components = [
   }),
 
   definePattern('seq-oauth-handshake', 'OAuth Handshake', '🪪', {
-    description: 'Authorization-code OAuth flow between a client, an app server, and an auth provider.',
+    description: 'The redirect through the Auth Provider exists so the app server never sees the user\'s actual credentials at all — the user authenticates directly with a provider they already trust, and the app only gets a short-lived, single-use authorization code back. That code is deliberately useless on its own: it must be exchanged server-to-server (with the app\'s own client secret) for the real access/id tokens, so a code intercepted in the browser\'s address bar or referrer headers can\'t be redeemed by an attacker without also holding that secret.',
     tags: ['sequence', 'auth'],
     groupOnInstantiate: true,
     nodes: lifelines('Client', 'App Server', 'Auth Provider'),
@@ -90,7 +90,7 @@ export const components = [
   }),
 
   definePattern('seq-checkout-flow', 'Checkout Flow', '🛒', {
-    description: 'Client checks out through an order service that coordinates inventory and payment.',
+    description: 'Inventory is reserved before payment is charged — the reverse order would let two customers both "successfully" buy the last unit of a sold-out item, so the order service holds stock first and only proceeds to charge once it knows the item is actually available. The order record itself is only created after payment succeeds, keeping "orders that exist" and "orders that were actually paid for" the same set by construction rather than needing a reconciliation step later.',
     tags: ['sequence', 'e-commerce'],
     groupOnInstantiate: true,
     nodes: lifelines('Client', 'Order Service', 'Payment Service', 'Inventory Service'),
@@ -106,7 +106,7 @@ export const components = [
   }),
 
   definePattern('seq-retry-backoff', 'Retry with Backoff', '🔁', {
-    description: 'A client call to a flaky downstream API, retried with increasing backoff until it succeeds.',
+    description: 'Each retry waits longer than the last (100ms, then 200ms, ...) instead of retrying immediately, because a downstream service that\'s already struggling under load gets worse, not better, if every failed caller hammers it again right away — that pattern (a "retry storm") is a common cause of outages spreading rather than recovering. Backoff gives the failing dependency breathing room to recover before the next attempt, trading a bit of latency for a much better chance the request eventually succeeds.',
     tags: ['sequence', 'resilience'],
     groupOnInstantiate: true,
     nodes: lifelines('Client', 'Service', 'Downstream API'),
@@ -125,7 +125,7 @@ export const components = [
   }),
 
   definePattern('seq-pkce-flow', 'PKCE Authorization Flow', '🔑', {
-    description: 'OAuth 2.0 Authorization Code flow with PKCE — the standard for SPAs and mobile apps that can\'t keep a client secret.',
+    description: 'Regular OAuth\'s authorization-code flow relies on a client secret to prove that whoever exchanges the code for tokens is really the legitimate app — but a public client like a single-page app or mobile app ships its code to the user\'s device, so any "secret" baked into it can be extracted and isn\'t actually secret. PKCE closes that gap without needing one: the client generates a random code_verifier and sends only a hashed code_challenge up front, so if an attacker intercepts the authorization code in transit (a real risk on mobile, via a malicious app registering the same custom URL scheme), they still can\'t redeem it — the token exchange requires the original, never-transmitted code_verifier, which only the legitimate client that generated it possesses.',
     tags: ['sequence', 'auth', 'oauth', 'pkce'],
     groupOnInstantiate: true,
     nodes: lifelines('Client', 'Auth Server', 'Resource Server'),
@@ -142,7 +142,7 @@ export const components = [
   }),
 
   definePattern('seq-scim-provisioning', 'SCIM User Provisioning', '🧑‍💼', {
-    description: 'An identity provider provisions and later deprovisions a user via a SCIM endpoint.',
+    description: 'SCIM standardizes user lifecycle management so a company\'s central identity provider can automatically create, update, and — critically — deactivate accounts across every connected app the moment someone joins or leaves, instead of each app needing its own bespoke sync integration. The deprovisioning step matters as much as provisioning: a stale account that never gets deactivated when an employee leaves is a real, common security gap, so the same standardized API that grants access is also the one trusted to revoke it.',
     tags: ['sequence', 'auth', 'scim', 'identity'],
     groupOnInstantiate: true,
     nodes: lifelines('Identity Provider', 'SCIM Endpoint', 'Users DB'),
@@ -160,7 +160,7 @@ export const components = [
   }),
 
   definePattern('seq-mfa-challenge', 'MFA Challenge', '🔐', {
-    description: 'Password login followed by a one-time-passcode multi-factor challenge before a session is issued.',
+    description: 'This is defense in depth: a password alone (something you know) can be phished, reused from another breach, or guessed, so the session is only issued after also proving possession of a second factor (something you have — the device receiving the OTP). Because the two factors come from fundamentally different attack surfaces, compromising one alone (e.g. a leaked password) isn\'t enough to get in — the attacker would separately need the user\'s device too.',
     tags: ['sequence', 'auth', 'mfa', '2fa'],
     groupOnInstantiate: true,
     nodes: lifelines('Client', 'Auth Server', 'MFA Service'),
@@ -177,7 +177,7 @@ export const components = [
   }),
 
   definePattern('seq-rbac-check', 'RBAC Authorization Check', '🛡️', {
-    description: 'A gateway validates a token and checks the caller\'s roles before permitting a request (role-based access control).',
+    description: 'Permissions are attached to roles rather than to individual users, so granting or revoking access at scale means reassigning someone\'s role (e.g. "admin" → "viewer") instead of editing a long, error-prone list of individual permissions every time responsibilities change. The gateway decodes the token once to get the caller\'s roles, then checks locally whether that role permits the requested action — centralizing the "who can do what" decision instead of scattering permission checks across every backend service.',
     tags: ['sequence', 'auth', 'rbac', 'authorization'],
     groupOnInstantiate: true,
     nodes: lifelines('Client', 'API Gateway', 'Auth Service'),
@@ -192,7 +192,7 @@ export const components = [
   }),
 
   definePattern('seq-abac-check', 'ABAC Authorization Check', '🧮', {
-    description: 'A policy decision point evaluates subject/resource/action/context attributes against policy (attribute-based access control).',
+    description: 'Where RBAC can only ask "does this role allow this action," ABAC evaluates the full context of a request — who\'s asking, what they\'re asking for, and circumstances like time of day or location — which lets one policy express rules no fixed role hierarchy could, like "finance staff can approve invoices under $10k, but only during business hours from a corporate network." Separating the Policy Enforcement Point (which blocks/allows) from the Policy Decision Point (which evaluates the rules) means the actual policy logic can change without touching every service that enforces it.',
     tags: ['sequence', 'auth', 'abac', 'authorization'],
     groupOnInstantiate: true,
     nodes: lifelines('Client', 'Policy Enforcement Point', 'Policy Decision Point', 'Attribute Store'),
@@ -208,7 +208,7 @@ export const components = [
   }),
 
   definePattern('seq-sso-saml', 'SSO (SAML / OIDC)', '🪄', {
-    description: 'Single sign-on redirect flow between a service provider and an identity provider.',
+    description: 'The service provider never sees or handles the user\'s password at all — it redirects to a shared identity provider, which authenticates the user once and hands back a cryptographically signed assertion vouching for their identity. Because that assertion is signed (not just claimed), the service provider can trust it without an independent check, and because the identity provider already has a session, every other app using the same SSO gets to skip the login screen entirely — that shared trust is what makes it "single" sign-on.',
     tags: ['sequence', 'auth', 'sso', 'saml', 'oidc'],
     groupOnInstantiate: true,
     nodes: lifelines('Client', 'Service Provider', 'Identity Provider'),
@@ -225,7 +225,7 @@ export const components = [
   }),
 
   definePattern('seq-spa-silent-refresh', 'SPA Silent Token Refresh', '🌐', {
-    description: 'A single-page app silently renews its session and rotates an expired access token without a full-page redirect.',
+    description: 'Access tokens are kept deliberately short-lived to limit how much damage a stolen one can do, but that means the app needs a way to get a new one without constantly interrupting the user with full-page redirects — a hidden iframe (prompt=none) checks the existing session cookie and silently mints a fresh token if it\'s still valid. Rotating the refresh token on every use (rather than reusing the same one indefinitely) also gives the server a way to detect theft: if an old, already-rotated refresh token is ever presented again, that\'s a signal it was stolen and replayed, not a legitimate retry.',
     tags: ['sequence', 'auth', 'spa', 'oauth'],
     groupOnInstantiate: true,
     nodes: lifelines('SPA', 'Auth Server', 'API'),
@@ -244,7 +244,7 @@ export const components = [
   }),
 
   definePattern('seq-api-key-auth', 'API Key Authentication', '🗝️', {
-    description: 'A static API key is validated by a gateway before a request reaches the backend service.',
+    description: 'A static key trades the richer guarantees of OAuth (expiry, scoped permissions, per-user identity, easy revocation without breaking other integrations) for simplicity — it\'s just a string checked against a lookup table, which is why it fits low-stakes service-to-service or read-only API access better than anything handling sensitive user data. Because the key itself never expires or rotates automatically, "check active + quota" at validation time is the main lever the system has for cutting off a compromised or abused key.',
     tags: ['sequence', 'auth', 'api-key'],
     groupOnInstantiate: true,
     nodes: lifelines('Client', 'API Gateway', 'Auth Service', 'Backend Service'),
@@ -260,7 +260,7 @@ export const components = [
   }),
 
   definePattern('seq-tcp-handshake', 'TCP 3-Way Handshake', '📶', {
-    description: 'Connection setup (SYN, SYN-ACK, ACK) and graceful teardown (FIN/ACK) between a client and a server.',
+    description: 'Three messages, not two, because each side needs its own proof that the other is really there and really agreed to talk — a SYN alone could be an old, delayed, or spoofed packet, so the responder\'s SYN-ACK proves it received that specific SYN, and the initiator\'s final ACK proves it received that specific SYN-ACK back, synchronizing sequence numbers in both directions before any data flows. Teardown is symmetric but independent — each side sends its own FIN when it is done sending, which is why a connection can be "half-closed" (one side still receiving after it stops sending) rather than closing atomically like the handshake does.',
     tags: ['sequence', 'networking', 'tcp'],
     groupOnInstantiate: true,
     nodes: lifelines('Client', 'Server'),
@@ -276,7 +276,7 @@ export const components = [
   }),
 
   definePattern('seq-udp-exchange', 'UDP Request/Response', '📡', {
-    description: 'Connectionless datagram exchange — no handshake, no delivery guarantee, each request is independent.',
+    description: 'There\'s no handshake and no acknowledgment built into the protocol itself, so a lost datagram simply never arrives — nothing here retries it or even notices. That absence of overhead is the entire point: latency-sensitive use cases (real-time voice/video, game state, DNS lookups) would rather occasionally drop a packet than pay the round-trip cost of TCP\'s reliability guarantees for data that\'s often stale by the time a retransmit would arrive anyway.',
     tags: ['sequence', 'networking', 'udp'],
     groupOnInstantiate: true,
     nodes: lifelines('Client', 'Server'),
@@ -290,7 +290,7 @@ export const components = [
   }),
 
   definePattern('seq-password-reset', 'Password Reset Flow', '🔁', {
-    description: 'A user requests a password reset link by email, then uses it to set a new password.',
+    description: 'Proving ownership of the registered email address is what substitutes for the forgotten password here — the reset token is the actual credential being checked, so it\'s generated to expire quickly (1 hour) and is meant to be used exactly once, limiting how long a leaked or intercepted email gives an attacker a window to act. Note the flow never confirms or denies whether an email address exists in the system in its response — doing so would let an attacker enumerate valid accounts by testing addresses one at a time.',
     tags: ['sequence', 'auth', 'password'],
     groupOnInstantiate: true,
     nodes: lifelines('Client', 'Auth Server', 'Email Service', 'Users DB'),
@@ -308,7 +308,7 @@ export const components = [
   }),
 
   definePattern('seq-magic-link-login', 'Passwordless Magic Link Login', '🪄', {
-    description: 'A user logs in via a one-time link emailed to them instead of a password.',
+    description: 'This flips the usual model: instead of a password the user remembers, control of the email inbox itself becomes the credential — anyone who can read that message can log in. That\'s only safe because the token is single-use and short-lived, so even if the email is intercepted or read after the fact, replaying an already-used or expired link doesn\'t work — the security burden shifts entirely onto how well the email account itself is protected.',
     tags: ['sequence', 'auth', 'passwordless'],
     groupOnInstantiate: true,
     nodes: lifelines('Client', 'Auth Server', 'Email Service'),
@@ -324,7 +324,7 @@ export const components = [
   }),
 
   definePattern('seq-webauthn-passkey', 'WebAuthn / Passkey Authentication', '🔏', {
-    description: 'A user authenticates with a device passkey (biometric/PIN) instead of a password, per the WebAuthn standard.',
+    description: 'Nothing secret ever crosses the network or gets stored on the server: the authenticator holds a private key that never leaves the device, and the server only ever sees a signature proving that key signed this specific challenge. Because there\'s no shared secret (like a password) to leak, steal, or phish in the first place, this sidesteps entire classes of attacks that plague password-based login — a server data breach here exposes only public keys, which are useless to an attacker without the matching private key locked in the user\'s hardware.',
     tags: ['sequence', 'auth', 'webauthn', 'passkey'],
     groupOnInstantiate: true,
     nodes: lifelines('Client', 'Auth Server', 'Authenticator'),
@@ -341,7 +341,7 @@ export const components = [
   }),
 
   definePattern('seq-oauth-client-credentials', 'OAuth Client Credentials (M2M)', '🤖', {
-    description: 'A machine-to-machine service call authorized with the OAuth client-credentials grant — no user involved.',
+    description: 'Unlike every other OAuth grant here, there\'s no user or browser in this flow at all — the client\'s own identity (its client_id/client_secret) is what\'s being authorized, not a user\'s delegated permission, which is why this grant fits service-to-service calls where "on behalf of which user" doesn\'t apply. Service B independently introspecting the token with the Auth Server (rather than just trusting whatever Service A hands it) means a forged or expired token gets caught by the resource itself, not just at the edge.',
     tags: ['sequence', 'auth', 'oauth', 'machine-to-machine'],
     groupOnInstantiate: true,
     nodes: lifelines('Service A', 'Auth Server', 'Service B'),
@@ -357,7 +357,7 @@ export const components = [
   }),
 
   definePattern('seq-websocket-handshake', 'WebSocket Handshake & Messaging', '🔌', {
-    description: 'HTTP-to-WebSocket protocol upgrade, followed by bidirectional messages and a keep-alive ping/pong.',
+    description: 'The connection starts as an ordinary HTTP request specifically so it can pass through existing infrastructure — load balancers, proxies, firewalls — that already knows how to handle HTTP, before "upgrading" in place to a persistent bidirectional channel that plain request/response HTTP can\'t offer. Ping/pong exists because a dropped network connection doesn\'t always announce itself — without an active keep-alive, a client can appear connected indefinitely while actually talking to nothing, so periodic pings let either side detect and close a dead connection instead of leaking it.',
     tags: ['sequence', 'networking', 'websocket', 'realtime'],
     groupOnInstantiate: true,
     nodes: lifelines('Client', 'Server'),
@@ -373,7 +373,7 @@ export const components = [
   }),
 
   definePattern('seq-webhook-delivery', 'Webhook Delivery with Retry', '🪝', {
-    description: 'A source service delivers a signed webhook event; a failed delivery is retried with backoff.',
+    description: 'The HMAC signature exists because a webhook endpoint is a public URL anyone can POST to — signing the payload with a shared secret lets the subscriber verify a request genuinely came from the real source and wasn\'t forged by a third party who found the endpoint. Because delivery isn\'t guaranteed on the first try, retries mean the subscriber may see the same event more than once, so a production webhook handler needs to treat delivery as "at least once" and de-duplicate by event id rather than assuming each POST represents a brand-new event.',
     tags: ['sequence', 'messaging', 'webhook', 'resilience'],
     groupOnInstantiate: true,
     nodes: lifelines('Source Service', 'Subscriber Endpoint'),
@@ -390,7 +390,7 @@ export const components = [
   }),
 
   definePattern('seq-circuit-breaker', 'Circuit Breaker Pattern', '🧯', {
-    description: 'Repeated downstream failures trip a circuit breaker, which then fails fast without calling the downstream service.',
+    description: 'Continuing to call a service that\'s already failing doesn\'t just waste the caller\'s time — every retried request still consumes the failing service\'s limited resources (connections, threads, queue slots), often making the underlying outage worse and slower to recover from. Once failures cross a threshold, the breaker deliberately stops calling out at all ("failing fast" instead of waiting on a doomed timeout), which protects both the caller (instant, predictable failure instead of hanging) and the downstream service (a chance to recover without a continued flood of traffic) — the breaker only lets a few trial calls through afterward to check if it\'s safe to resume.',
     tags: ['sequence', 'resilience', 'circuit-breaker'],
     groupOnInstantiate: true,
     nodes: lifelines('Client', 'Circuit Breaker', 'Downstream Service'),
@@ -408,7 +408,7 @@ export const components = [
   }),
 
   definePattern('seq-cache-aside', 'Cache-Aside Pattern', '🗂️', {
-    description: 'A cache miss falls through to the database, populates the cache, then a repeat request hits the cache.',
+    description: '"Aside" describes what the cache does not do: it never talks to the database on its own, and a write to the database doesn\'t automatically update or invalidate it — the application code is entirely responsible for populating it on a miss (as shown here) and for keeping it reasonably fresh otherwise. That trade-off means data read from the cache can be stale until its TTL expires, which is acceptable for data that tolerates a short staleness window in exchange for skipping a database round-trip on every read.',
     tags: ['sequence', 'caching', 'performance'],
     groupOnInstantiate: true,
     nodes: lifelines('Client', 'Service', 'Cache', 'Database'),
@@ -426,7 +426,7 @@ export const components = [
   }),
 
   definePattern('seq-saga-choreography', 'Saga Pattern (Choreography)', '🧵', {
-    description: 'A distributed transaction across services coordinated by events, with a compensating transaction when a step fails.',
+    description: 'A single ACID transaction spanning multiple independent services and databases isn\'t really available in a microservices architecture, so instead of a lock that holds until every step commits, each service completes its own local transaction and publishes an event triggering the next step — there\'s no single moment where the whole operation is atomically all-or-nothing. When a later step fails, there\'s no automatic rollback either — each prior service runs its own compensating action (like the refund shown here) to semantically undo what it already committed, which is why designing a saga means designing the compensations up front, not just the happy path.',
     tags: ['sequence', 'architectural', 'saga', 'distributed-transaction'],
     groupOnInstantiate: true,
     nodes: lifelines('Order Service', 'Payment Service', 'Inventory Service'),
@@ -444,7 +444,7 @@ export const components = [
   }),
 
   definePattern('seq-idempotency-key', 'Idempotent Request Handling', '🔁', {
-    description: 'A client retries the same request with an idempotency key; the second attempt returns the cached result instead of double-processing it.',
+    description: 'A client that never receives a response genuinely can\'t tell whether the request failed before reaching the server or the server processed it fine but the response was lost on the way back — from the client\'s side, both look identical, so a "just retry" strategy without protection risks double-charging a card or double-sending an email. Tagging the request with a client-generated idempotency key lets the server recognize "I\'ve already handled this exact request" and return the original cached result instead of re-executing it, making retries safe regardless of which side actually failed.',
     tags: ['sequence', 'resilience', 'api', 'idempotency'],
     groupOnInstantiate: true,
     nodes: lifelines('Client', 'API Gateway', 'Payment Service'),
@@ -462,7 +462,7 @@ export const components = [
   }),
 
   definePattern('seq-two-phase-commit', 'Two-Phase Commit', '🤝', {
-    description: 'A coordinator asks all participants to vote, then commits (or aborts) only once every vote is in — the classic distributed-transaction protocol.',
+    description: 'Every participant votes before anyone commits specifically to avoid a state where some participants commit and others don\'t — a single "no" (or timeout) aborts the whole transaction for everyone, giving true all-or-nothing atomicity across independent systems. The well-known weakness this protocol carries is the coordinator itself: if it crashes after collecting votes but before broadcasting the decision, every participant is left blocked, holding its locks and unable to independently decide whether to commit or abort — which is exactly why many distributed systems favor sagas (accepting eventual, compensatable consistency) over 2PC\'s strict blocking guarantee.',
     tags: ['sequence', 'architectural', 'distributed-transaction', '2pc'],
     groupOnInstantiate: true,
     nodes: lifelines('Coordinator', 'Participant A', 'Participant B'),
@@ -480,7 +480,7 @@ export const components = [
   }),
 
   definePattern('seq-outbox-pattern', 'Outbox Pattern', '📤', {
-    description: 'A service writes its business row and an outbox event in one local transaction; a relay polls the outbox and publishes to a broker, avoiding the dual-write problem.',
+    description: 'Writing to a database and separately publishing a message to a broker are two independent operations — if the process crashes between them, or the broker call itself fails, the database and the broker end up disagreeing about what happened (an order exists but no one was ever notified, or vice versa). Writing the event as a row in the same local database transaction as the business change makes that transaction atomic by construction, and only the outbox relay (retrying safely until it succeeds) is left needing to actually reach the broker, moving the "did this really get published" problem out of the request path entirely.',
     tags: ['sequence', 'architectural', 'messaging', 'outbox'],
     groupOnInstantiate: true,
     nodes: lifelines('Service', 'Database', 'Outbox Relay', 'Message Broker'),
@@ -497,7 +497,7 @@ export const components = [
   }),
 
   definePattern('seq-event-sourcing-cqrs', 'Event Sourcing / CQRS Command Flow', '🧾', {
-    description: 'A command is validated and appended as an event to an event store, which then publishes it to update a separate read-model projection.',
+    description: 'Instead of overwriting a row to reflect an order\'s current status, every change is appended as a new, immutable event — the current state is just whatever you get by replaying all events for that entity in order, which means the full history of how something reached its current state is never lost (useful for audit, debugging, or replaying "what would have happened if" scenarios). The read model is kept as a separate projection specifically so it can be shaped and indexed however queries actually need it, rather than forcing the write side\'s event-append model to also serve fast, flexible reads.',
     tags: ['sequence', 'architectural', 'event-sourcing', 'cqrs'],
     groupOnInstantiate: true,
     nodes: lifelines('Client', 'Command Handler', 'Event Store', 'Projection'),
@@ -513,7 +513,7 @@ export const components = [
   }),
 
   definePattern('seq-grpc-unary', 'gRPC Unary Call', '📡', {
-    description: 'A client sends a single protobuf request and gets a single response back, with call metadata and a deadline.',
+    description: 'Protobuf\'s binary, strongly-typed schema (versus JSON\'s untyped text) means smaller payloads and no runtime parsing ambiguity about field types — the contract between client and server is enforced by the generated code itself, not just convention. The explicit deadline in the call metadata matters because without one, a slow or hung server can leave a client waiting indefinitely with no way to know whether to give up — the deadline makes "how long is too long" a decision the caller makes up front, not something discovered by getting stuck.',
     tags: ['sequence', 'networking', 'grpc', 'rpc'],
     groupOnInstantiate: true,
     nodes: lifelines('Client', 'gRPC Server'),
@@ -526,7 +526,7 @@ export const components = [
   }),
 
   definePattern('seq-graphql-query', 'GraphQL Query Resolution', '◈', {
-    description: 'A GraphQL server parses one query and resolves its fields by calling multiple backing services, then merges the results into one response.',
+    description: 'A REST client hitting separate /users and /orders endpoints either over-fetches (gets fields it doesn\'t need) or under-fetches (needs a second round trip for related data) — GraphQL instead lets the client specify exactly the shape of data it wants in one request, and the server resolves each requested field by calling whichever backing service actually owns it. The client never needs to know that "user" and "orders" live in two different services — the GraphQL server\'s resolvers hide that topology and merge the results into the single JSON shape the client asked for.',
     tags: ['sequence', 'api', 'graphql'],
     groupOnInstantiate: true,
     nodes: lifelines('Client', 'GraphQL Server', 'Users Service', 'Orders Service'),
@@ -542,7 +542,7 @@ export const components = [
   }),
 
   definePattern('seq-presigned-upload', 'Presigned URL File Upload', '📎', {
-    description: 'An app server issues a short-lived presigned URL, then the client uploads the file bytes directly to object storage without routing them through the server.',
+    description: 'Routing large file uploads through the app server means that server\'s bandwidth, memory, and request-handling capacity are all spent just relaying bytes it has no reason to touch — a presigned URL lets the client upload directly to object storage instead, so the app server\'s only job is deciding whether an upload should be allowed and generating a scoped, time-limited credential for it. Because the URL is short-lived and tied to a specific object key, even if it leaks it\'s only useful for a narrow window and a single intended upload, not standing access to the storage bucket.',
     tags: ['sequence', 'storage', 'upload', 'presigned-url'],
     groupOnInstantiate: true,
     nodes: lifelines('Client', 'App Server', 'Object Storage'),
@@ -559,7 +559,7 @@ export const components = [
   }),
 
   definePattern('seq-kafka-rebalance', 'Kafka Consumer-Group Rebalance', '🔄', {
-    description: 'A new consumer joining a group triggers the group coordinator to pause, recompute, and reassign partitions across all members.',
+    description: 'Exactly one consumer in the group is allowed to own each partition at any moment — that\'s what guarantees messages within a partition are processed in order and not duplicated across consumers — so whenever membership changes (someone joins, leaves, or crashes), every existing assignment has to be revoked and recomputed together, not patched incrementally. That\'s why the coordinator briefly pauses the whole group during a rebalance rather than reassigning just the new member\'s share: a partition can\'t safely be reassigned to a new owner while its previous owner might still be processing from it.',
     tags: ['sequence', 'messaging', 'kafka', 'rebalance'],
     groupOnInstantiate: true,
     nodes: lifelines('Consumer A', 'Consumer B', 'Group Coordinator'),
@@ -577,7 +577,7 @@ export const components = [
   }),
 
   definePattern('seq-distributed-lock', 'Distributed Lock Acquisition', '🔒', {
-    description: 'Two clients race for the same lock key; only one gets it and the other waits and retries once it\'s released.',
+    description: 'The atomic "SET ... NX" (set only if not already set) is what prevents both clients from believing they hold the lock simultaneously — a plain "check if free, then set" done as two separate steps would have a race window where both clients could pass the check before either one sets the key. The lock\'s expiry (PX 30000) is a safety net for the case where the holder crashes and never explicitly releases it, but it\'s a double-edged one: if the client\'s actual work takes longer than the expiry, it can lose the lock — and a second client can acquire it — while the first is still (unknowingly) working, which is why real implementations often extend the lease periodically rather than picking one fixed duration and hoping it\'s enough.',
     tags: ['sequence', 'resilience', 'concurrency', 'distributed-lock'],
     groupOnInstantiate: true,
     nodes: lifelines('Client A', 'Client B', 'Lock Service'),
@@ -595,7 +595,7 @@ export const components = [
   }),
 
   definePattern('seq-mtls-handshake', 'Service Mesh mTLS Handshake', '🔐', {
-    description: 'Two sidecar proxies mutually authenticate each other\'s certificates against the mesh CA before letting application traffic through.',
+    description: 'Ordinary TLS only proves the server\'s identity to the client — mTLS adds the reverse direction too, so each sidecar also presents its own certificate and the other side verifies it against the mesh\'s shared CA before any application traffic is allowed through. That mutual verification is what makes a service mesh\'s "zero trust" model work in practice: every hop between services is independently authenticated and encrypted rather than trusting a request just because it arrived from inside the network perimeter.',
     tags: ['sequence', 'networking', 'security', 'mtls', 'service-mesh'],
     groupOnInstantiate: true,
     nodes: lifelines('Service A Sidecar', 'Service B Sidecar'),
@@ -611,7 +611,7 @@ export const components = [
   }),
 
   definePattern('seq-canary-deployment', 'Blue-Green / Canary Deployment Traffic Shift', '🐤', {
-    description: 'A load balancer gradually shifts traffic from the stable version to a canary release while monitoring for errors, then drains the old version once it\'s healthy.',
+    description: 'Shifting all traffic to a new version at once means any bug in it immediately affects every user with no early warning — routing a small percentage first turns a potential full outage into a contained, cheap-to-notice problem affecting only the canary\'s slice of traffic, which can be rolled back before most users are ever exposed. Monitoring the error rate at each step (rather than shifting on a fixed timer) is what makes the ramp-up conditional: traffic only increases once the canary has actually proven itself healthy under real production load, not just in a staging environment.',
     tags: ['sequence', 'devops', 'deployment', 'canary', 'blue-green'],
     groupOnInstantiate: true,
     nodes: lifelines('Load Balancer', 'Stable (Blue)', 'Canary (Green)'),
@@ -630,7 +630,7 @@ export const components = [
   }),
 
   definePattern('seq-dns-resolution', 'DNS Resolution Flow', '🧭', {
-    description: 'A recursive resolver walks the DNS hierarchy — root, TLD, then authoritative server — to resolve a hostname, and caches the result.',
+    description: 'No single server holds records for the entire internet — each level of the hierarchy only knows how to point toward the next, more specific authority (root knows which servers handle .com, the .com TLD servers know which server is authoritative for example.com, and so on), which is what lets DNS scale to every domain on the internet without any one server being a bottleneck or a single point of failure. Caching the final answer (respecting its TTL) exists purely for performance — without it, every single lookup for the same hostname would have to re-walk this entire hierarchy from scratch, even though the answer rarely changes within the TTL window.',
     tags: ['sequence', 'networking', 'dns'],
     groupOnInstantiate: true,
     nodes: lifelines('Client', 'Resolver', 'Root Server', 'TLD Server', 'Authoritative Server'),
@@ -648,7 +648,7 @@ export const components = [
   }),
 
   definePattern('seq-social-login', 'Social / Federated Login', '🌍', {
-    description: 'A user signs in through a third-party identity provider (e.g. Google) instead of a local password, and the app finds or creates a matching local account.',
+    description: 'The app never sees or stores the user\'s Google password — it only ever receives a token proving Google already verified that identity, so a breach of the app\'s own database can\'t expose credentials that were never stored there in the first place. The "find-or-create local user by email" step is the part that actually links the two identity systems together: the app still needs its own internal user record (for its own permissions, preferences, and data ownership), and email is the shared attribute used to recognize "this is the same person" across logins and across different identity providers.',
     tags: ['sequence', 'auth', 'oauth', 'social-login', 'federated'],
     groupOnInstantiate: true,
     nodes: lifelines('Client', 'App Server', 'Google (Identity Provider)'),
@@ -668,7 +668,7 @@ export const components = [
   }),
 
   definePattern('seq-step-up-auth', 'Step-Up Authentication', '⬆️', {
-    description: 'A sensitive action triggers a fresh, stronger authentication challenge even though the user already has a valid session.',
+    description: 'A single login shouldn\'t grant the same level of trust for the rest of the session regardless of what\'s being done — browsing account balances and wiring $50,000 carry very different risk, so the assurance level required should scale with the action\'s risk rather than being all-or-nothing at login time. The step-up token\'s elevated assurance level (acr=high) is scoped and typically short-lived, meaning the fresh re-authentication only covers the sensitive action just performed, not a blanket upgrade to the entire ongoing session.',
     tags: ['sequence', 'auth', 'step-up', 'authorization'],
     groupOnInstantiate: true,
     nodes: lifelines('Client', 'App Server', 'Auth Server'),

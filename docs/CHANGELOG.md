@@ -110,6 +110,20 @@ Keep this in sync with `PLAN.md` as stages complete.
   field (with autocomplete) on custom components, grouping them into
   collapsible 📁 sub-groups in the sidebar.
 
+## v1.49.2 (2026-08-31)
+
+- **Rewrote all 37 "Sequence Diagram Templates" descriptions** (Login Flow through Step-Up
+  Authentication, including PKCE, OAuth, Circuit Breaker, Two-Phase Commit, Outbox, DNS
+  Resolution, etc.) — the previous one-liners just restated what the diagram already showed
+  visually (e.g. PKCE's was "OAuth 2.0 Authorization Code flow with PKCE — the standard for
+  SPAs..."). Each description is now 2-3 sentences explaining the actual reasoning: *why* the flow
+  is built this way, what real problem or attack it addresses, and non-obvious consequences or
+  trade-offs (e.g. PKCE's now explains *why* a public client can't safely hold a secret, what
+  attack that gap enables, and how the code_verifier/code_challenge split closes it). This directly
+  improves "📖 Explain This Diagram" (right-click a template → Explain), since that feature's
+  headline summary paragraph is exactly this same `description` field — it was previously the
+  weakest, least useful part of an otherwise comprehensive explanation.
+
 ## v1.49.1 (2026-08-31)
 
 - **Curated the "Design Patterns" category down from 32 to 26 entries**, favoring fewer, more

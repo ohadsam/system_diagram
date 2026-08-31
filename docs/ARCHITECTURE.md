@@ -899,6 +899,23 @@ pattern. Generalizing that label is real, separate scope for whichever
 future batch wants to extend `relatedPatterns` beyond sequence templates —
 not bundled into this one.
 
+## Pattern `description` doubles as "Explain This Diagram" copy
+
+Every `definePattern(...)`'s `description` field is not merely a sidebar tooltip — it's read
+directly as `headerDescription` and rendered as the headline summary paragraph in "📖 Explain This
+Diagram" (`modals/groupExplanationModal.js` resolves the source pattern def via
+`nodes[0].sourcePatternId` and passes it into `core/groupExplanation.js#buildGroupExplanation`,
+which surfaces its `description` verbatim). This was underappreciated for a while: every
+`sequence-templates.js` entry originally had a one-line description that just restated what the
+diagram already showed visually (e.g. PKCE's read "OAuth 2.0 Authorization Code flow with PKCE —
+the standard for SPAs and mobile apps that can't keep a client secret."), which made that
+feature's most prominent piece of text its weakest part — informative-sounding but not actually
+explaining anything a reader couldn't already see. All 37 were rewritten in one batch to 2-3
+sentences explaining the underlying reasoning instead (why the flow is shaped this way, what
+real problem/attack it addresses, non-obvious trade-offs) — see `add-library-item`'s "A design
+pattern" section for the concrete bar and comparison this batch established. Any future pattern
+addition should be written to that same bar from the start, not need a second pass to fix.
+
 ## Recently Used sidebar section (`io/recentComponents.js`, `sidebar/sidebar.js`)
 
 A pinned sidebar section (below Favorites, above the category list) showing
