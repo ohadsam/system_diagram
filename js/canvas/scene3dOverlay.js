@@ -27,6 +27,11 @@ export function initScene3DOverlay() {
   });
   const prevBtn = el('button', { type: 'button', class: 'btn btn-secondary scene3d-btn', text: '⬅️', title: 'Previous step', onClick: prevStep });
   const nextBtn = el('button', { type: 'button', class: 'btn btn-secondary scene3d-btn', text: '➡️', title: 'Next step', onClick: nextStep });
+  const resetViewBtn = el('button', {
+    type: 'button', class: 'btn btn-secondary scene3d-btn', text: '🎯 Reset View',
+    title: 'Recenter and re-fit the camera on the diagram',
+    onClick: () => { controllerPromise?.then((controller) => controller.resetView()); },
+  });
   const exportBtn = el('button', {
     type: 'button', class: 'btn btn-secondary scene3d-btn', text: '🎥 Export 3D Video',
     onClick: async () => {
@@ -60,6 +65,7 @@ export function initScene3DOverlay() {
   controls.appendChild(playBtn);
   controls.appendChild(prevBtn);
   controls.appendChild(nextBtn);
+  controls.appendChild(resetViewBtn);
   controls.appendChild(exportBtn);
   controls.appendChild(closeBtn);
   overlay.appendChild(controls);

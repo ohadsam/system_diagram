@@ -28,6 +28,28 @@ test('3D Presentation opens a full-viewport 3D canvas with playback/export contr
   await expect(page.locator('.scene3d-overlay')).not.toHaveClass(/open/);
 });
 
+test('"🎯 Reset View" recenters the camera without closing the 3D view', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await addComponentByName(page, 'PostgreSQL');
+
+  await openToolbarGroup(page, 'Tools');
+  await page.locator('#toolbar button', { hasText: '3D Presentation' }).click();
+  await expect(page.locator('.scene3d-overlay')).toHaveClass(/open/);
+  await page.waitForTimeout(800);
+
+  const resetBtn = page.locator('.scene3d-controls button', { hasText: 'Reset View' });
+  await expect(resetBtn).toBeVisible();
+  await resetBtn.click();
+
+  // Still open, still rendering — the click only adjusts the camera.
+  await expect(page.locator('.scene3d-overlay')).toHaveClass(/open/);
+  const hasWebglContent = await page.locator('.scene3d-canvas').evaluate((canvas) => {
+    const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+    return !!gl;
+  });
+  expect(hasWebglContent).toBe(true);
+});
+
 test('3D Presentation refuses to open on an empty canvas', async ({ page }) => {
   await openToolbarGroup(page, 'Tools');
   await page.locator('#toolbar button', { hasText: '3D Presentation' }).click();

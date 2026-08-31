@@ -3966,9 +3966,45 @@ playback code):
 - **`canvas/scene3dOverlay.js`** builds the `.scene3d-overlay` (full-
   viewport, `--z-scene3d: 95` — the highest z-index token, an
   independent layer not built on top of Presenter/Kiosk mode) with
-  Play/Stop/Prev/Next/Export/Close controls, mounted/torn down via
-  `core/scene3dMode.js`'s `onScene3DChange` pub-sub (same shape as
-  `core/kioskMode.js`).
+  Play/Stop/Prev/Next/**Reset View**/Export/Close controls, mounted/torn
+  down via `core/scene3dMode.js`'s `onScene3DChange` pub-sub (same shape
+  as `core/kioskMode.js`).
+
+  **Gotcha: the camera auto-fit must use full box extents, not just
+  center points.** `buildScene()`'s original bounds tracking only
+  recorded each node's center `x`/`z` (`minX = Math.min(minX, n3d.x)`,
+  etc.), completely ignoring `width`/`depth`/`height` — so a perfectly
+  ordinary cluster of boxes routinely computed a camera `radius` tight
+  enough that the boxes themselves overflowed the viewport (confirmed by
+  actually rendering a diagram: labels ran off-screen, box bottoms were
+  cropped by the viewport edge). Fixed by tracking each box's real
+  min/max extent (`n3d.x - n3d.width / 2`, etc., plus `maxY` for height)
+  and fitting the camera distance to the resulting bounding sphere against
+  whichever of the vertical/horizontal FOV is more restrictive (`camera.
+  aspect` must already be current — `resize()` now runs *before* the
+  first `buildScene()` call, not after, or the fit uses the constructor's
+  placeholder `aspect: 1`). The scene also had no ground plane, no grid,
+  and only one directional light — boxes read as flat cutouts floating in
+  a black void with near-black unlit faces. Fixed with a content-sized
+  ground plane + grid (recreated per rebuild, added to `contentGroup` so
+  they're cleaned up the same way as every other rebuilt object), a
+  shadow-casting key light (`renderer.shadowMap` enabled, `dirLight.
+  target` repositioned to the content's actual center every rebuild —
+  a fixed-offset light aimed at world origin renders with no visible
+  shadow at all once a diagram is built away from `(0,0)`), plus a
+  hemisphere light and a dim fill light so no face goes fully black.
+  **Second gotcha: `scene.fog`'s near/far must scale with the computed
+  camera `radius`, not stay fixed.** A fixed fog range faded in well
+  before the camera's own fitted distance for any diagram bigger than a
+  handful of nodes, washing out the diagram itself instead of just the
+  empty void beyond it — `scene.fog.near/far` are now set to a multiple
+  of `radius` inside the same `buildScene()` block that computes it.
+  Labels also silently truncated past ~20 characters (`makeLabelSprite`'s
+  canvas had a fixed 256px width) — now sized to the text's actual
+  measured width. The "chip" decals (small boxes meant as CPU/RAM flair)
+  read as slanted, glitch-looking parallelograms under an oblique camera
+  because a wide flat box foreshortens badly at that angle; replaced with
+  small emissive spheres, which don't have that problem from any angle.
 
 ## Demo Projects (`core/demoProjects.js`, `modals/demoProjectsModal.js`)
 

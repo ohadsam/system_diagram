@@ -99,6 +99,18 @@ concrete examples). Do all three, in order, every single time this skill runs:
      full-text buttons is the most common source — `.toolbar-group` needs `flex-wrap: wrap` inside
      `@media (max-width: 900px)` (see `css/responsive.css`) or it forces page-wide horizontal
      scroll instead of wrapping onto a new line.
+   - **For a Three.js/WebGL/canvas-rendered view (3D Presentation Mode, or anything similar in the
+     future), reading the code is not enough — the real bugs only show up on screen.** A 3D
+     Presentation Mode "make it look better" batch found every one of its real problems (camera
+     auto-fit computing a radius so tight the boxes overflowed the viewport, labels silently
+     truncated past a fixed canvas-texture width, fog washing out the diagram itself instead of
+     just the background void, decals that foreshorten into glitch-looking shapes under an oblique
+     camera, near-black unlit faces) only by actually building a diagram, opening the view, and
+     looking at a screenshot — none of it was visible from the source alone, and a plausible-
+     looking formula (e.g. `radius = spanX * 0.9`) can be wrong in a way that only manifests at
+     actual scale. Build a small but real diagram (a handful of components + connectors, not a
+     single node) via Playwright, screenshot the rendered result at desktop/mobile/tablet widths,
+     and diagnose from what's actually on screen before changing anything.
    - Check any mobile drawer's `top` tracks the toolbar's *actual* rendered height (which varies —
      the toolbar wraps onto multiple rows well before 900px) rather than a hardcoded pixel offset.
    - Verify color, spacing and copy are consistent with sibling features already in the app,

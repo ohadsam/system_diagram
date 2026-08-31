@@ -2,9 +2,16 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.49.3';
+export const APP_VERSION = '1.50.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.50.0',
+    date: '2026-08-31',
+    highlights: [
+      '🧊 3D Presentation Mode overhaul: fixed the camera auto-fit so it now reliably frames the whole diagram instead of clipping/overflowing the view, added a ground plane + grid and real cast shadows so boxes read as grounded objects instead of floating cutouts, improved lighting (a sky/floor hemisphere light plus a soft fill light) so every face is legible instead of near-black, fixed component labels getting cut off past ~20 characters (e.g. "Elastic Load Balancer"), replaced the flat "chip" decals with small glowing status-light spheres, and added a "🎯 Reset View" button to recover if you spin/zoom the camera somewhere disorienting (there\'s no pan, only orbit + zoom).',
+    ],
+  },
   {
     version: '1.49.3',
     date: '2026-08-31',

@@ -38,22 +38,44 @@ function computeActiveKeys(nodes, edges) {
   return { hiddenKeys, activeKeys };
 }
 
+// Canvas width is sized to the *actual measured text*, not a fixed 256px —
+// a fixed width silently truncated any label past ~15-20 characters (e.g.
+// "Elastic Load Balancer" rendered as "lastic Load Balance"), which read as
+// a rendering bug rather than an intentional label. Sprite scale is then
+// derived from the canvas's own aspect ratio so longer labels get a wider
+// (not squashed) plate instead of stretching fixed geometry over new pixels.
 function makeLabelSprite(THREE, text, width) {
+  const label = (text || '').slice(0, 40);
+  const font = 'bold 28px sans-serif';
+  const measure = document.createElement('canvas').getContext('2d');
+  measure.font = font;
+  const textWidth = measure.measureText(label).width;
+  const paddingX = 28;
   const canvas = document.createElement('canvas');
-  canvas.width = 256;
+  canvas.width = Math.min(720, Math.max(256, Math.ceil(textWidth + paddingX * 2)));
   canvas.height = 64;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = 'rgba(17, 24, 39, 0.85)';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = 'rgba(15, 20, 32, 0.88)';
+  if (ctx.roundRect) {
+    ctx.beginPath();
+    ctx.roundRect(0, 0, canvas.width, canvas.height, 14);
+    ctx.fill();
+  } else {
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+  ctx.strokeStyle = 'rgba(148, 163, 184, 0.4)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(1, 1, canvas.width - 2, canvas.height - 2);
   ctx.fillStyle = '#F9FAFB';
-  ctx.font = 'bold 28px sans-serif';
+  ctx.font = font;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText((text || '').slice(0, 24), canvas.width / 2, canvas.height / 2);
+  ctx.fillText(label, canvas.width / 2, canvas.height / 2);
   const texture = new THREE.CanvasTexture(canvas);
   const material = new THREE.SpriteMaterial({ map: texture, depthTest: false });
   const sprite = new THREE.Sprite(material);
-  sprite.scale.set(Math.max(width, 80), Math.max(width, 80) / 4, 1);
+  const spriteHeight = Math.max(width, 60) / 4;
+  sprite.scale.set(spriteHeight * (canvas.width / canvas.height), spriteHeight, 1);
   return sprite;
 }
 
@@ -75,14 +97,31 @@ export async function mountScene3D(canvasEl) {
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x0f1420);
+  scene.fog = new THREE.Fog(0x0f1420, 1200, 4200);
   const camera = new THREE.PerspectiveCamera(50, 1, 1, 10000);
   const renderer = new THREE.WebGLRenderer({ canvas: canvasEl, antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-  scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-  const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-  dirLight.position.set(300, 600, 400);
+  // A single directional light left every face not directly facing it
+  // reading as near-black, and boxes floated with no shadow to ground them
+  // against the floor — a hemisphere light (soft sky/floor color split) plus
+  // a dim un-shadowed fill light from the opposite side fixes the former;
+  // the directional key light casting real shadows fixes the latter. Fog is
+  // purely presentational: it fades the otherwise-infinite black void at the
+  // horizon so distant empty space reads as atmosphere, not a hard void edge.
+  scene.add(new THREE.HemisphereLight(0x8fa8ff, 0x0b0f1a, 0.55));
+  scene.add(new THREE.AmbientLight(0xffffff, 0.25));
+  const dirLight = new THREE.DirectionalLight(0xffffff, 1.1);
+  dirLight.castShadow = true;
+  dirLight.shadow.mapSize.set(1536, 1536);
+  dirLight.shadow.bias = -0.0015;
   scene.add(dirLight);
+  scene.add(dirLight.target);
+  const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
+  fillLight.position.set(-1, 0.4, -1);
+  scene.add(fillLight);
 
   const contentGroup = new THREE.Group();
   scene.add(contentGroup);
@@ -92,10 +131,12 @@ export async function mountScene3D(canvasEl) {
   // separate ES module under examples/jsm, which would mean vendoring a
   // second file just for this; a basic drag-to-orbit + wheel-to-zoom is
   // ~30 lines and covers everything this feature actually needs.
+  const DEFAULT_THETA = Math.PI / 4;
+  const DEFAULT_PHI = Math.PI / 3.2;
   let target = { x: 0, y: 0, z: 0 };
   let radius = 800;
-  let theta = Math.PI / 4; // horizontal angle
-  let phi = Math.PI / 3.2; // vertical angle (from the +Y axis)
+  let theta = DEFAULT_THETA; // horizontal angle
+  let phi = DEFAULT_PHI; // vertical angle (from the +Y axis)
   let dragging = false;
   let lastX = 0;
   let lastY = 0;
@@ -155,19 +196,28 @@ export async function mountScene3D(canvasEl) {
     const { hiddenKeys, activeKeys } = computeActiveKeys(nodes, edges);
 
     const node3DById = new Map();
-    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    // Full box extents (not just center points) so the camera auto-fit below
+    // actually accounts for how big the boxes themselves are — tracking only
+    // center x/z (as this used to) let a handful of widely-spaced-but-large
+    // boxes compute a radius so tight the boxes overflowed the viewport.
+    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity, maxY = -Infinity;
     for (const node of nodes) {
       if (hiddenKeys.has(`node:${node.id}`)) continue;
       const n3d = computeNode3D(node);
       node3DById.set(node.id, n3d);
-      minX = Math.min(minX, n3d.x); maxX = Math.max(maxX, n3d.x);
-      minZ = Math.min(minZ, n3d.z); maxZ = Math.max(maxZ, n3d.z);
+      minX = Math.min(minX, n3d.x - n3d.width / 2); maxX = Math.max(maxX, n3d.x + n3d.width / 2);
+      minZ = Math.min(minZ, n3d.z - n3d.depth / 2); maxZ = Math.max(maxZ, n3d.z + n3d.depth / 2);
+      maxY = Math.max(maxY, n3d.height);
 
       const isActive = activeKeys.has(`node:${node.id}`);
       const geometry = new THREE.BoxGeometry(n3d.width, n3d.height, n3d.depth);
-      const material = new THREE.MeshStandardMaterial({ color: n3d.color, opacity: isActive ? 1 : 0.35, transparent: !isActive });
+      const material = new THREE.MeshStandardMaterial({
+        color: n3d.color, opacity: isActive ? 1 : 0.35, transparent: !isActive, roughness: 0.55, metalness: 0.12,
+      });
       const mesh = new THREE.Mesh(geometry, material);
       mesh.position.set(n3d.x, n3d.y, n3d.z);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
       contentGroup.add(mesh);
       disposables.push(geometry, material);
 
@@ -204,12 +254,17 @@ export async function mountScene3D(canvasEl) {
         disposables.push(geo, mat);
         thinkingSwarms.push({ points, basePositions });
 
-        // Two small pulsing "chip" decals on the top face — CPU/RAM flair.
-        for (const dx of [-n3d.width * 0.2, n3d.width * 0.2]) {
-          const chipGeo = new THREE.BoxGeometry(n3d.width * 0.18, 4, n3d.depth * 0.18);
-          const chipMat = new THREE.MeshStandardMaterial({ color: 0x111827, emissive: THINKING_COLOR, emissiveIntensity: 0.5 });
+        // Two small pulsing "activity light" decals near the top-front edge —
+        // small emissive spheres read as status LEDs at a glance; a wide flat
+        // box in the same spot (the original approach) foreshortens under an
+        // oblique camera into a slanted parallelogram that looks like a
+        // rendering glitch rather than an intentional detail.
+        const chipRadius = Math.max(3, Math.min(n3d.width, n3d.depth) * 0.045);
+        for (const dx of [-n3d.width * 0.25, n3d.width * 0.25]) {
+          const chipGeo = new THREE.SphereGeometry(chipRadius, 12, 10);
+          const chipMat = new THREE.MeshStandardMaterial({ color: 0x0b1220, emissive: THINKING_COLOR, emissiveIntensity: 0.6, roughness: 0.4 });
           const chip = new THREE.Mesh(chipGeo, chipMat);
-          chip.position.set(dx, n3d.height / 2 + 2, 0);
+          chip.position.set(dx, n3d.height / 2 + chipRadius * 0.6, n3d.depth / 2 - chipRadius * 1.5);
           chip.userData.pulsePhase = Math.random() * Math.PI * 2;
           mesh.add(chip);
           disposables.push(chipGeo, chipMat);
@@ -230,8 +285,9 @@ export async function mountScene3D(canvasEl) {
         new THREE.Vector3(e3d.end.x, e3d.end.y, e3d.end.z),
       );
       const tubeGeo = new THREE.TubeGeometry(curve, 24, 4, 8, false);
-      const tubeMat = new THREE.MeshStandardMaterial({ color: e3d.color });
+      const tubeMat = new THREE.MeshStandardMaterial({ color: e3d.color, roughness: 0.4, metalness: 0.3 });
       const tube = new THREE.Mesh(tubeGeo, tubeMat);
+      tube.receiveShadow = true;
       contentGroup.add(tube);
       disposables.push(tubeGeo, tubeMat);
 
@@ -250,10 +306,72 @@ export async function mountScene3D(canvasEl) {
     }
 
     if (Number.isFinite(minX)) {
-      target = { x: (minX + maxX) / 2, y: 60, z: (minZ + maxZ) / 2 };
-      const spanX = maxX - minX;
-      const spanZ = maxZ - minZ;
-      radius = Math.max(400, Math.max(spanX, spanZ) * 0.9);
+      const cx = (minX + maxX) / 2;
+      const cz = (minZ + maxZ) / 2;
+      target = { x: cx, y: maxY / 2, z: cz };
+
+      // A large ground plane + grid grounds the whole scene — without one,
+      // boxes read as floating cut-outs in a black void with no sense of
+      // scale, orientation, or which one is "in front." Sized/recreated per
+      // rebuild (rather than a fixed size) so a small 2-node diagram doesn't
+      // get an absurdly oversized floor and a huge diagram isn't cropped by
+      // an undersized one.
+      const footprint = Math.max(maxX - minX, maxZ - minZ, 300);
+      const groundSize = footprint * 4;
+      const groundGeo = new THREE.PlaneGeometry(groundSize, groundSize);
+      const groundMat = new THREE.MeshStandardMaterial({ color: 0x161c2c, roughness: 1, metalness: 0 });
+      const ground = new THREE.Mesh(groundGeo, groundMat);
+      ground.rotation.x = -Math.PI / 2;
+      ground.position.set(cx, -0.5, cz);
+      ground.receiveShadow = true;
+      contentGroup.add(ground);
+      disposables.push(groundGeo, groundMat);
+
+      const divisions = Math.min(60, Math.max(10, Math.round(groundSize / 80)));
+      const grid = new THREE.GridHelper(groundSize, divisions, 0x3a4a72, 0x1f2740);
+      grid.position.set(cx, 0.2, cz);
+      grid.material.transparent = true;
+      grid.material.opacity = 0.55;
+      contentGroup.add(grid);
+      disposables.push(grid.geometry, grid.material);
+
+      // Point the key light and its shadow frustum at the content's actual
+      // center — a fixed-offset light with a fixed shadow frustum (the
+      // previous approach) would aim at whatever happened to be near world
+      // origin, so a diagram built far from (0,0) would render with no
+      // visible shadows at all (everything outside the frustum is simply
+      // unshadowed) rather than an obviously-wrong shadow.
+      const sphereR = Math.max(300, Math.sqrt(((maxX - minX) / 2) ** 2 + (maxY / 2) ** 2 + ((maxZ - minZ) / 2) ** 2));
+      dirLight.position.set(cx + sphereR * 0.8, maxY + sphereR * 1.4, cz + sphereR);
+      dirLight.target.position.set(cx, maxY / 2, cz);
+      dirLight.target.updateMatrixWorld();
+      const cam = dirLight.shadow.camera;
+      cam.left = -sphereR * 1.4; cam.right = sphereR * 1.4;
+      cam.top = sphereR * 1.4; cam.bottom = -sphereR * 1.4;
+      cam.near = 10; cam.far = sphereR * 6;
+      cam.updateProjectionMatrix();
+
+      // Fit the camera distance to the content's bounding sphere against
+      // whichever of the vertical/horizontal FOV is more restrictive, with
+      // generous padding — the previous formula (span * 0.9, clamped to a
+      // flat 400 minimum) ignored box width/depth/height entirely, so a
+      // cluster of ordinarily-sized boxes routinely computed a radius small
+      // enough that the boxes themselves overflowed the viewport.
+      const vFov = (camera.fov * Math.PI) / 180;
+      const aspect = camera.aspect || 1.6;
+      const hFov = 2 * Math.atan(Math.tan(vFov / 2) * aspect);
+      const fitDistance = sphereR / Math.sin(Math.min(vFov, hFov) / 2);
+      radius = Math.max(350, fitDistance * 1.25);
+
+      // Fog range must scale with content size, not stay fixed — a fixed
+      // near/far (the original approach) fades in well before the camera's
+      // fitted distance for any diagram bigger than a handful of nodes,
+      // washing out the diagram itself instead of just the empty void
+      // beyond it. Tying both to the just-computed radius keeps the fade
+      // starting past the camera and finishing well beyond the content,
+      // at any scale.
+      scene.fog.near = radius * 1.1;
+      scene.fog.far = radius * 4;
     }
     updateCamera();
   }
@@ -315,8 +433,8 @@ export async function mountScene3D(canvasEl) {
     renderer.render(scene, camera);
   }
 
-  buildScene();
   resize();
+  buildScene();
   updateCamera();
   tick();
 
@@ -338,5 +456,15 @@ export async function mountScene3D(canvasEl) {
     renderer.dispose();
   }
 
-  return { dispose, getRenderTargetCanvas: () => canvasEl };
+  // Lets the overlay's "Reset View" button recover from a user having
+  // spun/zoomed the (pan-less) custom orbit camera somewhere disorienting —
+  // re-fits distance/target to the current content and snaps the angle back
+  // to the default framing, same as a fresh open.
+  function resetView() {
+    theta = DEFAULT_THETA;
+    phi = DEFAULT_PHI;
+    buildScene();
+  }
+
+  return { dispose, resetView, getRenderTargetCanvas: () => canvasEl };
 }

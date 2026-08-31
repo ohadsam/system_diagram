@@ -432,8 +432,11 @@ Or open `index.html` directly in a browser.
   color-coded by flow direction (blue one way, red the other), and
   playing your Diagram Animation inside it shows ambient "thinking"
   particles and pulsing chip decals inside each component. Drag to
-  orbit, scroll to zoom, or just let it auto-rotate — and "🎥 Export 3D
-  Video" records the whole thing to a downloadable video file.
+  orbit, scroll to zoom, or just let it auto-rotate (a "🎯 Reset View"
+  button recenters if you spin/zoom somewhere disorienting — there's no
+  pan) — and "🎥 Export 3D Video" records the whole thing to a downloadable
+  video file. The scene includes a ground plane, grid, and cast shadows
+  for a real sense of scale and depth.
 - **🪄 AI Beautify Layout** — asks an AI to suggest a nicer arrangement of
   your existing components (Tools menu); only positions change.
 - **🎙️ Voice dictation** — a mic button appears on every AI text field

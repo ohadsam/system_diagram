@@ -110,6 +110,35 @@ Keep this in sync with `PLAN.md` as stages complete.
   field (with autocomplete) on custom components, grouping them into
   collapsible 📁 sub-groups in the sidebar.
 
+## v1.50.0 (2026-08-31)
+
+- **3D Presentation Mode visual/usability overhaul** (`js/render3d/scene3dRenderer.js`,
+  `js/canvas/scene3dOverlay.js`) — the existing feature looked rough and was hard to read; fixed
+  the concrete problems found by actually rendering it, rather than guessing:
+  - **Camera auto-fit was broken**: it only tracked node *center points*, not their actual
+    width/height/depth, so a normal-sized cluster of boxes routinely computed a camera distance
+    tight enough that the boxes themselves overflowed the viewport (cropped tops/bottoms, labels
+    running off-screen). Now computes the real 3D bounding box (including height) and fits the
+    camera to it against whichever of the vertical/horizontal FOV is more restrictive — verified
+    at desktop, tablet, and mobile widths.
+  - **No ground plane or grid** — boxes floated as flat cutouts in a black void with no sense of
+    scale or orientation. Added a ground plane + grid sized to the diagram, plus real cast shadows
+    (a shadow-casting key light, `renderer.shadowMap` enabled) so boxes read as grounded objects.
+  - **Flat, near-black lighting** — a single directional light left every face not directly facing
+    it nearly black. Added a hemisphere light (soft sky/floor split) and a dim fill light from the
+    opposite side so every face stays legible. Fog now scales with the diagram's own size instead
+    of a fixed range, so it fades the empty void at the horizon without ever washing out the
+    diagram itself on a larger canvas.
+  - **Labels silently truncated** past ~20 characters (e.g. "Elastic Load Balancer" rendered as
+    "lastic Load Balance") because the label's canvas texture had a fixed 256px width. Now sized to
+    the actual measured text.
+  - **"Chip" decals looked like rendering glitches** — a wide flat box on a box's top face
+    foreshortens under an oblique camera into a slanted parallelogram. Replaced with small glowing
+    sphere "status light" decals that read clearly as an intentional detail.
+  - New **"🎯 Reset View" button** in the 3D controls bar — recenters and re-fits the camera,
+    since the custom orbit camera has no pan and a user can spin/zoom somewhere disorienting with
+    no other way back.
+
 ## v1.49.3 (2026-08-31)
 
 - **Extended the previous release's description-quality bar to every remaining "out of the box"

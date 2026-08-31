@@ -1883,6 +1883,15 @@ full-viewport overlay, for presenting rather than editing:
   same pair of components, regardless of draw order.
 - **Camera** is a hand-rolled orbit (drag to rotate, scroll to zoom) with
   a slow automatic rotation whenever the user isn't actively dragging.
+  Opening the view auto-fits the camera distance and target to the whole
+  diagram's real bounding box (not just node center points), so the
+  diagram is always framed fully in view rather than clipped or
+  overflowing the viewport. A "🎯 Reset View" button in the controls bar
+  recenters and re-fits the camera at any time — there is no pan, only
+  orbit and zoom, so this is the way back if the view ends up
+  disorienting. The scene includes a ground plane, a grid, and cast
+  shadows for a sense of scale and depth, rather than boxes floating in
+  an empty void.
 - **Playback.** If the diagram has a Diagram Animation (4.36), the
   overlay's Play/Prev/Next controls drive the same reveal sequence in 3D;
   while playing, visible components show ambient "thinking" particle
