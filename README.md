@@ -427,16 +427,21 @@ Or open `index.html` directly in a browser.
   users/external systems.
 
 - **🧊 3D Presentation Mode** — one click (Tools menu) turns the current
-  diagram into a rotatable 3D scene for presenting: components become
-  extruded, colored boxes, connectors become animated "cable" tubes
-  color-coded by flow direction (blue one way, red the other), and
-  playing your Diagram Animation inside it shows ambient "thinking"
-  particles and pulsing chip decals inside each component. Drag to
-  orbit, scroll to zoom, or just let it auto-rotate (a "🎯 Reset View"
-  button recenters if you spin/zoom somewhere disorienting — there's no
-  pan) — and "🎥 Export 3D Video" records the whole thing to a downloadable
-  video file. The scene includes a ground plane, grid, and cast shadows
-  for a real sense of scale and depth.
+  diagram into a rotatable 3D scene styled to look like real
+  infrastructure, not a field of identical boxes: databases/caches become
+  stacked-disk storage drums, decision diamonds become gem-like shapes,
+  hexagons become hex prisms, circles become spheres, and everything else
+  gets a textured server-chassis look (rack-unit seams, status LEDs)
+  instead of a flat color. Connectors become animated, segmented cables
+  with connector-plug caps, color-coded by flow direction (blue one way,
+  red the other), and playing your Diagram Animation inside it shows
+  ambient "thinking" particles and pulsing status lights on each active
+  component. Drag to orbit, scroll to zoom, or just let it auto-rotate (a
+  "🎯 Reset View" button recenters if you spin/zoom somewhere
+  disorienting — there's no pan) — and "🎥 Export 3D Video" records the
+  whole thing to a downloadable video file. The scene includes a
+  raised-floor-tile ground and cast shadows for a real sense of scale and
+  depth.
 - **🪄 AI Beautify Layout** — asks an AI to suggest a nicer arrangement of
   your existing components (Tools menu); only positions change.
 - **🎙️ Voice dictation** — a mic button appears on every AI text field

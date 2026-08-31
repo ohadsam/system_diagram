@@ -38,6 +38,193 @@ function computeActiveKeys(nodes, edges) {
   return { hiddenKeys, activeKeys };
 }
 
+// --- Procedural "drawn" textures ---------------------------------------
+// This app has no photographic/illustrated asset pipeline (components are
+// styled with flat color + an emoji icon in the 2D canvas), so "make it
+// look like real server-farm/network hardware" is built the same way the
+// existing label sprites already are: draw it onto a <canvas> and use that
+// as a Three.js texture. Every texture here is drawn once per distinct
+// (kind, color) pair and cached for the life of the mounted scene (see
+// `textureCache` in `mountScene3D`) — regenerating and re-uploading a canvas
+// texture to the GPU on every store-change rebuild (this scene rebuilds on
+// every project edit) would be wasteful for a diagram with many
+// same-colored components, which is the common case (every node in one
+// category shares a color).
+
+function hexToRgb(hex) {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || '#6B7280');
+  if (!m) return { r: 107, g: 114, b: 128 };
+  return { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) };
+}
+function shade(hex, amt) {
+  const { r, g, b } = hexToRgb(hex);
+  const c = (v) => Math.max(0, Math.min(255, Math.round(v + amt)));
+  return `rgb(${c(r)}, ${c(g)}, ${c(b)})`;
+}
+
+/** A server-chassis front panel: base color, a faint brushed-metal
+ * gradient, horizontal 1U rack-unit seams, and a couple of small status
+ * LEDs — used for the default ('rack') visual kind, i.e. most components. */
+function drawRackTexture(colorHex) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = colorHex;
+  ctx.fillRect(0, 0, 128, 128);
+  const grad = ctx.createLinearGradient(0, 0, 128, 0);
+  grad.addColorStop(0, 'rgba(255,255,255,0.10)');
+  grad.addColorStop(0.5, 'rgba(0,0,0,0)');
+  grad.addColorStop(1, 'rgba(0,0,0,0.14)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 128, 128);
+  ctx.strokeStyle = shade(colorHex, -70);
+  ctx.lineWidth = 2;
+  for (let y = 14; y < 128; y += 18) {
+    ctx.beginPath(); ctx.moveTo(4, y); ctx.lineTo(124, y); ctx.stroke();
+  }
+  ctx.fillStyle = 'rgba(34, 211, 238, 0.95)';
+  for (let y = 14; y < 128; y += 36) {
+    ctx.beginPath(); ctx.arc(14, y - 7, 2.6, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.fillStyle = 'rgba(248, 113, 113, 0.7)';
+  for (let y = 32; y < 128; y += 36) {
+    ctx.beginPath(); ctx.arc(22, y - 7, 2, 0, Math.PI * 2); ctx.fill();
+  }
+  return canvas;
+}
+
+/** Stacked-disk-platter rings for the 'storage' visual kind (databases,
+ * caches — anything drawn as a cylinder in 2D). Drawn as horizontal bands;
+ * CylinderGeometry's default UVs wrap the side surface's V axis along the
+ * cylinder's height, so these bands render as actual encircling rings. */
+function drawStorageTexture(colorHex) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = colorHex;
+  ctx.fillRect(0, 0, 64, 128);
+  ctx.strokeStyle = shade(colorHex, -55);
+  ctx.lineWidth = 1.5;
+  for (let y = 6; y < 128; y += 8) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(64, y); ctx.stroke();
+  }
+  ctx.fillStyle = 'rgba(34, 211, 238, 0.9)';
+  ctx.fillRect(0, 10, 64, 3);
+  return canvas;
+}
+
+/** A raised data-center floor tile: a bordered panel with corner screws.
+ * Color-independent (one shared texture for the whole scene, tiled via
+ * `repeat`), replacing a flat color + wireframe grid with something that
+ * actually reads as a real floor rather than a debug overlay. */
+function drawFloorTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#161c2c';
+  ctx.fillRect(0, 0, 128, 128);
+  ctx.strokeStyle = 'rgba(148, 163, 184, 0.2)';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(2, 2, 124, 124);
+  ctx.fillStyle = 'rgba(148, 163, 184, 0.35)';
+  for (const [cx, cy] of [[16, 16], [112, 16], [16, 112], [112, 112]]) {
+    ctx.beginPath(); ctx.arc(cx, cy, 2.2, 0, Math.PI * 2); ctx.fill();
+  }
+  return canvas;
+}
+
+/** A short, repeatable network/power-cable pattern (a color band with a
+ * darker connector-segment stripe) for cable tubes — tiled several times
+ * along the tube's length via `repeat.y` so a cable reads as a real,
+ * segmented cable run rather than a single flat-shaded pipe. */
+function drawCableTexture(colorHex) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 32;
+  canvas.height = 32;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = colorHex;
+  ctx.fillRect(0, 0, 32, 32);
+  ctx.fillStyle = shade(colorHex, -45);
+  ctx.fillRect(0, 0, 32, 5);
+  return canvas;
+}
+
+function getOrCreateTexture(THREE, cache, key, drawFn) {
+  let tex = cache.get(key);
+  if (!tex) {
+    tex = new THREE.CanvasTexture(drawFn());
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    cache.set(key, tex);
+  }
+  return tex;
+}
+
+/** Builds the geometry + material(s) for one node's `visualKind` (see
+ * core/scene3dLayout.js#getVisualKind) — the whole point being that a
+ * diagram doesn't render as a field of identical boxes: a database looks
+ * like a stacked-disk drum, a decision diamond like a gem, a hexagon like
+ * a hex prism, a circle like a sphere, and everything else (the majority
+ * of components) like a textured server-chassis box. Returns `material`
+ * (what to assign to the mesh — a single material, or a per-geometry-group
+ * array for `storage`'s distinct side/cap treatment) and `materials` (the
+ * same, always flattened to an array, for the caller to register for
+ * disposal — cached *textures* are deliberately not included here, see the
+ * texture cache note above). `outline` says whether a crisp EdgesGeometry
+ * outline suits this shape (flat-faced shapes) or would look noisy on it
+ * (smooth/round shapes get none).
+ *
+ * Non-uniform sizing is baked into the *geometry* via `.scale()`, never
+ * `mesh.scale` — a mesh-level scale would also distort every child added
+ * later (the label sprite, status-light decals), squashing them along with
+ * the body. */
+function buildNodeVisual(THREE, n3d, isActive, textureCache) {
+  const { width: w, height: h, depth: d, visualKind: kind, color } = n3d;
+  const opacity = isActive ? 1 : 0.35;
+  const transparent = !isActive;
+
+  if (kind === 'storage') {
+    const radius = Math.max(10, Math.min(w, d) / 2);
+    const geometry = new THREE.CylinderGeometry(radius, radius, h, 28, 1, false);
+    const sideTex = getOrCreateTexture(THREE, textureCache, `storage:${color}`, () => drawStorageTexture(color));
+    sideTex.repeat.set(1, Math.max(1, h / 40));
+    const sideMat = new THREE.MeshStandardMaterial({ map: sideTex, roughness: 0.35, metalness: 0.4, opacity, transparent });
+    const capMat = new THREE.MeshStandardMaterial({ color, roughness: 0.4, metalness: 0.3, opacity, transparent });
+    return { geometry, material: [sideMat, capMat, capMat], materials: [sideMat, capMat], outline: false };
+  }
+  if (kind === 'decision') {
+    const geometry = new THREE.OctahedronGeometry(1);
+    geometry.scale(w / 2, h / 2, d / 2);
+    const material = new THREE.MeshStandardMaterial({ color, roughness: 0.3, metalness: 0.25, opacity, transparent });
+    return { geometry, material, materials: [material], outline: true };
+  }
+  if (kind === 'orb') {
+    const geometry = new THREE.SphereGeometry(1, 24, 16);
+    geometry.scale(w / 2, h / 2, d / 2);
+    const material = new THREE.MeshStandardMaterial({ color, roughness: 0.4, metalness: 0.15, opacity, transparent });
+    return { geometry, material, materials: [material], outline: false };
+  }
+  if (kind === 'hex') {
+    const radius = Math.max(10, Math.min(w, d) / 2);
+    const geometry = new THREE.CylinderGeometry(radius, radius, h, 6);
+    const material = new THREE.MeshStandardMaterial({ color, roughness: 0.5, metalness: 0.15, opacity, transparent });
+    return { geometry, material, materials: [material], outline: true };
+  }
+  if (kind === 'pillar') {
+    const geometry = new THREE.BoxGeometry(w, h, d);
+    const material = new THREE.MeshStandardMaterial({ color, roughness: 0.6, metalness: 0.1, opacity, transparent });
+    return { geometry, material, materials: [material], outline: true };
+  }
+  // 'rack' — the default: a textured server-chassis box.
+  const geometry = new THREE.BoxGeometry(w, h, d);
+  const tex = getOrCreateTexture(THREE, textureCache, `rack:${color}`, () => drawRackTexture(color));
+  const material = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.55, metalness: 0.18, opacity, transparent });
+  return { geometry, material, materials: [material], outline: true };
+}
+
 // Canvas width is sized to the *actual measured text*, not a fixed 256px —
 // a fixed width silently truncated any label past ~15-20 characters (e.g.
 // "Elastic Load Balancer" rendered as "lastic Load Balance"), which read as
@@ -126,6 +313,14 @@ export async function mountScene3D(canvasEl) {
   const contentGroup = new THREE.Group();
   scene.add(contentGroup);
 
+  // Canvas-drawn textures (server chassis, disk platters, floor tile,
+  // cable pattern) are cached here for the life of the mounted scene —
+  // keyed by "kind:color" (or a single fixed key for the color-independent
+  // floor) — since `buildScene()` below runs on every store change and
+  // regenerating + re-uploading identical canvas textures on every edit
+  // would be wasteful. Disposed once in `dispose()`, not per-rebuild.
+  const textureCache = new Map();
+
   // Custom orbit camera — a plain spherical-coordinates drag/zoom
   // controller, not Three.js's OrbitControls addon: that ships as a
   // separate ES module under examples/jsm, which would mean vendoring a
@@ -170,12 +365,12 @@ export async function mountScene3D(canvasEl) {
   window.addEventListener('pointerup', onPointerUp);
   canvasEl.addEventListener('wheel', onWheel, { passive: false });
 
-  // Per-node ambient "thinking" particle swarms and chip decals, and
+  // Per-node ambient "thinking" particle swarms and status-light decals, and
   // per-edge cable flow particles — tracked so the render loop can animate
   // them without re-walking the whole scene graph every frame.
   let thinkingSwarms = []; // { points, basePositions, phase }
   let cableFlows = []; // { points, curve, offsets }
-  let disposables = []; // geometries/materials/textures to dispose on rebuild/unmount
+  let disposables = []; // geometries/materials to dispose on rebuild/unmount (NOT cached textures — see textureCache)
 
   function clearContent() {
     while (contentGroup.children.length) {
@@ -210,22 +405,20 @@ export async function mountScene3D(canvasEl) {
       maxY = Math.max(maxY, n3d.height);
 
       const isActive = activeKeys.has(`node:${node.id}`);
-      const geometry = new THREE.BoxGeometry(n3d.width, n3d.height, n3d.depth);
-      const material = new THREE.MeshStandardMaterial({
-        color: n3d.color, opacity: isActive ? 1 : 0.35, transparent: !isActive, roughness: 0.55, metalness: 0.12,
-      });
+      const { geometry, material, materials, outline } = buildNodeVisual(THREE, n3d, isActive, textureCache);
       const mesh = new THREE.Mesh(geometry, material);
       mesh.position.set(n3d.x, n3d.y, n3d.z);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       contentGroup.add(mesh);
-      disposables.push(geometry, material);
+      disposables.push(geometry, ...materials);
 
-      const edgesGeo = new THREE.EdgesGeometry(geometry);
-      const edgesMat = new THREE.LineBasicMaterial({ color: 0x111827 });
-      const outline = new THREE.LineSegments(edgesGeo, edgesMat);
-      mesh.add(outline);
-      disposables.push(edgesGeo, edgesMat);
+      if (outline) {
+        const edgesGeo = new THREE.EdgesGeometry(geometry);
+        const edgesMat = new THREE.LineBasicMaterial({ color: 0x111827 });
+        mesh.add(new THREE.LineSegments(edgesGeo, edgesMat));
+        disposables.push(edgesGeo, edgesMat);
+      }
 
       const label = makeLabelSprite(THREE, n3d.label, Math.max(n3d.width, 60));
       label.position.set(0, n3d.height / 2 + 30, 0);
@@ -233,7 +426,7 @@ export async function mountScene3D(canvasEl) {
       disposables.push(label.material, label.material.map);
 
       if (isActive) {
-        // Ambient "thinking" particle swarm inside the box — a handful of
+        // Ambient "thinking" particle swarm inside the volume — a handful of
         // points bouncing within its bounds, purely a presentation effect
         // (as if packets of data/computation were visibly happening).
         const count = PARTICLES_PER_NODE;
@@ -256,7 +449,7 @@ export async function mountScene3D(canvasEl) {
 
         // Two small pulsing "activity light" decals near the top-front edge —
         // small emissive spheres read as status LEDs at a glance; a wide flat
-        // box in the same spot (the original approach) foreshortens under an
+        // box in the same spot (an earlier approach) foreshortens under an
         // oblique camera into a slanted parallelogram that looks like a
         // rendering glitch rather than an intentional detail.
         const chipRadius = Math.max(3, Math.min(n3d.width, n3d.depth) * 0.045);
@@ -284,12 +477,30 @@ export async function mountScene3D(canvasEl) {
         new THREE.Vector3(e3d.mid.x, e3d.mid.y, e3d.mid.z),
         new THREE.Vector3(e3d.end.x, e3d.end.y, e3d.end.z),
       );
-      const tubeGeo = new THREE.TubeGeometry(curve, 24, 4, 8, false);
-      const tubeMat = new THREE.MeshStandardMaterial({ color: e3d.color, roughness: 0.4, metalness: 0.3 });
+      const tubeGeo = new THREE.TubeGeometry(curve, 32, 4, 10, false);
+      // A repeating cable-segment texture (rather than a flat-shaded pipe)
+      // reads as a real network/power cable run; tiled along the tube's
+      // length (TubeGeometry's V axis) proportionally to how long it is.
+      const cableTex = getOrCreateTexture(THREE, textureCache, `cable:${e3d.color}`, () => drawCableTexture(e3d.color));
+      cableTex.repeat.set(1, Math.max(2, Math.round(curve.getLength() / 40)));
+      const tubeMat = new THREE.MeshStandardMaterial({ map: cableTex, roughness: 0.4, metalness: 0.35 });
       const tube = new THREE.Mesh(tubeGeo, tubeMat);
       tube.receiveShadow = true;
       contentGroup.add(tube);
       disposables.push(tubeGeo, tubeMat);
+
+      // Small dark "connector plug" caps at each end — a plain pipe end
+      // reads as an unfinished stub; a capped end reads as a real cable
+      // plugged into something.
+      for (const t of [0, 1]) {
+        const p = curve.getPoint(t);
+        const plugGeo = new THREE.SphereGeometry(7, 10, 8);
+        const plugMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.4, metalness: 0.5 });
+        const plug = new THREE.Mesh(plugGeo, plugMat);
+        plug.position.copy(p);
+        contentGroup.add(plug);
+        disposables.push(plugGeo, plugMat);
+      }
 
       const isActive = activeKeys.has(`edge:${edge.id}`);
       if (isActive) {
@@ -310,30 +521,25 @@ export async function mountScene3D(canvasEl) {
       const cz = (minZ + maxZ) / 2;
       target = { x: cx, y: maxY / 2, z: cz };
 
-      // A large ground plane + grid grounds the whole scene — without one,
-      // boxes read as floating cut-outs in a black void with no sense of
+      // A large textured floor grounds the whole scene — without one,
+      // volumes read as floating cut-outs in a black void with no sense of
       // scale, orientation, or which one is "in front." Sized/recreated per
       // rebuild (rather than a fixed size) so a small 2-node diagram doesn't
       // get an absurdly oversized floor and a huge diagram isn't cropped by
-      // an undersized one.
+      // an undersized one. The tile texture itself is cached/shared (it's
+      // color-independent), only the plane geometry + its repeat count vary.
       const footprint = Math.max(maxX - minX, maxZ - minZ, 300);
       const groundSize = footprint * 4;
       const groundGeo = new THREE.PlaneGeometry(groundSize, groundSize);
-      const groundMat = new THREE.MeshStandardMaterial({ color: 0x161c2c, roughness: 1, metalness: 0 });
+      const floorTex = getOrCreateTexture(THREE, textureCache, 'floor', () => drawFloorTexture());
+      floorTex.repeat.set(groundSize / 140, groundSize / 140);
+      const groundMat = new THREE.MeshStandardMaterial({ map: floorTex, roughness: 1, metalness: 0 });
       const ground = new THREE.Mesh(groundGeo, groundMat);
       ground.rotation.x = -Math.PI / 2;
       ground.position.set(cx, -0.5, cz);
       ground.receiveShadow = true;
       contentGroup.add(ground);
       disposables.push(groundGeo, groundMat);
-
-      const divisions = Math.min(60, Math.max(10, Math.round(groundSize / 80)));
-      const grid = new THREE.GridHelper(groundSize, divisions, 0x3a4a72, 0x1f2740);
-      grid.position.set(cx, 0.2, cz);
-      grid.material.transparent = true;
-      grid.material.opacity = 0.55;
-      contentGroup.add(grid);
-      disposables.push(grid.geometry, grid.material);
 
       // Point the key light and its shadow frustum at the content's actual
       // center — a fixed-offset light with a fixed shadow frustum (the
@@ -364,7 +570,7 @@ export async function mountScene3D(canvasEl) {
       radius = Math.max(350, fitDistance * 1.25);
 
       // Fog range must scale with content size, not stay fixed — a fixed
-      // near/far (the original approach) fades in well before the camera's
+      // near/far (an earlier approach) fades in well before the camera's
       // fitted distance for any diagram bigger than a handful of nodes,
       // washing out the diagram itself instead of just the empty void
       // beyond it. Tying both to the just-computed radius keeps the fade
@@ -453,6 +659,8 @@ export async function mountScene3D(canvasEl) {
     window.removeEventListener('pointerup', onPointerUp);
     canvasEl.removeEventListener('wheel', onWheel);
     clearContent();
+    for (const tex of textureCache.values()) tex.dispose();
+    textureCache.clear();
     renderer.dispose();
   }
 

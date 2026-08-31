@@ -3913,6 +3913,16 @@ playback code):
   direction edges between the same pair of nodes always render as one
   blue, one red, regardless of which was drawn first.
 
+  `getVisualKind(shape)` maps a 2D shape to a 3D silhouette so the scene
+  doesn't render as a field of identical boxes: `cylinder` → `'storage'`,
+  `diamond` → `'decision'`, `circle` → `'orb'`, `hexagon` → `'hex'`,
+  `lifeline` → `'pillar'`; everything else (the majority of components,
+  plus `cuboid` — UML's "device/node" stereotype, which reads correctly as
+  a plain box) falls back to `'rack'`. `computeNode3D` includes the
+  result as `visualKind`; the actual geometry/texture per kind lives in
+  `render3d/scene3dRenderer.js#buildNodeVisual` (below) since building a
+  `THREE.CylinderGeometry` etc. is WebGL-touching, not pure-geometry-math.
+
   **Gotcha: a lifeline's 2D `h` is a time axis, not a spatial footprint.**
   `computeNode3D` originally mapped every shape's `node.w`/`node.h`
   straight into a box's width/depth the same way — correct for an
@@ -3944,6 +3954,36 @@ playback code):
   no vendored `OrbitControls` addon) with a slow ambient auto-rotate
   (`theta += dt * 0.12`) whenever not actively dragging, which is also
   what makes a recorded video look like a real orbiting shot.
+  **Procedural "drawn" textures, not photos.** This app has no
+  photographic/illustrated asset pipeline (2D components are styled with
+  flat color + an emoji icon), so making the 3D scene look like real
+  server-farm/network hardware is built the same way the pre-existing
+  label sprites already are: draw it onto a `<canvas>`, use it as a
+  `THREE.CanvasTexture`. `buildNodeVisual(THREE, n3d, isActive,
+  textureCache)` branches on `n3d.visualKind` to build the right
+  geometry/material: `'storage'` gets a `CylinderGeometry` with a
+  ring-patterned side texture (disk platters — `CylinderGeometry`'s
+  default UVs wrap the side's V axis along its height, so horizontal
+  bands in the source canvas render as actual encircling rings) and a
+  separate flat-color cap material (a 3-entry `material` array —
+  `[side, top, bottom]`, matching `CylinderGeometry`'s own face-group
+  order — so the caps don't get the side's ring pattern stretched onto
+  them); `'decision'` an `OctahedronGeometry`; `'orb'` a `SphereGeometry`;
+  `'hex'` a 6-radial-segment `CylinderGeometry`; `'pillar'` a plain
+  `BoxGeometry`; the `'rack'` default a `BoxGeometry` textured with a
+  server-chassis panel (seams + status LEDs). **Non-uniform sizing is
+  baked into the geometry via `.scale()`, never `mesh.scale`** — scaling
+  the mesh instead would also distort every child added after (the label
+  sprite, the status-light decals), squashing them along with the body.
+  Textures are cached in a `textureCache` Map keyed by `"kind:color"` (a
+  fixed key for the color-independent floor tile) and live for the whole
+  mounted scene, not per-`buildScene()` rebuild — `buildScene()` runs on
+  every store change, so regenerating and re-uploading identical canvas
+  textures to the GPU on every edit would be wasteful for a diagram where
+  many nodes share a category color (the common case); `dispose()`
+  disposes the cache once, not `clearContent()` (which runs every
+  rebuild).
+
   `computeActiveKeys(nodes, edges)` mirrors `canvas.js`'s
   `applyAnimationVisibility` hidden/revealed-set logic exactly, so 3D
   playback shows the same reveal state as 2D playback would. Returns
@@ -3986,9 +4026,10 @@ playback code):
   placeholder `aspect: 1`). The scene also had no ground plane, no grid,
   and only one directional light — boxes read as flat cutouts floating in
   a black void with near-black unlit faces. Fixed with a content-sized
-  ground plane + grid (recreated per rebuild, added to `contentGroup` so
-  they're cleaned up the same way as every other rebuilt object), a
-  shadow-casting key light (`renderer.shadowMap` enabled, `dirLight.
+  textured floor (recreated per rebuild, added to `contentGroup` so it's
+  cleaned up the same way as every other rebuilt object — a raised-floor
+  tile texture replaced an original `GridHelper`, see the texture note
+  below), a shadow-casting key light (`renderer.shadowMap` enabled, `dirLight.
   target` repositioned to the content's actual center every rebuild —
   a fixed-offset light aimed at world origin renders with no visible
   shadow at all once a diagram is built away from `(0,0)`), plus a

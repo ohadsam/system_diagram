@@ -122,8 +122,9 @@ Keep this in sync with `PLAN.md` as stages complete.
     camera to it against whichever of the vertical/horizontal FOV is more restrictive — verified
     at desktop, tablet, and mobile widths.
   - **No ground plane or grid** — boxes floated as flat cutouts in a black void with no sense of
-    scale or orientation. Added a ground plane + grid sized to the diagram, plus real cast shadows
-    (a shadow-casting key light, `renderer.shadowMap` enabled) so boxes read as grounded objects.
+    scale or orientation. Added a raised-floor tile texture sized to the diagram, plus real cast
+    shadows (a shadow-casting key light, `renderer.shadowMap` enabled) so boxes read as grounded
+    objects.
   - **Flat, near-black lighting** — a single directional light left every face not directly facing
     it nearly black. Added a hemisphere light (soft sky/floor split) and a dim fill light from the
     opposite side so every face stays legible. Fog now scales with the diagram's own size instead
@@ -138,6 +139,24 @@ Keep this in sync with `PLAN.md` as stages complete.
   - New **"🎯 Reset View" button** in the 3D controls bar — recenters and re-fits the camera,
     since the custom orbit camera has no pan and a user can spin/zoom somewhere disorienting with
     no other way back.
+- **3D scene visual concept reworked to look like real infrastructure**, not a field of identical
+  boxes (`js/core/scene3dLayout.js#getVisualKind`, `js/render3d/scene3dRenderer.js`) — since this
+  app has no photographic/illustrated asset pipeline, "real-looking" is built the same way the
+  existing label sprites already are: drawn onto a `<canvas>` and used as a texture, cached per
+  (kind, color) pair for the life of the mounted scene so a diagram with many same-colored
+  components doesn't regenerate/re-upload identical textures on every edit.
+  - Each 2D shape now gets its own 3D silhouette instead of one generic box: `cylinder`
+    (databases/caches) renders as a **stacked-disk storage drum** (a canvas-drawn ring texture that
+    wraps naturally around `CylinderGeometry`'s side), `diamond` as a **gem-like octahedron**,
+    `circle` as a **sphere**, `hexagon` as a **hex prism**, and a sequence-diagram `lifeline` as a
+    plain, undecorated pillar (it's an abstract presence marker, not real hardware). Every other
+    shape (the majority of components, plus UML's `cuboid` "device" stereotype) keeps a box, now
+    textured to look like a **server-chassis front panel** — rack-unit seams, a brushed-metal
+    gradient, and a couple of small status LEDs baked into the surface.
+  - Connectors render as **segmented, capped cables** instead of a flat-shaded pipe — a repeating
+    cable-pattern texture tiled along the tube's length, plus small dark "connector plug" spheres
+    at both ends, so a run reads as something actually plugged in rather than an abstract line.
+  - Added `tests/unit/scene3dLayout.test.mjs` coverage for the new `getVisualKind` mapping.
 
 ## v1.49.3 (2026-08-31)
 

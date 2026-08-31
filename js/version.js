@@ -9,7 +9,8 @@ export const VERSION_HISTORY = [
     version: '1.50.0',
     date: '2026-08-31',
     highlights: [
-      '🧊 3D Presentation Mode overhaul: fixed the camera auto-fit so it now reliably frames the whole diagram instead of clipping/overflowing the view, added a ground plane + grid and real cast shadows so boxes read as grounded objects instead of floating cutouts, improved lighting (a sky/floor hemisphere light plus a soft fill light) so every face is legible instead of near-black, fixed component labels getting cut off past ~20 characters (e.g. "Elastic Load Balancer"), replaced the flat "chip" decals with small glowing status-light spheres, and added a "🎯 Reset View" button to recover if you spin/zoom the camera somewhere disorienting (there\'s no pan, only orbit + zoom).',
+      '🧊 3D Presentation Mode overhaul: fixed the camera auto-fit so it now reliably frames the whole diagram instead of clipping/overflowing the view, added a raised-floor tile ground and real cast shadows so components read as grounded objects instead of floating cutouts, and improved lighting (a sky/floor hemisphere light plus a soft fill light) so every face is legible instead of near-black.',
+      '🧊 3D scene now looks like real infrastructure instead of a field of identical boxes: databases/caches render as stacked-disk storage drums, decision diamonds as gem-like shapes, hexagons as hex prisms, and circles as spheres — while everything else gets a textured server-chassis look (rack-unit seams, status LEDs) instead of a flat color. Connectors render as segmented, capped network cables instead of a plain pipe. Also fixed component labels getting cut off past ~20 characters (e.g. "Elastic Load Balancer"), and added a "🎯 Reset View" button to recover if you spin/zoom the camera somewhere disorienting (there\'s no pan, only orbit + zoom).',
     ],
   },
   {

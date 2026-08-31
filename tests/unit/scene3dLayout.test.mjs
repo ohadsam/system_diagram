@@ -1,6 +1,24 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { computeNode3D, computeEdge3D, FORWARD_COLOR, BACKWARD_COLOR } from '../../js/core/scene3dLayout.js';
+import { computeNode3D, computeEdge3D, getVisualKind, FORWARD_COLOR, BACKWARD_COLOR } from '../../js/core/scene3dLayout.js';
+
+test('getVisualKind gives each 2D shape a distinct 3D silhouette, defaulting the rest to a server-chassis "rack" look', () => {
+  assert.equal(getVisualKind('cylinder'), 'storage');
+  assert.equal(getVisualKind('diamond'), 'decision');
+  assert.equal(getVisualKind('circle'), 'orb');
+  assert.equal(getVisualKind('hexagon'), 'hex');
+  assert.equal(getVisualKind('lifeline'), 'pillar');
+  for (const plain of ['rect', 'rounded', 'cloud', 'note', 'rows', 'cuboid', 'something-new']) {
+    assert.equal(getVisualKind(plain), 'rack', `${plain} should fall back to the generic 'rack' look`);
+  }
+});
+
+test('computeNode3D includes the shape\'s visualKind', () => {
+  const cylinderNode = computeNode3D({ id: 'db1', x: 0, y: 0, w: 90, h: 90, shape: 'cylinder', stroke: '#111' });
+  assert.equal(cylinderNode.visualKind, 'storage');
+  const diamondNode = computeNode3D({ id: 'd1', x: 0, y: 0, w: 90, h: 90, shape: 'diamond', stroke: '#111' });
+  assert.equal(diamondNode.visualKind, 'decision');
+});
 
 test('computeNode3D maps canvas x/y to 3D x/z (centered), and sits the box on the ground plane', () => {
   const node = { id: 'n1', x: 100, y: 200, w: 160, h: 80, shape: 'rounded', fill: '#EEE', stroke: '#333', text: 'API' };

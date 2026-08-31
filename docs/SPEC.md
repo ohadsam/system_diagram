@@ -1865,22 +1865,32 @@ diff-based structural merge of two branches' independent changes.
 "🧊 3D Presentation" (Tools menu, disabled with a toast on an empty
 canvas) renders the current diagram as a rotatable 3D scene in a
 full-viewport overlay, for presenting rather than editing:
-- **Components** become extruded, colored boxes — 2D canvas (x, y) maps
-  to 3D (x, z); box height is a fixed per-shape constant; box color uses
-  the component's stroke color (its 2D fill is a pastel tint, chosen for
-  on-canvas text legibility, and would look washed out as a 3D surface). A
-  sequence-diagram lifeline is the one exception: its 2D height is a time
-  axis, not a real spatial footprint, so mapping it straight through like
-  every other shape produced a box hundreds of units deep but only as tall
-  as any other component — a giant slab wildly out of proportion with the
-  rest of the scene. A lifeline instead renders as a tall pillar (a fixed,
-  small footprint; a height taller than an ordinary component), anchored
+- **Components** become 3D volumes styled to look like real
+  infrastructure rather than identical colored boxes — 2D canvas (x, y)
+  maps to 3D (x, z); height is a fixed per-shape constant; surface color
+  uses the component's stroke color (its 2D fill is a pastel tint, chosen
+  for on-canvas text legibility, and would look washed out as a 3D
+  surface). Each 2D shape gets its own 3D silhouette: a database/cache
+  (drawn as a cylinder in 2D) becomes a **stacked-disk storage drum**; a
+  decision diamond becomes a **gem-like shape**; a circle becomes a
+  **sphere**; a hexagon becomes a **hex prism**. Every other shape — the
+  majority of components — keeps a box, textured to look like a **server-
+  chassis front panel** (rack-unit seams and status LEDs) instead of a
+  flat color. A sequence-diagram lifeline is the one exception left plain:
+  its 2D height is a time axis, not a real spatial footprint, so mapping
+  it straight through like every other shape produced a box hundreds of
+  units deep but only as tall as any other component — a giant slab
+  wildly out of proportion with the rest of the scene. A lifeline instead
+  renders as a plain, undecorated pillar (a fixed, small footprint; a
+  height taller than an ordinary component, since it's an abstract
+  presence-over-time marker rather than a piece of hardware), anchored
   near the top of its 2D bounding box where its title box actually sits.
-- **Connectors** become animated cable-like tubes, color-coded by flow
-  direction purely from each edge's own geometry — one direction blue,
-  the opposite direction red — so the same coloring rule always produces
-  one blue and one red cable for two opposite-direction edges between the
-  same pair of components, regardless of draw order.
+- **Connectors** become animated, segmented cables with small connector-
+  plug caps at both ends — color-coded by flow direction purely from each
+  edge's own geometry, one direction blue, the opposite direction red, so
+  the same coloring rule always produces one blue and one red cable for
+  two opposite-direction edges between the same pair of components,
+  regardless of draw order.
 - **Camera** is a hand-rolled orbit (drag to rotate, scroll to zoom) with
   a slow automatic rotation whenever the user isn't actively dragging.
   Opening the view auto-fits the camera distance and target to the whole
@@ -1889,9 +1899,9 @@ full-viewport overlay, for presenting rather than editing:
   overflowing the viewport. A "🎯 Reset View" button in the controls bar
   recenters and re-fits the camera at any time — there is no pan, only
   orbit and zoom, so this is the way back if the view ends up
-  disorienting. The scene includes a ground plane, a grid, and cast
-  shadows for a sense of scale and depth, rather than boxes floating in
-  an empty void.
+  disorienting. The scene includes a textured raised-floor tile ground
+  and cast shadows for a sense of scale and depth, rather than components
+  floating in an empty void.
 - **Playback.** If the diagram has a Diagram Animation (4.36), the
   overlay's Play/Prev/Next controls drive the same reveal sequence in 3D;
   while playing, visible components show ambient "thinking" particle

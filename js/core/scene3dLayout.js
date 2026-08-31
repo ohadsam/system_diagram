@@ -37,9 +37,34 @@ const LIFELINE_HEIGHT = 220;
 export const FORWARD_COLOR = '#2563EB';
 export const BACKWARD_COLOR = '#DC2626';
 
-/** Maps one project node to a 3D box: center position (x/y/z) + full
- * width/height/depth, so the renderer can build a `THREE.BoxGeometry`
- * directly from it (Three.js boxes are centered on their own origin). */
+// Which 3D silhouette a 2D shape gets, so a diagram doesn't render as a
+// field of identical boxes — a database should not look like a generic
+// server, and a decision diamond should not look like either. Every kind
+// not listed here (rect, rounded, cloud, note, rows, cuboid — the
+// majority of components) falls back to 'rack': a box styled to look like
+// a server-chassis front panel, which is also the correct 3D reading of
+// `cuboid` (the UML "device/node" stereotype shape) and a reasonable
+// generic reading of an arbitrary component. `lifeline` gets its own
+// 'pillar' kind — a plain, undecorated box — since it's an abstract
+// presence-over-time marker, not a piece of hardware, and shouldn't be
+// dressed up with a server-chassis texture like a real component.
+const VISUAL_KIND_BY_SHAPE = {
+  cylinder: 'storage', // databases/caches — rendered as a stacked-disk drum
+  diamond: 'decision', // rendered as a gem-like octahedron
+  circle: 'orb', // rendered as a sphere
+  hexagon: 'hex', // rendered as a hexagonal prism
+  lifeline: 'pillar',
+};
+const DEFAULT_VISUAL_KIND = 'rack';
+
+export function getVisualKind(shape) {
+  return VISUAL_KIND_BY_SHAPE[shape] ?? DEFAULT_VISUAL_KIND;
+}
+
+/** Maps one project node to a 3D volume: center position (x/y/z), full
+ * width/height/depth (so the renderer can build a same-sized box/cylinder/
+ * octahedron/sphere centered on its own origin), and which `visualKind`
+ * silhouette/texture treatment it should get. */
 export function computeNode3D(node) {
   const isLifeline = node.shape === 'lifeline';
   const height = isLifeline ? LIFELINE_HEIGHT : (SHAPE_HEIGHT[node.shape] ?? DEFAULT_HEIGHT);
@@ -52,6 +77,7 @@ export function computeNode3D(node) {
     width: node.w,
     depth,
     height,
+    visualKind: getVisualKind(node.shape),
     // The 3D box's main surface uses the node's *stroke* color, not its
     // fill — a 2D node's fill is deliberately a very light pastel tint of
     // its stroke (see data/schema.js#tint) so text/icons stay legible on
