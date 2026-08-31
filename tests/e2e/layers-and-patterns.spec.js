@@ -56,7 +56,7 @@ test('a design pattern instantiates a whole connected cluster in one action', as
 });
 
 test('undoing a pattern instantiation removes the whole cluster in one step', async ({ page }) => {
-  await addComponentByName(page, 'Singleton');
+  await addComponentByName(page, 'Sidecar Pattern');
   await expect.poll(() => nodeCount(page)).toBe(2);
   await page.keyboard.press('Control+z');
   await expect.poll(() => nodeCount(page)).toBe(0);

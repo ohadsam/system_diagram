@@ -95,21 +95,27 @@ rather than an infrastructure component. Unlike other items:
   ~20 near-identical copies. Extending it is one line in `layers.js`.
 
 #### 4.2.2 Design Patterns
-A `kind: 'pattern'` item (MVC, Repository, CQRS, API Gateway, Circuit
-Breaker, Saga, Hexagonal Architecture, a few classic GoF patterns like
-Singleton/Observer/Strategy/Adapter/Decorator, and a set of high-
-availability/replication blueprints — Active-Active Replication,
-Active-Passive Replication (Primary-Standby), Multi-AZ Deployment, Read
-Replica, Multi-Region Active-Active — plus 3 entity-relationship (ER)
-diagram templates (One-to-Many Relationship, Many-to-Many with Join Table,
+A `kind: 'pattern'` item (MVC, MVVM, Layered Architecture, Repository,
+CQRS, API Gateway, Publish-Subscribe, Event Sourcing, Saga, Sidecar,
+Strangler Fig, Backend for Frontend, Hexagonal Architecture, Service
+Discovery, Cache-Aside, a set of high-availability/replication blueprints
+— Active-Active Replication, Active-Passive Replication (Primary-Standby),
+Multi-AZ Deployment, Read Replica, Multi-Region Active-Active — several
+higher-complexity, realistic multi-node scenarios — Change Data Capture
+(CDC) Pipeline, Database Sharding, Resilience Stack (Rate Limiter +
+Circuit Breaker), Leader Election — plus 2 entity-relationship (ER)
+diagram templates (a realistic multi-entity E-Commerce Order Schema, and a
 Self-Referencing Relationship, each using the existing "rows" component
-shape for primary/foreign-key attribute lists) — ~32 total, see
+shape for primary/foreign-key attribute lists) — ~26 total, see
 `js/data/categories/design-patterns.js`) is not a single placeable
 component. Dropping or clicking one instantiates a whole small cluster of
 real nodes (each reusing an existing component/layer definition, so
 styling stays consistent for free) plus the connectors between them, laid
 out relative to the drop point and selected together afterwards so they
-can be immediately restyled or moved as a group.
+can be immediately restyled or moved as a group. This category favors a
+smaller set of complex, realistic, high-value diagrams over many
+minimal/textbook examples — see `docs/CHANGELOG.md`'s entry for the batch
+that curated it down from ~32 generic entries for the reasoning.
 
 #### 4.2.3 AI Providers & Agents
 A normal (`kind: 'component'`) category covering the generative-AI world:
@@ -130,8 +136,12 @@ DBs, MLflow, ...) rather than duplicating it.
 A category mixing normal (`kind: 'component'`) state shapes — Initial State,
 State, Choice/Decision, Final State, Fork/Join, History State, Composite
 State (see `js/data/categories/state-machines.js`) — with `kind: 'pattern'`
-ready-made templates (Traffic Light, Order Lifecycle, TCP Connection,
-Media Player, Approval Workflow, Auth Session). No new engine concepts were
+ready-made templates: Auth Session (with MFA, token refresh and lockout),
+Background Job Processing (retry-with-backoff and dead-lettering), Circuit
+Breaker, Order Lifecycle (with returns/refunds), Payment Processing
+(authorize/capture/dispute), and TCP Connection — each a richer, realistic
+multi-branch state machine rather than a minimal textbook example. No new
+engine concepts were
 needed: a state is just a node, and a transition's condition/event is just
 a normal edge's existing `label` field — so state-machine content mixes
 freely with the rest of a diagram (a state can connect to/from any other

@@ -864,8 +864,8 @@ to know about all of them, not just the sequence-diagram ones.
 
 ## ER-diagram design patterns (`data/categories/design-patterns.js`)
 
-Three new `definePattern(...)` entries (One-to-Many, Many-to-Many with Join
-Table, Self-Referencing) reusing this library's existing `shape: 'rows'`
+Two `definePattern(...)` entries (a realistic multi-entity E-Commerce Order
+Schema, and Self-Referencing) reusing this library's existing `shape: 'rows'`
 component (`shape-server-rows`) via a local `entity(key, dx, dy, title,
 attributes)` helper that sets `overrides: {icon, rows, w, h}` — confirming
 `spec.overrides` flows through `instantiatePatternAtPoint` into the final
@@ -882,15 +882,22 @@ pattern's raw edge-spec data can safely include one for any shape.
 relaxed to allow exactly 1 node when every one of its edges is self-
 referencing.
 
+(A later batch removed the original One-to-Many and Many-to-Many-with-Join-
+Table entries as too minimal to be interesting on their own, consolidating
+their coverage into the single richer E-Commerce Order Schema pattern
+— five entities, four relationships — as part of a broader curation of this
+category and State Machines toward fewer, more complex, more realistic
+diagrams; see `docs/CHANGELOG.md`'s entry for that batch.)
+
 **Not** wired into `relatedPatterns` (Smart Suggestions) from the Databases
 category components, despite an obvious pairing (PostgreSQL/MySQL/... →
-"ER: One-to-Many Relationship" is exactly the kind of pairing that
-mechanism exists for) — `canvas/suggestions.js`'s pattern-suggestion row
-label is hardcoded to "🔀 Sequence diagrams for X" (see the "Ready-made
-templates" section above), which would read as factually wrong copy for a
-non-sequence pattern. Generalizing that label is real, separate scope for
-whichever future batch wants to extend `relatedPatterns` beyond sequence
-templates — not bundled into this one.
+"ER: E-Commerce Order Schema" is exactly the kind of pairing that mechanism
+exists for) — `canvas/suggestions.js`'s pattern-suggestion row label is
+hardcoded to "🔀 Sequence diagrams for X" (see the "Ready-made templates"
+section above), which would read as factually wrong copy for a non-sequence
+pattern. Generalizing that label is real, separate scope for whichever
+future batch wants to extend `relatedPatterns` beyond sequence templates —
+not bundled into this one.
 
 ## Recently Used sidebar section (`io/recentComponents.js`, `sidebar/sidebar.js`)
 
@@ -3948,7 +3955,7 @@ rather than hand-placing every demo node's x/y:
   to build a whole *detached* project up front, before anything is
   loaded, anchored at a fixed point instead. Most demos (Basic Web App,
   Highly-Available Microservices, Login Flow, BPMN Approval, ER Diagram,
-  Traffic Light, and half of Combo) are just this function pointed at an
+  State Machine, and half of Combo) are just this function pointed at an
   existing pattern id — automatically staying in sync with that pattern's
   own `nodes`/`edges` definition, since there's no separate copy of the
   pattern's shape to go stale.

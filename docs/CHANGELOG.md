@@ -110,6 +110,35 @@ Keep this in sync with `PLAN.md` as stages complete.
   field (with autocomplete) on custom components, grouping them into
   collapsible 📁 sub-groups in the sidebar.
 
+## v1.49.1 (2026-08-31)
+
+- **Curated the "Design Patterns" category down from 32 to 26 entries**, favoring fewer, more
+  complex, realistic diagrams over many small textbook examples. Removed as too minimal/generic:
+  MVP, the classic GoF patterns Singleton, Factory Method, Observer, Strategy, Adapter, and
+  Decorator, the standalone Circuit Breaker and Rate Limiting Gateway patterns (superseded by the
+  new combined Resilience Stack below), and the two smallest ER examples (One-to-Many,
+  Many-to-Many with Join Table). Added five new higher-value scenarios: **Change Data Capture
+  (CDC) Pipeline** (a connector tailing a database's WAL, fanning change events out through Kafka
+  to a search index and a cache invalidator), **Database Sharding** (a shard router splitting
+  traffic across three shards by key range), **Resilience Stack** (Rate Limiter + Circuit Breaker
+  chained in front of a downstream service, with a fallback cache for when it's open),
+  **Leader Election** (peer nodes racing for a lease on a coordination service, only the elected
+  leader writing to the shared database), and a realistic multi-entity **ER: E-Commerce Order
+  Schema** (Customer → Order → Order Item ← Product, plus Payment) replacing the two removed toy
+  ER examples.
+- **Curated the "State Machines" category**: removed Traffic Light and Media Player (too generic
+  to be interesting) and Approval Workflow (redundant with the BPMN category's existing "Simple
+  Approval Process" template, which already covers the same submit/review/approve-or-reject flow
+  in proper BPMN notation). Enriched Order Lifecycle with a post-delivery return/refund path and
+  a payment-failure branch, and Auth Session with MFA, silent token refresh, and a failed-attempt
+  lockout state. Added three new pattern templates: **Circuit Breaker** (Closed/Open/Half-Open,
+  the resilience pattern's own state machine), **Background Job Processing** (queued → running →
+  retry-with-backoff → dead-letter), and **Payment Processing** (authorize → capture, with a
+  decline path and a post-capture chargeback/dispute state).
+- Repointed the "🎓 Demo Projects" ER Diagram and State Machine demos at the new E-Commerce Order
+  Schema and Order Lifecycle patterns respectively, since their previous sources (One-to-Many and
+  Traffic Light) no longer exist.
+
 ## v1.49.0 (2026-08-31)
 
 - **Fix Text Display** — new "🔤 Fix Text Display" (Tools → Layout Tools, or ⌘K) re-spaces

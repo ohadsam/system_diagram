@@ -135,21 +135,21 @@ export const DEMO_PROJECTS = [
   },
   {
     id: 'demo-er-diagram',
-    name: 'Demo: ER Diagram (Blog)',
+    name: 'Demo: ER Diagram (E-Commerce Order)',
     icon: '🗄️',
-    description: 'An entity-relationship diagram — a one-to-many relationship between two tables.',
+    description: 'An entity-relationship diagram — Customer, Order, Order Item, Product and Payment, with their keys and relationships.',
     build() {
-      const { nodes, edges } = buildPatternPieces('pattern-er-one-to-many', 500, 320, 1);
+      const { nodes, edges } = buildPatternPieces('pattern-er-ecommerce', 500, 320, 1);
       return { nodes, edges };
     },
   },
   {
     id: 'demo-state-machine',
-    name: 'Demo: State Machine (Traffic Light)',
-    icon: '🚦',
+    name: 'Demo: State Machine (Order Lifecycle)',
+    icon: '📦',
     description: 'A finite-state machine — states and the transitions between them.',
     build() {
-      const { nodes, edges } = buildPatternPieces('pattern-sm-traffic-light', 500, 320, 1);
+      const { nodes, edges } = buildPatternPieces('pattern-sm-order-lifecycle', 500, 320, 1);
       return { nodes, edges };
     },
   },

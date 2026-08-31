@@ -23,246 +23,6 @@ function entity(key, dx, dy, title, attributes) {
 }
 
 export const components = [
-  definePattern('pattern-mvc', 'MVC (Model-View-Controller)', '🎮', {
-    description: 'Controller mediates between Model and View.',
-    tags: ['architectural', 'frontend', 'backend'],
-    nodes: [
-      n('controller', 'layer-controller', 0, 0),
-      n('model', 'layer-model', -180, 160),
-      n('view', 'layer-view', 180, 160),
-    ],
-    edges: [e('controller', 'model', 'updates'), e('controller', 'view', 'renders'), e('view', 'model', 'reads', dashed)],
-  }),
-
-  definePattern('pattern-mvvm', 'MVVM (Model-View-ViewModel)', '🔗', {
-    description: 'View binds to a ViewModel that reads/writes the Model.',
-    tags: ['architectural', 'frontend'],
-    nodes: [n('view', 'layer-view', -220, 0), n('vm', 'layer-viewmodel', 0, 0), n('model', 'layer-model', 220, 0)],
-    edges: [e('view', 'vm', 'data binding', twoWay), e('vm', 'model', 'reads/writes')],
-  }),
-
-  definePattern('pattern-mvp', 'MVP (Model-View-Presenter)', '🎤', {
-    description: 'Presenter drives a passive View and talks to the Model.',
-    tags: ['architectural', 'frontend'],
-    nodes: [n('view', 'layer-view', -220, 0), n('presenter', 'layer-presenter', 0, 0), n('model', 'layer-model', 220, 0)],
-    edges: [e('view', 'presenter', '', twoWay), e('presenter', 'model', 'reads/writes')],
-  }),
-
-  definePattern('pattern-layered', 'Layered Architecture (N-Tier)', '🏗️', {
-    description: 'Controller → Service → DAL → Database, each layer only calling the one below.',
-    tags: ['architectural', 'backend'],
-    nodes: [
-      n('controller', 'layer-controller', 0, 0),
-      n('service', 'layer-service', 0, 150),
-      n('dal', 'layer-dal', 0, 300),
-      n('db', 'db-generic', 0, 450),
-    ],
-    edges: [e('controller', 'service'), e('service', 'dal'), e('dal', 'db')],
-  }),
-
-  definePattern('pattern-repository', 'Repository Pattern', '📚', {
-    description: 'Service talks to a Repository that abstracts the database.',
-    tags: ['architectural', 'backend', 'dal'],
-    nodes: [n('service', 'layer-service', 0, 0), n('repo', 'layer-repository', 0, 150), n('db', 'db-generic', 0, 300)],
-    edges: [e('service', 'repo'), e('repo', 'db')],
-  }),
-
-  definePattern('pattern-cqrs', 'CQRS (Command Query Responsibility Segregation)', '🔀', {
-    description: 'Separate write (command) and read (query) paths.',
-    tags: ['architectural', 'backend'],
-    nodes: [
-      n('cmd', 'layer-command-handler', -180, 0),
-      n('writeDb', 'db-generic', -180, 150, 'Write DB'),
-      n('qry', 'layer-query-handler', 180, 0),
-      n('readDb', 'db-generic', 180, 150, 'Read DB'),
-    ],
-    edges: [e('cmd', 'writeDb'), e('qry', 'readDb'), e('writeDb', 'readDb', 'sync', dashed)],
-  }),
-
-  definePattern('pattern-api-gateway', 'API Gateway', '🚪', {
-    description: 'A single entry point fans requests out to backend services.',
-    tags: ['architectural', 'microservices', 'networking'],
-    nodes: [
-      n('client', 'client-browser', 0, -160, 'Client'),
-      n('gw', 'net-api-gateway', 0, 0),
-      n('a', 'layer-service', -220, 160, 'Service A'),
-      n('b', 'layer-service', 0, 160, 'Service B'),
-      n('c', 'layer-service', 220, 160, 'Service C'),
-    ],
-    edges: [e('client', 'gw'), e('gw', 'a'), e('gw', 'b'), e('gw', 'c')],
-  }),
-
-  definePattern('pattern-circuit-breaker', 'Circuit Breaker', '🔌', {
-    description: 'Guards a call to an unreliable dependency, failing fast when it is unhealthy.',
-    tags: ['architectural', 'resilience'],
-    nodes: [n('service', 'layer-service', -180, 0), n('breaker', 'layer-circuit-breaker', 60, 0), n('external', 'layer-client-sdk', 300, 0, 'External Service')],
-    edges: [e('service', 'breaker'), e('breaker', 'external')],
-  }),
-
-  definePattern('pattern-pubsub', 'Publish-Subscribe', '📣', {
-    description: 'A publisher pushes events through a broker to many subscribers.',
-    tags: ['architectural', 'messaging', 'events'],
-    nodes: [
-      n('pub', 'layer-service', -220, 0, 'Publisher'),
-      n('broker', 'mq-kafka', 0, 0, 'Message Broker'),
-      n('subA', 'layer-service', 220, -90, 'Subscriber A'),
-      n('subB', 'layer-service', 220, 90, 'Subscriber B'),
-    ],
-    edges: [e('pub', 'broker'), e('broker', 'subA'), e('broker', 'subB')],
-  }),
-
-  definePattern('pattern-event-sourcing', 'Event Sourcing', '📜', {
-    description: 'State changes are stored as an append-only sequence of events.',
-    tags: ['architectural', 'events'],
-    nodes: [
-      n('cmd', 'layer-command-handler', -240, 0),
-      n('store', 'db-generic', -40, 0, 'Event Store'),
-      n('projector', 'layer-event-handler', 160, 0, 'Projector'),
-      n('readModel', 'db-generic', 360, 0, 'Read Model'),
-    ],
-    edges: [e('cmd', 'store'), e('store', 'projector'), e('projector', 'readModel')],
-  }),
-
-  definePattern('pattern-saga', 'Saga (Orchestration)', '🧵', {
-    description: 'A coordinator drives a multi-step transaction across services.',
-    tags: ['architectural', 'microservices', 'workflow'],
-    nodes: [
-      n('coordinator', 'layer-saga-coordinator', 0, -150),
-      n('a', 'layer-service', -220, 60, 'Service A'),
-      n('b', 'layer-service', 0, 60, 'Service B'),
-      n('c', 'layer-service', 220, 60, 'Service C'),
-    ],
-    edges: [e('coordinator', 'a'), e('coordinator', 'b'), e('coordinator', 'c')],
-  }),
-
-  definePattern('pattern-sidecar', 'Sidecar Pattern', '🚗', {
-    description: 'A helper process runs alongside the main service to handle cross-cutting concerns.',
-    tags: ['architectural', 'microservices'],
-    nodes: [n('app', 'layer-service', -120, 0, 'Application'), n('sidecar', 'layer-sidecar', 140, 0)],
-    edges: [e('app', 'sidecar', '', twoWay)],
-  }),
-
-  definePattern('pattern-strangler-fig', 'Strangler Fig', '🌿', {
-    description: 'New functionality is routed to a new service while legacy traffic keeps flowing, until the legacy system is fully retired.',
-    tags: ['architectural', 'migration'],
-    nodes: [
-      n('client', 'client-browser', 0, -160, 'Client'),
-      n('facade', 'layer-facade', 0, 0, 'Routing Facade'),
-      n('legacy', 'layer-legacy-system', -180, 160),
-      n('modern', 'layer-service', 180, 160, 'New Service'),
-    ],
-    edges: [e('client', 'facade'), e('facade', 'legacy', 'old flows'), e('facade', 'modern', 'migrated flows')],
-  }),
-
-  definePattern('pattern-bff', 'Backend for Frontend (BFF)', '📱', {
-    description: 'Each client type gets its own tailored backend.',
-    tags: ['architectural', 'api'],
-    nodes: [
-      n('mobile', 'client-mobile-ios', -180, -160, 'Mobile'),
-      n('web', 'client-browser', 180, -160, 'Web'),
-      n('bffMobile', 'layer-bff', -180, 0, 'Mobile BFF'),
-      n('bffWeb', 'layer-bff', 180, 0, 'Web BFF'),
-      n('core', 'layer-service', 0, 160, 'Core Services'),
-    ],
-    edges: [e('mobile', 'bffMobile'), e('web', 'bffWeb'), e('bffMobile', 'core'), e('bffWeb', 'core')],
-  }),
-
-  definePattern('pattern-hexagonal', 'Hexagonal Architecture (Ports & Adapters)', '⬡', {
-    description: 'The core domain is isolated behind ports, reached through adapters.',
-    tags: ['architectural', 'ddd'],
-    nodes: [
-      n('adapterIn', 'layer-adapter', -420, 0, 'REST Adapter'),
-      n('portIn', 'layer-port', -220, 0, 'Inbound Port'),
-      n('core', 'layer-core-domain', 0, 0),
-      n('portOut', 'layer-port', 220, 0, 'Outbound Port'),
-      n('adapterOut', 'layer-adapter', 420, 0, 'DB Adapter'),
-    ],
-    edges: [e('adapterIn', 'portIn'), e('portIn', 'core'), e('core', 'portOut'), e('portOut', 'adapterOut')],
-  }),
-
-  definePattern('pattern-service-discovery', 'Service Discovery', '🧭', {
-    description: 'Services register themselves and look each other up via a registry.',
-    tags: ['architectural', 'microservices'],
-    nodes: [n('registry', 'layer-service-discovery', 0, -150), n('a', 'layer-service', -180, 40, 'Service A'), n('b', 'layer-service', 180, 40, 'Service B')],
-    edges: [e('a', 'registry', 'register'), e('b', 'registry', 'register'), e('a', 'b', 'discover & call', dashed)],
-  }),
-
-  definePattern('pattern-cache-aside', 'Cache-Aside', '⚡', {
-    description: 'The service checks the cache first, falling back to the database and populating the cache on a miss.',
-    tags: ['architectural', 'performance', 'cache'],
-    nodes: [n('service', 'layer-service', 0, -150), n('cache', 'cache-redis', -180, 60), n('db', 'db-generic', 180, 60)],
-    edges: [e('service', 'cache', '1. check'), e('service', 'db', '2. on miss'), e('db', 'cache', '3. populate', dashed)],
-  }),
-
-  definePattern('pattern-rate-limiting', 'Rate Limiting Gateway', '🚦', {
-    description: 'Throttles incoming requests before they reach the service.',
-    tags: ['architectural', 'resilience', 'api'],
-    nodes: [n('client', 'client-browser', 0, -150, 'Client'), n('limiter', 'layer-rate-limiter', 0, 0), n('service', 'layer-service', 0, 150)],
-    edges: [e('client', 'limiter'), e('limiter', 'service')],
-  }),
-
-  definePattern('pattern-singleton', 'Singleton', '1️⃣', {
-    description: 'One shared instance, reused across the app.',
-    tags: ['gof', 'creational'],
-    nodes: [n('client', 'layer-client-sdk', 0, -150, 'Client'), n('instance', 'layer-singleton', 0, 30)],
-    edges: [e('client', 'instance', 'getInstance()')],
-  }),
-
-  definePattern('pattern-factory-method', 'Factory Method', '🏭', {
-    description: 'Delegates object creation to a factory instead of a direct constructor call.',
-    tags: ['gof', 'creational'],
-    nodes: [
-      n('client', 'layer-client-sdk', 0, -150, 'Client'),
-      n('factory', 'layer-factory', 0, 30),
-      n('a', 'layer-product', -180, 210, 'Product A'),
-      n('b', 'layer-product', 180, 210, 'Product B'),
-    ],
-    edges: [e('client', 'factory'), e('factory', 'a', '', dashed), e('factory', 'b', '', dashed)],
-  }),
-
-  definePattern('pattern-observer', 'Observer', '👁️', {
-    description: 'Observers subscribe to a subject and get notified on change.',
-    tags: ['gof', 'behavioral'],
-    nodes: [
-      n('subject', 'layer-observer-role', 0, -150, 'Subject'),
-      n('a', 'layer-observer-role', -220, 60, 'Observer A'),
-      n('b', 'layer-observer-role', 0, 60, 'Observer B'),
-      n('c', 'layer-observer-role', 220, 60, 'Observer C'),
-    ],
-    edges: [e('subject', 'a', 'notify'), e('subject', 'b', 'notify'), e('subject', 'c', 'notify')],
-  }),
-
-  definePattern('pattern-strategy', 'Strategy', '🎯', {
-    description: 'An interchangeable algorithm chosen at runtime.',
-    tags: ['gof', 'behavioral'],
-    nodes: [
-      n('context', 'layer-context-role', 0, -150),
-      n('iface', 'layer-strategy', 0, 30, 'Strategy Interface'),
-      n('a', 'layer-strategy', -180, 210, 'Concrete Strategy A'),
-      n('b', 'layer-strategy', 180, 210, 'Concrete Strategy B'),
-    ],
-    edges: [e('context', 'iface'), e('iface', 'a', '', dashed), e('iface', 'b', '', dashed)],
-  }),
-
-  definePattern('pattern-adapter', 'Adapter', '🔧', {
-    description: 'Translates a client’s expected interface into an existing (incompatible) one.',
-    tags: ['gof', 'structural'],
-    nodes: [n('client', 'layer-client-sdk', -220, 0, 'Client'), n('adapter', 'layer-adapter', 0, 0), n('adaptee', 'layer-adaptee', 220, 0)],
-    edges: [e('client', 'adapter'), e('adapter', 'adaptee')],
-  }),
-
-  definePattern('pattern-decorator', 'Decorator', '🎀', {
-    description: 'Wraps an object in layers that each add behavior.',
-    tags: ['gof', 'structural'],
-    nodes: [
-      n('client', 'layer-client-sdk', -280, 0, 'Client'),
-      n('decA', 'layer-decorator', -90, 0, 'Decorator A'),
-      n('decB', 'layer-decorator', 100, 0, 'Decorator B'),
-      n('component', 'layer-target-interface', 290, 0, 'Component'),
-    ],
-    edges: [e('client', 'decA'), e('decA', 'decB'), e('decB', 'component')],
-  }),
-
   definePattern('pattern-active-active', 'Active-Active Replication', '🔁', {
     description: 'Two peer instances both actively serve traffic, with data kept in sync in both directions.',
     tags: ['availability', 'replication', 'ha'],
@@ -287,6 +47,171 @@ export const components = [
     edges: [e('app', 'primary', 'reads/writes'), e('primary', 'standby', 'replicates', dashed)],
   }),
 
+  definePattern('pattern-api-gateway', 'API Gateway', '🚪', {
+    description: 'A single entry point fans requests out to backend services.',
+    tags: ['architectural', 'microservices', 'networking'],
+    nodes: [
+      n('client', 'client-browser', 0, -160, 'Client'),
+      n('gw', 'net-api-gateway', 0, 0),
+      n('a', 'layer-service', -220, 160, 'Service A'),
+      n('b', 'layer-service', 0, 160, 'Service B'),
+      n('c', 'layer-service', 220, 160, 'Service C'),
+    ],
+    edges: [e('client', 'gw'), e('gw', 'a'), e('gw', 'b'), e('gw', 'c')],
+  }),
+
+  definePattern('pattern-bff', 'Backend for Frontend (BFF)', '📱', {
+    description: 'Each client type gets its own tailored backend.',
+    tags: ['architectural', 'api'],
+    nodes: [
+      n('mobile', 'client-mobile-ios', -180, -160, 'Mobile'),
+      n('web', 'client-browser', 180, -160, 'Web'),
+      n('bffMobile', 'layer-bff', -180, 0, 'Mobile BFF'),
+      n('bffWeb', 'layer-bff', 180, 0, 'Web BFF'),
+      n('core', 'layer-service', 0, 160, 'Core Services'),
+    ],
+    edges: [e('mobile', 'bffMobile'), e('web', 'bffWeb'), e('bffMobile', 'core'), e('bffWeb', 'core')],
+  }),
+
+  definePattern('pattern-cache-aside', 'Cache-Aside', '⚡', {
+    description: 'The service checks the cache first, falling back to the database and populating the cache on a miss.',
+    tags: ['architectural', 'performance', 'cache'],
+    nodes: [n('service', 'layer-service', 0, -150), n('cache', 'cache-redis', -180, 60), n('db', 'db-generic', 180, 60)],
+    edges: [e('service', 'cache', '1. check'), e('service', 'db', '2. on miss'), e('db', 'cache', '3. populate', dashed)],
+  }),
+
+  definePattern('pattern-cdc-pipeline', 'Change Data Capture (CDC) Pipeline', '🔄', {
+    description: 'A connector tails the database\'s write-ahead log and streams every change as an event, fanning out to a search index and a cache invalidator without the app ever double-writing.',
+    tags: ['architectural', 'data', 'events', 'database'],
+    nodes: [
+      n('db', 'db-generic', -320, 0, 'Primary Database'),
+      n('connector', 'misc-worker', -80, 0, 'CDC Connector (Debezium)'),
+      n('kafka', 'mq-kafka', 180, 0, 'Kafka (Change Events)'),
+      n('search', 'db-elasticsearch', 420, -110, 'Search Index'),
+      n('cache', 'cache-redis', 420, 110, 'Cache'),
+    ],
+    edges: [
+      e('db', 'connector', 'reads WAL / binlog'),
+      e('connector', 'kafka', 'publishes change events'),
+      e('kafka', 'search', 'sync index'),
+      e('kafka', 'cache', 'invalidate', dashed),
+    ],
+  }),
+
+  definePattern('pattern-cqrs', 'CQRS (Command Query Responsibility Segregation)', '🔀', {
+    description: 'Separate write (command) and read (query) paths.',
+    tags: ['architectural', 'backend'],
+    nodes: [
+      n('cmd', 'layer-command-handler', -180, 0),
+      n('writeDb', 'db-generic', -180, 150, 'Write DB'),
+      n('qry', 'layer-query-handler', 180, 0),
+      n('readDb', 'db-generic', 180, 150, 'Read DB'),
+    ],
+    edges: [e('cmd', 'writeDb'), e('qry', 'readDb'), e('writeDb', 'readDb', 'sync', dashed)],
+  }),
+
+  definePattern('pattern-db-sharding', 'Database Sharding', '🧩', {
+    description: 'A shard router splits traffic across multiple independent databases by a routing key, so each shard only holds a slice of the data.',
+    tags: ['architectural', 'database', 'scaling'],
+    nodes: [
+      n('service', 'layer-service', 0, -180, 'Application'),
+      n('router', 'net-load-balancer', 0, 0, 'Shard Router (by Key)'),
+      n('shard1', 'db-generic', -260, 200, 'Shard 1 (Users A–H)'),
+      n('shard2', 'db-generic', 0, 200, 'Shard 2 (Users I–P)'),
+      n('shard3', 'db-generic', 260, 200, 'Shard 3 (Users Q–Z)'),
+    ],
+    edges: [
+      e('service', 'router'),
+      e('router', 'shard1', 'range A–H'),
+      e('router', 'shard2', 'range I–P'),
+      e('router', 'shard3', 'range Q–Z'),
+    ],
+  }),
+
+  definePattern('pattern-er-ecommerce', 'ER: E-Commerce Order Schema', '🛒', {
+    description: 'A realistic multi-entity schema: a Customer places Orders, each Order has line-item Products via a join entity, and settles through a Payment.',
+    tags: ['er-diagram', 'database', 'schema'],
+    nodes: [
+      entity('customer', -380, -170, 'Customer', ['id (PK)', 'name', 'email']),
+      entity('order', 0, -170, 'Order', ['id (PK)', 'customer_id (FK)', 'status', 'created_at']),
+      entity('payment', 380, -170, 'Payment', ['id (PK)', 'order_id (FK)', 'amount', 'status']),
+      entity('orderItem', -190, 170, 'Order Item', ['id (PK)', 'order_id (FK)', 'product_id (FK)', 'quantity', 'price']),
+      entity('product', 190, 170, 'Product', ['id (PK)', 'name', 'price', 'stock']),
+    ],
+    edges: [
+      e('customer', 'order', '1 → N'),
+      e('order', 'orderItem', '1 → N'),
+      e('product', 'orderItem', '1 → N'),
+      e('order', 'payment', '1 → 1'),
+    ],
+  }),
+
+  definePattern('pattern-er-self-referencing', 'ER: Self-Referencing Relationship', '🔁', {
+    description: 'An Employee row can reference another row of the same table (its manager) — a hierarchy modeled without a separate table.',
+    tags: ['er-diagram', 'database', 'schema'],
+    nodes: [entity('employee', 0, 0, 'Employee', ['id (PK)', 'name', 'manager_id (FK, self)'])],
+    edges: [{
+      from: 'employee',
+      to: 'employee',
+      overrides: { label: 'reports to', routing: 'straight', fromOffset: 0.3, toOffset: 0.7, fromSide: 'right', toSide: 'right', dash: 'solid', startArrow: 'none', endArrow: 'filled' },
+    }],
+  }),
+
+  definePattern('pattern-event-sourcing', 'Event Sourcing', '📜', {
+    description: 'State changes are stored as an append-only sequence of events.',
+    tags: ['architectural', 'events'],
+    nodes: [
+      n('cmd', 'layer-command-handler', -240, 0),
+      n('store', 'db-generic', -40, 0, 'Event Store'),
+      n('projector', 'layer-event-handler', 160, 0, 'Projector'),
+      n('readModel', 'db-generic', 360, 0, 'Read Model'),
+    ],
+    edges: [e('cmd', 'store'), e('store', 'projector'), e('projector', 'readModel')],
+  }),
+
+  definePattern('pattern-hexagonal', 'Hexagonal Architecture (Ports & Adapters)', '⬡', {
+    description: 'The core domain is isolated behind ports, reached through adapters.',
+    tags: ['architectural', 'ddd'],
+    nodes: [
+      n('adapterIn', 'layer-adapter', -420, 0, 'REST Adapter'),
+      n('portIn', 'layer-port', -220, 0, 'Inbound Port'),
+      n('core', 'layer-core-domain', 0, 0),
+      n('portOut', 'layer-port', 220, 0, 'Outbound Port'),
+      n('adapterOut', 'layer-adapter', 420, 0, 'DB Adapter'),
+    ],
+    edges: [e('adapterIn', 'portIn'), e('portIn', 'core'), e('core', 'portOut'), e('portOut', 'adapterOut')],
+  }),
+
+  definePattern('pattern-layered', 'Layered Architecture (N-Tier)', '🏗️', {
+    description: 'Controller → Service → DAL → Database, each layer only calling the one below.',
+    tags: ['architectural', 'backend'],
+    nodes: [
+      n('controller', 'layer-controller', 0, 0),
+      n('service', 'layer-service', 0, 150),
+      n('dal', 'layer-dal', 0, 300),
+      n('db', 'db-generic', 0, 450),
+    ],
+    edges: [e('controller', 'service'), e('service', 'dal'), e('dal', 'db')],
+  }),
+
+  definePattern('pattern-leader-election', 'Leader Election', '👑', {
+    description: 'Peer nodes race to hold a lease on a coordination service; only the elected leader is allowed to write, while followers watch for it to expire.',
+    tags: ['architectural', 'distributed-systems', 'microservices'],
+    nodes: [
+      n('coordinator', 'layer-service-discovery', 0, -180, 'Coordination Service (etcd/ZooKeeper)'),
+      n('nodeA', 'srv-app-server', -280, 40, 'Node A (Leader)'),
+      n('nodeB', 'srv-app-server', 0, 40, 'Node B (Follower)'),
+      n('nodeC', 'srv-app-server', 280, 40, 'Node C (Follower)'),
+      n('db', 'db-generic', -280, 260, 'Shared Database'),
+    ],
+    edges: [
+      e('nodeA', 'coordinator', 'holds lease'),
+      e('nodeB', 'coordinator', 'watches', dashed),
+      e('nodeC', 'coordinator', 'watches', dashed),
+      e('nodeA', 'db', 'writes (leader only)'),
+    ],
+  }),
+
   definePattern('pattern-multi-az', 'Multi-AZ Deployment', '🏢', {
     description: 'A standby copy lives in a second Availability Zone, ready to fail over if the primary AZ goes down.',
     tags: ['availability', 'replication', 'ha', 'multi-az'],
@@ -297,23 +222,6 @@ export const components = [
       n('standby', 'db-generic', 190, 170, 'Standby DB (AZ-B)'),
     ],
     edges: [e('lb', 'app'), e('app', 'primary'), e('primary', 'standby', 'sync replication', dashed)],
-  }),
-
-  definePattern('pattern-read-replica', 'Read Replica', '📖', {
-    description: 'The app writes to a primary database, which replicates to one or more read-only replicas that absorb read traffic.',
-    tags: ['availability', 'replication', 'database', 'scaling'],
-    nodes: [
-      n('app', 'srv-app-server', 0, -170, 'App'),
-      n('primary', 'db-generic', 0, 10, 'Primary DB'),
-      n('replicaA', 'db-generic', -190, 190, 'Read Replica 1'),
-      n('replicaB', 'db-generic', 190, 190, 'Read Replica 2'),
-    ],
-    edges: [
-      e('app', 'primary', 'writes'),
-      e('app', 'replicaA', 'reads', dashed),
-      e('primary', 'replicaA', 'async replication', dashed),
-      e('primary', 'replicaB', 'async replication', dashed),
-    ],
   }),
 
   definePattern('pattern-multi-region-active-active', 'Multi-Region Active-Active', '🌍', {
@@ -335,35 +243,113 @@ export const components = [
     ],
   }),
 
-  definePattern('pattern-er-one-to-many', 'ER: One-to-Many Relationship', '🔢', {
-    description: 'One Customer can have many Orders — the classic 1:N relationship, with the foreign key living on the "many" side.',
-    tags: ['er-diagram', 'database', 'schema'],
+  definePattern('pattern-mvc', 'MVC (Model-View-Controller)', '🎮', {
+    description: 'Controller mediates between Model and View.',
+    tags: ['architectural', 'frontend', 'backend'],
     nodes: [
-      entity('customer', -220, 0, 'Customer', ['id (PK)', 'name', 'email']),
-      entity('order', 220, 0, 'Order', ['id (PK)', 'customer_id (FK)', 'total', 'created_at']),
+      n('controller', 'layer-controller', 0, 0),
+      n('model', 'layer-model', -180, 160),
+      n('view', 'layer-view', 180, 160),
     ],
-    edges: [e('customer', 'order', '1 → N')],
+    edges: [e('controller', 'model', 'updates'), e('controller', 'view', 'renders'), e('view', 'model', 'reads', dashed)],
   }),
 
-  definePattern('pattern-er-many-to-many', 'ER: Many-to-Many with Join Table', '🔀', {
-    description: 'A Student can enroll in many Courses and a Course can have many Students — resolved with a join table carrying both foreign keys.',
-    tags: ['er-diagram', 'database', 'schema'],
-    nodes: [
-      entity('student', -320, 0, 'Student', ['id (PK)', 'name']),
-      entity('enrollment', 0, 0, 'Enrollment', ['student_id (FK)', 'course_id (FK)', 'enrolled_at']),
-      entity('course', 320, 0, 'Course', ['id (PK)', 'title']),
-    ],
-    edges: [e('student', 'enrollment', '1 → N'), e('course', 'enrollment', '1 → N')],
+  definePattern('pattern-mvvm', 'MVVM (Model-View-ViewModel)', '🔗', {
+    description: 'View binds to a ViewModel that reads/writes the Model.',
+    tags: ['architectural', 'frontend'],
+    nodes: [n('view', 'layer-view', -220, 0), n('vm', 'layer-viewmodel', 0, 0), n('model', 'layer-model', 220, 0)],
+    edges: [e('view', 'vm', 'data binding', twoWay), e('vm', 'model', 'reads/writes')],
   }),
 
-  definePattern('pattern-er-self-referencing', 'ER: Self-Referencing Relationship', '🔁', {
-    description: 'An Employee row can reference another row of the same table (its manager) — a hierarchy modeled without a separate table.',
-    tags: ['er-diagram', 'database', 'schema'],
-    nodes: [entity('employee', 0, 0, 'Employee', ['id (PK)', 'name', 'manager_id (FK, self)'])],
-    edges: [{
-      from: 'employee',
-      to: 'employee',
-      overrides: { label: 'reports to', routing: 'straight', fromOffset: 0.3, toOffset: 0.7, fromSide: 'right', toSide: 'right', dash: 'solid', startArrow: 'none', endArrow: 'filled' },
-    }],
+  definePattern('pattern-pubsub', 'Publish-Subscribe', '📣', {
+    description: 'A publisher pushes events through a broker to many subscribers.',
+    tags: ['architectural', 'messaging', 'events'],
+    nodes: [
+      n('pub', 'layer-service', -220, 0, 'Publisher'),
+      n('broker', 'mq-kafka', 0, 0, 'Message Broker'),
+      n('subA', 'layer-service', 220, -90, 'Subscriber A'),
+      n('subB', 'layer-service', 220, 90, 'Subscriber B'),
+    ],
+    edges: [e('pub', 'broker'), e('broker', 'subA'), e('broker', 'subB')],
+  }),
+
+  definePattern('pattern-read-replica', 'Read Replica', '📖', {
+    description: 'The app writes to a primary database, which replicates to one or more read-only replicas that absorb read traffic.',
+    tags: ['availability', 'replication', 'database', 'scaling'],
+    nodes: [
+      n('app', 'srv-app-server', 0, -170, 'App'),
+      n('primary', 'db-generic', 0, 10, 'Primary DB'),
+      n('replicaA', 'db-generic', -190, 190, 'Read Replica 1'),
+      n('replicaB', 'db-generic', 190, 190, 'Read Replica 2'),
+    ],
+    edges: [
+      e('app', 'primary', 'writes'),
+      e('app', 'replicaA', 'reads', dashed),
+      e('primary', 'replicaA', 'async replication', dashed),
+      e('primary', 'replicaB', 'async replication', dashed),
+    ],
+  }),
+
+  definePattern('pattern-repository', 'Repository Pattern', '📚', {
+    description: 'Service talks to a Repository that abstracts the database.',
+    tags: ['architectural', 'backend', 'dal'],
+    nodes: [n('service', 'layer-service', 0, 0), n('repo', 'layer-repository', 0, 150), n('db', 'db-generic', 0, 300)],
+    edges: [e('service', 'repo'), e('repo', 'db')],
+  }),
+
+  definePattern('pattern-resilience-stack', 'Resilience Stack (Rate Limiter + Circuit Breaker)', '🛡️', {
+    description: 'A rate limiter throttles bursts before a circuit breaker guards the call to a downstream service, failing over to a cached response when that service is unhealthy.',
+    tags: ['architectural', 'resilience', 'api'],
+    nodes: [
+      n('client', 'client-browser', -380, 0, 'Client'),
+      n('limiter', 'layer-rate-limiter', -140, 0, 'Rate Limiter'),
+      n('breaker', 'layer-circuit-breaker', 100, 0, 'Circuit Breaker'),
+      n('service', 'layer-service', 340, -110, 'Downstream Service'),
+      n('fallback', 'cache-redis', 340, 110, 'Fallback Cache'),
+    ],
+    edges: [
+      e('client', 'limiter', 'throttles bursts'),
+      e('limiter', 'breaker', 'forwards'),
+      e('breaker', 'service', 'calls when healthy'),
+      e('breaker', 'fallback', 'serves cached response when open', dashed),
+    ],
+  }),
+
+  definePattern('pattern-saga', 'Saga (Orchestration)', '🧵', {
+    description: 'A coordinator drives a multi-step transaction across services.',
+    tags: ['architectural', 'microservices', 'workflow'],
+    nodes: [
+      n('coordinator', 'layer-saga-coordinator', 0, -150),
+      n('a', 'layer-service', -220, 60, 'Service A'),
+      n('b', 'layer-service', 0, 60, 'Service B'),
+      n('c', 'layer-service', 220, 60, 'Service C'),
+    ],
+    edges: [e('coordinator', 'a'), e('coordinator', 'b'), e('coordinator', 'c')],
+  }),
+
+  definePattern('pattern-service-discovery', 'Service Discovery', '🧭', {
+    description: 'Services register themselves and look each other up via a registry.',
+    tags: ['architectural', 'microservices'],
+    nodes: [n('registry', 'layer-service-discovery', 0, -150), n('a', 'layer-service', -180, 40, 'Service A'), n('b', 'layer-service', 180, 40, 'Service B')],
+    edges: [e('a', 'registry', 'register'), e('b', 'registry', 'register'), e('a', 'b', 'discover & call', dashed)],
+  }),
+
+  definePattern('pattern-sidecar', 'Sidecar Pattern', '🚗', {
+    description: 'A helper process runs alongside the main service to handle cross-cutting concerns.',
+    tags: ['architectural', 'microservices'],
+    nodes: [n('app', 'layer-service', -120, 0, 'Application'), n('sidecar', 'layer-sidecar', 140, 0)],
+    edges: [e('app', 'sidecar', '', twoWay)],
+  }),
+
+  definePattern('pattern-strangler-fig', 'Strangler Fig', '🌿', {
+    description: 'New functionality is routed to a new service while legacy traffic keeps flowing, until the legacy system is fully retired.',
+    tags: ['architectural', 'migration'],
+    nodes: [
+      n('client', 'client-browser', 0, -160, 'Client'),
+      n('facade', 'layer-facade', 0, 0, 'Routing Facade'),
+      n('legacy', 'layer-legacy-system', -180, 160),
+      n('modern', 'layer-service', 180, 160, 'New Service'),
+    ],
+    edges: [e('client', 'facade'), e('facade', 'legacy', 'old flows'), e('facade', 'modern', 'migrated flows')],
   }),
 ];

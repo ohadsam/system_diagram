@@ -9,15 +9,15 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('a State Machine pattern instantiates a whole connected cluster', async ({ page }) => {
-  await addComponentByName(page, 'Traffic Light State Machine');
+  await addComponentByName(page, 'Circuit Breaker State Machine');
   await expect.poll(() => nodeCount(page)).toBe(4);
-  await expect.poll(() => edgeCount(page)).toBe(4);
+  await expect.poll(() => edgeCount(page)).toBe(5);
   const labels = await page.locator('.node-label, .node-external-label').allTextContents();
-  expect(labels).toEqual(expect.arrayContaining(['Red', 'Green', 'Yellow']));
+  expect(labels).toEqual(expect.arrayContaining(['Closed (calls flow)', 'Open (fails fast)', 'Half-Open (trial call)']));
 });
 
 test('hiding "State Machines" removes it from the sidebar without touching the canvas', async ({ page }) => {
-  await addComponentByName(page, 'Traffic Light State Machine');
+  await addComponentByName(page, 'Circuit Breaker State Machine');
   await expect.poll(() => nodeCount(page)).toBe(4);
 
   await openToolbarGroup(page, 'Create');

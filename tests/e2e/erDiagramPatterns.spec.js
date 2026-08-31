@@ -6,25 +6,18 @@ test.beforeEach(async ({ page }) => {
   await dismissHints(page);
 });
 
-test('"ER: One-to-Many Relationship" instantiates two entities with their attribute rows and one labeled edge', async ({ page }) => {
-  await addComponentByName(page, 'ER: One-to-Many Relationship');
-  await expect.poll(() => nodeCount(page)).toBe(2);
-  await expect.poll(() => edgeCount(page)).toBe(1);
+test('"ER: E-Commerce Order Schema" instantiates five entities with their attribute rows and four relationship edges', async ({ page }) => {
+  await addComponentByName(page, 'ER: E-Commerce Order Schema');
+  await expect.poll(() => nodeCount(page)).toBe(5);
+  await expect.poll(() => edgeCount(page)).toBe(4);
 
   await expect(page.locator('.node[aria-label="Customer"]')).toBeVisible();
   await expect(page.locator('.node[aria-label="Order"]')).toBeVisible();
+  await expect(page.locator('.node[aria-label="Order Item"]')).toBeVisible();
+  await expect(page.locator('.node[aria-label="Product"]')).toBeVisible();
+  await expect(page.locator('.node[aria-label="Payment"]')).toBeVisible();
   await expect(page.locator('.row-text', { hasText: 'customer_id (FK)' })).toBeVisible();
-  await expect(page.locator('.edge-label', { hasText: '1 → N' })).toBeVisible();
-});
-
-test('"ER: Many-to-Many with Join Table" instantiates three entities (two sides + join table) with two edges', async ({ page }) => {
-  await addComponentByName(page, 'ER: Many-to-Many with Join Table');
-  await expect.poll(() => nodeCount(page)).toBe(3);
-  await expect.poll(() => edgeCount(page)).toBe(2);
-
-  await expect(page.locator('.node[aria-label="Student"]')).toBeVisible();
-  await expect(page.locator('.node[aria-label="Enrollment"]')).toBeVisible();
-  await expect(page.locator('.node[aria-label="Course"]')).toBeVisible();
+  await expect(page.locator('.edge-label', { hasText: '1 → N' }).first()).toBeVisible();
 });
 
 test('"ER: Self-Referencing Relationship" instantiates one entity with a self-loop edge back to itself', async ({ page }) => {

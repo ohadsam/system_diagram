@@ -48,20 +48,23 @@ Or open `index.html` directly in a browser.
   Service, DAL, Authentication, React Hook, Angular Guard, DDD terms, ...).
   Drag one onto an existing component to attach it as a sub-component, or
   add it via that component's details panel (with autocomplete).
-- **Design Patterns** — 32 one-click blueprints (MVC, MVVM, Layered
-  Architecture, Repository, CQRS, API Gateway, Circuit Breaker,
-  Publish-Subscribe, Saga, Hexagonal Architecture, Singleton, Observer,
-  Strategy, high-availability blueprints like Active-Active Replication,
-  Active-Passive Replication, Multi-AZ Deployment, Read Replica, and
-  Multi-Region Active-Active, plus entity-relationship templates like
-  One-to-Many, Many-to-Many with Join Table, and Self-Referencing
-  Relationship) that drop a whole ready-made cluster of connected
-  components onto the canvas at once.
+- **Design Patterns** — 26 one-click blueprints (MVC, MVVM, Layered
+  Architecture, Repository, CQRS, API Gateway, Publish-Subscribe, Event
+  Sourcing, Saga, Sidecar, Strangler Fig, Backend for Frontend, Hexagonal
+  Architecture, Service Discovery, Cache-Aside, high-availability
+  blueprints like Active-Active Replication, Active-Passive Replication,
+  Multi-AZ Deployment, Read Replica, and Multi-Region Active-Active, and
+  higher-complexity real-world scenarios like Change Data Capture (CDC)
+  Pipeline, Database Sharding, Resilience Stack (Rate Limiter + Circuit
+  Breaker), Leader Election, and a realistic multi-entity E-Commerce Order
+  Schema) that drop a whole ready-made cluster of connected components onto
+  the canvas at once.
 - **State Machines** — states, transitions and conditions using the same
   components/connectors as the rest of the diagram (no special mode), plus
-  6 ready-made templates (Traffic Light, Order Lifecycle, TCP Connection,
-  Media Player, Approval Workflow, Auth Session). Hideable from the
-  sidebar entirely for anyone who doesn't need it.
+  6 ready-made templates (Auth Session, Background Job Processing, Circuit
+  Breaker, Order Lifecycle, Payment Processing, TCP Connection) — each a
+  realistic multi-branch flow rather than a minimal example. Hideable from
+  the sidebar entirely for anyone who doesn't need it.
 - **Full canvas editing** — drag, resize, multi-select (including
   connectors, via marquee, shift-click, or Ctrl/Cmd-click to toggle one
   item in/out of the current selection), duplicate, delete, rename

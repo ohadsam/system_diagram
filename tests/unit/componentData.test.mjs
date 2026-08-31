@@ -212,7 +212,7 @@ test('the "State Machines" category mixes state shapes and ready-made pattern te
   assert.ok(shapes.length >= 5, `expected at least 5 state shapes, got ${shapes.length}`);
   assert.ok(patterns.length >= 5, `expected at least 5 state-machine pattern templates, got ${patterns.length}`);
   const names = stateMachines.map((c) => c.name).join(' | ');
-  for (const expected of ['Initial State', 'Final State', 'Choice', 'Traffic Light']) {
+  for (const expected of ['Initial State', 'Final State', 'Choice', 'Order Lifecycle']) {
     assert.ok(names.includes(expected), `expected "${expected}" to be present in State Machines`);
   }
 });

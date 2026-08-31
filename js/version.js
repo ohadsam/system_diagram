@@ -2,9 +2,17 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.49.0';
+export const APP_VERSION = '1.49.1';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.49.1',
+    date: '2026-08-31',
+    highlights: [
+      'Curated "Design Patterns" down from 32 to 26 entries — removed the most minimal/textbook ones (MVP, Singleton, Factory Method, Observer, Strategy, Adapter, Decorator, the two smallest ER examples, and standalone Circuit Breaker/Rate Limiting) and added richer, real-world scenarios: Change Data Capture (CDC) Pipeline, Database Sharding, Resilience Stack (Rate Limiter + Circuit Breaker), Leader Election, and a realistic multi-entity E-Commerce Order Schema.',
+      'Curated "State Machines": removed Traffic Light, Media Player, and Approval Workflow (already covered by the BPMN category\'s Approval Process template); enriched Order Lifecycle (returns/refunds) and Auth Session (MFA, token refresh, lockout); added Circuit Breaker, Background Job Processing, and Payment Processing state machines.',
+    ],
+  },
   {
     version: '1.49.0',
     date: '2026-08-31',
