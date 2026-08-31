@@ -1902,6 +1902,13 @@ full-viewport overlay, for presenting rather than editing:
   disorienting. The scene includes a textured raised-floor tile ground
   and cast shadows for a sense of scale and depth, rather than components
   floating in an empty void.
+- **"🏢 Realistic Room" toggle** switches to a more true-to-life look
+  without leaving the view: the scene is wrapped in an enclosing room
+  (textured walls, a lit ceiling) sized to the diagram, and every
+  component gets a more detailed surface — individual recessed drive bays
+  with a vendor label plate for the default server-chassis look, a
+  brushed-metal highlight and activity window for storage drums. Toggling
+  back to the default view is instant and doesn't close the 3D scene.
 - **Playback.** If the diagram has a Diagram Animation (4.36), the
   overlay's Play/Prev/Next controls drive the same reveal sequence in 3D;
   while playing, visible components show ambient "thinking" particle

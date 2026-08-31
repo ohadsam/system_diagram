@@ -4006,9 +4006,9 @@ playback code):
 - **`canvas/scene3dOverlay.js`** builds the `.scene3d-overlay` (full-
   viewport, `--z-scene3d: 95` — the highest z-index token, an
   independent layer not built on top of Presenter/Kiosk mode) with
-  Play/Stop/Prev/Next/**Reset View**/Export/Close controls, mounted/torn
-  down via `core/scene3dMode.js`'s `onScene3DChange` pub-sub (same shape
-  as `core/kioskMode.js`).
+  Play/Stop/Prev/Next/**Reset View**/**Realistic Room**/Export/Close
+  controls, mounted/torn down via `core/scene3dMode.js`'s
+  `onScene3DChange` pub-sub (same shape as `core/kioskMode.js`).
 
   **Gotcha: the camera auto-fit must use full box extents, not just
   center points.** `buildScene()`'s original bounds tracking only
@@ -4046,6 +4046,37 @@ playback code):
   read as slanted, glitch-looking parallelograms under an oblique camera
   because a wide flat box foreshortens badly at that angle; replaced with
   small emissive spheres, which don't have that problem from any angle.
+
+  **"🏢 Realistic Room" mode and its own gotcha: an enclosing wall must be
+  shaped so the camera can never clip through it from *any* orbit angle.**
+  `setRealisticMode(value)` (returned from `mountScene3D`, called by the
+  overlay's toggle button) flips a `realisticMode` flag and rebuilds. The
+  custom orbit camera sits at a fixed spherical distance (`radius`) from
+  `target` regardless of `theta`/`phi`, so a wall at a fixed *linear*
+  distance in one direction (the naive approach — e.g. two flat walls
+  "behind" the default view) gets clipped through the moment the camera
+  orbits to a rotation where that distance is no longer "behind" it. The
+  fix: the room is a `THREE.CylinderGeometry` of constant radius
+  (`wallRadius`, scaled off the content's own bounding sphere so the room
+  always reads as "a big room the diagram sits inside," never a
+  tight-fitting box) rendered from the inside via `side: THREE.BackSide`
+  (a cylinder's default winding faces outward — invisible from a camera
+  inside it without this), plus a flat `THREE.CircleGeometry` ceiling
+  capping it the same way. Capping only the *initial* auto-fit distance
+  is not enough, since the user can still wheel-zoom further out — the
+  wheel handler's own zoom-out ceiling (`zoomMaxRadius`, normally a flat
+  4000) is set to `wallRadius * 0.92` whenever realistic mode is active
+  (and reset to 4000 when it's off), so the camera physically cannot
+  reach the wall at any angle or zoom level. Two `THREE.PointLight`s stand
+  in for ceiling fixtures — the directional key light alone reads as
+  outdoor sunlight and breaks the "indoors" read the room geometry is
+  going for. `drawRackTexture`/`drawStorageTexture` both take a
+  `realistic` flag and draw a visibly more detailed version (individual
+  recessed drive bays with vents/a handle and a vendor label plate for
+  racks; a brushed-metal highlight and a circular "activity window" for
+  storage drums) — cache keys include the flag (`` `rack:${color}:${realistic}` ``)
+  so both versions of a given color can coexist across a mode toggle
+  without one evicting the other.
 
 ## Demo Projects (`core/demoProjects.js`, `modals/demoProjectsModal.js`)
 

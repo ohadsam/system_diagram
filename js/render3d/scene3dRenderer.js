@@ -64,54 +64,109 @@ function shade(hex, amt) {
 
 /** A server-chassis front panel: base color, a faint brushed-metal
  * gradient, horizontal 1U rack-unit seams, and a couple of small status
- * LEDs — used for the default ('rack') visual kind, i.e. most components. */
-function drawRackTexture(colorHex) {
+ * LEDs — used for the default ('rack') visual kind, i.e. most components.
+ * In "🏢 Realistic Room" mode (`realistic`), drawn at higher resolution
+ * with an actual drive-bay look per rack unit (a handle + vent slits)
+ * instead of a plain seam line, and a small vendor label plate. */
+function drawRackTexture(colorHex, realistic) {
+  const size = realistic ? 256 : 128;
   const canvas = document.createElement('canvas');
-  canvas.width = 128;
-  canvas.height = 128;
+  canvas.width = size;
+  canvas.height = size;
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = colorHex;
-  ctx.fillRect(0, 0, 128, 128);
-  const grad = ctx.createLinearGradient(0, 0, 128, 0);
+  ctx.fillRect(0, 0, size, size);
+  const grad = ctx.createLinearGradient(0, 0, size, 0);
   grad.addColorStop(0, 'rgba(255,255,255,0.10)');
   grad.addColorStop(0.5, 'rgba(0,0,0,0)');
   grad.addColorStop(1, 'rgba(0,0,0,0.14)');
   ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, 128, 128);
-  ctx.strokeStyle = shade(colorHex, -70);
-  ctx.lineWidth = 2;
-  for (let y = 14; y < 128; y += 18) {
-    ctx.beginPath(); ctx.moveTo(4, y); ctx.lineTo(124, y); ctx.stroke();
+  ctx.fillRect(0, 0, size, size);
+
+  if (!realistic) {
+    ctx.strokeStyle = shade(colorHex, -70);
+    ctx.lineWidth = 2;
+    for (let y = 14; y < size; y += 18) {
+      ctx.beginPath(); ctx.moveTo(4, y); ctx.lineTo(size - 4, y); ctx.stroke();
+    }
+    ctx.fillStyle = 'rgba(34, 211, 238, 0.95)';
+    for (let y = 14; y < size; y += 36) {
+      ctx.beginPath(); ctx.arc(14, y - 7, 2.6, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(248, 113, 113, 0.7)';
+    for (let y = 32; y < size; y += 36) {
+      ctx.beginPath(); ctx.arc(22, y - 7, 2, 0, Math.PI * 2); ctx.fill();
+    }
+    return canvas;
+  }
+
+  // Realistic mode: each "rack unit" band gets its own recessed drive bay
+  // — a darker inset rectangle with vent slits and a handle — instead of
+  // a single seam line, plus a small backlit vendor label plate.
+  const unitHeight = 32;
+  for (let y = 8; y + unitHeight < size; y += unitHeight) {
+    ctx.fillStyle = shade(colorHex, -35);
+    ctx.fillRect(10, y, size - 20, unitHeight - 6);
+    ctx.strokeStyle = shade(colorHex, -80);
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(10, y, size - 20, unitHeight - 6);
+    ctx.strokeStyle = shade(colorHex, -60);
+    for (let x = 20; x < size - 20; x += 6) {
+      ctx.beginPath(); ctx.moveTo(x, y + 4); ctx.lineTo(x, y + unitHeight - 12); ctx.stroke();
+    }
+    ctx.fillStyle = shade(colorHex, -90);
+    ctx.fillRect(size - 34, y + 4, 6, unitHeight - 14);
   }
   ctx.fillStyle = 'rgba(34, 211, 238, 0.95)';
-  for (let y = 14; y < 128; y += 36) {
-    ctx.beginPath(); ctx.arc(14, y - 7, 2.6, 0, Math.PI * 2); ctx.fill();
-  }
-  ctx.fillStyle = 'rgba(248, 113, 113, 0.7)';
-  for (let y = 32; y < 128; y += 36) {
-    ctx.beginPath(); ctx.arc(22, y - 7, 2, 0, Math.PI * 2); ctx.fill();
-  }
+  ctx.beginPath(); ctx.arc(20, 20, 3.2, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(248, 113, 113, 0.75)';
+  ctx.beginPath(); ctx.arc(32, 20, 2.6, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(15, 20, 32, 0.55)';
+  ctx.fillRect(size - 70, 10, 56, 14);
+  ctx.fillStyle = 'rgba(226, 240, 255, 0.7)';
+  ctx.font = 'bold 10px monospace';
+  ctx.fillText('SYS-01', size - 66, 20);
   return canvas;
 }
 
 /** Stacked-disk-platter rings for the 'storage' visual kind (databases,
  * caches — anything drawn as a cylinder in 2D). Drawn as horizontal bands;
  * CylinderGeometry's default UVs wrap the side surface's V axis along the
- * cylinder's height, so these bands render as actual encircling rings. */
-function drawStorageTexture(colorHex) {
+ * cylinder's height, so these bands render as actual encircling rings. In
+ * "🏢 Realistic Room" mode, adds a brushed-metal radial highlight and a
+ * small circular "activity window" instead of a plain LED stripe. */
+function drawStorageTexture(colorHex, realistic) {
+  const w = realistic ? 128 : 64;
+  const h = 128;
   const canvas = document.createElement('canvas');
-  canvas.width = 64;
-  canvas.height = 128;
+  canvas.width = w;
+  canvas.height = h;
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = colorHex;
-  ctx.fillRect(0, 0, 64, 128);
+  ctx.fillRect(0, 0, w, h);
+  if (realistic) {
+    const grad = ctx.createLinearGradient(0, 0, w, 0);
+    grad.addColorStop(0, 'rgba(255,255,255,0.18)');
+    grad.addColorStop(0.5, 'rgba(0,0,0,0.05)');
+    grad.addColorStop(1, 'rgba(255,255,255,0.1)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+  }
   ctx.strokeStyle = shade(colorHex, -55);
   ctx.lineWidth = 1.5;
-  for (let y = 6; y < 128; y += 8) {
-    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(64, y); ctx.stroke();
+  for (let y = 6; y < h; y += 8) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
   }
-  ctx.fillStyle = 'rgba(34, 211, 238, 0.9)';
-  ctx.fillRect(0, 10, 64, 3);
+  if (realistic) {
+    ctx.fillStyle = 'rgba(15, 20, 32, 0.4)';
+    ctx.beginPath(); ctx.arc(w / 2, 24, 10, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(34, 211, 238, 0.9)';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(w / 2, 24, 6, 0, Math.PI * 2); ctx.stroke();
+  } else {
+    ctx.fillStyle = 'rgba(34, 211, 238, 0.9)';
+    ctx.fillRect(0, 10, w, 3);
+  }
   return canvas;
 }
 
@@ -132,6 +187,70 @@ function drawFloorTexture() {
   ctx.fillStyle = 'rgba(148, 163, 184, 0.35)';
   for (const [cx, cy] of [[16, 16], [112, 16], [16, 112], [112, 112]]) {
     ctx.beginPath(); ctx.arc(cx, cy, 2.2, 0, Math.PI * 2); ctx.fill();
+  }
+  return canvas;
+}
+
+/** A data-center wall panel: perforated vent panels alternating with a
+ * cable-conduit trim strip. Color-independent (one shared texture, tiled
+ * via `repeat` around the room's cylindrical wall) — used only in
+ * "🏢 Realistic Room" mode. */
+function drawWallTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#1b2236';
+  ctx.fillRect(0, 0, 256, 256);
+  // vertical panel seams
+  ctx.strokeStyle = 'rgba(10, 14, 24, 0.8)';
+  ctx.lineWidth = 3;
+  for (let x = 0; x < 256; x += 64) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 256); ctx.stroke();
+  }
+  // perforated vent dots, panel by panel
+  ctx.fillStyle = 'rgba(10, 14, 24, 0.55)';
+  for (let px = 10; px < 256; px += 64) {
+    for (let y = 20; y < 140; y += 14) {
+      for (let x = px; x < px + 44; x += 11) {
+        ctx.beginPath(); ctx.arc(x, y, 1.6, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+  }
+  // a cable-conduit trim strip near the top
+  ctx.fillStyle = '#11172a';
+  ctx.fillRect(0, 160, 256, 14);
+  ctx.strokeStyle = 'rgba(148, 163, 184, 0.25)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, 164); ctx.lineTo(256, 164); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, 170); ctx.lineTo(256, 170); ctx.stroke();
+  return canvas;
+}
+
+/** A recessed-light ceiling panel: a grid of soft glowing tiles. */
+function drawCeilingTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#0e1322';
+  ctx.fillRect(0, 0, 256, 256);
+  ctx.strokeStyle = 'rgba(10, 14, 24, 0.6)';
+  ctx.lineWidth = 2;
+  for (let x = 0; x <= 256; x += 64) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 256); ctx.stroke();
+  }
+  for (let y = 0; y <= 256; y += 64) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(256, y); ctx.stroke();
+  }
+  for (let x = 32; x < 256; x += 64) {
+    for (let y = 32; y < 256; y += 64) {
+      const grad = ctx.createRadialGradient(x, y, 2, x, y, 24);
+      grad.addColorStop(0, 'rgba(226, 240, 255, 0.65)');
+      grad.addColorStop(1, 'rgba(226, 240, 255, 0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(x - 24, y - 24, 48, 48);
+    }
   }
   return canvas;
 }
@@ -181,7 +300,7 @@ function getOrCreateTexture(THREE, cache, key, drawFn) {
  * `mesh.scale` — a mesh-level scale would also distort every child added
  * later (the label sprite, status-light decals), squashing them along with
  * the body. */
-function buildNodeVisual(THREE, n3d, isActive, textureCache) {
+function buildNodeVisual(THREE, n3d, isActive, textureCache, realistic) {
   const { width: w, height: h, depth: d, visualKind: kind, color } = n3d;
   const opacity = isActive ? 1 : 0.35;
   const transparent = !isActive;
@@ -189,7 +308,7 @@ function buildNodeVisual(THREE, n3d, isActive, textureCache) {
   if (kind === 'storage') {
     const radius = Math.max(10, Math.min(w, d) / 2);
     const geometry = new THREE.CylinderGeometry(radius, radius, h, 28, 1, false);
-    const sideTex = getOrCreateTexture(THREE, textureCache, `storage:${color}`, () => drawStorageTexture(color));
+    const sideTex = getOrCreateTexture(THREE, textureCache, `storage:${color}:${realistic}`, () => drawStorageTexture(color, realistic));
     sideTex.repeat.set(1, Math.max(1, h / 40));
     const sideMat = new THREE.MeshStandardMaterial({ map: sideTex, roughness: 0.35, metalness: 0.4, opacity, transparent });
     const capMat = new THREE.MeshStandardMaterial({ color, roughness: 0.4, metalness: 0.3, opacity, transparent });
@@ -220,7 +339,7 @@ function buildNodeVisual(THREE, n3d, isActive, textureCache) {
   }
   // 'rack' — the default: a textured server-chassis box.
   const geometry = new THREE.BoxGeometry(w, h, d);
-  const tex = getOrCreateTexture(THREE, textureCache, `rack:${color}`, () => drawRackTexture(color));
+  const tex = getOrCreateTexture(THREE, textureCache, `rack:${color}:${realistic}`, () => drawRackTexture(color, realistic));
   const material = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.55, metalness: 0.18, opacity, transparent });
   return { geometry, material, materials: [material], outline: true };
 }
@@ -336,6 +455,15 @@ export async function mountScene3D(canvasEl) {
   let lastX = 0;
   let lastY = 0;
 
+  // "🏢 Realistic Room" mode (see buildScene's room-building block below):
+  // wraps the scene in an enclosing cylindrical room. `zoomMaxRadius` caps
+  // how far the wheel can zoom out — in room mode it's set (every rebuild)
+  // to just inside the room's wall radius, since the camera orbits at a
+  // fixed spherical distance regardless of angle and a wall closer than
+  // that distance would otherwise get clipped through from some angle.
+  let realisticMode = false;
+  let zoomMaxRadius = 4000;
+
   function updateCamera() {
     const clampedPhi = Math.min(Math.PI - 0.05, Math.max(0.05, phi));
     camera.position.set(
@@ -357,7 +485,7 @@ export async function mountScene3D(canvasEl) {
   const onPointerUp = () => { dragging = false; };
   const onWheel = (e) => {
     e.preventDefault();
-    radius = Math.min(4000, Math.max(150, radius + e.deltaY * 0.8));
+    radius = Math.min(zoomMaxRadius, Math.max(150, radius + e.deltaY * 0.8));
     updateCamera();
   };
   canvasEl.addEventListener('pointerdown', onPointerDown);
@@ -405,7 +533,7 @@ export async function mountScene3D(canvasEl) {
       maxY = Math.max(maxY, n3d.height);
 
       const isActive = activeKeys.has(`node:${node.id}`);
-      const { geometry, material, materials, outline } = buildNodeVisual(THREE, n3d, isActive, textureCache);
+      const { geometry, material, materials, outline } = buildNodeVisual(THREE, n3d, isActive, textureCache, realisticMode);
       const mesh = new THREE.Mesh(geometry, material);
       mesh.position.set(n3d.x, n3d.y, n3d.z);
       mesh.castShadow = true;
@@ -521,6 +649,16 @@ export async function mountScene3D(canvasEl) {
       const cz = (minZ + maxZ) / 2;
       target = { x: cx, y: maxY / 2, z: cz };
 
+      // Content's bounding-sphere radius — drives the key light's shadow
+      // frustum below, the camera auto-fit further down, and (in
+      // "🏢 Realistic Room" mode) the room's own size.
+      const sphereR = Math.max(300, Math.sqrt(((maxX - minX) / 2) ** 2 + (maxY / 2) ** 2 + ((maxZ - minZ) / 2) ** 2));
+      // The room is a cylinder (see the room-building block further down)
+      // sized comfortably larger than the content so it reads as "a big
+      // room the diagram sits inside," not a tight-fitting box.
+      const wallRadius = Math.max(1200, sphereR * 2.4);
+      const wallHeight = Math.max(maxY * 3, 700);
+
       // A large textured floor grounds the whole scene — without one,
       // volumes read as floating cut-outs in a black void with no sense of
       // scale, orientation, or which one is "in front." Sized/recreated per
@@ -528,8 +666,10 @@ export async function mountScene3D(canvasEl) {
       // get an absurdly oversized floor and a huge diagram isn't cropped by
       // an undersized one. The tile texture itself is cached/shared (it's
       // color-independent), only the plane geometry + its repeat count vary.
+      // In realistic-room mode the floor is sized to exactly fill the room
+      // instead, so there's no visible seam between "floor" and "room."
       const footprint = Math.max(maxX - minX, maxZ - minZ, 300);
-      const groundSize = footprint * 4;
+      const groundSize = realisticMode ? wallRadius * 2 : footprint * 4;
       const groundGeo = new THREE.PlaneGeometry(groundSize, groundSize);
       const floorTex = getOrCreateTexture(THREE, textureCache, 'floor', () => drawFloorTexture());
       floorTex.repeat.set(groundSize / 140, groundSize / 140);
@@ -547,7 +687,6 @@ export async function mountScene3D(canvasEl) {
       // origin, so a diagram built far from (0,0) would render with no
       // visible shadows at all (everything outside the frustum is simply
       // unshadowed) rather than an obviously-wrong shadow.
-      const sphereR = Math.max(300, Math.sqrt(((maxX - minX) / 2) ** 2 + (maxY / 2) ** 2 + ((maxZ - minZ) / 2) ** 2));
       dirLight.position.set(cx + sphereR * 0.8, maxY + sphereR * 1.4, cz + sphereR);
       dirLight.target.position.set(cx, maxY / 2, cz);
       dirLight.target.updateMatrixWorld();
@@ -575,9 +714,66 @@ export async function mountScene3D(canvasEl) {
       // washing out the diagram itself instead of just the empty void
       // beyond it. Tying both to the just-computed radius keeps the fade
       // starting past the camera and finishing well beyond the content,
-      // at any scale.
+      // at any scale. In realistic-room mode the fog's far distance is
+      // also pushed out past the room's own wall radius, or the walls
+      // themselves would fade into the fog before the camera ever reaches
+      // its zoom limit.
       scene.fog.near = radius * 1.1;
-      scene.fog.far = radius * 4;
+      scene.fog.far = realisticMode ? Math.max(radius * 4, wallRadius * 1.3) : radius * 4;
+
+      if (realisticMode) {
+        // The camera orbits at a fixed spherical distance (`radius`) from
+        // `target` regardless of angle, so the only way to guarantee it
+        // never clips through an enclosing wall from *some* rotation is a
+        // wall shaped as a cylinder (constant horizontal radius at every
+        // angle) with a zoom-out cap safely inside that radius — capping
+        // just the auto-fit distance isn't enough, since the user can still
+        // scroll-zoom out further.
+        zoomMaxRadius = wallRadius * 0.92;
+
+        // Wall: a large cylinder around the content, textured as data-center
+        // wall panels, rendered from the *inside* (`THREE.BackSide` — a
+        // cylinder's default winding faces outward, invisible from a camera
+        // inside it) so it reads as an enclosing room rather than a solid
+        // pillar. `openEnded` since a ceiling is added separately below.
+        const wallTex = getOrCreateTexture(THREE, textureCache, 'wall', () => drawWallTexture());
+        wallTex.repeat.set(Math.max(4, Math.round((wallRadius * Math.PI * 2) / 260)), Math.max(1, wallHeight / 260));
+        const wallGeo = new THREE.CylinderGeometry(wallRadius, wallRadius, wallHeight, 48, 1, true);
+        const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, side: THREE.BackSide, roughness: 0.85, metalness: 0.1 });
+        const wall = new THREE.Mesh(wallGeo, wallMat);
+        wall.position.set(cx, wallHeight / 2 - 0.5, cz);
+        wall.receiveShadow = true;
+        contentGroup.add(wall);
+        disposables.push(wallGeo, wallMat);
+
+        // Ceiling: a flat disc capping the cylinder, also rendered from
+        // the inside, with a recessed-light-panel texture.
+        const ceilingTex = getOrCreateTexture(THREE, textureCache, 'ceiling', () => drawCeilingTexture());
+        ceilingTex.repeat.set(Math.max(2, Math.round(wallRadius / 220)), Math.max(2, Math.round(wallRadius / 220)));
+        const ceilingGeo = new THREE.CircleGeometry(wallRadius, 48);
+        const ceilingMat = new THREE.MeshStandardMaterial({ map: ceilingTex, side: THREE.BackSide, roughness: 0.9, metalness: 0 });
+        const ceiling = new THREE.Mesh(ceilingGeo, ceilingMat);
+        ceiling.rotation.x = Math.PI / 2;
+        ceiling.position.set(cx, wallHeight - 0.5, cz);
+        contentGroup.add(ceiling);
+        disposables.push(ceilingGeo, ceilingMat);
+
+        // A couple of soft, non-shadow-casting point lights standing in for
+        // ceiling fixtures — the directional key light alone reads as
+        // outdoor sunlight, which breaks the "indoors" illusion the room
+        // geometry is going for.
+        // (Lights have no GPU geometry/material to dispose — removed from
+        // the scene graph via `clearContent()`'s contentGroup sweep like
+        // any other child, same as everything else added above.)
+        for (const [ox, oz] of [[-wallRadius * 0.35, -wallRadius * 0.2], [wallRadius * 0.35, wallRadius * 0.3]]) {
+          const fixture = new THREE.PointLight(0xdbe9ff, 0.6, wallRadius * 2.2, 2);
+          fixture.position.set(cx + ox, wallHeight - 40, cz + oz);
+          contentGroup.add(fixture);
+        }
+      } else {
+        zoomMaxRadius = 4000;
+      }
+      radius = Math.min(radius, zoomMaxRadius);
     }
     updateCamera();
   }
@@ -674,5 +870,17 @@ export async function mountScene3D(canvasEl) {
     buildScene();
   }
 
-  return { dispose, resetView, getRenderTargetCanvas: () => canvasEl };
+  // Toggles "🏢 Realistic Room" mode (see the room-building block in
+  // `buildScene`) — rebuilds immediately so the room appears/disappears
+  // right away, and re-fits the camera the same way a fresh open would
+  // (including re-clamping the zoom to the new mode's wall, if any).
+  function setRealisticMode(value) {
+    realisticMode = !!value;
+    buildScene();
+  }
+  function isRealisticMode() {
+    return realisticMode;
+  }
+
+  return { dispose, resetView, setRealisticMode, isRealisticMode, getRenderTargetCanvas: () => canvasEl };
 }

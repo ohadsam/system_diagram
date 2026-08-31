@@ -157,6 +157,24 @@ Keep this in sync with `PLAN.md` as stages complete.
     cable-pattern texture tiled along the tube's length, plus small dark "connector plug" spheres
     at both ends, so a run reads as something actually plugged in rather than an abstract line.
   - Added `tests/unit/scene3dLayout.test.mjs` coverage for the new `getVisualKind` mapping.
+- **New "🏢 Realistic Room" toggle** (`js/render3d/scene3dRenderer.js`, `js/canvas/scene3dOverlay.js`)
+  — a second, more true-to-life look for the 3D scene, switched on/off without leaving the view:
+  - Wraps the scene in an enclosing cylindrical room — textured wall panels (perforated vents, a
+    cable-conduit trim strip), a lit ceiling (recessed light-panel texture), and the floor extended
+    to meet the walls seamlessly. Two soft point lights stand in for ceiling fixtures, since the
+    directional key light alone reads as outdoor sunlight and breaks the "indoors" illusion.
+  - Every component gets a more detailed surface in this mode: `'rack'`-kind boxes (the majority of
+    components) show individual recessed drive bays with vent slits and a handle per rack unit, plus
+    a small backlit vendor label plate, instead of plain seam lines; `'storage'` drums (databases/
+    caches) get a brushed-metal highlight and a circular "activity window" instead of a flat LED
+    stripe.
+  - **Technical note**: the custom orbit camera sits at a fixed spherical distance from the target
+    regardless of view angle, so the only way to guarantee it never clips through an enclosing wall
+    from *some* rotation is a wall shaped as a cylinder (constant radius at every angle) with the
+    wheel-zoom's own maximum distance capped safely inside that radius — capping only the initial
+    auto-fit distance isn't enough, since the user can still scroll further out. Room size scales
+    with the diagram's own bounding sphere so it always reads as "a big room the diagram sits
+    inside," not a tight-fitting box.
 
 ## v1.49.3 (2026-08-31)
 

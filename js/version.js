@@ -11,6 +11,7 @@ export const VERSION_HISTORY = [
     highlights: [
       '🧊 3D Presentation Mode overhaul: fixed the camera auto-fit so it now reliably frames the whole diagram instead of clipping/overflowing the view, added a raised-floor tile ground and real cast shadows so components read as grounded objects instead of floating cutouts, and improved lighting (a sky/floor hemisphere light plus a soft fill light) so every face is legible instead of near-black.',
       '🧊 3D scene now looks like real infrastructure instead of a field of identical boxes: databases/caches render as stacked-disk storage drums, decision diamonds as gem-like shapes, hexagons as hex prisms, and circles as spheres — while everything else gets a textured server-chassis look (rack-unit seams, status LEDs) instead of a flat color. Connectors render as segmented, capped network cables instead of a plain pipe. Also fixed component labels getting cut off past ~20 characters (e.g. "Elastic Load Balancer"), and added a "🎯 Reset View" button to recover if you spin/zoom the camera somewhere disorienting (there\'s no pan, only orbit + zoom).',
+      '🏢 New "Realistic Room" toggle in 3D Presentation Mode — wraps the scene in an enclosing room (textured walls, a lit ceiling) and switches every component to a more detailed surface (individual drive bays with vents and a label plate, a brushed-metal storage drum with an activity window), for a more true-to-life presentation look. Switch back to the simpler default view any time with the same button.',
     ],
   },
   {

@@ -441,7 +441,10 @@ Or open `index.html` directly in a browser.
   disorienting — there's no pan) — and "🎥 Export 3D Video" records the
   whole thing to a downloadable video file. The scene includes a
   raised-floor-tile ground and cast shadows for a real sense of scale and
-  depth.
+  depth. A "🏢 Realistic Room" toggle switches to an even more true-to-life
+  look — the scene wrapped in an enclosing room with textured walls and a
+  lit ceiling, and every component rendered with more surface detail —
+  switchable back to the simpler default view at any time.
 - **🪄 AI Beautify Layout** — asks an AI to suggest a nicer arrangement of
   your existing components (Tools menu); only positions change.
 - **🎙️ Voice dictation** — a mic button appears on every AI text field

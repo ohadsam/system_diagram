@@ -595,6 +595,11 @@ body.kiosk-mode .kiosk-exit-btn {
   white-space: nowrap;
 }
 
+.scene3d-btn.active {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
 
 /* Diagram Animation playback controls (canvas/animationOverlay.js) — shown
    only while core/animationPlayback.js reports `playing: true` (toggled via

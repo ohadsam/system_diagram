@@ -32,6 +32,17 @@ export function initScene3DOverlay() {
     title: 'Recenter and re-fit the camera on the diagram',
     onClick: () => { controllerPromise?.then((controller) => controller.resetView()); },
   });
+  const realisticBtn = el('button', {
+    type: 'button', class: 'btn btn-secondary scene3d-btn', text: '🏢 Realistic Room',
+    title: 'Toggle a more realistic look: an enclosing room with textured walls, a ceiling, and more detailed component surfaces',
+    onClick: async () => {
+      const controller = await controllerPromise;
+      if (!controller) return;
+      const next = !controller.isRealisticMode();
+      controller.setRealisticMode(next);
+      realisticBtn.classList.toggle('active', next);
+    },
+  });
   const exportBtn = el('button', {
     type: 'button', class: 'btn btn-secondary scene3d-btn', text: '🎥 Export 3D Video',
     onClick: async () => {
@@ -66,6 +77,7 @@ export function initScene3DOverlay() {
   controls.appendChild(prevBtn);
   controls.appendChild(nextBtn);
   controls.appendChild(resetViewBtn);
+  controls.appendChild(realisticBtn);
   controls.appendChild(exportBtn);
   controls.appendChild(closeBtn);
   overlay.appendChild(controls);
@@ -77,6 +89,10 @@ export function initScene3DOverlay() {
     updatePlayBtn();
     if (active) {
       controllerPromise = mountScene3D(canvasEl);
+      // A fresh mount always starts in stylized (non-realistic) mode — keep
+      // the toggle button's visual state in sync rather than carrying over
+      // whatever it showed from a previous open.
+      realisticBtn.classList.remove('active');
     } else if (controllerPromise) {
       controllerPromise.then((controller) => controller.dispose());
       controllerPromise = null;

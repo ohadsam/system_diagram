@@ -50,6 +50,36 @@ test('"🎯 Reset View" recenters the camera without closing the 3D view', async
   expect(hasWebglContent).toBe(true);
 });
 
+test('"🏢 Realistic Room" toggles an enclosing room on and off without closing the 3D view', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await addComponentByName(page, 'PostgreSQL');
+
+  await openToolbarGroup(page, 'Tools');
+  await page.locator('#toolbar button', { hasText: '3D Presentation' }).click();
+  await expect(page.locator('.scene3d-overlay')).toHaveClass(/open/);
+  await page.waitForTimeout(800);
+
+  const realisticBtn = page.locator('.scene3d-controls button', { hasText: 'Realistic Room' });
+  await expect(realisticBtn).toBeVisible();
+  await expect(realisticBtn).not.toHaveClass(/active/);
+
+  await realisticBtn.click();
+  await page.waitForTimeout(600);
+  await expect(realisticBtn).toHaveClass(/active/);
+  await expect(page.locator('.scene3d-overlay')).toHaveClass(/open/);
+
+  await realisticBtn.click();
+  await page.waitForTimeout(600);
+  await expect(realisticBtn).not.toHaveClass(/active/);
+  await expect(page.locator('.scene3d-overlay')).toHaveClass(/open/);
+
+  const hasWebglContent = await page.locator('.scene3d-canvas').evaluate((canvas) => {
+    const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+    return !!gl;
+  });
+  expect(hasWebglContent).toBe(true);
+});
+
 test('3D Presentation refuses to open on an empty canvas', async ({ page }) => {
   await openToolbarGroup(page, 'Tools');
   await page.locator('#toolbar button', { hasText: '3D Presentation' }).click();
