@@ -13,6 +13,7 @@ import {
   createNewAnimation, renameAnimation, deleteAnimation, setActiveAnimation, setAnimationAutoFocus,
   addAnimationStep, removeAnimationStep, removeAnimationTarget, reorderAnimationStep,
   updateAnimationStepSettings, setAnimations, startAnimationPlayback,
+  addAllToActiveAnimation, setAllStepsRevealMode,
 } from '../canvas/canvas.js';
 import { exportAnimation, parseAnimationFile } from '../io/exportAnimation.js';
 import { exportAnimationToPptx } from '../io/exportAnimationPptx.js';
@@ -288,6 +289,16 @@ function buildInAnimationSection(steps, state, nodesById) {
   section.appendChild(el('h3', { text: `In animation (${steps.length})` }));
   if (!steps.length) return section;
 
+  // Bulk mode-change — sets every step's revealMode at once instead of
+  // clicking through each row's own dropdown one at a time, which gets
+  // tedious fast on a walkthrough with a dozen+ steps (e.g. right after
+  // "+ Add All" below, or an imported animation whose steps came in mixed).
+  const bulkRow = el('div', { class: 'animation-bulk-row' });
+  bulkRow.appendChild(el('span', { class: 'animation-bulk-label', text: 'Set all steps to:' }));
+  bulkRow.appendChild(el('button', { type: 'button', class: 'btn btn-sm', text: '⏱️ Auto-play', title: 'Change every step in this animation to auto-advance', onClick: () => setAllStepsRevealMode('auto') }));
+  bulkRow.appendChild(el('button', { type: 'button', class: 'btn btn-sm', text: '🖱️ Click', title: 'Change every step in this animation to advance only on click', onClick: () => setAllStepsRevealMode('click') }));
+  section.appendChild(bulkRow);
+
   const list = el('div', { class: 'animation-step-list' });
   steps.forEach((step, index) => {
     const labeledTargets = step.targets
@@ -397,7 +408,8 @@ function buildAddMoreSection(steps, state, nodesById) {
   for (const key of [...selectedForGroup]) if (!candidateKeys.has(key)) selectedForGroup.delete(key);
 
   if (candidateNodes.length + candidateEdges.length > 1) {
-    section.appendChild(el('button', {
+    const bulkAddRow = el('div', { class: 'animation-bulk-row' });
+    bulkAddRow.appendChild(el('button', {
       type: 'button',
       class: 'btn btn-sm animation-add-selected-btn',
       text: `+ Add Selected (${selectedForGroup.size}) as one step`,
@@ -412,6 +424,17 @@ function buildAddMoreSection(steps, state, nodesById) {
         selectedForGroup.clear();
       },
     }));
+    bulkAddRow.appendChild(el('button', {
+      type: 'button',
+      class: 'btn btn-sm',
+      text: `+ Add All (${candidateNodes.length + candidateEdges.length})`,
+      title: 'Adds every remaining component and connector below, each as its own separate step, in canvas order — no manual configuration needed',
+      onClick: () => {
+        const added = addAllToActiveAnimation();
+        if (added) showToast(`Added ${added} step${added === 1 ? '' : 's'} to the animation.`, 'success', 2000);
+      },
+    }));
+    section.appendChild(bulkAddRow);
   }
 
   const list = el('div', { class: 'animation-add-list' });

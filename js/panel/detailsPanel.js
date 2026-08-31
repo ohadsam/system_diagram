@@ -13,6 +13,7 @@ import { SUBCOMPONENTS_DISPLAY_MODES } from '../core/project.js';
 import { getReplicationInfoForNode, computeMessageSequenceNumbers } from '../canvas/canvas.js';
 import { getUnattachedLayerSuggestions } from '../canvas/suggestions.js';
 import { readJSON, writeJSON } from '../io/storage.js';
+import { openGroupExplanationModal } from '../modals/groupExplanationModal.js';
 
 const SUBCOMPONENTS_DISPLAY_LABELS = { chips: 'Compact chips', full: 'Full list' };
 const MIN_PANEL_WIDTH = 260;
@@ -246,6 +247,20 @@ function render(node) {
   if (replicationInfo) {
     body.appendChild(el('h3', { text: 'Replication' }));
     body.appendChild(renderReplicationSection(node, replicationInfo));
+  }
+
+  // Only set on a node created by instantiating a library pattern/template
+  // (see canvas.js#instantiatePatternAtPoint) — a hand-built component has
+  // nothing to look this up from, so this section simply doesn't appear.
+  if (node.patternInstanceId) {
+    body.appendChild(el('h3', { text: 'About this diagram' }));
+    body.appendChild(el('div', { class: 'details-pattern-explanation' }, [
+      el('p', { class: 'modal-hint', text: 'This component is part of a built-in library pattern.' }),
+      el('button', {
+        type: 'button', class: 'btn btn-secondary', text: '📖 Explain This Diagram',
+        onClick: () => openGroupExplanationModal(node.patternInstanceId),
+      }),
+    ]));
   }
 
   body.appendChild(el('h3', { text: 'Notes' }));

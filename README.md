@@ -365,7 +365,22 @@ Or open `index.html` directly in a browser.
   its own file, independent of the diagram — or export the active one as a
   real `.pptx` (one slide per step) or a real video file. After an
   AI-generated diagram, a prompt offers to auto-build a walkthrough
-  animation revealing everything in the order it was generated.
+  animation revealing everything in the order it was generated. "+ Add All"
+  adds every remaining component/connector as its own step in one click, and
+  "Set all steps to: Auto-play/Click" changes every step's reveal mode at
+  once. "🪄 Auto-Play Diagram" (Tools menu, or ⌘K) instantly builds a
+  walkthrough from everything already on the canvas and starts playing it
+  right away — no manual setup needed.
+- **🔤 Fix Text Display** — re-spaces overlapping labeled content (a busy
+  sequence diagram's messages, or any diagram's cramped connector labels) so
+  wrapped text has room to display cleanly, in one undoable step; edge
+  labels also passively wrap onto multiple lines instead of overflowing.
+- **📖 Show Descriptions** — a toolbar toggle that shows every dropdown
+  button's tooltip explanation inline instead of only on hover.
+- **📖 Explain This Diagram** — right-click any component from a built-in
+  library pattern/template (or its details panel) for an instant, offline,
+  comprehensive explanation of that template: what it is, what each
+  component does, and a numbered read of how it flows.
 - **💫 Flow Simulation** — a Tools-menu toggle animates a small dot
   continuously flowing along every connector in its direction, to
   visualize traffic at a glance. Off by default; costs nothing when

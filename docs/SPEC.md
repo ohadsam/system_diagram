@@ -2202,6 +2202,92 @@ longest (5 labeled sections, 24+ buttons):
   critique of this diagram — review, explain, suggestions, or a security-focused
   pass").
 
+### 4.89 Fix Text Display + passive edge-label wrapping
+Every edge label now wraps onto multiple lines instead of overflowing or rendering
+hidden behind other content (`core/labelWrap.js#wrapLabelLines`, a fixed
+average-char-width estimate rather than live DOM measurement, kept consistent
+with this app's other pure/testable layout math) — rendered as stacked `<tspan>`
+children under the label's existing `<text>` (`canvas/connector.js`), inheriting
+the same fill/stroke/white-halo legibility styling automatically.
+
+"🔤 Fix Text Display" (Tools → Layout Tools, or ⌘K) is a one-click, undoable
+action that re-spaces content just enough for wrapped labels to actually have
+room, without moving anything that doesn't need it:
+- **Sequence diagram** (any lifeline on the canvas) — re-spaces every message's
+  height along its lifeline(s) proportional to how tall its own wrapped label
+  renders (`core/sequenceDiagram.js#spaceMessagesForLabels`), scaling every gap
+  down together if the total would overflow the lifeline's usable height. Unlike
+  "↔️ Distribute Evenly" (which forces every gap equal), a message with a longer
+  label gets proportionally more room than a short one.
+- **Any other diagram** — nudges the two ends of a labeled connector directly
+  apart along the line between their centers, splitting the shortfall evenly
+  (`core/labelSpacing.js#spreadNodesForLabels`), only when the label's wrapped
+  width doesn't already fit in the gap between them.
+A toast explains what happened (or that there was nothing to fix, or to add at
+least one/two items first). This is what makes an out-of-the-box template like
+"PKCE Authorization Flow" — several long messages sitting close together —
+display its text cleanly with one click.
+
+### 4.90 Show Descriptions toggle
+A new "📖 Show Descriptions" button at the end of the always-visible toolbar
+row (appended last, same width-safety reasoning as the canvas search box next
+to it) toggles `io/uiPrefs.js#showActionDescriptions` (off by default). When
+on, every dropdown-panel button (File/Create/Tools/Help) also renders its own
+`title` tooltip text inline as a small line under its label
+(`toolbar/toolbarDropdown.js#updateButtonDescription`), so browsing a long menu
+like Tools doesn't require hovering one button at a time to see what each one
+does — handy on a touch device too, where hover tooltips barely exist. The
+inline description is appended as its own child span rather than overwriting a
+button's content, so a button that already has its own child elements (e.g.
+"🔍 Check Diagram"'s lint-nudge badge) keeps them. The native `title` tooltip
+is unaffected either way — this is purely an additional, opt-in display.
+
+### 4.91 Explain This Diagram
+Every node created by instantiating a library pattern/template
+(`canvas.js#instantiatePatternAtPoint`) now carries `sourcePatternId` (which
+pattern) and `patternInstanceId` (a fresh id per instantiation, so dropping the
+same template twice never conflates the two copies) — provenance metadata,
+separate from and orthogonal to the pre-existing `groupId` visual-grouping
+mechanism, round-tripped through save/reload/import like any other node field
+(`core/project.js#validateContent`).
+
+Right-click any node that carries a `patternInstanceId` (or open its details
+panel and use the "About this diagram" section there) and choose "📖 Explain
+This Diagram" for a deterministic, offline, per-template counterpart to
+"📃 Describe Diagram" (4.68's whole-canvas summary): a curated title/description
+from the original pattern's own def, every one of its components listed with
+its own curated library description (surfaced for the first time — every
+component already carries one, `data/schema.js#c`'s `description` field, that
+nothing showed the user before this), and a numbered step-by-step read of how
+it flows — sequence-numbered messages in vertical order for a sequence-diagram
+template, plain "A → B" connection lines otherwise (`core/groupExplanation.js`,
+`modals/groupExplanationModal.js`). A "📋 Copy as text" button copies the whole
+explanation as plain text.
+
+### 4.92 Diagram Animation: Add All, bulk mode-change, Auto-Play Diagram
+Three additions rounding out Diagram Animation (4.36) editing:
+- **"+ Add All"** (panel's "Add more" section, alongside "+ Add Selected as one
+  step") adds every remaining component/connector as its own separate step, in
+  canvas order, in one click and one undo entry
+  (`canvas.js#addAllToActiveAnimation`) — the bulk sibling of adding items one
+  at a time.
+- **Bulk mode-change** — "Set all steps to: ⏱️ Auto-play / 🖱️ Click" (panel's
+  step list) changes every step's reveal mode in the active animation at once
+  (`canvas.js#setAllStepsRevealMode`), instead of opening each row's own
+  Auto/Click dropdown individually. Switching a step into 'auto' that has no
+  delay set yet gives it the same 2s default a hand-added step would get;
+  switching to 'click' leaves any configured delay untouched so switching back
+  restores it rather than resetting.
+- **"🪄 Auto-Play Diagram"** (Tools → Visual & Presentation, or ⌘K) builds a
+  full walkthrough animation from *every* node/edge currently on the canvas —
+  reusing the same `core/animationAutoBuild.js#buildAutoWalkthroughAnimation`
+  logic already offered after an AI-generation flow (4.62's auto-build prompt)
+  — and starts playing it immediately, replacing whichever animation was
+  already active. No manual "add to animation" or per-step configuration is
+  needed first; this is the "just show me the whole thing" one-click path,
+  distinct from "+ Add All" (which builds into the *current* animation for
+  further hand-editing rather than playing right away).
+
 ## 7. Out of scope for v1 (ideas for later, see PLAN.md §7)
 
 Versioned history beyond in-session undo/redo (superseded by 4.17/4.63

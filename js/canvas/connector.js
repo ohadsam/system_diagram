@@ -4,6 +4,9 @@
 import { svgEl } from '../utils/dom.js';
 import { sideAnchor, buildPath, waypointsPath } from '../core/geometry.js';
 import { computeMagicWaypoints } from '../core/magicRouter.js';
+import { wrapLabelLines, DEFAULT_LABEL_MAX_WIDTH } from '../core/labelWrap.js';
+
+const LABEL_LINE_HEIGHT = 12;
 
 let handlers = { onSelect: () => {}, onContextMenu: () => {} };
 export function configureEdgeHandlers(next) {
@@ -130,11 +133,37 @@ export function updateEdgeEl(g, edge, fromNode, toNode, { selected = false, allN
   if (endMarker) line.setAttribute('marker-end', endMarker);
   else line.removeAttribute('marker-end');
 
+  // Cleared unconditionally (not just when repopulating below) — otherwise
+  // clearing a label back to empty would leave its old <tspan> children
+  // sitting in the DOM (just hidden via display:none), so anything reading
+  // the element's own textContent (e.g. an e2e assertion) would still see
+  // stale text.
+  while (label.firstChild) label.removeChild(label.firstChild);
   if (edge.label) {
     const pos = pathPointForLabel(line, edge.labelPosition);
-    label.textContent = edge.label;
+    // Multi-line via <tspan> rather than a single long <text> run — SVG text
+    // has no CSS `overflow-wrap` equivalent, so a long label (a common
+    // sequence-diagram message, e.g. "verify code_verifier matches
+    // challenge") would otherwise render as one unbroken line that overlaps
+    // its neighbors. fill/stroke/paint-order set on the parent <text>
+    // (css/connector.css) are inherited by every <tspan> automatically, so
+    // the legibility halo still applies per line with no extra CSS needed.
+    const lines = wrapLabelLines(edge.label, edge.labelMaxWidth || DEFAULT_LABEL_MAX_WIDTH);
+    const topY = pos.y - 6 - (lines.length - 1) * LABEL_LINE_HEIGHT;
+    // Also set on the parent <text> itself (not just each <tspan>) — a
+    // <tspan> with no explicit x/y otherwise inherits its position from the
+    // *current text position*, which for the first tspan comes from the
+    // parent element's own x/y attributes. Keeping these in sync also
+    // matters for anything reading the label's own position directly
+    // rather than its first tspan (e.g. this app's own e2e assertions on
+    // `.edge-label`'s `x`/`y` attributes).
     label.setAttribute('x', String(pos.x));
-    label.setAttribute('y', String(pos.y - 6));
+    label.setAttribute('y', String(topY));
+    lines.forEach((text, i) => {
+      const tspan = svgEl('tspan', { x: String(pos.x), y: String(topY + i * LABEL_LINE_HEIGHT) });
+      tspan.textContent = text;
+      label.appendChild(tspan);
+    });
     label.style.display = '';
   } else {
     label.style.display = 'none';

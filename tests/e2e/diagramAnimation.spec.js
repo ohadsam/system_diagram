@@ -505,3 +505,50 @@ test('a full project JSON export/import round-trips animations, groups, and note
   await page.locator('.animation-step-notes-toggle').click();
   await expect(page.locator('.animation-step-notes-input')).toHaveValue('Grouped intro');
 });
+
+test('"+ Add All" adds every remaining component/connector as its own step, in one click', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await addComponentByName(page, 'Redis Cache');
+  await connectNodes(page, page.locator('.node').first(), page.locator('.node').nth(1));
+  await openAnimationPanel(page);
+
+  await expect(page.locator('.animation-add-row')).toHaveCount(3); // 2 components + 1 connector
+  await page.locator('button', { hasText: '+ Add All' }).click();
+
+  await expect(page.locator('.animation-step-row')).toHaveCount(3);
+  await expect(page.locator('.animation-add-row')).toHaveCount(0);
+  // Nothing left to add — the bulk-add row (gated on 2+ candidates) is gone too.
+  await expect(page.locator('button', { hasText: '+ Add All' })).toHaveCount(0);
+});
+
+test('bulk "Set all steps to" buttons change every step\'s reveal mode at once', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await addComponentByName(page, 'Redis Cache');
+  await openAnimationPanel(page);
+  await page.locator('button', { hasText: '+ Add All' }).click();
+  await expect(page.locator('.animation-step-row')).toHaveCount(2);
+
+  // Every step starts as 'click' by default — switch all to auto-play.
+  await page.locator('button', { hasText: '⏱️ Auto-play' }).click();
+  const modeSelects = page.locator('.animation-step-controls select');
+  await expect(modeSelects.nth(0)).toHaveValue('auto');
+  await expect(modeSelects.nth(1)).toHaveValue('auto');
+  await expect(page.locator('.animation-step-delay')).toHaveCount(2);
+
+  await page.locator('button', { hasText: '🖱️ Click' }).click();
+  await expect(modeSelects.nth(0)).toHaveValue('click');
+  await expect(modeSelects.nth(1)).toHaveValue('click');
+});
+
+test('"Auto-Play Diagram" builds a walkthrough from the whole canvas and starts playing immediately, with no manual setup', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await addComponentByName(page, 'Redis Cache');
+  await connectNodes(page, page.locator('.node').first(), page.locator('.node').nth(1));
+
+  await openToolbarGroup(page, 'Tools');
+  await page.locator('#toolbar button', { hasText: 'Auto-Play Diagram' }).click();
+
+  // Playback takes over (kiosk mode) with no animation panel interaction at all.
+  await expect(page.locator('.anim-playback-controls')).toBeVisible({ timeout: 3000 });
+  await expect(page.locator('.anim-step-indicator')).toContainText('1');
+});

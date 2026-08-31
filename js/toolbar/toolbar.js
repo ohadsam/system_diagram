@@ -17,7 +17,7 @@ import { el, clear, rerenderPreservingUiState } from '../utils/dom.js';
 import {
   deleteSelection, duplicateSelection, groupSelection, ungroupSelection, selectionHasGroup, duplicateProjectAsNew,
   getSelectionScreenRect, autoArrangeAll, distributeSequenceDiagram, setFocusMode, setFlowSimulationEnabled,
-  resolveComponentDef,
+  resolveComponentDef, fixTextDisplay, autoBuildAndPlayAnimation,
 } from '../canvas/canvas.js';
 import { getBaseToolMode, setToolMode, onToolModeChange } from '../canvas/toolMode.js';
 import { onViewportChange, centerOn } from '../canvas/viewport.js';
@@ -258,6 +258,21 @@ export function initToolbar(root) {
   // undisturbed — this is what fixed a real bug where a wrapped Help panel
   // landed on top of the first-run tour's hint bubble.
   row1.appendChild(buildCanvasSearchGroup());
+  // Also appended last, same reasoning as buildCanvasSearchGroup() above —
+  // this is a rarely-toggled accessibility/discoverability aid, not a
+  // continuously-used control, so it's fine to be the thing that wraps.
+  const descBtn = el('button', {
+    type: 'button',
+    class: `btn${getUiPrefs().showActionDescriptions ? ' active' : ''}`,
+    title: 'Show Action Descriptions: display every dropdown button\'s tooltip explanation inline, instead of only on hover — handy when browsing many actions at once, or on a touch device',
+    text: '📖 Show Descriptions',
+    onClick: () => {
+      const next = !getUiPrefs().showActionDescriptions;
+      saveUiPrefs({ showActionDescriptions: next });
+      descBtn.classList.toggle('active', next);
+    },
+  });
+  row1.appendChild(descBtn);
   root.appendChild(row1);
 
   // Hidden (not just empty) until the user has pinned at least one action —
@@ -820,6 +835,13 @@ function buildToolsGroupButtons() {
     text: '🔎 Find & Replace',
     onClick: openFindReplaceModal,
   });
+  const fixTextDisplayBtn = el('button', {
+    type: 'button',
+    class: 'btn',
+    title: 'Fix Text Display: re-space cramped labels (like a busy sequence diagram\'s messages) so wrapped text has room to display cleanly, without moving anything that doesn\'t need it',
+    text: '🔤 Fix Text Display',
+    onClick: fixTextDisplay,
+  });
   const lintNudgeBadge = el('span', { class: 'toolbar-count-badge toolbar-lint-nudge-badge', hidden: true, title: 'A new issue was found — click to view' });
   const lintBtn = el('button', {
     type: 'button', class: 'btn', title: 'Check Diagram: a few quick, offline structural checks (e.g. a client talking straight to a database, an unconnected component)', onClick: () => {
@@ -900,6 +922,13 @@ function buildToolsGroupButtons() {
     text: '🎞️ Diagram Animation',
     onClick: toggleAnimationPanel,
   });
+  const autoPlayBtn = el('button', {
+    type: 'button',
+    class: 'btn',
+    title: 'Auto-Play Diagram: instantly builds a walkthrough animation from every component and connector already on the canvas, in the order they were added, and starts playing it right away — no manual setup needed',
+    text: '🪄 Auto-Play Diagram',
+    onClick: autoBuildAndPlayAnimation,
+  });
   const flowSimBtn = el('button', {
     type: 'button',
     class: `btn${prefs.flowSimulation ? ' active' : ''}`,
@@ -937,8 +966,8 @@ function buildToolsGroupButtons() {
       { packId: 'ai-tools', buttons: [aiReviewBtn, aiChatBtn, aiLayoutBtn] },
       { packId: 'collaboration', buttons: [collabBtn] },
       { packId: 'analysis', buttons: [lintBtn, lintNudgesBtn, costBtn, describeBtn, interviewBtn, reviewStatusBtn] },
-      { packId: 'layout-tools', buttons: [autoArrangeBtn, distributeBtn, scaleBtn, findReplaceBtn] },
-      { packId: 'visual-extras', buttons: [minimapBtn, focusModeBtn, diagramThemeBtn, presenterModeBtn, animationBtn, flowSimBtn, scene3dBtn] },
+      { packId: 'layout-tools', buttons: [autoArrangeBtn, distributeBtn, scaleBtn, findReplaceBtn, fixTextDisplayBtn] },
+      { packId: 'visual-extras', buttons: [minimapBtn, focusModeBtn, diagramThemeBtn, presenterModeBtn, animationBtn, autoPlayBtn, flowSimBtn, scene3dBtn] },
     ],
   );
 }

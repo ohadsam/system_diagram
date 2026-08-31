@@ -749,3 +749,73 @@ test('hovering a plain (non-sequence-diagram) sidebar item shows no preview thum
   await page.waitForTimeout(400); // longer than the preview's own show delay
   await expect(page.locator('.pattern-preview-popup')).toHaveCount(0);
 });
+
+test('"Explain This Diagram" on an instantiated template shows a comprehensive, offline explanation', async ({ page }) => {
+  await addComponentByName(page, 'PKCE Authorization Flow');
+  await expect.poll(() => nodeCount(page)).toBeGreaterThan(1);
+
+  await page.locator('.node').first().click({ button: 'right', force: true });
+  await page.locator('.context-menu-item', { hasText: 'Explain This Diagram' }).click();
+
+  const modal = page.locator('.group-explanation-modal');
+  await expect(modal).toBeVisible();
+  await expect(modal).toContainText('PKCE Authorization Flow');
+  await expect(modal.locator('.group-explanation-list').first()).toContainText('Client');
+  await expect(modal).toContainText('How it works (in order)');
+  await expect(modal.locator('ol.group-explanation-list li').first()).toBeVisible();
+});
+
+test('"Explain This Diagram" is also reachable from the details panel of a template component', async ({ page }) => {
+  await addComponentByName(page, 'PKCE Authorization Flow');
+  // These sequence templates instantiate as a group (groupOnInstantiate),
+  // so a plain click multi-selects the whole cluster and the details panel
+  // (single-node only) stays closed — "Open details" from the context menu
+  // targets one specific node directly, bypassing group selection.
+  await page.locator('.node').first().click({ button: 'right', force: true });
+  await page.locator('.context-menu-item', { hasText: 'Open details' }).click();
+  await expect(page.locator('.details-panel')).toBeVisible();
+  await page.locator('.details-panel button', { hasText: 'Explain This Diagram' }).click();
+  await expect(page.locator('.group-explanation-modal')).toBeVisible();
+});
+
+test('duplicating a single node out of a template does not pollute the original\'s "Explain This Diagram"', async ({ page }) => {
+  await addComponentByName(page, 'PKCE Authorization Flow');
+  const originalCount = await nodeCount(page);
+
+  // Right-click "Duplicate" targets exactly one node (bypassing the whole
+  // group's multi-select) — the duplicate must NOT keep the original's
+  // patternInstanceId, or it would silently join the original template's
+  // explanation as an extra "component". Duplicating lands the copy only
+  // 24px away (overlapping), so verify by right-clicking a *different*
+  // original node the duplicate can't possibly cover.
+  const first = page.locator('.node').first();
+  const second = page.locator('.node').nth(1);
+  await first.click({ button: 'right', force: true });
+  await page.locator('.context-menu-item', { hasText: 'Duplicate' }).click();
+  await expect.poll(() => nodeCount(page)).toBe(originalCount + 1);
+
+  await second.click({ button: 'right', force: true });
+  await page.locator('.context-menu-item', { hasText: 'Explain This Diagram' }).click();
+  const modal = page.locator('.group-explanation-modal');
+  await expect(modal).toBeVisible();
+  const componentCount = await modal.locator('.group-explanation-list').first().locator('li').count();
+  expect(componentCount).toBe(originalCount); // not originalCount + 1
+});
+
+test('"Fix Text Display" re-spaces a busy sequence diagram\'s messages so their labels no longer overlap', async ({ page }) => {
+  await createSequenceDiagram(page, ['Client', 'Server']);
+  const nodes = page.locator('.node[data-shape="lifeline"]');
+  await connectAtHeight(page, nodes.nth(0), nodes.nth(1), 0.2, 0.2);
+  await page.locator('.edge').first().click({ force: true });
+  await page.locator('input[placeholder="e.g. HTTPS"]').fill('a fairly long message label that will wrap across several lines');
+  await page.locator('#canvas-viewport').click({ position: { x: 10, y: 10 } });
+
+  await connectAtHeight(page, nodes.nth(0), nodes.nth(1), 0.6, 0.6);
+  await page.locator('.edge').nth(1).click({ force: true });
+  await page.locator('input[placeholder="e.g. HTTPS"]').fill('another long message label that also needs plenty of room');
+  await page.locator('#canvas-viewport').click({ position: { x: 10, y: 10 } });
+
+  await openToolbarGroup(page, 'Tools');
+  await page.locator('#toolbar button', { hasText: 'Fix Text Display' }).click();
+  await expect(page.locator('.toast', { hasText: 'Adjusted spacing' })).toBeVisible();
+});

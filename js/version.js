@@ -2,9 +2,20 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.48.0';
+export const APP_VERSION = '1.49.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.49.0',
+    date: '2026-08-31',
+    highlights: [
+      'New "🔤 Fix Text Display" (Tools menu) — re-spaces a busy sequence diagram\'s messages (or any diagram\'s overlapping labeled connectors) so text has room to display cleanly, without moving anything that doesn\'t need it. Edge labels now also wrap onto multiple lines instead of overflowing or hiding.',
+      'New "📖 Show Descriptions" toggle (always-visible toolbar row) — shows every dropdown button\'s tooltip explanation inline, right under its label, instead of only on hover. Off by default; the tooltip itself is always still there.',
+      'New "📖 Explain This Diagram" (right-click a component from any built-in library pattern/template, or its details panel) — an instant, offline, comprehensive explanation of that specific template: what it is, what each of its components does, and a numbered step-by-step read of how it works.',
+      'Diagram Animation: new "+ Add All" button adds every remaining component and connector to the animation at once, and "Set all steps to: ⏱️ Auto-play / 🖱️ Click" changes every step\'s reveal mode in one click instead of one row at a time.',
+      'New "🪄 Auto-Play Diagram" (Tools menu, or Ctrl/Cmd+K) — instantly builds a walkthrough animation from everything already on the canvas, in the order it was added, and starts playing it right away — no manual step-adding or configuration needed.',
+    ],
+  },
   {
     version: '1.48.0',
     date: '2026-08-30',

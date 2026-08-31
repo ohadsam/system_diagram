@@ -21,7 +21,8 @@ import { filterCommands } from '../toolbar/commandPalette.js';
 import {
   deleteSelection, duplicateSelection, autoArrangeAll, distributeSequenceDiagram, duplicateProjectAsNew,
   addRelatedComponent, addLayerToNode, instantiatePatternNearNode, instantiatePatternAtCenter, addComponentAtCenter,
-  resolveComponentDef, clearCanvas, setFocusMode, addCommentAtCenter, fitToSelection, fitToScreen,
+  resolveComponentDef, clearCanvas, setFocusMode, addCommentAtCenter, fitToSelection, fitToScreen, fixTextDisplay,
+  autoBuildAndPlayAnimation,
 } from '../canvas/canvas.js';
 import * as viewport from '../canvas/viewport.js';
 import { openSaveAsModal } from './saveAsModal.js';
@@ -38,6 +39,7 @@ import { openShareLinkModal } from './shareLinkModal.js';
 import { openVersionHistoryModal } from './versionHistoryModal.js';
 import { openPresentationsModal } from './presentationsModal.js';
 import { openDiagramLintModal } from './diagramLintModal.js';
+import { openGroupExplanationModal } from './groupExplanationModal.js';
 import { openCostBreakdownModal } from './costBreakdownModal.js';
 import { openScaleDiagramModal } from './scaleDiagramModal.js';
 import { openDiagramThemeModal } from './diagramThemeModal.js';
@@ -124,6 +126,7 @@ export function buildAppCommands() {
     { id: 'auto-arrange', label: '🗺️ Auto-arrange', keywords: ['arrange', 'layout', 'tidy', 'order', 'sort'], run: autoArrangeAll },
     { id: 'distribute', label: '↔️ Distribute Evenly', keywords: ['distribute', 'space', 'even'], run: distributeSequenceDiagram },
     { id: 'scale', label: '📐 Scale Diagram', keywords: ['scale', 'resize'], run: openScaleDiagramModal },
+    { id: 'fix-text-display', label: '🔤 Fix Text Display', keywords: ['fix', 'text', 'wrap', 'label', 'overlap', 'readable'], run: fixTextDisplay },
     { id: 'diagram-theme', label: '🎨 Diagram Theme', keywords: ['theme', 'recolor', 'palette', 'color'], run: openDiagramThemeModal },
     { id: 'add-comment', label: '💬 Add Comment', keywords: ['comment', 'annotation', 'note', 'pin'], run: addCommentAtCenter },
     { id: 'toggle-grid', label: '▦ Toggle Grid', keywords: ['grid', 'toggle', 'background'], run: () => document.querySelector('.canvas-viewport')?.classList.toggle('show-grid') },
@@ -176,6 +179,7 @@ export function buildAppCommands() {
       run: toggleKioskMode,
     },
     { id: 'diagram-animation', label: '🎞️ Diagram Animation', keywords: ['animation', 'reveal', 'playback', 'sequence'], run: toggleAnimationPanel },
+    { id: 'auto-play-diagram', label: '🪄 Auto-Play Diagram', keywords: ['animation', 'auto', 'play', 'walkthrough', 'instant'], run: autoBuildAndPlayAnimation },
     {
       id: 'flow-simulation', label: '💫 Flow Simulation', keywords: ['flow', 'simulation', 'traffic', 'dots'],
       run: () => {
@@ -220,6 +224,14 @@ export function buildAppCommands() {
         document.querySelector('#toolbar button[title^="Diagram Nudges"]')?.classList.toggle('active', next);
       },
     },
+    {
+      id: 'toggle-action-descriptions', label: '📖 Show Descriptions', keywords: ['description', 'tooltip', 'explain', 'toolbar', 'help'],
+      run: () => {
+        const next = !getUiPrefs().showActionDescriptions;
+        saveUiPrefs({ showActionDescriptions: next });
+        document.querySelector('#toolbar button[title^="Show Action Descriptions"]')?.classList.toggle('active', next);
+      },
+    },
   ];
 }
 
@@ -241,6 +253,9 @@ function buildContextualCommands(nodeId) {
     commands.push({ id: `rel-pattern-${rel.id}`, label: `${rel.icon} Add "${rel.name}" nearby`, keywords: [rel.name, 'pattern', 'sequence'], run: () => instantiatePatternNearNode(rel.id, nodeId) });
   });
   commands.push({ id: 'ctx-blast-radius', label: `🎯 Blast Radius of ${def.name}`, keywords: ['blast', 'radius', 'impact', 'failure', 'dependency'], run: () => openBlastRadiusModal(nodeId) });
+  if (node.patternInstanceId) {
+    commands.push({ id: 'ctx-explain-diagram', label: '📖 Explain This Diagram', keywords: ['explain', 'describe', 'pattern', 'template', 'documentation'], run: () => openGroupExplanationModal(node.patternInstanceId) });
+  }
   commands.push({ id: 'ctx-duplicate', label: `📄 Duplicate ${def.name}`, keywords: ['duplicate', 'copy'], run: duplicateSelection });
   commands.push({ id: 'ctx-delete', label: `🗑️ Delete ${def.name}`, keywords: ['delete', 'remove'], run: deleteSelection });
   return commands;

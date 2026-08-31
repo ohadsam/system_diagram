@@ -386,6 +386,28 @@
   justify-content: flex-start;
 }
 
+/* toolbar.js's "📖 Show Descriptions" toggle (default off) — inlines each
+   button's own `title` tooltip text so it reads clearly without hovering
+   one button at a time. Column layout only on buttons that actually got a
+   description appended (toolbarDropdown.js#updateButtonDescription), so
+   every other dropdown button's normal row layout is untouched. */
+.toolbar-dropdown-panel .btn.has-desc {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding-bottom: 8px;
+  white-space: normal;
+  text-align: left;
+}
+
+.toolbar-dropdown-btn-desc {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  white-space: normal;
+  line-height: 1.3;
+}
+
 /* Groups a themed cluster of buttons (see toolbar.js's `buildGatedButtonList`
    / core/featureLevels.js's FEATURE_PACKS) under one label inside a
    dropdown panel — this app's largest dropdown (Tools) had grown past two

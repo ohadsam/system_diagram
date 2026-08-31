@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { layoutLifelines, distributeLifelineColumns, distributeMessages } from '../../js/core/sequenceDiagram.js';
+import { layoutLifelines, distributeLifelineColumns, distributeMessages, spaceMessagesForLabels } from '../../js/core/sequenceDiagram.js';
 
 const SIZE = { w: 140, h: 640 };
 
@@ -114,4 +114,66 @@ test('distributeMessages ignores edges that are not lifeline-to-lifeline message
 test('distributeMessages is a no-op (empty map) when there are no messages', () => {
   const nodes = [lifeline('a', 0), lifeline('b', 300)];
   assert.equal(distributeMessages(nodes, []).size, 0);
+});
+
+test('spaceMessagesForLabels returns an empty map when there are no lifeline nodes', () => {
+  assert.equal(spaceMessagesForLabels([], []).size, 0);
+});
+
+test('spaceMessagesForLabels returns an empty map with fewer than 2 messages', () => {
+  const nodes = [lifeline('a', 0), lifeline('b', 300)];
+  const edges = [{ ...message('e', 'a', 'b', 0.5, 0.5), label: 'hello' }];
+  assert.equal(spaceMessagesForLabels(nodes, edges).size, 0);
+});
+
+test('spaceMessagesForLabels preserves top-to-bottom order and gives every message a fromOffset', () => {
+  const nodes = [lifeline('a', 0), lifeline('b', 300)];
+  const edges = [
+    { ...message('e-low', 'a', 'b', 0.9, 0.9), label: 'low message' },
+    { ...message('e-high', 'a', 'b', 0.1, 0.1), label: 'high message' },
+  ];
+  const updates = spaceMessagesForLabels(nodes, edges);
+  assert.ok(updates.get('e-high').fromOffset < updates.get('e-low').fromOffset);
+});
+
+test('spaceMessagesForLabels spaces messages with longer (wrapped) labels further apart than short ones', () => {
+  const nodes = [lifeline('a', 0), lifeline('b', 300)];
+  const shortLabelEdges = [
+    { ...message('e1', 'a', 'b', 0, 0), label: 'a' },
+    { ...message('e2', 'a', 'b', 0, 0), label: 'b' },
+    { ...message('e3', 'a', 'b', 0, 0), label: 'c' },
+  ];
+  const longLabelEdges = [
+    { ...message('e1', 'a', 'b', 0, 0), label: 'a fairly long message label that will wrap across multiple lines' },
+    { ...message('e2', 'a', 'b', 0, 0), label: 'another fairly long message label that will also wrap a lot' },
+    { ...message('e3', 'a', 'b', 0, 0), label: 'c' },
+  ];
+  const shortUpdates = spaceMessagesForLabels(nodes, shortLabelEdges);
+  const longUpdates = spaceMessagesForLabels(nodes, longLabelEdges);
+  const shortGap = shortUpdates.get('e2').fromOffset - shortUpdates.get('e1').fromOffset;
+  const longGap = longUpdates.get('e2').fromOffset - longUpdates.get('e1').fromOffset;
+  assert.ok(longGap > shortGap);
+});
+
+test('spaceMessagesForLabels keeps offsets within the lifeline bounds even when total label height overflows', () => {
+  const nodes = [lifeline('a', 0), lifeline('b', 300)];
+  const edges = Array.from({ length: 10 }, (_, i) => ({
+    ...message(`e${i}`, 'a', 'b', 0, 0),
+    label: 'a fairly long message label that will wrap across multiple lines every time',
+  }));
+  const updates = spaceMessagesForLabels(nodes, edges);
+  for (const { fromOffset } of updates.values()) {
+    assert.ok(fromOffset >= 0 && fromOffset <= 1);
+  }
+});
+
+test('spaceMessagesForLabels gives a self-message both a fromOffset and toOffset, ordered', () => {
+  const nodes = [lifeline('a', 0)];
+  const edges = [
+    { ...message('self', 'a', 'a', 0.1, 0.2, 'right', 'right'), label: 'loop back to self with a longer label' },
+    { ...message('other', 'a', 'a', 0.5, 0.5, 'right', 'right'), label: 'x' },
+  ];
+  const updates = spaceMessagesForLabels(nodes, edges);
+  const self = updates.get('self');
+  assert.ok(self.fromOffset < self.toOffset);
 });

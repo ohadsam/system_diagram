@@ -110,6 +110,44 @@ Keep this in sync with `PLAN.md` as stages complete.
   field (with autocomplete) on custom components, grouping them into
   collapsible 📁 sub-groups in the sidebar.
 
+## v1.49.0 (2026-08-31)
+
+- **Fix Text Display** — new "🔤 Fix Text Display" (Tools → Layout Tools, or ⌘K) re-spaces
+  overlapping labeled content in one undoable step: for a sequence diagram, every message's
+  height along its lifeline(s) based on how tall its own wrapped label actually renders
+  (`core/sequenceDiagram.js#spaceMessagesForLabels`, proportional to label height rather than
+  forcing an equal gap the way "Distribute Evenly" does); for any other diagram, nudges the two
+  ends of a labeled connector apart just far enough for the label's wrapped width to clear both
+  nodes (`core/labelSpacing.js#spreadNodesForLabels`). Passively, every edge label now also wraps
+  onto multiple `<tspan>` lines instead of overflowing or rendering hidden behind other content
+  (`core/labelWrap.js`, `canvas/connector.js`) — this alone fixes the out-of-the-box PKCE-style
+  templates whose longer message labels used to sit unreadably cramped.
+- **Show Descriptions toggle** — a new "📖 Show Descriptions" button at the end of the always-
+  visible toolbar row (`toolbar.js`) shows every dropdown button's own tooltip text inline, right
+  under its label, instead of only on hover (`io/uiPrefs.js#showActionDescriptions`,
+  `toolbar/toolbarDropdown.js#updateButtonDescription` — appends/removes a
+  `.toolbar-dropdown-btn-desc` span without touching a button's existing children, so a button
+  with its own badge, like "🔍 Check Diagram", is unaffected). Off by default; the native tooltip
+  is always still there either way.
+- **Explain This Diagram** — right-click any component from an instantiated library
+  pattern/template (or "Open details" → its details panel) and choose "📖 Explain This Diagram"
+  for an instant, offline, comprehensive explanation of that specific template: a curated
+  header description, every component's own curated description (`core/groupExplanation.js`), and
+  a numbered step-by-step read of how it flows. Every pattern instantiation now carries
+  `sourcePatternId`/`patternInstanceId` provenance (`canvas.js#instantiatePatternAtPoint`,
+  `core/project.js#validateContent`) so this — and future per-template tooling — can trace a node
+  back to the template it came from and find its siblings.
+- **Diagram Animation: bulk actions** — the panel's "Add more" section gained a "+ Add All"
+  button that adds every remaining component/connector as its own step in one click
+  (`canvas.js#addAllToActiveAnimation`), and the step list gained "Set all steps to: ⏱️
+  Auto-play / 🖱️ Click" to change every step's reveal mode at once
+  (`canvas.js#setAllStepsRevealMode`) instead of one row's dropdown at a time.
+- **Auto-Play Diagram** — new "🪄 Auto-Play Diagram" (Tools → Visual & Presentation, or ⌘K)
+  builds a full walkthrough animation from every component/connector already on the canvas
+  (reusing `core/animationAutoBuild.js#buildAutoWalkthroughAnimation`, the same logic already
+  offered after AI-generation flows) and starts playing it immediately — no manual step-adding
+  or per-step configuration required first, replacing whichever animation was already active.
+
 ## v1.48.0 (2026-08-30)
 
 - **Tools dropdown search** — a "Search actions..." box at the top of the Tools menu

@@ -4,6 +4,7 @@
 // access — see canvas/canvas.js#createSequenceDiagram for where the result
 // actually becomes real nodes.
 import { sideAnchor } from './geometry.js';
+import { estimateWrappedBlockSize, DEFAULT_LABEL_MAX_WIDTH } from './labelWrap.js';
 
 // Also reused by canvas.js#addLifelineToRight (the quick "add lifeline"
 // context-menu action) so a manually-added participant lines up with the
@@ -86,6 +87,73 @@ export function distributeMessages(nodes, edges) {
   // A non-self message only ever contributed a single 'from' event above —
   // mirror the same value onto toOffset so both ends land on one shared,
   // horizontal height.
+  for (const [edgeId, upd] of updates) {
+    const edge = edges.find((e) => e.id === edgeId);
+    if (edge && edge.from !== edge.to && upd.toOffset == null) upd.toOffset = upd.fromOffset;
+  }
+  return updates;
+}
+
+// Minimum vertical clearance between two consecutive messages even when
+// neither has a label at all — keeps them from landing right on top of each
+// other the way a naive "just fit the label" computation could for the
+// first/shortest gap.
+const MIN_MESSAGE_GAP_PX = 24;
+// Clearance above/below a message's own wrapped label block before the
+// next message's — see spaceMessagesForLabels below.
+const LABEL_GAP_PADDING_PX = 10;
+
+/**
+ * "🔤 Fix Text Display" (Tools dropdown, see canvas.js#fixTextDisplay) for a
+ * sequence diagram — re-spaces every message's height along its lifeline(s),
+ * same shape as distributeMessages above, but the gap between two
+ * consecutive events is however tall that first one's own *wrapped* label
+ * actually renders (core/labelWrap.js) plus a fixed padding, not a fixed
+ * even split — a message with a long, multi-line label gets proportionally
+ * more room than a short one, so the next message's own label never lands
+ * inside the space the previous one's wrapped text needs. If the sum of
+ * every required gap would overflow the lifeline's own usable height, every
+ * gap is scaled down proportionally so the whole sequence still fits inside
+ * the existing lifelines (this app treats a sequence diagram's own height as
+ * user-owned/manual, the same reasoning autoArrangeAll opts sequence
+ * diagrams out of entirely — this function repositions messages *within*
+ * that height, it never grows it). Returns Map<edgeId, {fromOffset?, toOffset?}>,
+ * empty if there are fewer than 2 messages to space (nothing to do) or no
+ * lifeline exists to read a height from.
+ */
+export function spaceMessagesForLabels(nodes, edges) {
+  const lifelineH = nodes.find((n) => n.shape === 'lifeline')?.h;
+  if (!lifelineH) return new Map();
+
+  const nodesById = new Map(nodes.map((n) => [n.id, n]));
+  const events = [];
+  for (const edge of edges) {
+    const fromNode = nodesById.get(edge.from);
+    const toNode = nodesById.get(edge.to);
+    if (fromNode?.shape !== 'lifeline' || toNode?.shape !== 'lifeline') continue;
+    const isSelf = edge.from === edge.to;
+    const blockHeight = estimateWrappedBlockSize(edge.label, DEFAULT_LABEL_MAX_WIDTH).height;
+    events.push({ edgeId: edge.id, end: 'from', y: sideAnchor(fromNode, edge.fromSide, edge.fromOffset ?? 0.5).y, blockHeight });
+    if (isSelf) {
+      events.push({ edgeId: edge.id, end: 'to', y: sideAnchor(toNode, edge.toSide, edge.toOffset ?? 0.5).y, blockHeight });
+    }
+  }
+  events.sort((a, b) => a.y - b.y);
+  if (events.length < 2) return new Map();
+
+  const gapsPx = events.slice(0, -1).map((ev) => Math.max(MIN_MESSAGE_GAP_PX, ev.blockHeight + LABEL_GAP_PADDING_PX));
+  const usablePx = lifelineH * (1 - 2 * OFFSET_MARGIN);
+  const totalGapPx = gapsPx.reduce((a, b) => a + b, 0);
+  const scale = totalGapPx > usablePx ? usablePx / totalGapPx : 1;
+
+  const updates = new Map();
+  let offset = OFFSET_MARGIN;
+  events.forEach((ev, i) => {
+    const cur = updates.get(ev.edgeId) || {};
+    cur[ev.end === 'from' ? 'fromOffset' : 'toOffset'] = offset;
+    updates.set(ev.edgeId, cur);
+    if (i < gapsPx.length) offset += (gapsPx[i] * scale) / lifelineH;
+  });
   for (const [edgeId, upd] of updates) {
     const edge = edges.find((e) => e.id === edgeId);
     if (edge && edge.from !== edge.to && upd.toOffset == null) upd.toOffset = upd.fromOffset;

@@ -207,6 +207,10 @@ this repo" quick-start.
 | Change the Tools dropdown's search box or collapsible sections | `js/toolbar/toolbarDropdown.js#buildToolbarDropdown`'s `{ searchable: true }` option (only passed for Tools — `filterDropdownPanel` does the live filtering) + `js/toolbar/toolbar.js#buildGatedButtonList`'s `dropdownId` param (only `'tools'` gets a clickable `.toolbar-dropdown-section-toggle` label) + `js/io/uiPrefs.js#collapsedToolsSections`. See "Common pitfalls" below before restructuring `.toolbar-dropdown-pack-section`'s DOM again — a wrapper div needs its own explicit `flex-direction: column`, it doesn't inherit one from a parent that used to be the direct container. |
 | Change pinnable toolbar actions | `js/toolbar/pinnedActionsBar.js#initPinnedActionsBar(container)` (renders pinned buttons, looked up fresh via `commandPaletteModal.js#buildAppCommands()`) + `js/modals/managePinnedActionsModal.js` (pin/unpin/reorder UI) + `js/io/uiPrefs.js#pinnedActionIds`. **Gotcha**: `managePinnedActionsModal.js` takes the command list as a parameter instead of importing `buildAppCommands` back from `commandPaletteModal.js`, to avoid a circular import — see docs/ARCHITECTURE.md's "Automatic/proactive assists" section. |
 | Change the AI/CLI integration guide or its schema | `docs/AI_INTEGRATION.md` (the guide itself — keep its example JSON in sync with `js/io/aiGenerateDesign.js`'s `EXAMPLE_JSON`/`SEQUENCE_EXAMPLE_JSON`, see that file's own comment) + `llms.txt` (repo-root pointer file) + `js/io/shareLink.js#findShareHashInText` (lets a pasted share link work anywhere raw JSON paste-back already does) + `js/toolbar/toolbar.js#buildHelpGroupButtons`/`js/modals/commandPaletteModal.js` (the two discovery entry points, both just `window.open` the guide). |
+| Change "Fix Text Display" or passive edge-label wrapping | `js/core/labelWrap.js` (pure `wrapLabelLines`/`estimateWrappedBlockSize` — fixed average-char-width estimate, not live DOM measurement) + `js/canvas/connector.js#updateEdgeEl` (renders the wrapped lines as stacked `<tspan>`s under the edge label) + `js/core/labelSpacing.js#spreadNodesForLabels` (regular-diagram node-nudging) + `js/core/sequenceDiagram.js#spaceMessagesForLabels` (sequence-diagram message re-spacing, proportional to wrapped label height) + `js/canvas/canvas.js#fixTextDisplay` (the toolbar/⌘K action, branches on whether any lifeline is on the canvas). |
+| Change the "📖 Show Descriptions" toggle | `js/io/uiPrefs.js#showActionDescriptions` + `js/toolbar/toolbarDropdown.js#updateButtonDescription` (appends/removes a `.toolbar-dropdown-btn-desc` span — never rewrites a button's `textContent`, so a button with its own child elements like `lintNudgeBadge` keeps them) + `js/toolbar/toolbar.js`'s `descBtn` (appended last in row1, same width-safety reasoning as the canvas search box). |
+| Change "📖 Explain This Diagram" or a pattern instance's provenance | `js/canvas/canvas.js#instantiatePatternAtPoint` (stamps `sourcePatternId`/`patternInstanceId` on every node it creates — `patternInstanceId` is fresh per instantiation, not per pattern) + `js/core/project.js#validateContent` (the strict per-field allowlist both fields must pass through on save/reload/import) + `js/core/groupExplanation.js` (pure explanation builder, `resolveDef`/`patternDef` injected like `core/diagramDescription.js`) + `js/modals/groupExplanationModal.js` (the modal, self-registers `sdb:open-group-explanation`) + `js/canvas/canvas.js#openNodeContextMenu`/`js/panel/detailsPanel.js` (the two entry points — right-click only, since a plain click on a `groupOnInstantiate` template multi-selects the whole group and the details panel's single-node path never opens; use "Open details" from the context menu to reach a specific node's panel instead). |
+| Change Diagram Animation's "+ Add All" / bulk mode-change / "🪄 Auto-Play Diagram" | `js/canvas/canvas.js#addAllToActiveAnimation` (bulk sibling of `addAnimationStep`, one dispatch) + `#setAllStepsRevealMode` (bulk sibling of `updateAnimationStepSettings`) + `#autoBuildAndPlayAnimation` (reuses `core/animationAutoBuild.js#buildAutoWalkthroughAnimation` against the *current* canvas, then calls `startAnimationPlayback()` immediately) + `js/panel/animationPanel.js`'s `.animation-bulk-row` rows in `buildAddMoreSection`/`buildInAnimationSection`. |
 
 ## Running things locally
 
@@ -1169,3 +1173,16 @@ npm test
   has no label" must be `await expect(label).toHaveText('')` and/or
   `toBeHidden()`, not `toHaveCount(0)` — the element exists whether or not
   there's a label to show.
+- **A plain click on a node that has a `groupId` (e.g. any `groupOnInstantiate`
+  library pattern — every sequence-diagram template) multi-selects the
+  *entire* group (`canvas.js`'s click handler expands to every node sharing
+  that `groupId`), so `panel/detailsPanel.js`'s single-node `render()` path
+  never opens for it** — its `selection`-store subscriber explicitly closes
+  the panel on any multi-select. This is why `groupExplanationModal.js`'s
+  "📖 Explain This Diagram" entry point in the details panel is only reachable
+  via the context menu's "Open details" (which calls `open(nodeId)` directly,
+  bypassing the click-driven selection path) — a plain click can't reach it
+  for a grouped template. Any future per-node details-panel feature gated on
+  a single node needs the same right-click "Open details" path documented
+  (or tested) as the way in for a grouped node; don't assume a sidebar-added
+  or clicked node always yields a single-node selection.

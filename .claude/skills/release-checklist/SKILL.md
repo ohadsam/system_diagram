@@ -283,6 +283,18 @@ PLAYWRIGHT_CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx 
 If the pinned chromium path above doesn't exist, find the installed one first:
 `find /opt/pw-browsers -maxdepth 2 -iname "chrome"`.
 
+**Never run the full e2e suite while another Playwright invocation (even a single targeted
+`-g` run against one file) is still active against the same dev server.** Both share the one
+`webServer` instance (`reuseExistingServer: !process.env.CI` in `playwright.config.js`), so this
+doesn't fail outright — but the concurrent headless Chromium processes starve each other for
+CPU, and the resulting timeouts land as failures scattered across totally unrelated spec files
+(a real run produced 37 failures across `cliSetup`/`commentPalette`/`comments`/`darkMode`/
+`demoProjects`/etc. — files nothing in that batch had touched) that look exactly like real
+regressions until re-run in isolation, where every one of them passes. If a full-suite run
+reports a wide, unrelated-looking spread of failures, check `ps aux` for another lingering
+Playwright/Chromium process before spending time debugging any of them individually — kill or
+wait out the other run, then re-run clean.
+
 ## 10. Merge to main and push
 
 This repo's convention (established across every batch) is a **fast-forward merge**, not a PR:

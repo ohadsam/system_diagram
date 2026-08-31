@@ -82,6 +82,12 @@ export const DEFAULT_UI_PREFS = {
   // (24+ buttons across 5 sections) for collapsing to matter. Empty by
   // default — every section starts expanded, same as before this existed.
   collapsedToolsSections: [],
+  // toolbarDropdown.js — when true, every dropdown-panel button also shows
+  // its `title` tooltip text inline (below its label) instead of only on
+  // hover. Off by default: the tooltip is still there either way, this is
+  // just a discoverability aid for anyone browsing many actions at once
+  // (or on a touch device, where hover tooltips don't really exist).
+  showActionDescriptions: false,
 };
 
 export function getUiPrefs() {

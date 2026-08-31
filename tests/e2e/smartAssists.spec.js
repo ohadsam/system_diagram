@@ -40,6 +40,21 @@ test('connecting two components with no confident pairing leaves the label blank
   await expect(page.locator('.edge-label')).toBeHidden();
 });
 
+test('clearing a connector\'s label back to empty removes its old text, not just hides it', async ({ page }) => {
+  await addComponentByName(page, 'NestJS');
+  await addComponentByName(page, 'PostgreSQL');
+  const nodes = page.locator('.node');
+  await dragNodeBy(page, nodes.nth(1), 220, 160);
+  await connectNodes(page, nodes.nth(0), nodes.nth(1));
+  await expect(page.locator('.edge-label')).toHaveText('reads/writes');
+
+  await page.locator('.edge').first().click({ force: true });
+  const labelInput = page.locator('input[placeholder="e.g. HTTPS"]');
+  await labelInput.fill('');
+  await expect(page.locator('.edge-label')).toHaveText('');
+  await expect(page.locator('.edge-label')).toBeHidden();
+});
+
 test('duplicating a component auto-increments its name instead of leaving an identical twin', async ({ page }) => {
   await addComponentByName(page, 'NestJS');
   await page.keyboard.press('ControlOrMeta+d');

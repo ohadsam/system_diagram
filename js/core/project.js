@@ -571,6 +571,15 @@ function validateContent(rawNodes, rawEdges, rawReplicationPairs) {
               })
           : [],
         fragmentType: FRAGMENT_TYPES.includes(n.fragmentType) ? n.fragmentType : null,
+        // Provenance for modals/groupExplanationModal.js's "📖 Explain This
+        // Diagram" — which library pattern this node came from
+        // (sourcePatternId, e.g. 'seq-pkce-flow') and which specific
+        // instantiation of it (patternInstanceId, so dropping the same
+        // template twice on one canvas doesn't conflate the two copies).
+        // Both absent (undefined, not persisted as a key at all) for a
+        // hand-built node, exactly like every other optional field here.
+        ...(typeof n.sourcePatternId === 'string' && n.sourcePatternId ? { sourcePatternId: n.sourcePatternId } : {}),
+        ...(typeof n.patternInstanceId === 'string' && n.patternInstanceId ? { patternInstanceId: n.patternInstanceId } : {}),
       };
     });
   const edgeIds = new Set();

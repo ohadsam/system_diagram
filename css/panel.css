@@ -1077,6 +1077,28 @@ body.resizing-details-panel {
   margin-bottom: var(--space-2);
 }
 
+/* "+ Add All" (buildAddMoreSection) and the "Set all steps to:" bulk
+   mode-change row (buildInAnimationSection) — both wrap onto a second line
+   at the panel's default width rather than overflowing it. */
+.animation-bulk-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.animation-bulk-row .animation-add-selected-btn {
+  width: auto;
+  flex: 1 1 auto;
+  margin-bottom: 0;
+}
+
+.animation-bulk-label {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
 /* One dropdown-per-animation switcher at the top of the panel, plus
    New/Rename/Delete — see canvas.js#getAnimations. Lets a single diagram
    carry several independent, separately-playable sequences. */

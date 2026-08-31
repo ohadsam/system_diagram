@@ -5,10 +5,12 @@ import * as store from '../core/store.js';
 import { createEdge, nextZIndex, removeNode as removeNodeFromProject, removeEdge as removeEdgeFromProject, createNode, duplicateProject, createVersionSnapshot, removeVersion as removeVersionFromProject, createComment, createReply, createAnimationStep, createAnimation, createProjectLink } from '../core/project.js';
 import { copyVersionToBranch } from '../core/versionBranches.js';
 import { onAnimationChange, isAnimationPlaying, getAnimationPlaybackState, startPlayback, stopPlayback } from '../core/animationPlayback.js';
+import { buildAutoWalkthroughAnimation } from '../core/animationAutoBuild.js';
 import { setKioskMode } from '../core/kioskMode.js';
 import { buildReplicationPair } from '../core/replication.js';
 import { computeAutoLayout } from '../core/autoLayout.js';
-import { layoutLifelines, distributeLifelineColumns, distributeMessages, layoutImportedSequenceDiagram, GAP as LIFELINE_GAP } from '../core/sequenceDiagram.js';
+import { layoutLifelines, distributeLifelineColumns, distributeMessages, spaceMessagesForLabels, layoutImportedSequenceDiagram, GAP as LIFELINE_GAP } from '../core/sequenceDiagram.js';
+import { spreadNodesForLabels } from '../core/labelSpacing.js';
 import { layoutErTables } from '../core/erDiagramLayout.js';
 import { layoutC4Context } from '../core/c4Context.js';
 import { buildDemoProject } from '../core/demoProjects.js';
@@ -888,6 +890,74 @@ export function setAnimations(animations, activeAnimationId) {
   });
 }
 
+/** panel/animationPanel.js's "+ Add All" — every node then every edge not
+ * already somewhere in the active animation, each as its own separate step
+ * (canvas order), in one dispatch/undo entry rather than one per item. Same
+ * "silently skip what's already in" semantics as addAnimationStep, and
+ * same "create the first animation implicitly" behavior — this is just its
+ * bulk sibling. Returns the number of steps actually added (0 if nothing
+ * was left to add, e.g. every candidate is already in the animation). */
+export function addAllToActiveAnimation() {
+  const state = store.getState();
+  const active = getActiveAnimation();
+  const already = new Set((active?.steps || []).flatMap((s) => s.targets.map((t) => `${t.targetType}:${t.targetId}`)));
+  const newSteps = [
+    ...state.nodes.filter((n) => !already.has(`node:${n.id}`)).map((n) => createAnimationStep({ targetType: 'node', targetId: n.id })),
+    ...state.edges.filter((e) => !already.has(`edge:${e.id}`)).map((e) => createAnimationStep({ targetType: 'edge', targetId: e.id })),
+  ];
+  if (!newSteps.length) return 0;
+  store.dispatch((draft) => {
+    if (!draft.animations.length) {
+      const fresh = createAnimation('Animation 1');
+      draft.animations = [fresh];
+      draft.activeAnimationId = fresh.id;
+    }
+    const a = draft.animations.find((x) => x.id === draft.activeAnimationId) || draft.animations[0];
+    a.steps.push(...newSteps);
+  });
+  return newSteps.length;
+}
+
+/** panel/animationPanel.js's bulk "change all to auto-play"/"change all to
+ * click" actions — applies one `revealMode` to every step of the active
+ * animation in a single dispatch. Switching a step *into* 'auto' also gives
+ * it a sensible `delayMs` if it doesn't already have one (a step created by
+ * hand always starts as 'click' with no meaningful delay set — see
+ * createAnimationStep's default); switching to 'click' leaves `delayMs`
+ * alone since it's simply unused in that mode and switching back to 'auto'
+ * later should restore whatever delay was set before, not reset to default. */
+export function setAllStepsRevealMode(revealMode) {
+  store.dispatch((draft) => {
+    const a = (draft.animations || []).find((x) => x.id === draft.activeAnimationId);
+    if (!a) return;
+    a.steps = a.steps.map((s) => ({
+      ...s,
+      revealMode,
+      delayMs: revealMode === 'auto' && !s.delayMs ? 2000 : s.delayMs,
+    }));
+  });
+}
+
+/** The animation counterpart to "🎲 Auto-arrange"/"📐 Scale Diagram" —
+ * builds a fresh walkthrough animation from *every* node/edge currently on
+ * the canvas (core/animationAutoBuild.js, the same logic already offered
+ * after AI-generation flows via modals/autoAnimationPrompt.js) and starts
+ * playing it immediately, with no manual step-adding or per-step
+ * configuration required first. Replaces whichever animation was already
+ * active rather than appending a second one — this is meant as a quick
+ * "just show me the whole thing" action, not a step in building a curated
+ * animation by hand (that's what the panel's own "+ Add All" is for). */
+export function autoBuildAndPlayAnimation() {
+  const state = store.getState();
+  if (state.nodes.length < 1) {
+    showToast('Add at least one component first.', 'error');
+    return;
+  }
+  const animation = buildAutoWalkthroughAnimation(state, { revealMode: 'auto' });
+  setAnimations([animation], animation.id);
+  startAnimationPlayback();
+}
+
 /** Small numbered badges over every node/edge currently in the active
  * animation's sequence — editing-time-only feedback so the order is visible
  * directly on the diagram, not just in the side panel. Purely a read-only
@@ -1357,6 +1427,16 @@ function instantiatePatternAtPoint(defId, point) {
   let z = nextZIndex(state);
   const creationOverrides = buildCreationOverrides();
   const idByKey = new Map();
+  // A fresh id per *instantiation*, not per pattern — dropping the same
+  // template twice must never make the two copies look like one shared
+  // instance to modals/groupExplanationModal.js's "gather every node from
+  // this same instantiation" lookup. Stamped after `spec.overrides` (not
+  // merged in earlier) so it always wins regardless of what a saved custom
+  // component's own overrides happen to contain — this is structural
+  // provenance metadata, not something a pattern's own data should ever be
+  // able to override, the same reasoning `def.textPosition` etc. above
+  // createNode() already documents.
+  const patternInstanceId = nextId('patterninstance');
   // `spec.overrides`/`edgeSpec.overrides` (see buildGroupSnapshotFromSelection
   // below) carries a full per-node/per-edge style snapshot for custom
   // components saved from a real selection — absent for hand-authored
@@ -1371,6 +1451,8 @@ function instantiatePatternAtPoint(defId, point) {
       text: spec.label || def?.name || spec.key,
       ...creationOverrides,
       ...(spec.overrides || {}),
+      sourcePatternId: defId,
+      patternInstanceId,
     });
     idByKey.set(spec.key, node.id);
     return node;
@@ -1883,20 +1965,36 @@ export function duplicateSelection({ renameDuplicates = true } = {}) {
   const state = store.getState();
   const idMap = new Map();
   const groupIdMap = new Map();
+  // A duplicated node from an instantiated pattern (patternInstanceId set)
+  // must NOT keep the original's patternInstanceId — modals/groupExplanation
+  // -Modal.js's "📖 Explain This Diagram" gathers every node sharing one
+  // instantiation's patternInstanceId, and duplicating (a single node, or
+  // the whole canvas) would otherwise either merge an unrelated stray copy
+  // into the original template's explanation, or — duplicating the entire
+  // canvas — leave two separate node-sets on the same canvas claiming the
+  // same instantiation. `sourcePatternId` (which pattern it came from) is
+  // fine to keep as-is; only the per-instantiation id needs a fresh value,
+  // same reasoning as groupIdMap below.
+  const patternInstanceIdMap = new Map();
   const usedNames = state.nodes.map((n) => n.text).filter(Boolean);
   const newNodes = selection.nodeIds
     .map((id) => state.nodes.find((n) => n.id === id))
     .filter(Boolean)
     .map((n) => {
-      const { id: _oldId, x: _x, y: _y, groupId: oldGroupId, ...rest } = n;
+      const { id: _oldId, x: _x, y: _y, groupId: oldGroupId, patternInstanceId: oldPatternInstanceId, ...rest } = n;
       let newGroupId = null;
       if (oldGroupId) {
         if (!groupIdMap.has(oldGroupId)) groupIdMap.set(oldGroupId, nextId('group'));
         newGroupId = groupIdMap.get(oldGroupId);
       }
+      let newPatternInstanceId;
+      if (oldPatternInstanceId) {
+        if (!patternInstanceIdMap.has(oldPatternInstanceId)) patternInstanceIdMap.set(oldPatternInstanceId, nextId('patterninstance'));
+        newPatternInstanceId = patternInstanceIdMap.get(oldPatternInstanceId);
+      }
       const text = renameDuplicates && n.text ? nextDuplicateName(n.text, usedNames) : n.text;
       if (text !== n.text) usedNames.push(text);
-      const clone = createNode(null, n.x + 24, n.y + 24, { ...rest, text, groupId: newGroupId });
+      const clone = createNode(null, n.x + 24, n.y + 24, { ...rest, text, groupId: newGroupId, patternInstanceId: newPatternInstanceId });
       idMap.set(n.id, clone.id);
       return clone;
     });
@@ -1948,7 +2046,14 @@ export function buildGroupSnapshotFromSelection() {
   const patternNodes = nodes.map((n, idx) => {
     const key = `n${idx}`;
     keyById.set(n.id, key);
-    const { id: _id, x, y, zIndex: _zIndex, groupId: _groupId, defId: _defId, ...overrides } = n;
+    // sourcePatternId/patternInstanceId are provenance about *this specific*
+    // instantiation (groupExplanation.js's "which library pattern, which
+    // copy of it") — meaningless, stale data to bake into a newly-saved
+    // reusable component, same reasoning as excluding groupId here.
+    // instantiatePatternAtPoint always stamps its own fresh values after
+    // spreading these overrides regardless, so this is cleanup, not a
+    // functional fix.
+    const { id: _id, x, y, zIndex: _zIndex, groupId: _groupId, defId: _defId, sourcePatternId: _sourcePatternId, patternInstanceId: _patternInstanceId, ...overrides } = n;
     return { key, defId: n.defId || null, dx: x + n.w / 2 - centerX, dy: y + n.h / 2 - centerY, overrides };
   });
 
@@ -2318,6 +2423,64 @@ export function distributeSequenceDiagram() {
   showToast('Distributed lifelines and messages evenly.', 'success', 2200);
 }
 
+/** "🔤 Fix Text Display" (Tools dropdown) — a long connector/message label
+ * always wraps onto multiple lines when it renders (see connector.js, which
+ * needs no action to trigger — that part is passive, the same way a node's
+ * own label always wraps in HTML/CSS), but a long label can still visually
+ * collide with a neighboring message or node if the layout around it was
+ * never built with that extra height/width in mind — most visibly in a
+ * sequence diagram like the "PKCE" template, where several long messages
+ * (e.g. "verify code_verifier matches challenge") sit close enough together
+ * that even wrapped, cramped text still overlaps. This one-click, undoable
+ * action re-spaces things just enough to make room, without moving anything
+ * that doesn't need it:
+ * - Sequence diagram (any lifeline on the canvas): re-spaces every
+ *   message's height along its lifeline(s) based on how tall its own
+ *   wrapped label actually renders (core/sequenceDiagram.js#spaceMessagesForLabels)
+ *   — a message with a long label gets proportionally more room than a
+ *   short one, instead of every gap being forced equal the way "Distribute
+ *   Evenly" does.
+ * - Any other diagram: nudges the two ends of any labeled connector apart
+ *   just far enough for that label's wrapped width to clear both nodes
+ *   (core/labelSpacing.js#spreadNodesForLabels), leaving every other node
+ *   and connector untouched. */
+export function fixTextDisplay() {
+  const state = store.getState();
+  if (!state.nodes.length) {
+    showToast('Nothing to fix yet — add some components first.', 'info', 2200);
+    return;
+  }
+  const isSequenceDiagram = state.nodes.some((n) => n.shape === 'lifeline');
+  if (isSequenceDiagram) {
+    const offsetUpdates = spaceMessagesForLabels(state.nodes, state.edges);
+    if (!offsetUpdates.size) {
+      showToast('Add at least 2 messages to fix their text spacing.', 'info', 2400);
+      return;
+    }
+    store.dispatch((draft) => {
+      for (const [id, upd] of offsetUpdates) {
+        const e = draft.edges.find((ed) => ed.id === id);
+        if (!e) continue;
+        if (upd.fromOffset != null) e.fromOffset = upd.fromOffset;
+        if (upd.toOffset != null) e.toOffset = upd.toOffset;
+      }
+    });
+  } else {
+    const posUpdates = spreadNodesForLabels(state.nodes, state.edges);
+    if (!posUpdates.size) {
+      showToast('Every label already has room to display cleanly.', 'info', 2400);
+      return;
+    }
+    store.dispatch((draft) => {
+      for (const [id, pos] of posUpdates) {
+        const n = draft.nodes.find((nd) => nd.id === id);
+        if (n) { n.x = pos.x; n.y = pos.y; }
+      }
+    });
+  }
+  showToast('Adjusted spacing so every label displays clearly.', 'success', 2200);
+}
+
 /** "Scale Diagram" (Tools dropdown → modals/scaleDiagramModal.js) —
  * permanently resizes every node's own position/size *and* font size by
  * `factor`, unlike the view-only pan/zoom (canvas/viewport.js) which never
@@ -2438,6 +2601,13 @@ function openNodeContextMenu(nodeId, evt) {
     { label: 'Duplicate', icon: '⧉', onClick: () => { store.select([nodeId], []); duplicateSelection(); } },
     { label: 'Blast Radius...', icon: '🎯', onClick: () => openBlastRadiusModal(nodeId) },
   ];
+  // Only ever set on a node created by instantiating a library pattern/
+  // template (see instantiatePatternAtPoint above) — a hand-built diagram
+  // has nothing to look this up from, so the item is simply absent there
+  // rather than opening to an empty explanation.
+  if (node?.patternInstanceId) {
+    items.push({ label: '📖 Explain This Diagram', icon: '📖', onClick: () => window.dispatchEvent(new CustomEvent('sdb:open-group-explanation', { detail: { patternInstanceId: node.patternInstanceId } })) });
+  }
   if (node?.shape === 'lifeline') {
     items.push({ label: 'Add lifeline to the right', icon: '➕', onClick: () => addLifelineToRight(nodeId) });
     items.push(Number.isFinite(node.destroyOffset)

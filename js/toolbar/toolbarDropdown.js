@@ -16,8 +16,33 @@
 // than the remaining space); computing fixed viewport coordinates and
 // clamping them is correct regardless of where the trigger ends up.
 import { el } from '../utils/dom.js';
+import { getUiPrefs, onUiPrefsChange } from '../io/uiPrefs.js';
 
 const EDGE_MARGIN = 8;
+
+/** Toggled by toolbar.js's "📖 Show Descriptions" button (default off — the
+ * native `title` tooltip is still there either way, this just also renders
+ * it inline for anyone who'd rather not hover-and-wait one button at a time
+ * to see what each one does). Appends/removes a `.toolbar-dropdown-btn-desc`
+ * span rather than touching a button's existing text/content, since several
+ * buttons here already carry their own child elements (e.g. toolbar.js's
+ * `lintBtn` has a count badge) that a naive `textContent =` rewrite would
+ * silently destroy. */
+function updateButtonDescription(btn, enabled) {
+  if (btn.classList.contains('toolbar-dropdown-section-toggle')) return;
+  const existing = btn.querySelector(':scope > .toolbar-dropdown-btn-desc');
+  const title = btn.getAttribute('title');
+  if (enabled && title) {
+    if (existing) existing.textContent = title;
+    else {
+      btn.appendChild(el('span', { class: 'toolbar-dropdown-btn-desc', text: title }));
+      btn.classList.add('has-desc');
+    }
+  } else if (existing) {
+    existing.remove();
+    btn.classList.remove('has-desc');
+  }
+}
 
 let openPanel = null; // { root, close } of the currently open dropdown, if any
 const openChangeListeners = new Set();
@@ -126,6 +151,9 @@ export function buildToolbarDropdown(label, icon, title, buttons, opts = {}) {
     panel.appendChild(noResultsEl);
   }
   for (const b of buttons) panel.appendChild(b);
+  const applyDescriptions = (enabled) => panel.querySelectorAll('button').forEach((btn) => updateButtonDescription(btn, enabled));
+  applyDescriptions(getUiPrefs().showActionDescriptions);
+  onUiPrefsChange((prefs) => applyDescriptions(prefs.showActionDescriptions));
   // Close the panel once one of its own buttons has been used, so it
   // doesn't sit open over the canvas after the action already ran — except
   // a section-collapse toggle (`.toolbar-dropdown-section-toggle`), which a
