@@ -166,6 +166,15 @@ Rules:
   out left-to-right or top-to-bottom, roughly 150-250px apart so nothing overlaps at default size.
 - Reuse the `twoWay`/`dashed` edge-style const helpers already defined at the top of
   `design-patterns.js` for bidirectional/dashed edges instead of repeating the raw options object.
+- **No dedicated component for a concept the pattern needs?** Don't invent a new component just
+  for one pattern — reuse the closest existing generic `defId` and override its node `label` to
+  say what it actually represents. This library has no dedicated ZooKeeper/etcd/Consul
+  coordination-service component, for example, so `pattern-leader-election` reuses
+  `layer-service-discovery` labeled "Coordination Service (etcd/ZooKeeper)"; `pattern-cdc-pipeline`
+  reuses the generic `misc-worker` labeled "CDC Connector (Debezium)"; `pattern-db-sharding` reuses
+  `net-load-balancer` labeled "Shard Router (by Key)" since a shard router's job (route by a key)
+  is functionally the same shape. Only add a new dedicated component (see "A plain component"
+  above) if the concept is clearly reusable across future patterns too, not just this one.
 - `groupOnInstantiate: true` makes a multi-node pattern land as a real group immediately (its
   members share a fresh `groupId` the moment it's instantiated) instead of a loose cluster the user
   would have to manually select-and-group — use it for anything meant to behave as one unit

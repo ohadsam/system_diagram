@@ -17,7 +17,7 @@ const stateShapes = [
   c('sm-initial', 'Initial State', '●', opts('circle', { w: 40, h: 40 }, { description: 'The state machine\'s single starting point.', fill: '#1E1B4B', color: '#1E1B4B' })),
   c('sm-state', 'State', '⬭', opts('rounded', { w: 160, h: 84 }, { description: 'A named state the machine can be in.' })),
   c('sm-choice', 'Choice / Decision', '◆', opts('diamond', { w: 130, h: 100 }, { description: 'Branches to different states based on a condition — label each outgoing transition with its guard.' })),
-  c('sm-final', 'Final State', '🏁', opts('circle', { w: 48, h: 48 }, { description: 'An end point — the state machine stops here.', strokeWidth: 4 })),
+  c('sm-final', 'Final State', '🏁', opts('circle', { w: 48, h: 48 }, { description: 'An end point — the state machine stops here.', strokeWidth: 4, textPosition: 'below' })),
   c('sm-fork-join', 'Fork / Join', '▬', opts('rect', { w: 120, h: 14 }, { description: 'Splits into (fork) or merges from (join) parallel states.', fill: '#1E1B4B', color: '#1E1B4B' })),
   c('sm-history', 'History State', 'Ⓗ', opts('circle', { w: 44, h: 44 }, { description: 'Re-enters a composite state at whichever sub-state it was last in.' })),
   c('sm-composite', 'Composite State', '🗂️', opts('rounded', { w: 200, h: 120 }, { description: 'A state that itself contains a nested sub-state-machine.' })),

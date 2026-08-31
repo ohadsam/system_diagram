@@ -138,6 +138,15 @@ Keep this in sync with `PLAN.md` as stages complete.
 - Repointed the "🎓 Demo Projects" ER Diagram and State Machine demos at the new E-Commerce Order
   Schema and Order Lifecycle patterns respectively, since their previous sources (One-to-Many and
   Traffic Light) no longer exist.
+- Fixed a pre-existing bug surfaced by this batch's UI/UX review: a state machine's Final State
+  circle (`sm-final`) is only 48px wide, so any label longer than ~6 characters clipped into an
+  unreadable single-character-per-line column ("Cancelled" rendered as "Ca / nce", "Refunded" as
+  "Ref / und") — already present in the shipped Order Lifecycle pattern before this batch, and
+  made more visible by this batch's own new longer final-state labels ("Dead-Lettered",
+  "Succeeded", "Declined"). Fixed by rendering the label outside the circle
+  (`textPosition: 'below'`) with a width that can grow past the node's own bounds
+  (`css/node.css`'s new `.node[data-shape="circle"] .node-external-label` rule) instead of being
+  clipped to it.
 
 ## v1.49.0 (2026-08-31)
 

@@ -465,6 +465,17 @@
   top: calc(100% + 6px);
 }
 
+/* A circle shape (e.g. state-machines.js#sm-final) is usually much narrower
+   than its own label — widen the label past the node's own bounds instead
+   of wrapping into an unreadable single-character-per-line column. */
+.node[data-shape="circle"] .node-external-label {
+  left: 50%;
+  right: auto;
+  width: max-content;
+  max-width: 160px;
+  transform: translateX(-50%);
+}
+
 .node-icon {
   font-size: 22px;
   line-height: 1;

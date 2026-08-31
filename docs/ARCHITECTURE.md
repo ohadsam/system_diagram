@@ -3417,6 +3417,24 @@ keep this "measure-safe":
   change — a genuine "off by construction" guarantee, not something that
   merely happens to work today.
 
+**Gotcha for a small icon-like shape** (a tiny circle, e.g. `state-
+machines.js#sm-final` at 48×48): `.node-external-label`'s default CSS
+(`css/node.css`) pins `left`/`right` to the node's own bounds, so a label
+noticeably longer than the shape itself (e.g. "Dead-Lettered") wraps into a
+near-unreadable single-character-per-line column instead of overflowing
+sideways — this shipped unnoticed for a while (the original Order Lifecycle
+pattern's "Cancelled"/"Refunded" final states had the exact same clipping)
+because most `textPosition: 'below'`/`'above'` consumers so far (lifelines,
+`shape-group`, `bpmn-pool`) are all wide enough that the label never
+exceeds the node's own width. Fixed narrowly with a
+`.node[data-shape="circle"] .node-external-label` override that centers the
+label independently via `transform: translateX(-50%)` and lets it size to
+`max-content` — scoped to `circle` specifically rather than widening every
+external label site-wide, since a general width increase risked visually
+regressing the wide consumers above. If a future shape combines a small
+footprint with `textPosition` external, check whether it needs the same
+per-shape override rather than assuming the generic rule already covers it.
+
 PNG/PDF export (`io/exportImage.js#captureDiagramCanvas`) already toggles a
 `.canvas-viewport.exporting` class for the duration of the capture (used
 elsewhere to hide the minimap/grid background). `css/node.css` adds

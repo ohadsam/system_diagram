@@ -11,6 +11,7 @@ export const VERSION_HISTORY = [
     highlights: [
       'Curated "Design Patterns" down from 32 to 26 entries — removed the most minimal/textbook ones (MVP, Singleton, Factory Method, Observer, Strategy, Adapter, Decorator, the two smallest ER examples, and standalone Circuit Breaker/Rate Limiting) and added richer, real-world scenarios: Change Data Capture (CDC) Pipeline, Database Sharding, Resilience Stack (Rate Limiter + Circuit Breaker), Leader Election, and a realistic multi-entity E-Commerce Order Schema.',
       'Curated "State Machines": removed Traffic Light, Media Player, and Approval Workflow (already covered by the BPMN category\'s Approval Process template); enriched Order Lifecycle (returns/refunds) and Auth Session (MFA, token refresh, lockout); added Circuit Breaker, Background Job Processing, and Payment Processing state machines.',
+      'Fixed a Final State circle clipping longer labels like "Cancelled" or "Refunded" into an unreadable single-character column — the label now renders cleanly below the circle instead.',
     ],
   },
   {
