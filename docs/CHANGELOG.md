@@ -110,6 +110,27 @@ Keep this in sync with `PLAN.md` as stages complete.
   field (with autocomplete) on custom components, grouping them into
   collapsible 📁 sub-groups in the sidebar.
 
+## v1.49.3 (2026-08-31)
+
+- **Extended the previous release's description-quality bar to every remaining "out of the box"
+  pattern/template category**, not just Sequence Diagram Templates:
+  - `js/data/categories/design-patterns.js` — all 26 entries rewritten (API Gateway, CQRS,
+    Read Replica, Saga, Sidecar, Strangler Fig, MVC/MVVM, Repository, Service Discovery, the two
+    ER schemas, etc.), each now explaining the actual design trade-off (e.g. Active-Active's
+    write-conflict problem vs. Active-Passive's failover latency, why CQRS splits read/write
+    models, why a shard router exists) instead of a one-line restatement of the boxes and arrows.
+  - `js/data/categories/state-machines.js` — the 6 pattern templates (Circuit Breaker, Order
+    Lifecycle, Payment Processing, TCP, Job Processing, Auth Session) now explain why specific
+    states/transitions exist the way they do (e.g. why Half-Open is a distinct third state, why
+    Authorize/Capture are separate payment steps).
+  - `js/data/categories/reference-architectures.js` — all 5 "Design X" blueprints (URL Shortener,
+    Chat App, Rate Limiter, Social Feed, Ride-Sharing Dispatch) now explain the specific
+    architectural decisions behind each (e.g. why the ID generator is its own service, why
+    fan-out-on-write trades an expensive write for a cheap read).
+  - `js/data/categories/bpmn.js` — the Approval Process description now correctly explains the
+    Exclusive Gateway's semantics instead of a prior version that inaccurately claimed a "revision
+    loop-back" the pattern's edges never actually implemented.
+
 ## v1.49.2 (2026-08-31)
 
 - **Rewrote all 37 "Sequence Diagram Templates" descriptions** (Login Flow through Step-Up

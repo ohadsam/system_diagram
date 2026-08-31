@@ -29,7 +29,7 @@ const back = { dash: 'dashed', routing: 'curved' };
 
 const statePatterns = [
   definePattern('pattern-sm-auth-session', 'Auth Session State Machine (with Token Refresh & Lockout)', '🔐', {
-    description: 'Login, MFA, silent token refresh, and a failed-attempt lockout — the real shape of a modern session, not just login/logout.',
+    description: 'A real session has more branches than a simple logged-in/logged-out toggle: MFA is a genuine third state (mid-authentication, waiting on a second factor) rather than being bolted onto login; locking out after too many failed MFA codes stops a stolen password from being brute-forced into a full session even without the second factor; and refreshing a token before it expires — rather than only reacting to a 401 later — is what lets an access token stay short-lived (limiting the damage from a stolen one) without constantly forcing the user to log back in.',
     tags: ['state-machine', 'fsm', 'example', 'security'],
     nodes: [
       n('init', 'sm-initial', 0, -320),
@@ -58,7 +58,7 @@ const statePatterns = [
   }),
 
   definePattern('pattern-sm-job-processing', 'Background Job Processing State Machine', '⚙️', {
-    description: 'A queued job with bounded retry-with-backoff before landing in a dead-letter state — the real lifecycle behind any job queue worker.',
+    description: 'Retries are bounded rather than infinite because a job that fails every single time (a malformed payload, a bug) would otherwise loop forever, consuming a worker\'s time on every attempt — the dead-letter state exists specifically to catch that case and pull it out of the normal queue so it doesn\'t block or slow down jobs that could actually succeed. Waiting before requeueing (rather than retrying instantly) mirrors the same backoff reasoning as a client retrying a flaky API: if the failure is caused by a struggling downstream dependency, retrying immediately just adds to the load already causing failures.',
     tags: ['state-machine', 'fsm', 'example', 'backend', 'messaging'],
     nodes: [
       n('init', 'sm-initial', 0, -320),
@@ -81,7 +81,7 @@ const statePatterns = [
   }),
 
   definePattern('pattern-sm-circuit-breaker', 'Circuit Breaker State Machine', '🔌', {
-    description: 'The classic resilience pattern as its actual state machine: trips open on repeated failures, tests recovery half-open, and either resets or re-opens.',
+    description: 'Half-Open exists as a distinct third state — not just a timer between Closed and Open — because going straight back to Closed after the timeout would let a flood of pent-up requests hit a service that might still be unhealthy, potentially re-triggering the exact failure that opened the breaker. Testing with a single trial call first means the breaker learns whether the dependency has actually recovered before committing to full traffic again — succeed and it closes, fail and it reopens, with no guessing based on how much time simply passed.',
     tags: ['state-machine', 'fsm', 'example', 'resilience', 'backend'],
     nodes: [
       n('init', 'sm-initial', 0, -260),
@@ -99,7 +99,7 @@ const statePatterns = [
   }),
 
   definePattern('pattern-sm-order-lifecycle', 'Order Lifecycle State Machine (with Returns & Refunds)', '📦', {
-    description: 'A full e-commerce order: payment, fulfillment, delivery, and the post-delivery return/refund path most simple examples skip.',
+    description: 'Payment succeeding is a precondition for shipping, not a parallel step — Created → Paid exists specifically so nothing ships before it\'s actually paid for, and a failed payment routes to Cancelled rather than silently retrying, since the customer needs to know and re-attempt. The return/refund path is only reachable after Delivered, not before, because a return is fundamentally different from a pre-shipment cancellation — modeling both distinctly (rather than one generic "cancelled" state for both) is what lets fulfillment and refund logic each handle their own real-world constraint: a shipped package can\'t just be un-shipped.',
     tags: ['state-machine', 'fsm', 'example', 'backend'],
     nodes: [
       n('init', 'sm-initial', 0, -320),
@@ -124,7 +124,7 @@ const statePatterns = [
   }),
 
   definePattern('pattern-sm-payment-processing', 'Payment Processing State Machine', '💳', {
-    description: 'Authorization, capture, and dispute handling — the states a real payment actually moves through, including a decline retry and a post-capture chargeback.',
+    description: 'Authorization and capture are modeled as two separate steps, not one "charge" action, because that\'s how real card networks work: authorizing places a hold on funds without taking them, letting a merchant confirm the customer can pay before, say, an order actually ships — and an authorization never captured in time simply expires rather than needing an explicit reversal. Disputed is reachable only after Captured (not from anywhere earlier) because a chargeback is specifically the cardholder\'s bank clawing back money that was already taken, a fundamentally different event than a decline during authorization.',
     tags: ['state-machine', 'fsm', 'example', 'backend'],
     nodes: [
       n('init', 'sm-initial', 0, -320),
@@ -149,7 +149,7 @@ const statePatterns = [
   }),
 
   definePattern('pattern-sm-tcp', 'TCP Connection State Machine', '🔌', {
-    description: 'Simplified server-side TCP handshake/teardown states.',
+    description: 'Each state corresponds to a specific piece of information one side has confirmed about the other — Listen means passively waiting, SYN Received means a connection attempt was seen but not yet acknowledged both ways, and Established is only reached once both sides have proven they can send and receive. The two teardown states exist because closing is asymmetric: whichever side closes first waits through Time Wait specifically so a late, duplicate segment from the old connection can\'t be misdelivered to a new connection that happens to reuse the same port shortly after.',
     tags: ['state-machine', 'fsm', 'example', 'networking'],
     nodes: [
       n('init', 'sm-initial', 0, -300),

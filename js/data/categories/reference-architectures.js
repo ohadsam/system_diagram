@@ -22,7 +22,7 @@ const TAGS = ['reference-architecture', 'interview', 'system-design'];
 
 export const components = [
   definePattern('refarch-url-shortener', 'Design: URL Shortener', '🔗', {
-    description: 'Client → LB → API, with Redis cache-aside in front of the URL-mapping DB, a dedicated ID generator, and an async click-analytics stream.',
+    description: 'The ID generator is pulled out as its own dedicated step rather than letting the database auto-increment a primary key, because a short code needs to be unpredictable (so users can\'t guess adjacent codes) and because a single shared counter would become a write bottleneck once the API scales horizontally across many instances. Click analytics is fired at "publish and forget" (the dashed async edge) instead of being written synchronously in the same request, since a redirect needs to happen fast — the read is the whole point of a URL shortener — and losing an occasional analytics event is a far smaller cost than making every redirect wait on an analytics write.',
     tags: TAGS,
     groupOnInstantiate: true,
     nodes: [
@@ -46,7 +46,7 @@ export const components = [
   }),
 
   definePattern('refarch-chat-app', 'Design: Chat Application', '💬', {
-    description: 'A WebSocket gateway carries real-time messages while a REST API handles auth/history; a message bus fans messages out to storage and offline push.',
+    description: 'Splitting the WebSocket Gateway from the REST API reflects that these two things have fundamentally different connection lifecycles — a chat connection needs to stay open indefinitely to push messages the instant they arrive, while auth and history lookups are one-shot request/response calls that don\'t benefit from (and would just tie up resources on) a persistent connection. Publishing a sent message to the bus, rather than writing directly to storage and directly pushing to offline users, is what lets one send fan out to multiple independent concerns without the Chat Service needing to know about or wait on all of them.',
     tags: TAGS,
     groupOnInstantiate: true,
     nodes: [
@@ -72,7 +72,7 @@ export const components = [
   }),
 
   definePattern('refarch-rate-limiter', 'Design: Rate Limiter Service', '🚦', {
-    description: 'A standalone rate-limiter service that other requests are checked against before being forwarded — sliding-window counters in Redis, rules in a config store.',
+    description: 'The counters live in Redis specifically because a sliding-window check needs an atomic increment-and-compare performed in single-digit milliseconds on every request across every gateway instance — a relational database could do the same job but would add far more latency to a check that has to happen before every forwarded request. Separating the Rule Config Store from the counters matters too: rules (how many requests per window, per client tier) change rarely and can tolerate being cached, while the counters change on every request — conflating the two would mean every rule lookup pays the same latency cost as a counter increment.',
     tags: TAGS,
     groupOnInstantiate: true,
     nodes: [
@@ -94,7 +94,7 @@ export const components = [
   }),
 
   definePattern('refarch-social-feed', 'Design: Social Media Feed', '📰', {
-    description: 'A push (fan-out-on-write) news feed: new posts are fanned out via the social graph into per-follower feed caches read at request time.',
+    description: 'Fanning a new post out to every follower\'s feed cache at write time — rather than the alternative "fan-out-on-read" (querying everyone you follow fresh every time you open your feed) — trades a slower, more expensive write for a fast, cheap read, the right trade for a feed most people check far more often than they post to. That trade breaks down for accounts with an unusually large follower count: fanning out one post to millions of followers at once is a very different write than fanning out to a typical user\'s few hundred, which is why real systems often special-case celebrity accounts back to a read-time fan-out instead.',
     tags: TAGS,
     groupOnInstantiate: true,
     nodes: [
@@ -120,7 +120,7 @@ export const components = [
   }),
 
   definePattern('refarch-ride-sharing', 'Design: Ride-Sharing Dispatch', '🚕', {
-    description: 'Riders request a trip and drivers stream location updates; dispatch matches them using a live geo-index, then notifies the matched driver.',
+    description: 'Live driver locations are kept in a geohash-indexed cache rather than the primary trip database because "find nearby drivers" needs to run in real time against constantly-changing positions — a relational database\'s indexing isn\'t built for that access pattern the way a geospatial index is, and every location update would otherwise be a write contending with the same store handling trip records. Matching and notification are decoupled through a queue (the dashed edges) rather than Dispatch calling the Driver App directly, because a driver might be offline or slow to respond — the queue lets the offer be retried or reassigned to a different driver without Dispatch blocking on one driver\'s response.',
     tags: TAGS,
     groupOnInstantiate: true,
     nodes: [

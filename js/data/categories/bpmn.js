@@ -31,7 +31,7 @@ const e = (from, to, label, extra = {}) => ({ from, to, label, ...extra });
 
 const bpmnPatterns = [
   definePattern('bpmn-approval-process', 'Simple Approval Process', '✅', {
-    description: 'Request submitted, reviewed, then approved or rejected with a revision loop-back.',
+    description: 'The Exclusive Gateway enforces that exactly one outgoing path is taken — approved or rejected, never both — which is what "exclusive" (XOR) specifically means in BPMN and is why it\'s the right gateway choice here instead of a parallel or inclusive one. Both outcomes route to their own distinct End Event rather than sharing one, since a process can legitimately end in different ways — being able to tell "approved" and "rejected" apart in a completed instance\'s history is the point, not just knowing it finished.',
     tags: ['bpmn', 'process', 'workflow', 'example'],
     nodes: [
       n('start', 'bpmn-start-event', -420, 0),

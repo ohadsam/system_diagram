@@ -2,9 +2,16 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.49.2';
+export const APP_VERSION = '1.49.3';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.49.3',
+    date: '2026-08-31',
+    highlights: [
+      'Extended the description-quality rewrite from the previous release to every remaining "out of the box" pattern/template category — Design Patterns (all 26, e.g. API Gateway, CQRS, Read Replica), State Machines (Circuit Breaker, Order Lifecycle, Payment Processing, TCP), "Design X" Reference Architectures (URL Shortener, Chat App, Rate Limiter, Social Feed, Ride-Sharing), and BPMN\'s Approval Process — each now explains the actual design reasoning and trade-offs instead of narrating the diagram, matching the bar set for Sequence Diagram Templates. Also fixed a factual error found along the way: BPMN\'s Approval Process description claimed a "revision loop-back" the pattern never actually implemented.',
+    ],
+  },
   {
     version: '1.49.2',
     date: '2026-08-31',

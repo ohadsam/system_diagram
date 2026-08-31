@@ -24,7 +24,7 @@ function entity(key, dx, dy, title, attributes) {
 
 export const components = [
   definePattern('pattern-active-active', 'Active-Active Replication', '🔁', {
-    description: 'Two peer instances both actively serve traffic, with data kept in sync in both directions.',
+    description: 'Both instances handle live traffic simultaneously rather than one sitting idle as a backup, which maximizes hardware utilization and halves the load either side absorbs alone — but that same bidirectional write path is exactly what makes conflict resolution the hard part: if both sides accept a write to the same record before sync catches up, something has to decide which write wins (last-write-wins, vector clocks, an application-level merge), a problem an active-passive setup never has to face.',
     tags: ['availability', 'replication', 'ha'],
     nodes: [
       n('lb', 'net-load-balancer', 0, -170, 'Load Balancer'),
@@ -37,7 +37,7 @@ export const components = [
   }),
 
   definePattern('pattern-active-passive', 'Active-Passive Replication (Primary-Standby)', '🛟', {
-    description: 'One instance actively serves traffic while a standby stays in sync, ready to take over on failover.',
+    description: 'Keeping the standby passive (accepting replicated data but never live traffic) sidesteps the write-conflict problem Active-Active has entirely — there\'s only ever one writer, so there\'s nothing to reconcile. The trade-off is that failover isn\'t instant: something has to detect the primary is actually down (not just slow) and promote the standby, and any writes still in flight to the standby at the moment of failure are lost — meanwhile the standby sits at half-utilized capacity for a scenario that, hopefully, rarely happens.',
     tags: ['availability', 'replication', 'ha', 'failover'],
     nodes: [
       n('app', 'srv-app-server', 0, -160, 'App (Active)'),
@@ -48,7 +48,7 @@ export const components = [
   }),
 
   definePattern('pattern-api-gateway', 'API Gateway', '🚪', {
-    description: 'A single entry point fans requests out to backend services.',
+    description: 'Without a gateway, every client would need to know each service\'s individual address and re-implement auth, rate limiting, and routing itself — duplicated in every client and impossible to change without redeploying them all. Centralizing that behind one entry point means cross-cutting concerns live in exactly one place, at the cost of that gateway now being a single hop every request passes through — its own availability and latency budget become the whole system\'s.',
     tags: ['architectural', 'microservices', 'networking'],
     nodes: [
       n('client', 'client-browser', 0, -160, 'Client'),
@@ -61,7 +61,7 @@ export const components = [
   }),
 
   definePattern('pattern-bff', 'Backend for Frontend (BFF)', '📱', {
-    description: 'Each client type gets its own tailored backend.',
+    description: 'A mobile app and a web app often need the same underlying data shaped very differently — mobile wants one aggregated payload to minimize round trips on a cellular connection, while a browser might prefer finer-grained calls it can cache separately — and one shared API forced to serve both ends up compromising for each. A BFF per client type lets each aggregate and shape calls to the core services exactly how its client needs, at the cost of duplicating some aggregation logic across BFFs instead of maintaining one shared API layer.',
     tags: ['architectural', 'api'],
     nodes: [
       n('mobile', 'client-mobile-ios', -180, -160, 'Mobile'),
@@ -74,7 +74,7 @@ export const components = [
   }),
 
   definePattern('pattern-cache-aside', 'Cache-Aside', '⚡', {
-    description: 'The service checks the cache first, falling back to the database and populating the cache on a miss.',
+    description: '"Aside" describes what the cache never does on its own: it doesn\'t proactively load or invalidate itself, so it\'s entirely the service\'s job to check it first, fall through to the database on a miss, and write the result back before returning — the numbered edges here show that exact three-step contract. This keeps the cache simple and general-purpose, but every miss now pays the full database round-trip on top of the wasted cache lookup, and the service has to consciously decide when cached data is stale enough to bypass.',
     tags: ['architectural', 'performance', 'cache'],
     nodes: [n('service', 'layer-service', 0, -150), n('cache', 'cache-redis', -180, 60), n('db', 'db-generic', 180, 60)],
     edges: [e('service', 'cache', '1. check'), e('service', 'db', '2. on miss'), e('db', 'cache', '3. populate', dashed)],
@@ -99,7 +99,7 @@ export const components = [
   }),
 
   definePattern('pattern-cqrs', 'CQRS (Command Query Responsibility Segregation)', '🔀', {
-    description: 'Separate write (command) and read (query) paths.',
+    description: 'Reads and writes usually have very different scaling needs — a typical app might see 100x more reads than writes, or need a very different query shape for reporting than the transactional model that produced the data — but a single shared model has to compromise between both. Splitting them lets each side scale and be modeled independently (a denormalized read model tuned for fast queries, a normalized write model tuned for correctness), at the cost of the two only agreeing once the sync between them (the dashed edge) actually completes — a read can briefly return stale data right after a write.',
     tags: ['architectural', 'backend'],
     nodes: [
       n('cmd', 'layer-command-handler', -180, 0),
@@ -129,7 +129,7 @@ export const components = [
   }),
 
   definePattern('pattern-er-ecommerce', 'ER: E-Commerce Order Schema', '🛒', {
-    description: 'A realistic multi-entity schema: a Customer places Orders, each Order has line-item Products via a join entity, and settles through a Payment.',
+    description: 'Order Item is a join entity that exists specifically to resolve the many-to-many between Order and Product — a single Order can contain many Products and a single Product can appear on many Orders, and neither table alone can hold both foreign keys, so the join entity carries the relationship itself plus per-line data (quantity, price) that belongs to the pairing, not to either side alone. Payment is modeled as its own entity rather than columns on Order because a real order can have a more complex payment history (partial payments, later refunds) — one order to one payment here is the simplified starting point, not a hard constraint of the design.',
     tags: ['er-diagram', 'database', 'schema'],
     nodes: [
       entity('customer', -380, -170, 'Customer', ['id (PK)', 'name', 'email']),
@@ -147,7 +147,7 @@ export const components = [
   }),
 
   definePattern('pattern-er-self-referencing', 'ER: Self-Referencing Relationship', '🔁', {
-    description: 'An Employee row can reference another row of the same table (its manager) — a hierarchy modeled without a separate table.',
+    description: 'Modeling "who manages whom" doesn\'t need a separate Manager table — since a manager is just another Employee, a nullable foreign key pointing back at the same table\'s own primary key captures the whole hierarchy in one place. The trade-off is that traversing it (e.g. "everyone under this manager, three levels deep") needs a recursive query, which relational databases support but which reads and performs very differently from an ordinary single-level join.',
     tags: ['er-diagram', 'database', 'schema'],
     nodes: [entity('employee', 0, 0, 'Employee', ['id (PK)', 'name', 'manager_id (FK, self)'])],
     edges: [{
@@ -158,7 +158,7 @@ export const components = [
   }),
 
   definePattern('pattern-event-sourcing', 'Event Sourcing', '📜', {
-    description: 'State changes are stored as an append-only sequence of events.',
+    description: 'Instead of overwriting a row to reflect its current value, every state change is appended as a new, immutable event — current state is derived by replaying all of an entity\'s events in order, which means the complete history of how it got there is never lost (useful for audit, debugging, and rebuilding a read model from scratch if its shape ever needs to change). The trade-off is that reading current state isn\'t a simple row lookup anymore — either the whole event log gets replayed each time, or a separate projection (the read model shown here) has to be kept in sync as new events arrive.',
     tags: ['architectural', 'events'],
     nodes: [
       n('cmd', 'layer-command-handler', -240, 0),
@@ -170,7 +170,7 @@ export const components = [
   }),
 
   definePattern('pattern-hexagonal', 'Hexagonal Architecture (Ports & Adapters)', '⬡', {
-    description: 'The core domain is isolated behind ports, reached through adapters.',
+    description: 'The core domain only knows about its own ports (interfaces it defines) — it has no idea whether the real caller is a REST API or a CLI, or whether persistence is Postgres or a mock in a test — so swapping any of that (REST adapter → GraphQL, DB adapter → an in-memory fake for testing) never touches business logic at all. The cost of that isolation is indirection: every real technology has to be wrapped in an adapter implementing the port\'s interface, which is more moving parts than calling a driver directly.',
     tags: ['architectural', 'ddd'],
     nodes: [
       n('adapterIn', 'layer-adapter', -420, 0, 'REST Adapter'),
@@ -183,7 +183,7 @@ export const components = [
   }),
 
   definePattern('pattern-layered', 'Layered Architecture (N-Tier)', '🏗️', {
-    description: 'Controller → Service → DAL → Database, each layer only calling the one below.',
+    description: 'Restricting each layer to only calling the one directly below it — never skipping ahead, never calling upward — keeps changes local: swapping the database technology only touches the DAL, not the Controller, and the codebase\'s dependencies stay easy to reason about since they only ever point one direction. The trade-off shows up at scale: a request needing data from deep in the stack still has to pass through every layer above it, and a change that genuinely spans multiple layers (a new field threaded from DB to API) still means touching all of them.',
     tags: ['architectural', 'backend'],
     nodes: [
       n('controller', 'layer-controller', 0, 0),
@@ -213,7 +213,7 @@ export const components = [
   }),
 
   definePattern('pattern-multi-az', 'Multi-AZ Deployment', '🏢', {
-    description: 'A standby copy lives in a second Availability Zone, ready to fail over if the primary AZ goes down.',
+    description: 'An Availability Zone is a physically distinct data center with its own power and networking — a standby in a *second* AZ survives a failure mode a same-AZ replica couldn\'t (the whole AZ losing power or connectivity, not just one server dying). This is deliberately a smaller blast radius than multi-region: it protects against a single data-center-level outage at low latency cost between AZs, but not against something that takes out an entire geographic region.',
     tags: ['availability', 'replication', 'ha', 'multi-az'],
     nodes: [
       n('lb', 'net-load-balancer', 0, -170, 'Load Balancer'),
@@ -225,7 +225,7 @@ export const components = [
   }),
 
   definePattern('pattern-multi-region-active-active', 'Multi-Region Active-Active', '🌍', {
-    description: 'Independent regional stacks each serve local traffic, routed by DNS/geo-routing, while data replicates across regions.',
+    description: 'Serving each user from their nearest region cuts round-trip latency dramatically versus routing every request to one central region continents away, and it survives an entire region going down (unlike Multi-AZ, which only tolerates losing one data center within a region). The real cost is the cross-region replication itself: light-speed network latency between distant regions makes synchronously confirming a write in both places impractical, so this pattern almost always implies eventual consistency and the same conflict-resolution problem Active-Active Replication has, just at continental distance.',
     tags: ['availability', 'replication', 'ha', 'multi-region'],
     nodes: [
       n('dns', 'net-dns', 0, -220, 'DNS / Geo-Routing'),
@@ -244,7 +244,7 @@ export const components = [
   }),
 
   definePattern('pattern-mvc', 'MVC (Model-View-Controller)', '🎮', {
-    description: 'Controller mediates between Model and View.',
+    description: 'Routing all updates through the Controller — rather than letting the View mutate the Model directly — keeps business logic (what a valid state transition looks like) out of the presentation layer, so the same Model and Controller could in principle drive a completely different View (a CLI instead of a web UI) unchanged. The View reading the Model directly (the dashed edge) is a common relaxation for read-only display, but it means the View now depends on the Model\'s shape too, not just the Controller\'s.',
     tags: ['architectural', 'frontend', 'backend'],
     nodes: [
       n('controller', 'layer-controller', 0, 0),
@@ -255,14 +255,14 @@ export const components = [
   }),
 
   definePattern('pattern-mvvm', 'MVVM (Model-View-ViewModel)', '🔗', {
-    description: 'View binds to a ViewModel that reads/writes the Model.',
+    description: 'The two-way data binding between View and ViewModel (the bidirectional arrow) is what distinguishes this from MVC — instead of a Controller manually pushing updates into the View, the framework\'s binding layer keeps them in sync automatically, so the View re-renders whenever the ViewModel\'s state changes and user input flows back the same way with no manual wiring. That automatic sync is also the main cost: it depends entirely on the framework\'s binding implementation, and debugging why a value changed can mean tracing through binding machinery instead of a single method call.',
     tags: ['architectural', 'frontend'],
     nodes: [n('view', 'layer-view', -220, 0), n('vm', 'layer-viewmodel', 0, 0), n('model', 'layer-model', 220, 0)],
     edges: [e('view', 'vm', 'data binding', twoWay), e('vm', 'model', 'reads/writes')],
   }),
 
   definePattern('pattern-pubsub', 'Publish-Subscribe', '📣', {
-    description: 'A publisher pushes events through a broker to many subscribers.',
+    description: 'The publisher never knows how many subscribers exist or what they do with an event — it just publishes to the broker and moves on, which decouples producers from consumers completely: a new subscriber can start listening for events that already existed without the publisher changing anything. That decoupling costs the publisher any feedback on whether a subscriber actually processed an event successfully or is even still alive, so error handling and retries become entirely the subscriber\'s problem.',
     tags: ['architectural', 'messaging', 'events'],
     nodes: [
       n('pub', 'layer-service', -220, 0, 'Publisher'),
@@ -274,7 +274,7 @@ export const components = [
   }),
 
   definePattern('pattern-read-replica', 'Read Replica', '📖', {
-    description: 'The app writes to a primary database, which replicates to one or more read-only replicas that absorb read traffic.',
+    description: 'Read-heavy workloads (the common case for most apps) scale horizontally just by adding more replicas, since reads can be spread across any of them — but writes still all go through the single primary, because allowing multiple writers would reintroduce the same conflict problem Active-Active Replication has. The catch is replication lag: a read hitting a replica right after a write to the primary can return stale data until that replica catches up, which is why the dashed "async replication" edges matter — anything requiring strictly up-to-date reads has to go to the primary instead.',
     tags: ['availability', 'replication', 'database', 'scaling'],
     nodes: [
       n('app', 'srv-app-server', 0, -170, 'App'),
@@ -291,7 +291,7 @@ export const components = [
   }),
 
   definePattern('pattern-repository', 'Repository Pattern', '📚', {
-    description: 'Service talks to a Repository that abstracts the database.',
+    description: 'The Service only calls repository methods like "findById" or "save," never raw queries, so it has no idea whether the underlying storage is Postgres, MongoDB, or an in-memory list — that abstraction is what makes swapping databases or mocking persistence in tests possible without touching business logic. The trade-off is indirection: a repository method has to stay general enough to serve every caller, which can make a highly specific, performance-critical query awkward to express through it.',
     tags: ['architectural', 'backend', 'dal'],
     nodes: [n('service', 'layer-service', 0, 0), n('repo', 'layer-repository', 0, 150), n('db', 'db-generic', 0, 300)],
     edges: [e('service', 'repo'), e('repo', 'db')],
@@ -316,7 +316,7 @@ export const components = [
   }),
 
   definePattern('pattern-saga', 'Saga (Orchestration)', '🧵', {
-    description: 'A coordinator drives a multi-step transaction across services.',
+    description: 'Orchestration puts one coordinator explicitly in charge of the whole multi-step transaction — calling each service in turn and, in a full implementation, invoking the right compensating action if a later step fails — which makes the entire process easy to see and reason about from one place. That centralization is the trade-off versus a choreographed saga (services reacting to each other\'s events with no central coordinator): the coordinator becomes a single service every step depends on, and adding a step means changing its logic rather than just having a new service listen for an event.',
     tags: ['architectural', 'microservices', 'workflow'],
     nodes: [
       n('coordinator', 'layer-saga-coordinator', 0, -150),
@@ -328,21 +328,21 @@ export const components = [
   }),
 
   definePattern('pattern-service-discovery', 'Service Discovery', '🧭', {
-    description: 'Services register themselves and look each other up via a registry.',
+    description: 'In an environment where instances come and go constantly (autoscaling, deploys, crashes), hardcoding IP addresses breaks the moment anything moves — so each instance registers itself on startup and deregisters on shutdown, and callers look up a current, healthy instance by name instead of a fixed address. The registry itself becomes critical infrastructure this way: if it\'s down or serving stale entries, services can\'t find each other even though they\'re all individually healthy.',
     tags: ['architectural', 'microservices'],
     nodes: [n('registry', 'layer-service-discovery', 0, -150), n('a', 'layer-service', -180, 40, 'Service A'), n('b', 'layer-service', 180, 40, 'Service B')],
     edges: [e('a', 'registry', 'register'), e('b', 'registry', 'register'), e('a', 'b', 'discover & call', dashed)],
   }),
 
   definePattern('pattern-sidecar', 'Sidecar Pattern', '🚗', {
-    description: 'A helper process runs alongside the main service to handle cross-cutting concerns.',
+    description: 'Cross-cutting concerns like TLS termination, logging, or retries are needed by every service in a fleet, but baking that logic into each service\'s own codebase means reimplementing (and separately maintaining) it in every language and framework the fleet uses. Running it as a separate sidecar process instead — deployed alongside the main service, sharing its lifecycle — means that logic is written once and attached to any service regardless of what it\'s written in, at the cost of an extra process (and its own resource footprint) per service instance.',
     tags: ['architectural', 'microservices'],
     nodes: [n('app', 'layer-service', -120, 0, 'Application'), n('sidecar', 'layer-sidecar', 140, 0)],
     edges: [e('app', 'sidecar', '', twoWay)],
   }),
 
   definePattern('pattern-strangler-fig', 'Strangler Fig', '🌿', {
-    description: 'New functionality is routed to a new service while legacy traffic keeps flowing, until the legacy system is fully retired.',
+    description: 'Rewriting a large legacy system in one shot is risky — a big-bang cutover means every bug in the new system surfaces at once, for every user, with no easy way back. The facade instead routes new functionality to the new service incrementally, one flow at a time, while everything not yet migrated keeps working exactly as before — the legacy system gradually gets "strangled" as more traffic shifts away from it, and if a newly migrated flow has a problem, only that flow needs routing back, not the whole system.',
     tags: ['architectural', 'migration'],
     nodes: [
       n('client', 'client-browser', 0, -160, 'Client'),
