@@ -22,7 +22,7 @@ import {
   deleteSelection, duplicateSelection, autoArrangeAll, distributeSequenceDiagram, duplicateProjectAsNew,
   addRelatedComponent, addLayerToNode, instantiatePatternNearNode, instantiatePatternAtCenter, addComponentAtCenter,
   resolveComponentDef, clearCanvas, setFocusMode, addCommentAtCenter, fitToSelection, fitToScreen, fixTextDisplay,
-  autoBuildAndPlayAnimation,
+  autoBuildAndPlayAnimation, addStickyNote,
 } from '../canvas/canvas.js';
 import * as viewport from '../canvas/viewport.js';
 import { openSaveAsModal } from './saveAsModal.js';
@@ -128,7 +128,8 @@ export function buildAppCommands() {
     { id: 'scale', label: '📐 Scale Diagram', keywords: ['scale', 'resize'], run: openScaleDiagramModal },
     { id: 'fix-text-display', label: '🔤 Fix Text Display', keywords: ['fix', 'text', 'wrap', 'label', 'overlap', 'readable'], run: fixTextDisplay },
     { id: 'diagram-theme', label: '🎨 Diagram Theme', keywords: ['theme', 'recolor', 'palette', 'color'], run: openDiagramThemeModal },
-    { id: 'add-comment', label: '💬 Add Comment', keywords: ['comment', 'annotation', 'note', 'pin'], run: addCommentAtCenter },
+    { id: 'add-comment', label: '💬 Add Comment', keywords: ['comment', 'annotation', 'pin'], run: addCommentAtCenter },
+    { id: 'add-sticky-note', label: '🗒️ Add Sticky Note', keywords: ['sticky', 'note', 'annotation', 'memo', 'post-it'], run: () => addStickyNote() },
     { id: 'toggle-grid', label: '▦ Toggle Grid', keywords: ['grid', 'toggle', 'background'], run: () => document.querySelector('.canvas-viewport')?.classList.toggle('show-grid') },
     {
       id: 'toggle-minimap', label: '🧭 Toggle Minimap', keywords: ['minimap', 'overview', 'map'],

@@ -58,6 +58,12 @@
   padding: 8px 10px;
   overflow: hidden;
   transition: box-shadow 0.1s;
+  /* --node-rotation (set inline by canvas/node.js from the per-node
+     "Rotation" style field) swaps in a custom angle here; the fallback is
+     0deg for every shape except "note" below, which falls back to its own
+     small cosmetic tilt instead — see core/project.js's `rotation` field
+     comment for why leaving this unset must not erase that tilt. */
+  transform: rotate(var(--node-rotation, 0deg));
   /* Large-diagram perf: lets the browser skip style/layout/paint of a
      node's icon/label/sub-component rows entirely while it's off-screen —
      the actual DOM weight of a node lives in here, not on .node itself.
@@ -200,7 +206,7 @@
   pointer-events: none;
 }
 .node[data-shape="cloud"] .node-body { border-radius: 46% 54% 54% 46% / 60% 55% 45% 40%; }
-.node[data-shape="note"] .node-body { border-radius: 2px; transform: rotate(-1deg); box-shadow: var(--node-extra-shadow, var(--shadow-md)); }
+.node[data-shape="note"] .node-body { border-radius: 2px; transform: rotate(var(--node-rotation, -1deg)); box-shadow: var(--node-extra-shadow, var(--shadow-md)); }
 .node[data-shape="rows"] .node-body { border-radius: 10px; justify-content: flex-start; padding: 0; }
 
 /* Sequence-diagram lifeline — a titled box (::before, same "fill layer

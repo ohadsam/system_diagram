@@ -17,7 +17,7 @@ import { el, clear, rerenderPreservingUiState } from '../utils/dom.js';
 import {
   deleteSelection, duplicateSelection, groupSelection, ungroupSelection, selectionHasGroup, duplicateProjectAsNew,
   getSelectionScreenRect, autoArrangeAll, distributeSequenceDiagram, setFocusMode, setFlowSimulationEnabled,
-  resolveComponentDef, fixTextDisplay, autoBuildAndPlayAnimation,
+  resolveComponentDef, fixTextDisplay, autoBuildAndPlayAnimation, addStickyNote,
 } from '../canvas/canvas.js';
 import { getBaseToolMode, setToolMode, onToolModeChange } from '../canvas/toolMode.js';
 import { onViewportChange, centerOn } from '../canvas/viewport.js';
@@ -418,7 +418,15 @@ function buildNavToolGroup() {
  * anyone who wants it explicitly.) */
 function buildQuickCreateGroup() {
   const addShapeBtn = el('button', { type: 'button', class: 'btn', title: 'Add a basic shape', text: '🔷 Add Shape', onClick: openCustomShapeModal });
-  return group(addShapeBtn);
+  // Same "quick, frequent, one-click" reasoning as Add Shape above, but
+  // skips its picker modal entirely — a sticky note is used often enough,
+  // and is unambiguous enough (there's only one), that a second click to
+  // confirm "yes, a sticky note" would just be friction. See
+  // canvas.js#addStickyNote for the small styling defaults (no icon, a
+  // slight random tilt) this quick-add path gives it that dragging the
+  // "Sticky Note" library item itself doesn't.
+  const addNoteBtn = el('button', { type: 'button', class: 'btn', title: 'Add a sticky note for free-form comments', text: '🗒️ Add Sticky Note', onClick: () => addStickyNote() });
+  return group(addShapeBtn, addNoteBtn);
 }
 
 /** Searches components/connectors already placed *on the canvas* by their

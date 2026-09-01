@@ -331,6 +331,11 @@ Or open `index.html` directly in a browser.
 - **Pinned comments** — right-click empty canvas to drop a note pin
   anywhere on the diagram; click a pin to edit it, add/remove threaded
   replies underneath, or mark it resolved.
+- **One-click Sticky Notes** — a "🗒️ Add Sticky Note" toolbar button, or
+  "Add sticky note here" on the canvas right-click menu, drops a colored,
+  resizable note for free-form text right on the canvas — control its
+  size, color, font size, and rotation (a new style-editor control that
+  works on any component) from the same style panel as any other shape.
 - **Accessibility** — arrow-key nudging for the selected component,
   accessible names on every icon-only toolbar button, and a visible
   keyboard focus ring throughout, including the command palette.

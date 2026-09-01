@@ -3,6 +3,45 @@
 All notable changes to this project. Format: date, then bullet list.
 Keep this in sync with `PLAN.md` as stages complete.
 
+## v1.53.0 (2026-09-01)
+
+- **One-click Sticky Notes, plus a new generic node "Rotation" style field**
+  (`js/core/project.js`, `js/canvas/node.js`, `css/node.css`,
+  `js/toolbar/styleEditor.js`, `js/toolbar/toolbar.js`, `js/canvas/canvas.js`,
+  `js/modals/commandPaletteModal.js`):
+  - The "Sticky Note" component already existed (`shape-note`,
+    `data/categories/shapes.js`) but was only reachable through the "🔷 Add
+    Shape" picker modal. New `canvas.js#addStickyNote(centerPoint)` drops one
+    directly — wired to a new flat "🗒️ Add Sticky Note" toolbar button
+    (`toolbar.js#buildQuickCreateGroup`), a new "Add sticky note here" item on
+    the canvas right-click menu (`canvas.js#openCanvasContextMenu`, next to
+    "Add comment here"), and a new Command Palette entry. `addCustomShapeNode`
+    gained an optional third `extraOverrides` parameter so this quick-add path
+    can preconfigure the node without a new code path.
+  - Quick-added notes get two small defaults distinct from the sidebar item's
+    own: `iconVisible: false` (a blank note for free text shouldn't show 🗒️
+    before you've typed anything) and a randomized ±5° tilt (`rotation`, new
+    field below) so several notes on one canvas read as casually hand-placed
+    rather than mechanically identical. Dragging "Sticky Note" in from the
+    sidebar is untouched — still upright, icon shown.
+  - New generic `rotation` node field (degrees, -180..180, default 0) —
+    `core/project.js#createNode`/`validateProject`, a new "Rotation" numeric
+    control in the style editor (same convention as Opacity/Font size),
+    applied via a `--node-rotation` CSS custom property on `.node-body`
+    (`canvas/node.js#updateNodeEl`) with the same "custom-property-with-
+    fallback" composition already used for `--node-extra-shadow`: leaving it
+    at the default 0 removes the property entirely, so the "note" shape's own
+    pre-existing baked-in -1° cosmetic CSS tilt (`css/node.css`) still shows
+    through unchanged for anyone not using the new control — only an
+    explicit non-zero value overrides it, for any shape, not just notes.
+  - Sizing and color controls needed no new work — the style editor's
+    Fill/Border/Font size/Width/Height fields and the generic corner-drag
+    resize gesture already applied to every shape including "note".
+  - New hint (`hint-sticky-note` in `js/hints/hintData.js`), new
+    `tests/e2e/stickyNotes.spec.js`, new `rotation` unit tests in
+    `tests/unit/project.test.mjs`, and `tests/e2e/commandPalette.spec.js`'s
+    release-checklist audit list extended with the new entry.
+
 ## v1.52.0 (2026-09-01)
 
 - **Added common software/DevOps "design pattern" building blocks as attachable

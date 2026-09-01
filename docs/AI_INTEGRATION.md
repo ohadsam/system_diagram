@@ -104,6 +104,7 @@ pairs, ...) is optional and gets sensible defaults — omit all of it.
 | `borderStyle` | optional | `solid` (default), `dashed`, or `dotted`. |
 | `dropShadow` | optional | `true` for a stronger drop shadow. |
 | `opacity` | optional | 0-100 (default 100) — a lower value reads as "planned" or "not yet built". |
+| `rotation` | optional | Degrees, -180 to 180 (default 0) — tilts the component. Only worth setting deliberately; most diagrams should omit it (0 = upright). |
 | `notes` | optional | Free text, shown in the details panel and as a hover tooltip. |
 | `labels` | optional | Array of short strings rendered as chips on the node face (e.g. `["10K RPS", "99.9% SLA"]`). |
 | `subComponents` | optional | Array of `{ "text": "...", "icon": "..." }` — smaller items attached inside the node (e.g. a service's Controller/Service/DAL layers). |

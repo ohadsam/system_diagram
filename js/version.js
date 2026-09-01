@@ -2,9 +2,17 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.52.0';
+export const APP_VERSION = '1.53.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.53.0',
+    date: '2026-09-01',
+    highlights: [
+      '🗒️ Sticky Notes just got much faster to use — a new "🗒️ Add Sticky Note" toolbar button, and "Add sticky note here" on the canvas right-click menu, drop a ready-to-type note in one click instead of going through the "Add Shape" picker. Each one gets a small random tilt for a casual, hand-placed look.',
+      '🔄 New "Rotation" control in the style editor tilts any component — sticky note or otherwise — to any angle, alongside its existing color, font size, and width/height controls.',
+    ],
+  },
   {
     version: '1.52.0',
     date: '2026-09-01',

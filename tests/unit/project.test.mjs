@@ -39,6 +39,29 @@ test('validateProject validates/clamps cornerRadius/borderStyle/dropShadow/opaci
   assert.equal(project.nodes[6].cornerRadius, null);
 });
 
+test('createNode defaults rotation to 0', () => {
+  const node = createNode(null, 0, 0);
+  assert.equal(node.rotation, 0);
+});
+
+test('validateProject validates/clamps rotation', () => {
+  const p = createEmptyProject();
+  p.nodes = [
+    createNode(null, 0, 0, { rotation: 15 }),
+    createNode(null, 100, 0, { rotation: -200 }), // clamped to -180
+    createNode(null, 200, 0, { rotation: 200 }), // clamped to 180
+    createNode(null, 300, 0, { rotation: 'sideways' }), // non-numeric falls back to 0
+    createNode(null, 400, 0, {}), // untouched — stays 0
+  ];
+  const { ok, project } = validateProject(p);
+  assert.equal(ok, true);
+  assert.equal(project.nodes[0].rotation, 15);
+  assert.equal(project.nodes[1].rotation, -180);
+  assert.equal(project.nodes[2].rotation, 180);
+  assert.equal(project.nodes[3].rotation, 0);
+  assert.equal(project.nodes[4].rotation, 0);
+});
+
 test('createEmptyProject has the expected shape', () => {
   const p = createEmptyProject('Test');
   assert.equal(p.name, 'Test');

@@ -54,6 +54,7 @@ export function renderNodeStyleEditor(container, nodeIds) {
   }
   container.appendChild(checkbox(!!first.dropShadow, (v) => updateAll((n) => { n.dropShadow = v; }), 'Drop shadow'));
   container.appendChild(field('Opacity', numberInput(Number.isFinite(first.opacity) ? first.opacity : 100, 10, 100, 5, (v) => updateAll((n) => { n.opacity = v; }), { 'data-focus-key': 'opacity', title: 'How see-through this component is (100 = fully solid) — handy for marking something as planned or not-yet-built' })));
+  container.appendChild(field('Rotation', numberInput(Number.isFinite(first.rotation) ? first.rotation : 0, -180, 180, 1, (v) => updateAll((n) => { n.rotation = v; }), { 'data-focus-key': 'rotation', title: 'Tilt this component, in degrees — handy for a hand-placed sticky-note look, or angling a label' })));
   container.appendChild(field('Font size', numberInput(first.fontSize, 8, 48, 1, (v) => updateAll((n) => { n.fontSize = v; }), { 'data-focus-key': 'fontSize' })));
   container.appendChild(field('Align', selectInput(['left', 'center', 'right'], first.textAlign, (v) => updateAll((n) => { n.textAlign = v; }), ALIGN_LABELS)));
   container.appendChild(field('Text position', selectInput(TEXT_POSITIONS, first.textPosition, (v) => updateAll((n) => { n.textPosition = v; }), TEXT_POSITION_LABELS)));

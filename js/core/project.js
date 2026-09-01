@@ -188,6 +188,12 @@ export function createNode(def, x, y, overrides = {}) {
     // field's inline style on `.node-body`) — see canvas/node.js's own
     // comment for why that split is deliberate.
     opacity: 100,
+    // Degrees, -180..180, 0 = upright. Applied on `.node-body` as a CSS
+    // custom property with a per-shape fallback (see css/node.css and
+    // canvas/node.js#updateNodeEl) so leaving this at the default 0 doesn't
+    // erase the "note" shape's own baked-in -1deg cosmetic tilt — only an
+    // explicit non-zero value overrides it, for any shape.
+    rotation: 0,
     text: def?.name ?? 'Component',
     fontSize: 13,
     textAlign: 'center',
@@ -540,6 +546,7 @@ function validateContent(rawNodes, rawEdges, rawReplicationPairs) {
         borderStyle: BORDER_STYLES.includes(n.borderStyle) ? n.borderStyle : 'solid',
         dropShadow: n.dropShadow === true,
         opacity: Number.isFinite(n.opacity) ? Math.min(100, Math.max(0, n.opacity)) : 100,
+        rotation: Number.isFinite(n.rotation) ? Math.min(180, Math.max(-180, n.rotation)) : 0,
         text: typeof n.text === 'string' ? n.text : '',
         fontSize: Number.isFinite(n.fontSize) ? n.fontSize : 13,
         textAlign: ['left', 'center', 'right'].includes(n.textAlign) ? n.textAlign : 'center',

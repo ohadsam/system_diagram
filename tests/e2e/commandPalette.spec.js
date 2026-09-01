@@ -80,7 +80,7 @@ test('every action added across recent batches is reachable from the palette (re
     '🧩 Feature Level Settings', '🤖 AI / CLI Integration', '🗨️ AI Conversation',
     '🤖 AI Chat', '🖥️ Working with CLI',
     '🔎 Find & Replace', '🔎 Fit to Selection', '📌 Manage Pinned Toolbar Actions', '🔔 Toggle Diagram Nudges',
-    '🔤 Fix Text Display', '📖 Show Descriptions', '🪄 Auto-Play Diagram',
+    '🔤 Fix Text Display', '📖 Show Descriptions', '🪄 Auto-Play Diagram', '🗒️ Add Sticky Note',
   ];
   for (const label of expectedLabels) {
     await page.keyboard.press('ControlOrMeta+k');

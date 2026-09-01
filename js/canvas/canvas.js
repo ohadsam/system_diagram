@@ -1758,7 +1758,7 @@ export function removeActivationBar(nodeId, activationId) {
   });
 }
 
-export function addCustomShapeNode(shapeDef, centerPoint) {
+export function addCustomShapeNode(shapeDef, centerPoint, extraOverrides = {}) {
   const state = store.getState();
   const rawPoint = centerPoint || screenCenterCanvasPoint();
   // Same stacking risk as createNodeFromDrop's click-to-add path (see its
@@ -1769,6 +1769,7 @@ export function addCustomShapeNode(shapeDef, centerPoint) {
   const node = createNode(shapeDef, point.x - shapeDef.defaultSize.w / 2, point.y - shapeDef.defaultSize.h / 2, {
     zIndex: nextZIndex(state),
     ...buildCreationOverrides(),
+    ...extraOverrides,
   });
   store.dispatch((draft) => {
     draft.nodes.push(node);
@@ -1776,6 +1777,23 @@ export function addCustomShapeNode(shapeDef, centerPoint) {
   store.select([node.id], []);
   focusNode(node.id);
   return node;
+}
+
+/** One-click sticky note — the same underlying node as dragging "Sticky
+ * Note" in from the Basic Shapes sidebar (`shape-note`,
+ * data/categories/shapes.js), but skips the "Add Shape" picker modal and
+ * gives it two small defaults suited to a fast, no-fuss annotation rather
+ * than a labeled diagram shape: no icon (so a blank note doesn't show 🗒️
+ * before you've typed anything) and a small randomized tilt, so several
+ * notes dropped on the same canvas read as casually hand-placed instead of
+ * mechanically identical — the sidebar item itself is untouched and still
+ * defaults to upright with its icon shown. Called from both the toolbar's
+ * quick-add button and the canvas right-click menu. */
+export function addStickyNote(centerPoint) {
+  const def = getComponentById('shape-note');
+  if (!def) return null;
+  const rotation = Math.round((Math.random() - 0.5) * 10); // roughly -5..5 degrees
+  return addCustomShapeNode(def, centerPoint, { iconVisible: false, rotation });
 }
 
 function screenCenterCanvasPoint() {
@@ -2730,6 +2748,7 @@ function openCanvasContextMenu(evt) {
     { label: 'Reset zoom to 100%', icon: '💯', onClick: () => viewport.zoomTo(1) },
     'separator',
     { label: 'Add comment here', icon: '💬', onClick: () => addCommentAt(evt) },
+    { label: 'Add sticky note here', icon: '🗒️', onClick: () => addStickyNote(viewport.screenToCanvas(evt.clientX, evt.clientY)) },
     'separator',
     { label: 'Duplicate entire canvas', icon: '⧉', onClick: duplicateEntireCanvas },
     { label: 'Duplicate as new project', icon: '📄', onClick: duplicateProjectAsNew },

@@ -236,6 +236,16 @@ export function updateNodeEl(rootEl, node, { selected = false, replicated = fals
   // Focus Mode/Diagram Animation's own class-based opacity on the outer
   // element rather than fight over the same property.
   body.style.opacity = Number.isFinite(node.opacity) ? String(node.opacity / 100) : '';
+  // Same "custom property with a per-rule fallback" composition as
+  // --node-extra-shadow above: removing the property (rather than setting
+  // rotate(0deg) directly) lets the "note" shape's own CSS rule fall back
+  // to its baked-in -1deg cosmetic tilt when the user hasn't set an
+  // explicit rotation, instead of this always overriding it to upright.
+  if (Number.isFinite(node.rotation) && node.rotation !== 0) {
+    body.style.setProperty('--node-rotation', `${node.rotation}deg`);
+  } else {
+    body.style.removeProperty('--node-rotation');
+  }
   // Also exposed as custom properties, read only by the diamond/hexagon
   // border fix below (css/node.css) — a plain CSS `border` doesn't follow
   // clip-path's polygon outline (it's still a rectangular border box

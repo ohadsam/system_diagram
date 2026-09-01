@@ -4614,6 +4614,53 @@ property or needing to know about each other.
 all, just a shortcut that sets `w`/`h` to one of three fixed pairs, the same "convenience action, not
 a persisted concept" tier as `core/diagramTheme.js`'s recolor and the style presets above.
 
+**`rotation`** (degrees, -180..180, default 0, `core/project.js`) — added specifically to give the
+new one-click Sticky Notes (below) a "hand-placed" tilt, but implemented as a fully generic field
+usable on any shape. Learned the `dropShadow` gotcha above ahead of time and used the same
+custom-property-with-fallback composition from the start: `canvas/node.js#updateNodeEl` only ever
+sets or removes `--node-rotation` on `.node-body` (never a raw `transform`), and `css/node.css` reads
+`transform: rotate(var(--node-rotation, 0deg))` on the base `.node-body` rule and `transform:
+rotate(var(--node-rotation, -1deg))` on the `[data-shape="note"]` override. The result: leaving
+`rotation` at its default 0 removes the property entirely, so the "note" shape's own pre-existing
+baked-in -1° cosmetic tilt (already shipped before this field existed) shows through completely
+unchanged for anyone not touching the new "Rotation" style-editor control — only an explicit
+non-zero value overrides it, for any shape. A getComputedStyle read of `rotate(0deg)` normalizes to
+the identity matrix (`matrix(1, 0, 0, 1, 0, 0)`), not the literal keyword `none` — worth knowing
+before writing a test that asserts "no transform" on a shape other than `note` at the default.
+
+## Sticky Notes quick-add (`canvas/canvas.js#addStickyNote`)
+
+The "Sticky Note" component (`shape-note`, `data/categories/shapes.js`) already existed as an
+ordinary Basic Shapes item, reachable only through the "🔷 Add Shape" picker modal
+(`modals/customShapeModal.js`) like any other shape. This added a direct one-click path — a new
+`addStickyNote(centerPoint)` in `canvas.js`, which just resolves the `shape-note` def via
+`data/index.js#getComponentById` and calls the existing `addCustomShapeNode(def, centerPoint,
+extraOverrides)`. That third parameter is new too: `addCustomShapeNode` previously only accepted
+`(shapeDef, centerPoint)`; adding an optional `extraOverrides = {}` merged in *after*
+`buildCreationOverrides()` (the user's own global new-component defaults) let this quick-add path
+preconfigure two things without inventing a parallel node-creation code path:
+
+- `iconVisible: false` — a blank note meant for free text shouldn't show 🗒️ before you've typed
+  anything; the sidebar-dragged "Sticky Note" item is untouched and still shows its icon by default.
+- `rotation: Math.round((Math.random() - 0.5) * 10)` (roughly -5..5°) — several notes quick-added to
+  the same canvas read as casually scattered rather than mechanically identical, without needing a
+  drag-to-rotate gesture (see the `rotation` field above — no such gesture exists anywhere in this
+  app; a numeric style-editor field was the deliberately smaller scope chosen over building one).
+
+Wired to three entry points, each just calling `addStickyNote(...)` with a different point argument:
+a new flat "🗒️ Add Sticky Note" button in `toolbar.js#buildQuickCreateGroup` (same "quick, frequent,
+one-click, stays flat" reasoning as "Add Shape" right next to it — see that function's own header
+comment), a new "Add sticky note here" item in `canvas.js#openCanvasContextMenu` right next to "Add
+comment here" (same `viewport.screenToCanvas(evt.clientX, evt.clientY)` anchor-to-click-point
+pattern `addCommentAt` already uses), and a new Command Palette entry (`addStickyNote()` with no
+point, falling back to `addCustomShapeNode`'s own screen-center default — same convention
+`addCommentAtCenter` already established for the Command Palette's "no click point to anchor to"
+case). **Deliberately kept as a separate, clearly-labeled item from "Add comment here" rather than
+merged into it** — a sticky note is a real, resizable, colorable canvas node that exports to
+PNG/PDF/PPTX like any other component, while a pinned comment (`canvas/commentPins.js`) is a
+lightweight, unstylable review-thread overlay stored in `project.comments`, not `project.nodes`; the
+two solve different needs and already had established, independent behavior before this batch.
+
 ## AI / CLI Integration (`docs/AI_INTEGRATION.md`, `llms.txt`, `js/io/shareLink.js#findShareHashInText`)
 
 This app has no backend, so "integrating" an external AI CLI tool (Claude Code, or

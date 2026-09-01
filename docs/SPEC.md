@@ -2392,6 +2392,26 @@ Three additions rounding out Diagram Animation (4.36) editing:
   distinct from "+ Add All" (which builds into the *current* animation for
   further hand-editing rather than playing right away).
 
+### 4.93 One-click Sticky Notes + node Rotation
+Two additions to the style editor and quick-add tooling:
+
+- **Rotation** — a new numeric field (-180° to 180°) in the per-node style editor (4.5/4.82),
+  alongside Fill/Border/Font size/Width/Height — works on any shape, not just sticky notes. Left at
+  its default 0, a "note"-shaped component keeps the small cosmetic tilt it's always had; setting an
+  explicit value overrides that (or upright, for any other shape) to whatever angle is set.
+- **One-click Sticky Notes** — the "Sticky Note" component (Basic Shapes, 🔷 Add Shape) already
+  existed, but only reachable through that picker modal. Two new, faster entry points drop one
+  directly: a flat **"🗒️ Add Sticky Note"** toolbar button (next to "🔷 Add Shape"), and **"Add
+  sticky note here"** on the canvas right-click menu (next to "Add comment here", centered on the
+  click point) — both also reachable from the Command Palette. A quick-added note starts with no
+  icon shown (a clean surface for free text) and a small randomized tilt, so several notes on one
+  canvas read as casually placed rather than identical; dragging the Sticky Note item in from the
+  sidebar is unaffected and still starts upright with its icon. Once placed, a sticky note is an
+  ordinary component: resize by dragging a corner, retype its text by double-clicking, and change
+  its color/border/font size/rotation from the same style editor as anything else — it exports to
+  PNG/PDF/PPTX like any other node. Distinct from **Pinned Comments** (4.27) — a comment is a
+  lightweight, unstylable review-thread pin, not a resizable/colorable canvas component.
+
 ## 7. Out of scope for v1 (ideas for later, see PLAN.md §7)
 
 Versioned history beyond in-session undo/redo (superseded by 4.17/4.63
