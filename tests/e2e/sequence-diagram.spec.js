@@ -750,6 +750,34 @@ test('hovering a plain (non-sequence-diagram) sidebar item shows no preview thum
   await expect(page.locator('.pattern-preview-popup')).toHaveCount(0);
 });
 
+test('hovering a "design pattern" layer (e.g. Singleton) in the sidebar shows a formatted text preview with its full description, not just the plain title tooltip', async ({ page }) => {
+  await page.locator('.sidebar-search input').fill('Singleton Instance');
+  await page.waitForTimeout(150);
+  const item = page.locator('.sidebar-item[data-name="Singleton Instance"]');
+  await item.scrollIntoViewIfNeeded();
+  await expect(page.locator('.pattern-preview-popup')).toHaveCount(0);
+
+  await item.hover();
+  const popup = page.locator('.pattern-preview-popup.is-text');
+  await expect(popup).toBeVisible();
+  await expect(popup.locator('.pattern-preview-text-name')).toHaveText('Singleton Instance');
+  await expect(popup.locator('.pattern-preview-text-body')).toContainText('exactly one instance');
+
+  await page.mouse.move(0, 0);
+  await expect(page.locator('.pattern-preview-popup')).toHaveCount(0);
+});
+
+test('hovering a DevOps deployment-strategy layer (e.g. Canary Release) also shows the formatted text preview', async ({ page }) => {
+  await page.locator('.sidebar-search input').fill('Canary Release');
+  await page.waitForTimeout(150);
+  const item = page.locator('.sidebar-item[data-name="Canary Release"]');
+  await item.scrollIntoViewIfNeeded();
+  await item.hover();
+  const popup = page.locator('.pattern-preview-popup.is-text');
+  await expect(popup).toBeVisible();
+  await expect(popup.locator('.pattern-preview-text-body')).toContainText('canary');
+});
+
 test('"Explain This Diagram" on an instantiated template shows a comprehensive, offline explanation', async ({ page }) => {
   await addComponentByName(page, 'PKCE Authorization Flow');
   await expect.poll(() => nodeCount(page)).toBeGreaterThan(1);

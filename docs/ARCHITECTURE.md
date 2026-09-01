@@ -753,18 +753,36 @@ action-modal shape as `sequenceDiagramModal.js`). Three-stage pipeline:
    diagram group (🔍 zoom-in works right away), same shape as
    `createSequenceDiagram`/`instantiatePatternAtPoint`.
 
-### Sidebar hover-preview thumbnail (`sidebar/patternPreview.js`)
+### Sidebar hover-preview popup (`sidebar/patternPreview.js`)
 
-Hovering (or keyboard-focusing) a Sequence Diagram Templates sidebar item
-shows a small SVG sketch of its lifelines and messages — `isSequenceDiagramPattern(def)`
-gates which items get this (any `kind: 'pattern'` whose every node is a
-`shape-lifeline`, the same definition `componentData.test.mjs`'s own template
-integrity test uses) rather than checking `categoryId`, so it stays correct
-if a future template ever lived in a differently-named category. The popup
-itself is appended straight to `document.body` (fixed-positioned, computed
-from the hovered item's `getBoundingClientRect()`) rather than inside the
-sidebar's own DOM, since the sidebar's `overflow: auto` scroll container
-would otherwise clip it.
+Hovering (or keyboard-focusing) a sidebar item can show a floating popup
+beyond its plain `title` tooltip, in one of two forms, both gated by
+`shouldShowPreview(def)`:
+
+- **SVG lifeline sketch** — Sequence Diagram Templates items only.
+  `isSequenceDiagramPattern(def)` gates this (any `kind: 'pattern'` whose
+  every node is a `shape-lifeline`, the same definition
+  `componentData.test.mjs`'s own template integrity test uses) rather than
+  checking `categoryId`, so it stays correct if a future template ever lived
+  in a differently-named category.
+- **Formatted text block** — any item (originally added for the GoF/DevOps
+  "design pattern" layers in `data/categories/layers.js`, but not restricted
+  to them) whose `description` is at least `RICH_DESCRIPTION_MIN_LENGTH`
+  (80 chars) long, checked by the module-private `hasRichDescription(def)`.
+  Below that length the plain `title` attribute every sidebar item already
+  carries (see `sidebar.js#renderItem`) is a perfectly readable single-line
+  tooltip on its own; above it, a browser tooltip crammed onto a couple of
+  long, unbroken lines reads far worse than a proper wrapped popup. This is
+  a pure generalization of the same module — `showPopup` picks which
+  content-builder to call (`buildPreviewSvg` vs. the new
+  `buildDescriptionPreview`), the positioning/timing/lifecycle code
+  (viewport-clamped placement, 200ms hover delay, focus/blur handling,
+  `hidePatternPreview()`) is identical either way and untouched.
+
+The popup itself is appended straight to `document.body` (fixed-positioned,
+computed from the hovered item's `getBoundingClientRect()`) rather than
+inside the sidebar's own DOM, since the sidebar's `overflow: auto` scroll
+container would otherwise clip it.
 
 **Gotcha — `sidebar.js#renderList()` tears down and rebuilds every sidebar
 item on each keystroke** (see its own header comment: expanding/collapsing a
@@ -1533,7 +1551,21 @@ Two categories carry an extra `kind` field that changes how the canvas
 handles them instead of the default single-node placement:
 
 - **`categories/layers.js`** (`kind: 'layer'`) — code-level building
-  blocks (Controller, Service, DAL, React Hook, ...). `sidebar/dragSource.js`
+  blocks (Controller, Service, DAL, React Hook, ...), plus two themed
+  clusters within the same flat file (see the file's own "one flat,
+  richly-tagged category" rationale, and `.claude/skills/add-library-item`):
+  classic Gang-of-Four patterns (`tags: [..., 'gof']` — Singleton, Factory,
+  Adapter, Builder, Decorator, Facade, Observer, Strategy and their
+  supporting roles, plus Abstract Factory, Prototype, Bridge, Composite,
+  Flyweight, Proxy, Chain of Responsibility, Command, Iterator, Mediator,
+  Memento, State, Template Method, Visitor) and common DevOps/deployment
+  patterns (`tags: [..., 'devops']` — Blue-Green Deployment, Canary Release,
+  Rolling Deployment, Immutable Infrastructure, Infrastructure as Code,
+  GitOps, Feature Flag, Zero-Downtime Deployment, Chaos Engineering). Every
+  one of these carries a full multi-sentence `description` (what it is, how
+  it's typically implemented, when to use it) rather than the shorter
+  one-liner most other layers use — see "Sidebar hover-preview popup" below
+  for how that gets surfaced beyond the plain `title` tooltip. `sidebar/dragSource.js`
   checks `resolveComponentDef(defId).kind` on drop: dropped on an existing
   `.node` element it calls `canvas.js#addLayerToNode(defId, nodeId)`
   (pushes into that node's `subComponents`, no new node created); dropped

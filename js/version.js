@@ -2,9 +2,18 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.51.0';
+export const APP_VERSION = '1.52.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.52.0',
+    date: '2026-09-01',
+    highlights: [
+      '🧩 Added 14 classic Gang-of-Four "design pattern" building blocks to the Layers &amp; Roles library as attachable sub-components — Singleton, Factory, Abstract Factory, Builder, Prototype, Adapter, Bridge, Composite, Decorator, Facade, Flyweight, Proxy, Chain of Responsibility, Command, Iterator, Mediator, Memento, Observer, State, Strategy, Template Method, and Visitor now each carry a full multi-sentence description — what it is, how it\'s typically implemented, and when to reach for it — instead of a one-word label.',
+      '🚀 Added 9 common DevOps/release-engineering patterns as the same kind of attachable layer: Blue-Green Deployment, Canary Release, Rolling Deployment, Immutable Infrastructure, Infrastructure as Code, GitOps, Feature Flag, Zero-Downtime Deployment, and Chaos Engineering — drag one onto a Load Balancer, Deployment, or Pipeline node to document which strategy that part of the system uses.',
+      '💬 Hovering any sidebar item with a long description (every design-pattern/DevOps layer above, plus the existing architectural "Design Patterns" blueprints) now shows a formatted popup with the full explanation, instead of relying only on the browser\'s single-line tooltip — the same hover-preview mechanism sequence-diagram templates already used, now generalized to text.',
+    ],
+  },
   {
     version: '1.51.0',
     date: '2026-09-01',

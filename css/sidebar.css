@@ -337,10 +337,13 @@
   display: flex;
 }
 
-/* Sequence-diagram template hover-preview thumbnail — see
-   sidebar/patternPreview.js. Fixed-positioned, appended straight to
-   document.body (not the sidebar) so it isn't clipped by the sidebar's own
-   overflow:auto scroll container. */
+/* Sidebar item hover-preview popup — either a sequence-diagram template's
+   SVG lifeline sketch, or (.is-text) a formatted multi-sentence description
+   for a "design pattern" layer (GoF/DevOps — see data/categories/layers.js)
+   too long to read comfortably in the plain `title` tooltip every sidebar
+   item already has. See sidebar/patternPreview.js. Fixed-positioned,
+   appended straight to document.body (not the sidebar) so it isn't clipped
+   by the sidebar's own overflow:auto scroll container. */
 .pattern-preview-popup {
   position: fixed;
   z-index: var(--z-menu);
@@ -350,6 +353,36 @@
   box-shadow: var(--shadow-lg);
   padding: var(--space-2);
   pointer-events: none;
+}
+
+.pattern-preview-popup.is-text {
+  width: 300px;
+  max-width: calc(100vw - 24px);
+  padding: var(--space-3);
+}
+
+.pattern-preview-text-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.pattern-preview-text-icon {
+  font-size: 1.1em;
+}
+
+.pattern-preview-text-name {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.pattern-preview-text-body {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.85em;
+  line-height: 1.5;
+  white-space: normal;
 }
 
 .pattern-preview-svg {

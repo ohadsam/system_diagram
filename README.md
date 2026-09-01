@@ -44,8 +44,13 @@ Or open `index.html` directly in a browser.
   Prompt), agents & agent frameworks (LangGraph, AutoGen, CrewAI,
   Semantic Kernel, LlamaIndex), and skills/tools/RAG (Skill, System
   Prompt, RAG Pipeline, Knowledge Base, Guardrails, Function Calling).
-- **Layers & Roles** — ~100 code-level building blocks (Controller,
-  Service, DAL, Authentication, React Hook, Angular Guard, DDD terms, ...).
+- **Layers & Roles** — ~130 code-level building blocks (Controller,
+  Service, DAL, Authentication, React Hook, Angular Guard, DDD terms, ...),
+  including 26 classic Gang-of-Four coding patterns (Singleton, Factory,
+  Adapter, Observer, Strategy, Decorator, Visitor, ...) and 9 common DevOps
+  deployment patterns (Blue-Green Deployment, Canary Release, GitOps,
+  Feature Flag, ...), each with a full description of what it is, how to
+  implement it, and when to use it — hover one in the sidebar to read it.
   Drag one onto an existing component to attach it as a sub-component, or
   add it via that component's details panel (with autocomplete).
 - **Design Patterns** — 26 one-click blueprints (MVC, MVVM, Layered

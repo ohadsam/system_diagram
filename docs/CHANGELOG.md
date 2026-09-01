@@ -3,6 +3,54 @@
 All notable changes to this project. Format: date, then bullet list.
 Keep this in sync with `PLAN.md` as stages complete.
 
+## v1.52.0 (2026-09-01)
+
+- **Added common software/DevOps "design pattern" building blocks as attachable
+  layers, plus a generalized hover-preview popup to explain them**
+  (`js/data/categories/layers.js`, `js/sidebar/patternPreview.js`,
+  `js/sidebar/sidebar.js`, `css/sidebar.css`):
+  - 14 classic Gang-of-Four patterns not previously in the library — Abstract
+    Factory, Prototype, Bridge, Composite, Flyweight, Proxy, Chain of
+    Responsibility, Command, Iterator, Mediator, Memento, State, Template
+    Method, Visitor — join the roles already present (Singleton, Factory,
+    Adapter, Builder, Decorator, Facade, Observer, Strategy, and their
+    supporting roles Adaptee/Product/Context/Target Interface), all now
+    `tags: ['pattern', 'gof']` with a full multi-sentence `description`
+    covering what it is, how it's typically implemented, and when to reach
+    for it, matching the level of detail `data/categories/design-patterns.js`
+    already used for its architectural blueprints.
+  - 9 common DevOps/release-engineering patterns, new to the library entirely
+    — Blue-Green Deployment, Canary Release, Rolling Deployment, Immutable
+    Infrastructure, Infrastructure as Code, GitOps, Feature Flag,
+    Zero-Downtime Deployment, Chaos Engineering — `tags: ['devops',
+    'deployment']` (Chaos Engineering also `'resilience'`/`'testing'`), same
+    description depth. Like any other layer, drag one onto a node (a Load
+    Balancer, a Kubernetes Deployment, a CI/CD pipeline stage) to attach it as
+    a sub-component documenting which strategy that part of the system uses,
+    or drop it standalone.
+  - Curated a new `relatedLayers` pairing, `layer-abstract-factory` →
+    `layer-product` (the same "creates a Product" relationship `layer-factory`
+    and `layer-builder` already had), alongside the existing Adapter↔Adaptee
+    and Context↔Strategy pairings.
+  - `js/sidebar/patternPreview.js` — previously only rendered an SVG lifeline
+    sketch for sequence-diagram templates on hover — generalized to also
+    render a formatted text block (icon, name, full description) for *any*
+    sidebar item whose description is long enough (≥80 chars) that the plain
+    single-line `title` tooltip every item already has isn't a comfortable
+    way to read it. New exports `shouldShowPreview`/`hasRichDescription`;
+    `sidebar.js#renderItem` now wires the hover popup onto every item that
+    qualifies, not just sequence templates. New CSS: `.pattern-preview-popup
+    .is-text` + `.pattern-preview-text-*` in `css/sidebar.css`, reusing the
+    existing popup's fixed-position/viewport-clamped positioning logic
+    unchanged.
+  - `tests/unit/componentData.test.mjs` and the existing `layers.js` test
+    coverage continue to pass unmodified (data-only addition — no schema
+    change); new tests in `tests/unit/patternPreview.test.mjs`
+    (`shouldShowPreview` behavior, every GoF/DevOps layer clears the rich-
+    description threshold) and two new e2e tests in
+    `tests/e2e/sequence-diagram.spec.js` (hovering a GoF layer and a DevOps
+    layer each show the `.is-text` popup with the right name/description).
+
 ## v1.51.0 (2026-09-01)
 
 - **3D Presentation Mode's control bar is now repositionable and has a compact

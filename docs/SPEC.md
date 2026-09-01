@@ -76,9 +76,22 @@ owner; code/UI/comments are English only.
 
 #### 4.2.1 Layers & Roles
 A `kind: 'layer'` item (Controller, Service, DAL, Authentication, React
-Hook, Angular Guard, DDD building blocks, ~100 items total — see
+Hook, Angular Guard, DDD building blocks, ~130 items total — see
 `js/data/categories/layers.js`) represents a code-level building block
 rather than an infrastructure component. Unlike other items:
+- Two themed sub-sets within the same library carry a full multi-sentence
+  description (what it is, how it's typically implemented, when to use it)
+  instead of the shorter one-liner most layers use: 26 classic Gang-of-Four
+  design patterns tagged `gof` (Singleton, Factory, Adapter, Builder,
+  Decorator, Facade, Observer, Strategy and their supporting roles, plus
+  Abstract Factory, Prototype, Bridge, Composite, Flyweight, Proxy, Chain of
+  Responsibility, Command, Iterator, Mediator, Memento, State, Template
+  Method, Visitor), and 9 common DevOps/release-engineering patterns tagged
+  `devops` (Blue-Green Deployment, Canary Release, Rolling Deployment,
+  Immutable Infrastructure, Infrastructure as Code, GitOps, Feature Flag,
+  Zero-Downtime Deployment, Chaos Engineering). Hovering (or
+  keyboard-focusing) one of these in the sidebar shows a formatted popup with
+  the full description — see 4.2.11.
 - Dropping one **onto an existing node** attaches it as a sub-component of
   that node instead of creating a separate node (a green dashed outline
   previews the attach target while dragging).
@@ -273,6 +286,17 @@ entry. Favorites is personal library data, like "My Components" — persisted
 separately in `localStorage` (`js/io/favorites.js`), not part of the
 project file, unaffected by undo/redo or "New Project", and included in the
 full-backup export/import (4.7.3).
+
+#### 4.2.11 Sidebar hover-preview popup
+Every sidebar item already shows a native single-line tooltip (its
+description, or name if it has none). Hovering (or keyboard-focusing) an
+item whose description is long enough that a single-line tooltip isn't a
+comfortable way to read it instead shows a floating, formatted popup with
+the item's icon, name, and full description — this is how the "design
+pattern" layers in 4.2.1 explain what a pattern is, how it's typically
+implemented, and when to use it. The same popup mechanism (originally built
+for Sequence Diagram Templates, 4.15) shows a small SVG sketch of a
+template's lifelines/messages instead of text when hovering one of those.
 
 ### 4.3 Canvas node interactions
 - Drag to move, resize via handles, rotate not required.

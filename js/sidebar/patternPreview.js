@@ -1,11 +1,18 @@
-// Hover-preview thumbnail for a sequence-diagram template's sidebar item —
-// a small SVG sketch of its lifelines and messages, shown on hover/focus so
-// a user can see roughly what a template contains before dropping it in.
-// Pure DOM/SVG, no store access; only wired onto items that pass
-// isSequenceDiagramPattern (all-lifeline patterns — see
-// data/categories/sequence-templates.js and componentData.test.mjs's own
-// definition of what makes a template one of these).
+// Hover-preview popup for a sidebar item — either a small SVG sketch of a
+// sequence-diagram template's lifelines/messages, or (more generally) a
+// formatted text block for any item whose `description` is too long to read
+// comfortably in a single-line native `title` tooltip (e.g. the GoF/DevOps
+// "design pattern" layers in data/categories/layers.js — what it is, why,
+// and when to use it, packed into one multi-sentence description). Pure
+// DOM/SVG, no store access; wired from sidebar.js#renderItem via
+// `shouldShowPreview`/`attachPatternPreview` below.
 import { el, svgEl } from '../utils/dom.js';
+
+// Below this length, the native `title` attribute (already set on every
+// sidebar item — see sidebar.js#renderItem) is a perfectly fine tooltip on
+// its own; above it, a wrapped multi-line popup reads far better than a
+// browser tooltip crammed onto a couple of long lines.
+const RICH_DESCRIPTION_MIN_LENGTH = 80;
 
 const WIDTH_PER_LIFELINE = 56;
 const MIN_WIDTH = 150;
@@ -80,6 +87,27 @@ function buildPreviewSvg(def) {
   return svg;
 }
 
+function hasRichDescription(def) {
+  return typeof def?.description === 'string' && def.description.length >= RICH_DESCRIPTION_MIN_LENGTH;
+}
+
+/** Whether `def`'s sidebar item should get a hover popup at all (beyond its
+ * plain `title` tooltip, which every item already has) — either the
+ * sequence-diagram SVG sketch or a formatted-text description block. */
+export function shouldShowPreview(def) {
+  return isSequenceDiagramPattern(def) || hasRichDescription(def);
+}
+
+function buildDescriptionPreview(def) {
+  const box = el('div', { class: 'pattern-preview-text' });
+  box.appendChild(el('div', { class: 'pattern-preview-text-header' }, [
+    el('span', { class: 'pattern-preview-text-icon', text: def.icon, 'aria-hidden': 'true' }),
+    el('span', { class: 'pattern-preview-text-name', text: def.name }),
+  ]));
+  box.appendChild(el('p', { class: 'pattern-preview-text-body', text: def.description }));
+  return box;
+}
+
 let popupEl = null;
 let showTimer = null;
 
@@ -96,8 +124,9 @@ export function hidePatternPreview() {
 
 function showPopup(item, def) {
   hidePatternPreview();
-  const popup = el('div', { class: 'pattern-preview-popup' });
-  popup.appendChild(buildPreviewSvg(def));
+  const isSvg = isSequenceDiagramPattern(def);
+  const popup = el('div', { class: `pattern-preview-popup${isSvg ? '' : ' is-text'}` });
+  popup.appendChild(isSvg ? buildPreviewSvg(def) : buildDescriptionPreview(def));
   document.body.appendChild(popup);
   popupEl = popup;
 
@@ -117,7 +146,7 @@ function showPopup(item, def) {
 
 /** Wires hover (with a small delay, so scrolling past several items doesn't
  * flash a popup per item) and keyboard-focus show/hide onto `item` for the
- * given sequence-diagram template `def`. */
+ * given sidebar def — only called when `shouldShowPreview(def)` is true. */
 export function attachPatternPreview(item, def) {
   const start = () => {
     clearTimeout(showTimer);

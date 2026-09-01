@@ -138,6 +138,17 @@ Same `c()` call, add `kind: 'layer'`. See `js/data/categories/layers.js` for the
 for code-level building blocks (Controller, Service, DAL, ...) that make more sense as an addition
 to an existing node than as their own box.
 
+**A named coding/DevOps "design pattern" role** (Singleton, Adapter, Blue-Green Deployment, ...) is
+the same `kind: 'layer'` call, just held to a higher bar for `description`: write the full 2-4
+sentence "what it is / how it's typically implemented / when to reach for it" explanation (see the
+`gof`/`devops`-tagged entries in `layers.js` for the expected depth and tone), not the short
+one-liner most other layers use. This matters mechanically, not just stylistically —
+`sidebar/patternPreview.js#hasRichDescription` gates a richer hover-preview popup (full formatted
+text, not just the plain `title` tooltip) on `description.length >= 80`; a pattern layer with a
+short description silently loses that popup. Tag it `gof` for a Gang-of-Four pattern or `devops` for
+a deployment/release-engineering pattern (alongside `pattern`), so it's filterable/greppable as a
+themed set the way the existing ones are.
+
 ## A design pattern (one-click multi-node blueprint)
 
 ```js

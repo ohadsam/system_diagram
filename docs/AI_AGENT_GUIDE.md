@@ -40,7 +40,7 @@ this repo" quick-start.
 |-------------------------------------------------|------------|
 | Add a predefined component                       | `js/data/categories/<category>.js` |
 | Add a new category                                | new file in `js/data/categories/` + import in `js/data/index.js` |
-| Add a "layer/role" (attachable to any node)       | `js/data/categories/layers.js` — just `c(id, name, icon, { kind: 'layer', ... })` |
+| Add a "layer/role" (attachable to any node)       | `js/data/categories/layers.js` — just `c(id, name, icon, { kind: 'layer', ... })`. A GoF coding pattern or DevOps deployment pattern is the same call with `tags: [..., 'gof']`/`tags: [..., 'devops']` and a full multi-sentence `description` (what/how/when) — see the existing entries for the depth expected; a description ≥80 chars automatically gets the richer hover-preview popup instead of just the plain `title` tooltip (`sidebar/patternPreview.js#hasRichDescription`) |
 | Add a "design pattern" (multi-node blueprint)     | `js/data/categories/design-patterns.js` — `definePattern(id, name, icon, { nodes, edges })`, node `defId`s must reference real components/layers |
 | Add/change a "Smart Suggestions" companion pairing | `related: ['other-id']` in the `c(...)` call — see `add-library-item` skill's "Smart Suggestions" section for the curation bar |
 | Add/change a "Smart Suggestions" sub-component pairing | `relatedLayers: ['layer-id']` in the `c(...)` call (ids must be `kind: 'layer'`) — same curation bar, same skill section |

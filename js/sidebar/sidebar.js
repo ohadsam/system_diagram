@@ -14,7 +14,7 @@ import {
 import { el, clear } from '../utils/dom.js';
 import { filterComponents, normalize, componentMatches } from './search.js';
 import { makeDraggable } from './dragSource.js';
-import { attachPatternPreview, isSequenceDiagramPattern, hidePatternPreview } from './patternPreview.js';
+import { attachPatternPreview, shouldShowPreview, hidePatternPreview } from './patternPreview.js';
 import { showContextMenu } from '../canvas/contextMenu.js';
 import { confirmAction } from '../modals/confirmModal.js';
 import { promptText } from '../modals/promptModal.js';
@@ -552,7 +552,7 @@ function renderItem(def, q, opts = {}) {
   if (isFavorite(def.id)) item.appendChild(el('span', { class: 'item-favorite-badge', text: '🔖', title: 'In your Favorites', 'aria-hidden': 'true' }));
   if (def.kind === 'layer') item.appendChild(el('span', { class: 'item-kind-badge kind-layer', text: '+', title: 'Can attach to a component', 'aria-hidden': 'true' }));
   if (def.kind === 'pattern') item.appendChild(el('span', { class: 'item-kind-badge kind-pattern', text: '⎈', title: 'Adds a group of components', 'aria-hidden': 'true' }));
-  if (isSequenceDiagramPattern(def)) attachPatternPreview(item, def);
+  if (shouldShowPreview(def)) attachPatternPreview(item, def);
 
   makeDraggable(item, def.id);
   item.addEventListener('keydown', (e) => {
