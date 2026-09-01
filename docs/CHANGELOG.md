@@ -3,6 +3,45 @@
 All notable changes to this project. Format: date, then bullet list.
 Keep this in sync with `PLAN.md` as stages complete.
 
+## v1.51.0 (2026-09-01)
+
+- **3D Presentation Mode's control bar is now repositionable and has a compact
+  mode** (`js/io/uiPrefs.js`, `js/canvas/scene3dOverlay.js`, `css/toolbar.css`)
+  — two new persisted preferences, `scene3dBarPosition` (`'bottom'` default,
+  `'top'`/`'left'`/`'right'`) and `scene3dBarCompact` (`false` default), set
+  from a new "⚙️ Layout" button/panel alongside "🎬 Camera Tour":
+  - The bar (main controls + both floating panels) is a single flex container
+    now rather than several independently-`position: fixed` elements each
+    guessing a sibling's size; `data-position` on that container drives which
+    edge it's anchored to and CSS `order` on its children (not
+    `flex-direction: row-reverse`/`column-reverse`, to keep the four positions'
+    rules symmetric and easy to reason about) keeps the always-visible controls
+    row nearest the anchored edge and either open panel expanding toward the
+    screen's center, at all four positions.
+  - Docking left/right switches the controls row itself from wrapped
+    horizontal rows to a single scrollable vertical column (`overflow-y: auto`
+    with a `max-height`), so it hugs the side of the screen instead of eating
+    half its width, and never becomes unreachable at a short viewport height —
+    the exact "tall Tools dropdown" class of bug this repo has hit before.
+  - Deliberately **not** flipped for `[dir="rtl"]`: docking "left"/"right" is a
+    literal "which physical side of my screen" choice independent of the
+    app's own Hebrew/RTL text-direction setting, unlike this file's other
+    position:fixed elements that intentionally do flip with reading direction.
+  - Compact mode hides each control button's text-label `<span>` via CSS
+    (`makeSceneBtn` in `scene3dOverlay.js` now builds every main-row button
+    with a separate icon/label span pair) while every button keeps a real
+    `title` and `aria-label` — added/improved on `▶️ Play Animation` and
+    `✕ Close 3D View`, which had no tooltip at all before this batch — so a
+    screen reader or a hover still gets a full description in either mode.
+  - Both preferences persist via `localStorage` (`io/uiPrefs.js`, same
+    mechanism as the contextual style row's floating/pinned modes) across
+    closing/reopening the 3D view and across a full page reload.
+  - Added `tests/unit/uiPrefs.test.mjs` coverage for the new fields' defaults/
+    validation, and e2e coverage in `tests/e2e/scene3d.spec.js` for tooltip
+    presence, position persistence, compact-mode label hiding, and no
+    horizontal overflow at all four positions at desktop, tablet-narrow, and
+    mobile widths.
+
 ## Unreleased
 
 - Initial build: full client-side system design diagram builder per

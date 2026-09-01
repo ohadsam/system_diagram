@@ -1943,10 +1943,27 @@ full-viewport overlay, for presenting rather than editing:
   step if no tour is configured, or a single overview slide if neither
   exists), each showing that shot's/step's exact camera framing and reveal
   state as a full-size image.
+- **"⚙️ Layout"** opens a panel for customizing the control bar itself:
+  - **Dock to** Top/Bottom/Left/Right — moves the whole bar (main controls
+    plus whichever floating panel is open) to that edge of the screen.
+    Docking to the left or right switches the controls from wrapped
+    horizontal rows into a single scrollable vertical column that hugs that
+    edge instead. Whichever panel is open always grows toward the center of
+    the screen, away from the docked edge.
+  - **Icons + Text / Icons Only** — switches every control-bar button
+    between showing its full label or just its icon, for a smaller
+    footprint (especially useful once docked to the left/right of a
+    narrower screen). Every button keeps a full tooltip and a real
+    accessible name in either mode.
+  - Both choices are remembered across closing/reopening the 3D view and
+    across reloading the page.
 - Closing the overlay (✕ or `Esc`) returns to normal editing; nothing
-  about the 3D view (including any Camera Tour) is itself saved as diagram
-  data — a tour lives only for the current 3D session, the same as the
-  camera's own position.
+  about the 3D view (including any Camera Tour, or the control bar's own
+  dock position/compact choice) is itself saved as diagram data — a tour
+  lives only for the current 3D session, the same as the camera's own
+  position, though the dock position/compact choice persist as a browser
+  setting the same way the contextual style row's floating/pinned mode
+  does.
 
 ### 4.72 Demo Projects
 "🎓 Demo Projects" (Create menu) opens a picker listing one ready-made

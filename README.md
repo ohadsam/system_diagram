@@ -450,7 +450,10 @@ Or open `index.html` directly in a browser.
   plays them back with smooth eased transitions (an optional loop);
   "🎥 Export 3D Video" and a new "📊 Export 3D Presentation" (a real
   `.pptx`, one slide per tour shot) both use the configured tour to drive
-  the recording, in either 3D look.
+  the recording, in either 3D look. A "⚙️ Layout" panel lets you dock the
+  whole control bar to the top, bottom, left, or right of the screen, and
+  switch its buttons between icon+text and icons-only — both remembered
+  across reopening the view and reloading the page.
 - **🪄 AI Beautify Layout** — asks an AI to suggest a nicer arrangement of
   your existing components (Tools menu); only positions change.
 - **🎙️ Voice dictation** — a mic button appears on every AI text field

@@ -99,12 +99,12 @@ test('"🎬 Camera Tour" panel: manual add, auto-generate, reorder-free remove, 
   const tourBtn = page.locator('.scene3d-controls button', { hasText: 'Camera Tour' });
   await tourBtn.click();
   await expect(page.locator('.scene3d-tour-panel')).toHaveClass(/open/);
-  await expect(page.locator('.scene3d-tour-empty')).toBeVisible();
+  await expect(page.locator('.scene3d-panel-empty')).toBeVisible();
 
   // Manual: capturing the current view adds exactly one shot.
   await page.locator('.scene3d-tour-actions button', { hasText: 'Add Current View' }).click();
   await expect(page.locator('.scene3d-tour-row')).toHaveCount(1);
-  await expect(page.locator('.scene3d-tour-count')).toHaveText('1 shot');
+  await expect(page.locator('.scene3d-panel-count')).toHaveText('1 shot');
 
   // Auto-generate replaces it with one shot per component plus an overview.
   await page.locator('.scene3d-tour-actions button', { hasText: 'Auto-Generate' }).click();
@@ -114,7 +114,7 @@ test('"🎬 Camera Tour" panel: manual add, auto-generate, reorder-free remove, 
   // Removing one shot updates the list and count together.
   await page.locator('.scene3d-tour-row').first().locator('.scene3d-tour-row-remove').click();
   await expect(page.locator('.scene3d-tour-row')).toHaveCount(2);
-  await expect(page.locator('.scene3d-tour-count')).toHaveText('2 shots');
+  await expect(page.locator('.scene3d-panel-count')).toHaveText('2 shots');
 
   // Playback toggles the button label and can be stopped mid-flight without
   // closing the 3D view.
@@ -128,7 +128,7 @@ test('"🎬 Camera Tour" panel: manual add, auto-generate, reorder-free remove, 
   // Clear empties the list again.
   await page.locator('.scene3d-tour-actions button', { hasText: 'Clear' }).click();
   await expect(page.locator('.scene3d-tour-row')).toHaveCount(0);
-  await expect(page.locator('.scene3d-tour-empty')).toBeVisible();
+  await expect(page.locator('.scene3d-panel-empty')).toBeVisible();
 });
 
 test('dragging to orbit the camera stops an in-progress Camera Tour', async ({ page }) => {
@@ -216,4 +216,84 @@ test('"📊 Export 3D Presentation" downloads a .pptx, one slide per Camera Tour
   expect(download.suggestedFilename()).toMatch(/\.pptx$/);
   const path = await download.path();
   expect(path).toBeTruthy();
+});
+
+test('"⚙️ Layout" panel: every main button has a tooltip, docking position persists, and compact mode hides text labels', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await addComponentByName(page, 'PostgreSQL');
+
+  await openToolbarGroup(page, 'Tools');
+  await page.locator('#toolbar button', { hasText: '3D Presentation' }).click();
+  await expect(page.locator('.scene3d-overlay')).toHaveClass(/open/);
+  await page.waitForTimeout(800);
+
+  // Every main control-bar button has a real, non-empty tooltip explaining
+  // what it does — essential once compact mode can hide its visible text.
+  const titles = await page.locator('.scene3d-controls button').evaluateAll(
+    (btns) => btns.map((b) => b.getAttribute('title')),
+  );
+  for (const title of titles) {
+    expect(title, `every scene3d-controls button needs a real title, got: ${JSON.stringify(titles)}`).toBeTruthy();
+    expect(title.length).toBeGreaterThan(5);
+  }
+
+  await expect(page.locator('.scene3d-bar')).toHaveAttribute('data-position', 'bottom');
+
+  const layoutBtn = page.locator('.scene3d-controls button', { hasText: 'Layout' });
+  await layoutBtn.click();
+  await expect(page.locator('.scene3d-layout-panel')).toHaveClass(/open/);
+
+  // Docking to the right updates the bar's data-position immediately.
+  await page.locator('.scene3d-layout-choice-btn', { hasText: 'Right' }).click();
+  await expect(page.locator('.scene3d-bar')).toHaveAttribute('data-position', 'right');
+
+  // Switching to icons-only hides every label span without removing the
+  // button (icon + accessible name stay put).
+  await expect(page.locator('.scene3d-controls .scene3d-btn-label').first()).toBeVisible();
+  await page.locator('.scene3d-layout-choice-btn', { hasText: 'Icons Only' }).click();
+  await expect(page.locator('.scene3d-controls .scene3d-btn-label').first()).toBeHidden();
+  await expect(page.locator('.scene3d-controls button.scene3d-close')).toHaveAttribute('aria-label', 'Close 3D View');
+
+  // Both choices persist (io/uiPrefs.js) across closing and reopening the
+  // 3D view, and even a full reload.
+  await page.locator('.scene3d-close').click();
+  await expect(page.locator('.scene3d-overlay')).not.toHaveClass(/open/);
+  await page.reload();
+  await page.locator('#toolbar button.toolbar-dropdown-trigger', { hasText: 'Tools' }).click();
+  await page.locator('#toolbar button', { hasText: '3D Presentation' }).click();
+  await expect(page.locator('.scene3d-overlay')).toHaveClass(/open/);
+  await page.waitForTimeout(800);
+  await expect(page.locator('.scene3d-bar')).toHaveAttribute('data-position', 'right');
+  await expect(page.locator('.scene3d-controls .scene3d-btn-label').first()).toBeHidden();
+
+  // Restore icons+text and bottom docking so this test doesn't leak state
+  // into whichever spec runs after it in the same browser context.
+  await page.locator('.scene3d-controls button', { hasText: '⚙️' }).click();
+  await page.locator('.scene3d-layout-choice-btn', { hasText: 'Icons + Text' }).click();
+  await page.locator('.scene3d-layout-choice-btn', { hasText: 'Bottom' }).click();
+});
+
+test('the 3D control bar docks correctly at all four positions with no horizontal overflow, at desktop and mobile widths', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await addComponentByName(page, 'PostgreSQL');
+
+  await openToolbarGroup(page, 'Tools');
+  await page.locator('#toolbar button', { hasText: '3D Presentation' }).click();
+  await expect(page.locator('.scene3d-overlay')).toHaveClass(/open/);
+  await page.waitForTimeout(800);
+
+  await page.locator('.scene3d-controls button', { hasText: 'Layout' }).click();
+  for (const label of ['Top', 'Bottom', 'Left', 'Right']) {
+    // eslint-disable-next-line no-await-in-loop -- each position must be applied before checking it
+    await page.locator('.scene3d-layout-choice-btn', { hasText: label }).click();
+    // eslint-disable-next-line no-await-in-loop
+    await page.waitForTimeout(150);
+    // eslint-disable-next-line no-await-in-loop
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
+    expect(overflow, `docking to ${label} should not force page-wide horizontal scroll`).toBe(true);
+    // eslint-disable-next-line no-await-in-loop
+    const closeBox = await page.locator('.scene3d-controls button.scene3d-close').boundingBox();
+    expect(closeBox.x).toBeGreaterThanOrEqual(0);
+    expect(closeBox.y).toBeGreaterThanOrEqual(0);
+  }
 });

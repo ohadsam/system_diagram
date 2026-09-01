@@ -579,26 +579,83 @@ body.kiosk-mode .kiosk-exit-btn {
   cursor: grabbing;
 }
 
-/* Shared wrapper for .scene3d-controls and .scene3d-tour-panel — a single
-   `position: fixed` anchor with the two stacked via normal flex flow
-   (`column-reverse` so the last DOM child, the controls row, always ends
-   up at the bottom-most slot) rather than each guessing the other's
-   height with a fixed pixel offset. `.scene3d-controls` wraps onto 2-3
-   lines well before mobile width once every button here is present, and a
-   fixed `bottom` gap sized for one row visibly overlapped the wrapped rows
-   underneath — confirmed via an actual mobile-width screenshot, not just
-   code review. */
-.scene3d-bottom-bar {
+/* Shared wrapper for .scene3d-controls and its floating panels (🎬 Camera
+   Tour, ⚙️ Layout) — a single `position: fixed` anchor with its children
+   stacked via normal flex flow and `order` (see the `[data-position=...]`
+   rules below) rather than each guessing a sibling's size/offset with a
+   fixed pixel gap. `.scene3d-controls` wraps onto 2-3 lines well before
+   mobile width once every button here is present, and a fixed gap sized
+   for one row visibly overlapped the wrapped rows underneath it — found
+   via an actual mobile-width screenshot, not just code review — so this
+   layout is deliberately measurement-free: the anchored edge's own row
+   (controls) and the away-from-edge row/column (either panel) size
+   themselves from real content, always. Dock position and the compact/
+   expanded button style are both user preferences (`io/uiPrefs.js`'s
+   `scene3dBarPosition`/`scene3dBarCompact`), applied via `canvas/
+   scene3dOverlay.js#applyBarPrefs` as the `data-position` attribute and
+   the `.compact` class below. */
+.scene3d-bar {
   position: fixed;
-  left: 50%;
-  bottom: var(--space-4);
-  transform: translateX(-50%);
   display: flex;
-  flex-direction: column-reverse;
-  align-items: center;
   gap: var(--space-2);
+  z-index: var(--z-scene3d);
   max-width: calc(100vw - var(--space-4) * 2);
   max-height: calc(100vh - var(--space-4) * 2);
+}
+
+/* Bottom (the default, matching how this first shipped) / top: the bar
+   runs horizontally, centered; whichever isn't the anchored edge is where
+   an open panel grows toward, away from the controls row. */
+.scene3d-bar[data-position="bottom"],
+.scene3d-bar[data-position="top"] {
+  left: 50%;
+  transform: translateX(-50%);
+  flex-direction: column;
+  align-items: center;
+}
+.scene3d-bar[data-position="bottom"] { bottom: var(--space-4); }
+.scene3d-bar[data-position="top"] { top: var(--space-4); }
+/* Controls sit nearest the anchored edge (lowest `order` = nearest the top
+   of a plain column, which for a *bottom*-anchored fixed box is visually
+   the bottom-most position, since the box's own bottom edge is what's
+   pinned) and panels grow toward the opposite, unanchored edge. */
+.scene3d-bar[data-position="bottom"] .scene3d-controls { order: 2; }
+.scene3d-bar[data-position="bottom"] .scene3d-panel { order: 1; }
+.scene3d-bar[data-position="top"] .scene3d-controls { order: 1; }
+.scene3d-bar[data-position="top"] .scene3d-panel { order: 2; }
+
+/* Left/right: the bar runs vertically along that edge instead — its
+   buttons stack in a single column (not the wrapped horizontal rows used
+   at top/bottom) so it hugs the side without eating half the screen
+   width, scrolling internally if there isn't enough vertical room rather
+   than clipping the last button unreachably (the same "tall Tools dropdown"
+   pitfall this repo has hit before — see docs/AI_AGENT_GUIDE.md). Panels
+   open toward the screen's center. Deliberately NOT flipped for
+   [dir="rtl"]: this is a literal "which physical side of my screen" choice
+   the user makes for their own layout, independent of the app's own
+   text-direction setting — unlike the toast/drawer offsets elsewhere in
+   this file that intentionally do flip with reading direction. */
+.scene3d-bar[data-position="left"],
+.scene3d-bar[data-position="right"] {
+  top: 50%;
+  transform: translateY(-50%);
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+.scene3d-bar[data-position="left"] { left: var(--space-4); }
+.scene3d-bar[data-position="right"] { right: var(--space-4); }
+.scene3d-bar[data-position="left"] .scene3d-controls { order: 1; }
+.scene3d-bar[data-position="left"] .scene3d-panel { order: 2; }
+.scene3d-bar[data-position="right"] .scene3d-controls { order: 2; }
+.scene3d-bar[data-position="right"] .scene3d-panel { order: 1; }
+.scene3d-bar[data-position="left"] .scene3d-controls,
+.scene3d-bar[data-position="right"] .scene3d-controls {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  max-height: calc(100vh - var(--space-4) * 2);
+  overflow-y: auto;
 }
 
 .scene3d-controls {
@@ -617,16 +674,29 @@ body.kiosk-mode .kiosk-exit-btn {
   color: var(--color-primary);
 }
 
-/* "🎬 Camera Tour" floating panel (canvas/scene3dOverlay.js) — sits just
-   above .scene3d-controls, centered the same way (left:50% + translateX,
-   never a literal left/right offset) so it needs no [dir="rtl"] override:
-   dead-centered content is direction-agnostic. Hidden by default the same
-   way .scene3d-overlay itself is (display toggled via the `.open` class,
-   not a body-class selector), since it's independent per-open UI state. */
-.scene3d-tour-panel {
+/* "⚙️ Layout"'s compact mode hides just the text-label span, leaving the
+   icon and the button's `title`/`aria-label` (set in scene3dOverlay.js)
+   intact — so it stays fully described for a screen reader or on hover
+   even with no visible text. Scoped to .scene3d-controls' own buttons
+   only (built via makeSceneBtn's icon+label span split); the floating
+   panels' own action buttons (📍 Add Current View, ✨ Auto-Generate, ...)
+   always show full text — they only appear inside an already-open,
+   already-spacious panel, so compacting them further isn't worth the
+   extra indirection. */
+.scene3d-bar.compact .scene3d-controls .scene3d-btn-label {
   display: none;
-  width: min(420px, calc(100vw - var(--space-4) * 2));
-  max-height: min(50vh, 420px);
+}
+
+/* Shared box styling for both floating panels (🎬 Camera Tour, ⚙️ Layout) —
+   hidden by default the same way .scene3d-overlay itself is (display
+   toggled via the `.open` class, not a body-class selector), since each is
+   independent per-open UI state, not part of the diagram itself. Position
+   comes entirely from being a flex child of `.scene3d-bar` (see above) —
+   these panels carry no `position`/`left`/`right` of their own, so they
+   never need a [dir="rtl"] override regardless of which edge the bar is
+   docked to. */
+.scene3d-panel {
+  display: none;
   overflow-y: auto;
   background: #11172a;
   border: 1px solid rgba(148, 163, 184, 0.3);
@@ -637,22 +707,72 @@ body.kiosk-mode .kiosk-exit-btn {
   flex-shrink: 0;
 }
 
-.scene3d-tour-panel.open {
+.scene3d-panel.open {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
 }
 
-.scene3d-tour-header {
+.scene3d-tour-panel {
+  width: min(420px, calc(100vw - var(--space-4) * 2));
+  max-height: min(50vh, 420px);
+}
+
+.scene3d-layout-panel {
+  width: min(260px, calc(100vw - var(--space-4) * 2));
+}
+
+.scene3d-panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
 }
 
-.scene3d-tour-count {
+.scene3d-panel-count {
   font-size: 0.8em;
   color: #94A3B8;
+}
+
+.scene3d-panel-empty {
+  font-size: 0.85em;
+  color: #94A3B8;
+  padding: var(--space-2) 0;
+}
+
+.scene3d-layout-section-label {
+  font-size: 0.75em;
+  color: #94A3B8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-top: var(--space-1, 4px);
+}
+
+.scene3d-layout-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1, 4px);
+}
+
+.scene3d-layout-choice-btn {
+  background: rgba(148, 163, 184, 0.08);
+  border: 1px solid transparent;
+  color: #F9FAFB;
+  cursor: pointer;
+  padding: 6px 10px;
+  font-size: 0.85em;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.scene3d-layout-choice-btn:hover {
+  background: rgba(148, 163, 184, 0.18);
+}
+
+.scene3d-layout-choice-btn.active {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
 }
 
 .scene3d-tour-list {
@@ -661,12 +781,6 @@ body.kiosk-mode .kiosk-exit-btn {
   gap: var(--space-1, 4px);
   max-height: 220px;
   overflow-y: auto;
-}
-
-.scene3d-tour-empty {
-  font-size: 0.85em;
-  color: #94A3B8;
-  padding: var(--space-2) 0;
 }
 
 .scene3d-tour-row {

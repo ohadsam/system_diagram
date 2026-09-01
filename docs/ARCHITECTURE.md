@@ -4174,13 +4174,67 @@ playback code):
     button this batch adds (Camera Tour, Export Presentation, ...) that
     row wraps onto 2-3 lines well before mobile width, so the fixed offset
     put the panel overlapping the wrapped rows underneath instead of above
-    them. Fixed by wrapping both in one `.scene3d-bottom-bar` flex
-    container (`flex-direction: column-reverse`, so the last DOM child —
-    the controls row — always lands in the bottom-most slot) instead of
-    two independently-positioned elements each guessing the other's
-    height; verified via `page.evaluate(() =>
-    document.documentElement.scrollWidth <= window.innerWidth)` plus a
-    real screenshot at 390×844, 768×1024, and a short 1280×600 desktop.
+    them. Fixed by wrapping both in one shared flex container (originally
+    `.scene3d-bottom-bar`, since generalized into `.scene3d-bar` — see the
+    "⚙️ Layout" section right below) instead of two independently-positioned
+    elements each guessing the other's height; verified via
+    `page.evaluate(() => document.documentElement.scrollWidth <=
+    window.innerWidth)` plus a real screenshot at 390×844, 768×1024, and a
+    short 1280×600 desktop.
+
+  **"⚙️ Layout" — dockable control bar + compact mode
+  (`io/uiPrefs.js`'s `scene3dBarPosition`/`scene3dBarCompact`,
+  `canvas/scene3dOverlay.js`, `css/toolbar.css`'s `.scene3d-bar[data-position=...]`
+  rules).** A follow-up batch generalized the bottom-only bar above into one
+  the user can dock to any of the four screen edges, and switch between
+  icon+text and icon-only buttons — both persisted the same way the
+  contextual style row's floating/pinned modes already are
+  (`saveUiPrefs`/`getUiPrefs`, `io/uiPrefs.js`).
+  - **One flex container, `order` (not `flex-direction: row-reverse`/
+    `column-reverse`), per position.** `.scene3d-bar`'s DOM order is fixed
+    (`[tourPanel, layoutPanel, controls]`); its `data-position` attribute
+    (set by `canvas/scene3dOverlay.js#applyBarPrefs`) picks a
+    `flex-direction` (`column` for top/bottom, `row` for left/right) and
+    assigns `order` to `.scene3d-controls` vs. `.scene3d-panel` so the
+    always-visible controls row ends up nearest whichever edge the bar is
+    anchored to and either open panel (Tour or Layout — mutually exclusive,
+    only one shows at a time) grows toward the screen's center instead.
+    Using `order` instead of flipping `flex-direction` between
+    `column`/`column-reverse` per position keeps all four positions'
+    CSS symmetric and easy to verify by inspection, rather than needing to
+    separately reason about the reversed layout's visual result each time.
+  - **Left/right re-layouts the controls row itself**, not just the bar:
+    `.scene3d-bar[data-position="left"] .scene3d-controls` (and `"right"`)
+    switch from wrapped horizontal rows to a single non-wrapping vertical
+    column with `overflow-y: auto` and a `max-height` capped to the
+    viewport — the same "a tall button group can render past the bottom of
+    a short viewport with no scrollbar to reach it" gotcha this repo has
+    hit before with the Tools dropdown (see this file's own note on that),
+    deliberately guarded against here up front rather than found the hard
+    way again.
+  - **Deliberately not flipped for `[dir="rtl"]`.** Every other
+    `position: fixed` element in this app that uses a literal `left`/
+    `right` offset does need a `[dir="rtl"]` override (a toast, a drawer —
+    things that should visually follow reading direction). This bar is the
+    one exception: "dock to the left/right of my screen" is the user's own
+    physical-layout choice, unrelated to whether they've also turned on
+    Hebrew/RTL mode elsewhere in the app, so `left`/`right` here always mean
+    the same physical side regardless of `dir`.
+  - **Compact mode hides text, not accessibility.** `scene3dOverlay.js`'s
+    `makeSceneBtn` helper builds every main-row button with the icon and
+    label as separate child `<span>`s (`.scene3d-btn-icon`/
+    `.scene3d-btn-label`) plus a real `title` *and* `aria-label` set
+    independently of which is currently visible; `.scene3d-bar.compact
+    .scene3d-controls .scene3d-btn-label { display: none; }` hides just the
+    label span, so a screen reader (or a hover, in expanded mode) always has
+    a full description even with no visible text. Buttons whose content
+    changes at runtime (▶️/⏹️ Play-Stop, the export buttons' "Recording…"/
+    "Exporting…" states) go through the same helper's `setContent(icon,
+    label)` rather than a raw `textContent` write, so they stay compact-mode-
+    aware automatically. Scoped to `.scene3d-controls`' own buttons only —
+    the floating panels' own action buttons (📍 Add Current View, ✨
+    Auto-Generate, ...) always show full text, since they only appear inside
+    an already-open, already-spacious panel.
 
 ## Demo Projects (`core/demoProjects.js`, `modals/demoProjectsModal.js`)
 

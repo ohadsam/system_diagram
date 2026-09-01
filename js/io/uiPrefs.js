@@ -10,6 +10,9 @@ const KEY = 'prefs';
 const listeners = new Set();
 
 export const CONTEXT_ROW_MODES = ['floating', 'pinned-top', 'pinned-bottom'];
+// canvas/scene3dOverlay.js's control bar (and its 🎬 Camera Tour / ⚙️
+// Layout floating panels) — which screen edge it docks to.
+export const SCENE3D_BAR_POSITIONS = ['bottom', 'top', 'left', 'right'];
 // panel/aiChatPanel.js's own screen position — 'right' behaves like the AI
 // Design Review panel (in-flow, docked), 'bottom' is a fixed drawer along
 // the bottom edge, 'floating' is a freely draggable card (see
@@ -88,6 +91,13 @@ export const DEFAULT_UI_PREFS = {
   // just a discoverability aid for anyone browsing many actions at once
   // (or on a touch device, where hover tooltips don't really exist).
   showActionDescriptions: false,
+  // canvas/scene3dOverlay.js — where its control bar docks on screen
+  // ('bottom' by default, matching how it originally shipped), and
+  // whether its buttons show icon+text or just icons ('compact'), for
+  // anyone who wants it out of the way of the diagram itself or wants
+  // more of it visible at once.
+  scene3dBarPosition: 'bottom',
+  scene3dBarCompact: false,
 };
 
 export function getUiPrefs() {
@@ -96,6 +106,8 @@ export function getUiPrefs() {
     ...DEFAULT_UI_PREFS,
     ...stored,
     contextRowMode: CONTEXT_ROW_MODES.includes(stored.contextRowMode) ? stored.contextRowMode : DEFAULT_UI_PREFS.contextRowMode,
+    scene3dBarPosition: SCENE3D_BAR_POSITIONS.includes(stored.scene3dBarPosition) ? stored.scene3dBarPosition : DEFAULT_UI_PREFS.scene3dBarPosition,
+    scene3dBarCompact: typeof stored.scene3dBarCompact === 'boolean' ? stored.scene3dBarCompact : DEFAULT_UI_PREFS.scene3dBarCompact,
     theme: THEME_MODES.includes(stored.theme) ? stored.theme : DEFAULT_UI_PREFS.theme,
     language: LANGUAGES.includes(stored.language) ? stored.language : DEFAULT_UI_PREFS.language,
     aiChatDockMode: AI_CHAT_DOCK_MODES.includes(stored.aiChatDockMode) ? stored.aiChatDockMode : DEFAULT_UI_PREFS.aiChatDockMode,

@@ -2,9 +2,18 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.50.0';
+export const APP_VERSION = '1.51.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.51.0',
+    date: '2026-09-01',
+    highlights: [
+      '🧊 3D Presentation Mode\'s control bar is now fully repositionable — click "⚙️ Layout" to dock it to the top, bottom, left, or right of the screen, in either the default view or Realistic Room. The 🎬 Camera Tour panel and the Layout panel itself always dock alongside it, opening toward the center of the screen from whichever edge you pick.',
+      '🧊 The same "⚙️ Layout" panel switches every 3D control button between "Icons + Text" (the original look) and "Icons Only", for a much smaller footprint when docked to the left/right of a narrower screen. Every button keeps a full tooltip and accessible name either way, so nothing becomes a mystery icon.',
+      'Both choices are remembered across closing and reopening the 3D view, and across reloading the page entirely.',
+    ],
+  },
   {
     version: '1.50.0',
     date: '2026-08-31',
