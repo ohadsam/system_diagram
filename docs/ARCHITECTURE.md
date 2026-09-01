@@ -26,13 +26,13 @@ index.html ──► js/main.js
                  ├─ core/animationPlayback.js (Diagram Animation's step-through state machine)
                  ├─ canvas/animationOverlay.js (Diagram Animation's floating playback controls + draw layer)
                  ├─ modals/*.js          (incl. modals/generateDesignModal.js, modals/replicationModal.js, modals/sequenceDiagramModal.js, modals/aiEditModal.js, modals/aiConversationModal.js, modals/cliSetupModal.js, modals/customLintRulesModal.js, modals/globalSearchModal.js, modals/commentsListModal.js, modals/templateGalleryModal.js, modals/importSqlModal.js, modals/c4ContextModal.js, modals/quickStartModal.js, modals/importFromImageModal.js, modals/collaborationModal.js, modals/autoAnimationPrompt.js, modals/aiAskModal.js, modals/aiLayoutModal.js, modals/aiDiffExplainModal.js, modals/diagramDescriptionModal.js)
-                 ├─ io/*.js              (localStorage/IndexedDB, file, image/pdf/svg export, incl. io/projectTabs.js, io/duplicateTabWarning.js, io/exportAnimation.js, io/aiEditDesign.js, io/aiConversationStore.js, io/aiAutoSend.js, io/customLintRules.js, io/i18n.js, io/storage.js, io/indexedDbStore.js, io/exportSvg.js, io/globalProjectSearch.js, io/sqlDdlImport.js, io/serviceWorker.js, io/exportPulumi.js, io/exportCloudFormation.js, io/exportKubernetes.js, io/autoSuggest.js, io/autoSuggestWatcher.js, io/exportAnimationPptx.js, io/exportAnimationVideo.js, io/aiLayoutSuggest.js, io/aiDiffExplain.js, io/aiCostOptimize.js, io/export3dVideo.js)
+                 ├─ io/*.js              (localStorage/IndexedDB, file, image/pdf/svg export, incl. io/projectTabs.js, io/duplicateTabWarning.js, io/exportAnimation.js, io/aiEditDesign.js, io/aiConversationStore.js, io/aiAutoSend.js, io/customLintRules.js, io/i18n.js, io/storage.js, io/indexedDbStore.js, io/exportSvg.js, io/globalProjectSearch.js, io/sqlDdlImport.js, io/serviceWorker.js, io/exportPulumi.js, io/exportCloudFormation.js, io/exportKubernetes.js, io/autoSuggest.js, io/autoSuggestWatcher.js, io/exportAnimationPptx.js, io/exportAnimationVideo.js, io/aiLayoutSuggest.js, io/aiDiffExplain.js, io/aiCostOptimize.js, io/export3dVideo.js, io/export3dPptx.js)
                  ├─ core/animationAutoBuild.js (Diagram Animation's post-AI-generation walkthrough builder, also reused by canvas.js#autoBuildAndPlayAnimation's on-demand "🪄 Auto-Play Diagram")
                  ├─ core/labelWrap.js (pure multi-line label wrapping — canvas/connector.js's edge-label <tspan> rendering), core/labelSpacing.js (pure node-nudging for "🔤 Fix Text Display")
                  ├─ core/groupExplanation.js (pure per-template explanation builder), modals/groupExplanationModal.js ("📖 Explain This Diagram")
                  ├─ core/animationVideoTiming.js (pure per-step screen-time math for io/exportAnimationVideo.js)
                  ├─ core/diagramDescription.js, core/diagramHealth.js, core/versionBranches.js
-                 ├─ core/scene3dLayout.js (pure 2D→3D geometry mapping), core/scene3dMode.js (3D overlay on/off pub-sub)
+                 ├─ core/scene3dLayout.js (pure 2D→3D geometry mapping), core/scene3dMode.js (3D overlay on/off pub-sub), core/cameraTour.js (pure Camera Tour interpolation/easing/auto-shot math)
                  ├─ core/demoProjects.js (Demo Projects — pure, reuses the pattern/lifeline construction recipe), modals/demoProjectsModal.js
                  ├─ core/blastRadius.js (pure edge-graph traversal), modals/blastRadiusModal.js
                  ├─ core/interviewMode.js, core/interviewPrompts.js, io/interviewGrading.js, modals/interviewModeModal.js (Interview Mode)
@@ -3889,7 +3889,7 @@ a live API integration. `listBranches`/`versionsOnBranch` always sort
 `'main'` first; every version missing a `branch` field (pre-existing
 saved data) backfills to `'main'` on load via `validateVersions`.
 
-## 3D Presentation Mode (`vendor/three.module.min.js`, `core/scene3dLayout.js`, `core/scene3dMode.js`, `render3d/scene3dRenderer.js`, `canvas/scene3dOverlay.js`, `io/export3dVideo.js`)
+## 3D Presentation Mode (`vendor/three.module.min.js`, `core/scene3dLayout.js`, `core/scene3dMode.js`, `core/cameraTour.js`, `render3d/scene3dRenderer.js`, `canvas/scene3dOverlay.js`, `io/export3dVideo.js`, `io/export3dPptx.js`)
 
 Converts the current 2D diagram into a rotatable 3D scene for
 presentation purposes — components become extruded, colored boxes;
@@ -3987,7 +3987,9 @@ playback code):
   `computeActiveKeys(nodes, edges)` mirrors `canvas.js`'s
   `applyAnimationVisibility` hidden/revealed-set logic exactly, so 3D
   playback shows the same reveal state as 2D playback would. Returns
-  `{dispose, getRenderTargetCanvas}` — **`dispose()` is mandatory**
+  `{dispose, resetView, setRealisticMode, isRealisticMode,
+  getRenderTargetCanvas, ...the Camera Tour API below}` —
+  **`dispose()` is mandatory**
   (cancels the rAF loop, unsubscribes store/animation listeners,
   disconnects the `ResizeObserver`, calls `renderer.dispose()`) since a
   `WebGLRenderer` holds a real GPU context that browsers only allow a
@@ -4077,6 +4079,108 @@ playback code):
   storage drums) — cache keys include the flag (`` `rack:${color}:${realistic}` ``)
   so both versions of a given color can coexist across a mode toggle
   without one evicting the other.
+
+  **"🎬 Camera Tour" (`core/cameraTour.js` + tour state in
+  `render3d/scene3dRenderer.js`)** — a sequence of camera "shots"
+  (`{theta, phi, radius, target, label}`), available in both the default
+  view and Realistic Room, since it's just camera-pose data with no
+  dependency on which mode is active. Split the same way as
+  `scene3dLayout.js` vs. the renderer itself: `core/cameraTour.js` is
+  pure/DOM-free (`lerpAngle`, `easeInOutCubic`, `interpolateShot`,
+  `computeAutoTourShots`, unit-tested in `tests/unit/cameraTour.test.mjs`);
+  the mutable tour *state* (the shot list, play/pause, which shot is
+  current) lives as closure variables inside `mountScene3D` itself, not a
+  separate shared module — unlike `core/animationPlayback.js` (which the
+  2D canvas and this 3D view both read from *together*), a camera tour is
+  scoped to one open 3D view and has no 2D equivalent to stay in sync with.
+  - **Manual shots**: `addTourShotFromCurrentView(label)` snapshots the
+    *live* `theta`/`phi`/`radius`/`target` at call time.
+    `moveTourShot`/`removeTourShot`/`clearTour` mutate the list;
+    `setCameraToShot(index)` jumps the camera straight to one (no easing) —
+    used both for the panel's "preview" click and, more importantly, as the
+    frame-capture point for each pptx slide (below).
+  - **Auto-generated shots**: `autoGenerateTour()` calls
+    `computeAutoTourShots(nodes3D, defaultView)` with one shot per node
+    (offset by a cycled small angle, never dead-on) plus a closing
+    "Overview" shot. **Gotcha**: the Overview shot must use the scene's own
+    *default* framing, not whatever the live camera currently shows (the
+    user may have dragged/zoomed away from it) — so `buildScene()`
+    snapshots `defaultTarget`/`defaultRadius` fresh on every rebuild,
+    separate from the live/interactive `target`/`radius` the drag/wheel
+    handlers mutate, and `autoGenerateTour()` reads the snapshot, not the
+    live values.
+  - **Playback** is driven inside the existing `tick()` render loop as an
+    explicit `tourPhase` state machine (`'hold'` on the current shot for
+    `TOUR_HOLD_MS`, then `'move'` toward the next for `TOUR_MOVE_MS` via
+    `interpolateShot`, which uses `lerpAngle` for `theta` specifically so a
+    transition never spins the "long way around" between e.g. 350° and
+    10°). Reaching the end of the shot list either stops (`finishTourPlayback`,
+    resolving any pending `playTourForExport()` promise) or, if `loop` was
+    requested, transitions back to shot 0 like any other move. Ambient
+    auto-rotate (`theta += dt * 0.12` when idle) is suppressed while a tour
+    plays, and any manual `pointerdown`/`wheel` immediately calls
+    `stopTour()` — a tour never fights an in-progress user gesture for
+    control of the camera.
+  - **Video export** (`io/export3dVideo.js`): `exportAnimationTo3DVideo`
+    now takes a third `controller` parameter; when
+    `controller.getTourShots().length`, it awaits
+    `controller.playTourForExport()` (one non-looping pass) as the
+    recording's driving clock instead of the previous fixed 8-second
+    ambient clip — running concurrently with any Diagram Animation reveal
+    (started as a fire-and-forget async loop, awaited alongside the tour)
+    rather than picking one or the other. With no tour configured, behavior
+    is byte-for-byte the original ambient/reveal logic — this was a
+    deliberate design goal to avoid regressing the existing, already-shipped
+    export path. **Realistic Room mode needed zero code changes to already
+    work with this**: the export is a raw `canvasEl.captureStream()` pixel
+    capture, agnostic to what's actually drawn — confirmed via a dedicated
+    e2e test (`tests/e2e/scene3d.spec.js`) that turns on Realistic Room,
+    configures a tour, and asserts a real `.webm` download, rather than
+    trusting that reasoning without verifying it on screen.
+  - **Presentation export** (new `io/export3dPptx.js#exportScene3DToPptx`,
+    mirroring `io/exportAnimationPptx.js`'s 2D pattern) — one slide per
+    tour shot (or per Diagram Animation step if no tour exists, or one
+    single overview slide if neither exists), each slide's image captured
+    via a new `captureStillFrame()` controller method. **Gotcha**: this
+    renderer's `WebGLRenderer` is deliberately created *without*
+    `preserveDrawingBuffer: true` (that flag has a real performance cost,
+    and every other consumer of this canvas — the live view, video export —
+    just wants the continuously-updating stream), so an `await`-separated
+    `canvasEl.toDataURL()` call risks reading back a blank/garbage frame if
+    the browser has already swapped/cleared the drawing buffer by the time
+    it runs. `captureStillFrame()` sidesteps this by calling
+    `renderer.render(scene, camera)` and `canvasEl.toDataURL('image/png')`
+    back-to-back with no `await` in between — nothing clears the buffer
+    between two synchronous calls in the same task. Slides use a dark
+    background (`s.background = { color: '0F1420' }`, matching the scene's
+    own navy background/fog color) so the embedded screenshots and white
+    heading text both read correctly, unlike the 2D export's default white
+    slide. **Test-environment gotcha**: a 3-slide export embeds full-canvas
+    WebGL screenshots (~1MB pptx) — this repo's headless/software-rendered
+    test Chromium has been observed taking 20+ seconds (confirmed via a
+    persistent `page.on('download')` listener eventually catching it long
+    after a short-timeout `waitForEvent` had already given up) to actually
+    surface a `'download'` CDP event for a blob that size, even though the
+    export itself (blob creation + the triggering anchor click) completes
+    client-side in well under a second — a small blob (a tiny JSON/text
+    export) or a shorter recording (the video export test) doesn't show
+    this delay. Not a real product slowness, but the e2e test for this
+    button needs a generously extended `waitForEvent`/`test.setTimeout`
+    to account for it rather than a tight one that looks like a hang.
+  - **UI gotcha found via an actual mobile-width screenshot, not code
+    review**: the tour panel was first positioned with its own
+    `position: fixed; bottom: calc(var(--space-4) + 52px)` — a guessed
+    offset assuming `.scene3d-controls` renders as one row. With every
+    button this batch adds (Camera Tour, Export Presentation, ...) that
+    row wraps onto 2-3 lines well before mobile width, so the fixed offset
+    put the panel overlapping the wrapped rows underneath instead of above
+    them. Fixed by wrapping both in one `.scene3d-bottom-bar` flex
+    container (`flex-direction: column-reverse`, so the last DOM child —
+    the controls row — always lands in the bottom-most slot) instead of
+    two independently-positioned elements each guessing the other's
+    height; verified via `page.evaluate(() =>
+    document.documentElement.scrollWidth <= window.innerWidth)` plus a
+    real screenshot at 390×844, 768×1024, and a short 1280×600 desktop.
 
 ## Demo Projects (`core/demoProjects.js`, `modals/demoProjectsModal.js`)
 

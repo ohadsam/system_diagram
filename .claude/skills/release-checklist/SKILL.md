@@ -284,6 +284,28 @@ with everything else in step 10, not as an afterthought later.
   e2e test, and write the real e2e test as two real peer connections in one browser context (see
   `tests/e2e/liveCollaboration.spec.js`), not a mocked transport — a mock would never have caught
   the hang in the first place.
+- **A download of a large blob (roughly ~1MB+, e.g. an image-heavy exported file) can take this
+  environment's headless Chromium 20+ seconds to surface as Playwright's `'download'` event, even
+  though the app-side work finishes client-side in well under a second.** Found writing the e2e
+  test for "📊 Export 3D Presentation" (a 3-slide `.pptx` embedding full-canvas WebGL screenshots):
+  a normal-length `page.waitForEvent('download')` looked exactly like a broken/hung feature — no
+  error, no console output, just a timeout — and only a persistent `page.on('download', ...)`
+  listener proved the download really does fire, just much later than usual. A small blob (JSON,
+  text) or a short recording doesn't show this delay. Not a real product slowness (a real browser
+  doesn't have this issue) — just extend `waitForEvent`'s own `timeout` and the test's
+  `test.setTimeout(...)` generously for any e2e test downloading a similarly large file, rather
+  than debugging the feature itself.
+- **A `position: fixed` floating panel positioned with a guessed pixel offset from a sibling
+  control row (`bottom: calc(var(--space-4) + 52px)`, say) breaks the moment that sibling row's
+  own height changes** — and a button row commonly does, once enough buttons accumulate that it
+  wraps onto 2-3 lines well before mobile width (the same `.toolbar-group` wrapping issue this
+  checklist already warns about, just recurring in a different floating-UI context: the
+  "🎬 Camera Tour" panel added to `canvas/scene3dOverlay.js` first overlapped the `.scene3d-controls`
+  row this same batch grew to 9 buttons, only visible in an actual mobile-width screenshot, not by
+  reading the CSS). Fix this class of bug at the root rather than re-guessing a bigger offset: wrap
+  the sibling elements in one shared flex container (`flex-direction: column-reverse` if the fixed
+  edge is the *bottom* of the group, so the last DOM child always lands in that bottom-most slot)
+  so they stack via real layout instead of two independently-`position: fixed` guesses.
 - Run everything and confirm it's green before moving on:
 
 ```bash

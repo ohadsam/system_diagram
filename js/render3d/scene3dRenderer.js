@@ -10,6 +10,7 @@
 import * as store from '../core/store.js';
 import { computeNode3D, computeEdge3D } from '../core/scene3dLayout.js';
 import { isAnimationPlaying, getAnimationPlaybackState, onAnimationChange } from '../core/animationPlayback.js';
+import { TOUR_HOLD_MS, TOUR_MOVE_MS, interpolateShot, computeAutoTourShots } from '../core/cameraTour.js';
 
 const VENDOR_PATH = new URL('../../vendor/three.module.min.js', import.meta.url).href;
 const THINKING_COLOR = 0x22d3ee;
@@ -464,6 +465,156 @@ export async function mountScene3D(canvasEl) {
   let realisticMode = false;
   let zoomMaxRadius = 4000;
 
+  // Auto-fit's own last-computed framing, snapshotted fresh on every
+  // buildScene() rebuild — kept separate from the live/interactive
+  // target/radius above (which the user's own drag/zoom mutates) so
+  // "🎬 Camera Tour"'s auto-generated Overview shot always uses the
+  // diagram's true default framing, regardless of whatever the user has
+  // since done to the live camera.
+  let defaultTarget = { x: 0, y: 0, z: 0 };
+  let defaultRadius = 800;
+
+  // "🎬 Camera Tour" — an ordered list of camera-pose "shots" (see
+  // core/cameraTour.js), buildable manually (capture the current view) or
+  // automatically (one shot per component + an overview), then played back
+  // by holding on each shot and tweening to the next. Lives entirely in
+  // this mounted-scene closure (not a shared core/ module) since a tour is
+  // scoped to one open 3D view, unlike the Diagram Animation playback state
+  // in core/animationPlayback.js, which both the 2D canvas and this 3D view
+  // read from together.
+  let tourShots = [];
+  let tourPlaying = false;
+  let tourLoop = false;
+  let tourIndex = 0; // shot currently held at (or animating away from)
+  let tourToIndex = 0; // shot currently animating toward, while phase is 'move'
+  let tourPhase = 'hold'; // 'hold' | 'move'
+  let tourPhaseElapsed = 0;
+  let tourFinishResolve = null; // resolves playTourForExport()'s promise
+  let tourListeners = [];
+
+  function notifyTourChange() {
+    for (const cb of tourListeners) cb();
+  }
+  function onTourChange(cb) {
+    tourListeners.push(cb);
+    return () => { tourListeners = tourListeners.filter((fn) => fn !== cb); };
+  }
+
+  function setCameraFromShot(shot) {
+    theta = shot.theta;
+    phi = shot.phi;
+    radius = shot.radius;
+    target = { ...shot.target };
+    updateCamera();
+  }
+
+  function finishTourPlayback() {
+    tourPlaying = false;
+    notifyTourChange();
+    if (tourFinishResolve) {
+      const resolve = tourFinishResolve;
+      tourFinishResolve = null;
+      resolve();
+    }
+  }
+
+  function getTourShots() {
+    return tourShots.map((s) => ({ ...s, target: { ...s.target } }));
+  }
+  function isTourPlaying() {
+    return tourPlaying;
+  }
+  function addTourShotFromCurrentView(label) {
+    const shot = {
+      theta, phi, radius,
+      target: { x: target.x, y: target.y, z: target.z },
+      label: (label || `Shot ${tourShots.length + 1}`).slice(0, 60),
+    };
+    tourShots = [...tourShots, shot];
+    notifyTourChange();
+    return getTourShots();
+  }
+  function removeTourShot(index) {
+    // Editing the list mid-playback would leave tourIndex/tourToIndex
+    // pointing at a stale or out-of-range shot (the render loop's tick()
+    // would then read `undefined` and throw) — stop touring first, same
+    // "manual input always wins" rule the drag/wheel handlers already
+    // follow, rather than trying to remap the indices.
+    if (tourPlaying) finishTourPlayback();
+    tourShots = tourShots.filter((_, i) => i !== index);
+    notifyTourChange();
+  }
+  function moveTourShot(fromIndex, toIndex) {
+    if (fromIndex === toIndex || fromIndex < 0 || fromIndex >= tourShots.length) return;
+    if (tourPlaying) finishTourPlayback();
+    const copy = tourShots.slice();
+    const [item] = copy.splice(fromIndex, 1);
+    copy.splice(Math.max(0, Math.min(copy.length, toIndex)), 0, item);
+    tourShots = copy;
+    notifyTourChange();
+  }
+  function clearTour() {
+    if (tourPlaying) finishTourPlayback();
+    tourShots = [];
+    notifyTourChange();
+  }
+  function setCameraToShot(index) {
+    const shot = tourShots[index];
+    if (!shot) return;
+    setCameraFromShot(shot);
+  }
+  function autoGenerateTour() {
+    if (tourPlaying) finishTourPlayback();
+    const nodes = store.getState().nodes;
+    const nodes3D = nodes.map((n) => computeNode3D(n));
+    tourShots = computeAutoTourShots(nodes3D, { theta: DEFAULT_THETA, phi: DEFAULT_PHI, radius: defaultRadius, target: defaultTarget });
+    notifyTourChange();
+    return getTourShots();
+  }
+  // Starts (or restarts) playback from the first shot. `loop: true` keeps
+  // touring indefinitely (transitioning from the last shot back to the
+  // first); otherwise it plays through once and stops, holding on the last
+  // shot — the shape both the "▶️ Play Tour" button and video/pptx export
+  // need, just with `loop` fixed to `false` for the latter two.
+  function startTour({ loop = false } = {}) {
+    if (!tourShots.length) return;
+    tourLoop = loop;
+    tourIndex = 0;
+    tourToIndex = 0;
+    tourPhase = 'hold';
+    tourPhaseElapsed = 0;
+    tourPlaying = true;
+    notifyTourChange();
+  }
+  function stopTour() {
+    if (!tourPlaying) return;
+    finishTourPlayback();
+  }
+  // Plays the tour once (never looping, regardless of any live loop
+  // setting) and resolves once it reaches the end — the driving timeline
+  // for "🎥 Export 3D Video" when a tour exists. Resolves immediately with
+  // no tour configured, so callers can await it unconditionally.
+  function playTourForExport() {
+    if (!tourShots.length) return Promise.resolve();
+    return new Promise((resolve) => {
+      tourFinishResolve = resolve;
+      startTour({ loop: false });
+    });
+  }
+  // Renders the current frame and reads it back synchronously, in the same
+  // task — the WebGLRenderer here is created without `preserveDrawingBuffer`
+  // (the default, and deliberately so: that flag has a real perf cost and
+  // every other consumer of this canvas just wants the live animated
+  // stream), so an async `canvasEl.toDataURL()` call risks reading back a
+  // blank/garbage frame if the browser has already swapped/cleared the
+  // drawing buffer by the time it runs. Calling `render()` and
+  // `toDataURL()` back-to-back with no `await` in between sidesteps that
+  // entirely: nothing clears the buffer between the two synchronous calls.
+  function captureStillFrame() {
+    renderer.render(scene, camera);
+    return canvasEl.toDataURL('image/png');
+  }
+
   function updateCamera() {
     const clampedPhi = Math.min(Math.PI - 0.05, Math.max(0.05, phi));
     camera.position.set(
@@ -474,7 +625,13 @@ export async function mountScene3D(canvasEl) {
     camera.lookAt(target.x, target.y, target.z);
   }
 
-  const onPointerDown = (e) => { dragging = true; lastX = e.clientX; lastY = e.clientY; };
+  const onPointerDown = (e) => {
+    // Manual input always wins: grabbing the view mid-tour hands control
+    // straight back to the user rather than fighting the tour's own camera
+    // updates every frame.
+    if (tourPlaying) stopTour();
+    dragging = true; lastX = e.clientX; lastY = e.clientY;
+  };
   const onPointerMove = (e) => {
     if (!dragging) return;
     theta -= (e.clientX - lastX) * 0.006;
@@ -484,6 +641,7 @@ export async function mountScene3D(canvasEl) {
   };
   const onPointerUp = () => { dragging = false; };
   const onWheel = (e) => {
+    if (tourPlaying) stopTour();
     e.preventDefault();
     radius = Math.min(zoomMaxRadius, Math.max(150, radius + e.deltaY * 0.8));
     updateCamera();
@@ -774,6 +932,8 @@ export async function mountScene3D(canvasEl) {
         zoomMaxRadius = 4000;
       }
       radius = Math.min(radius, zoomMaxRadius);
+      defaultTarget = { ...target };
+      defaultRadius = radius;
     }
     updateCamera();
   }
@@ -800,9 +960,39 @@ export async function mountScene3D(canvasEl) {
     // happening, and (not incidentally) is what makes a recorded 3D video
     // export look like a real orbiting shot rather than a static frame
     // with moving particles in front of it.
-    if (!dragging) {
+    if (!dragging && !tourPlaying) {
       theta += dt * 0.12;
       updateCamera();
+    }
+
+    if (tourPlaying && tourShots.length) {
+      tourPhaseElapsed += dt * 1000;
+      if (tourShots.length === 1) {
+        setCameraFromShot(tourShots[0]);
+        if (!tourLoop && tourPhaseElapsed >= TOUR_HOLD_MS) finishTourPlayback();
+      } else if (tourPhase === 'hold') {
+        setCameraFromShot(tourShots[tourIndex]);
+        if (tourPhaseElapsed >= TOUR_HOLD_MS) {
+          const isLast = tourIndex === tourShots.length - 1;
+          if (isLast && !tourLoop) {
+            finishTourPlayback();
+          } else {
+            tourToIndex = isLast ? 0 : tourIndex + 1;
+            tourPhase = 'move';
+            tourPhaseElapsed = 0;
+          }
+        }
+      } else {
+        const t = tourPhaseElapsed / TOUR_MOVE_MS;
+        const pose = interpolateShot(tourShots[tourIndex], tourShots[tourToIndex], t);
+        theta = pose.theta; phi = pose.phi; radius = pose.radius; target = pose.target;
+        updateCamera();
+        if (t >= 1) {
+          tourIndex = tourToIndex;
+          tourPhase = 'hold';
+          tourPhaseElapsed = 0;
+        }
+      }
     }
 
     for (const swarm of thinkingSwarms) {
@@ -854,6 +1044,8 @@ export async function mountScene3D(canvasEl) {
     window.removeEventListener('pointermove', onPointerMove);
     window.removeEventListener('pointerup', onPointerUp);
     canvasEl.removeEventListener('wheel', onWheel);
+    tourPlaying = false;
+    tourListeners = [];
     clearContent();
     for (const tex of textureCache.values()) tex.dispose();
     textureCache.clear();
@@ -865,6 +1057,7 @@ export async function mountScene3D(canvasEl) {
   // re-fits distance/target to the current content and snaps the angle back
   // to the default framing, same as a fresh open.
   function resetView() {
+    if (tourPlaying) stopTour();
     theta = DEFAULT_THETA;
     phi = DEFAULT_PHI;
     buildScene();
@@ -882,5 +1075,13 @@ export async function mountScene3D(canvasEl) {
     return realisticMode;
   }
 
-  return { dispose, resetView, setRealisticMode, isRealisticMode, getRenderTargetCanvas: () => canvasEl };
+  return {
+    dispose, resetView, setRealisticMode, isRealisticMode, getRenderTargetCanvas: () => canvasEl,
+    // "🎬 Camera Tour" API — see the tour state block above for the full
+    // design rationale. Available in both stylized and realistic-room mode
+    // (nothing about it is mode-specific).
+    getTourShots, isTourPlaying, addTourShotFromCurrentView, removeTourShot, moveTourShot,
+    clearTour, setCameraToShot, autoGenerateTour, startTour, stopTour, playTourForExport,
+    onTourChange, captureStillFrame,
+  };
 }

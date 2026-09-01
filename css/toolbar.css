@@ -579,16 +579,33 @@ body.kiosk-mode .kiosk-exit-btn {
   cursor: grabbing;
 }
 
-.scene3d-controls {
+/* Shared wrapper for .scene3d-controls and .scene3d-tour-panel — a single
+   `position: fixed` anchor with the two stacked via normal flex flow
+   (`column-reverse` so the last DOM child, the controls row, always ends
+   up at the bottom-most slot) rather than each guessing the other's
+   height with a fixed pixel offset. `.scene3d-controls` wraps onto 2-3
+   lines well before mobile width once every button here is present, and a
+   fixed `bottom` gap sized for one row visibly overlapped the wrapped rows
+   underneath — confirmed via an actual mobile-width screenshot, not just
+   code review. */
+.scene3d-bottom-bar {
   position: fixed;
   left: 50%;
   bottom: var(--space-4);
   transform: translateX(-50%);
   display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: calc(100vw - var(--space-4) * 2);
+  max-height: calc(100vh - var(--space-4) * 2);
+}
+
+.scene3d-controls {
+  display: flex;
   gap: var(--space-2);
   flex-wrap: wrap;
   justify-content: center;
-  max-width: calc(100vw - var(--space-4) * 2);
 }
 
 .scene3d-btn {
@@ -598,6 +615,125 @@ body.kiosk-mode .kiosk-exit-btn {
 .scene3d-btn.active {
   background: var(--color-primary-soft);
   color: var(--color-primary);
+}
+
+/* "🎬 Camera Tour" floating panel (canvas/scene3dOverlay.js) — sits just
+   above .scene3d-controls, centered the same way (left:50% + translateX,
+   never a literal left/right offset) so it needs no [dir="rtl"] override:
+   dead-centered content is direction-agnostic. Hidden by default the same
+   way .scene3d-overlay itself is (display toggled via the `.open` class,
+   not a body-class selector), since it's independent per-open UI state. */
+.scene3d-tour-panel {
+  display: none;
+  width: min(420px, calc(100vw - var(--space-4) * 2));
+  max-height: min(50vh, 420px);
+  overflow-y: auto;
+  background: #11172a;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: var(--radius-lg, 10px);
+  padding: var(--space-3);
+  color: #F9FAFB;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  flex-shrink: 0;
+}
+
+.scene3d-tour-panel.open {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.scene3d-tour-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.scene3d-tour-count {
+  font-size: 0.8em;
+  color: #94A3B8;
+}
+
+.scene3d-tour-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1, 4px);
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.scene3d-tour-empty {
+  font-size: 0.85em;
+  color: #94A3B8;
+  padding: var(--space-2) 0;
+}
+
+.scene3d-tour-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(148, 163, 184, 0.08);
+  border-radius: 6px;
+  padding: 2px 4px;
+}
+
+.scene3d-tour-row-label {
+  flex: 1;
+  text-align: left;
+  background: none;
+  border: none;
+  color: #F9FAFB;
+  padding: 6px 4px;
+  cursor: pointer;
+  font-size: 0.85em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scene3d-tour-row-label:hover {
+  text-decoration: underline;
+}
+
+.scene3d-tour-row-btn {
+  background: none;
+  border: none;
+  color: #CBD5E1;
+  cursor: pointer;
+  padding: 4px 6px;
+  font-size: 0.9em;
+  border-radius: 4px;
+}
+
+.scene3d-tour-row-btn:hover:not(:disabled) {
+  background: rgba(148, 163, 184, 0.2);
+}
+
+.scene3d-tour-row-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.scene3d-tour-row-remove:hover:not(:disabled) {
+  color: #F87171;
+}
+
+.scene3d-tour-actions,
+.scene3d-tour-playback {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.scene3d-tour-loop {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.85em;
+  color: #CBD5E1;
+  cursor: pointer;
 }
 
 

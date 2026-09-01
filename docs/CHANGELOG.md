@@ -175,6 +175,32 @@ Keep this in sync with `PLAN.md` as stages complete.
     auto-fit distance isn't enough, since the user can still scroll further out. Room size scales
     with the diagram's own bounding sphere so it always reads as "a big room the diagram sits
     inside," not a tight-fitting box.
+- **New "🎬 Camera Tour"** (`js/core/cameraTour.js`, `js/render3d/scene3dRenderer.js`,
+  `js/canvas/scene3dOverlay.js`) — a sequence of camera "shots" (position/angle/zoom + a label),
+  available in both the default 3D view and Realistic Room, buildable manually or automatically:
+  - **Manual**: "📍 Add Current View" captures wherever the camera is right now as the next shot;
+    each shot in the panel's list can be previewed (click its label), reordered (↑/↓), or removed.
+  - **Automatic**: "✨ Auto-Generate" builds one shot per component (a pleasant angled offset, never
+    dead-on) plus a closing "Overview" shot using the scene's own default framing — snapshotted
+    fresh on every rebuild (`defaultTarget`/`defaultRadius` in `scene3dRenderer.js`) so it stays
+    correct regardless of what the user has since done to the live camera.
+  - **Playback**: "▶️ Play Tour" holds on each shot (2.2s) then eases into the next (1.6s,
+    shortest-path angle interpolation via `core/cameraTour.js#lerpAngle` so a transition never spins
+    the "long way around"); an optional "Loop" checkbox tours indefinitely instead of stopping after
+    one pass. Manually dragging or scrolling the camera at any point immediately hands control back
+    to the user — the tour doesn't fight an in-progress user gesture.
+  - **Export**: "🎥 Export 3D Video" now drives its recording from a configured tour (one full
+    non-looping pass) instead of a slow ambient auto-rotate when no tour exists, running concurrently
+    with any Diagram Animation reveal if one is also configured — and this explicitly now works
+    (verified via e2e test) with Realistic Room active too, closing the original request to make sure
+    that mode's own export path wasn't missed. New "📊 Export 3D Presentation" button exports a real
+    `.pptx`: one dark-themed slide per tour shot (or per Diagram Animation step, if no tour is set),
+    each slide's image captured via a new `captureStillFrame()` controller method — a synchronous
+    `renderer.render()` + `canvasEl.toDataURL()` pair, since the renderer has no
+    `preserveDrawingBuffer` and an `await`-separated read risks a blank frame otherwise.
+  - Added `tests/unit/cameraTour.test.mjs` (angle interpolation, easing, auto-shot generation) and
+    e2e coverage in `tests/e2e/scene3d.spec.js` for the panel, drag-to-interrupt, and both new export
+    buttons.
 
 ## v1.49.3 (2026-08-31)
 

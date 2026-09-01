@@ -444,7 +444,13 @@ Or open `index.html` directly in a browser.
   depth. A "🏢 Realistic Room" toggle switches to an even more true-to-life
   look — the scene wrapped in an enclosing room with textured walls and a
   lit ceiling, and every component rendered with more surface detail —
-  switchable back to the simpler default view at any time.
+  switchable back to the simpler default view at any time. A "🎬 Camera
+  Tour" panel builds a sequence of camera shots — manually ("📍 Add Current
+  View") or auto-generated (one per component plus an overview) — then
+  plays them back with smooth eased transitions (an optional loop);
+  "🎥 Export 3D Video" and a new "📊 Export 3D Presentation" (a real
+  `.pptx`, one slide per tour shot) both use the configured tour to drive
+  the recording, in either 3D look.
 - **🪄 AI Beautify Layout** — asks an AI to suggest a nicer arrangement of
   your existing components (Tools menu); only positions change.
 - **🎙️ Voice dictation** — a mic button appears on every AI text field

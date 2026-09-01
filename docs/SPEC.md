@@ -1914,12 +1914,39 @@ full-viewport overlay, for presenting rather than editing:
   while playing, visible components show ambient "thinking" particle
   effects and a subtly pulsing decal, for a sense of active processing.
   With no animation, the scene is just the static (auto-rotating) diagram.
+- **"🎬 Camera Tour"** builds a sequence of camera shots (position, angle,
+  zoom, and a label), available in both the default view and Realistic
+  Room — a toggle button opens a floating panel to manage it:
+  - "📍 Add Current View" captures wherever the camera is right now as the
+    next shot; each shot in the list can be clicked to preview, reordered
+    with ↑/↓, or removed, and "🗑️ Clear" empties the whole list.
+  - "✨ Auto-Generate" builds a full tour in one click: one shot per
+    component (angled to look at it, never dead-on) plus a closing
+    "Overview" shot using the scene's own default framing.
+  - "▶️ Play Tour" glides smoothly from shot to shot (a brief hold on each,
+    then an eased transition to the next); an optional "Loop" checkbox
+    tours indefinitely instead of stopping after one pass through the
+    list. Manually dragging or scrolling the camera at any point during
+    playback immediately hands control back — the tour never fights an
+    in-progress manual adjustment.
 - **Video export.** "🎥 Export 3D Video" records the 3D canvas to a
-  downloadable video file — driving the Diagram Animation through in real
-  time if one exists (each step's own on-screen duration, exactly like a
-  live playback), or a fixed ~8-second ambient orbiting shot if not.
+  downloadable video file. If a Camera Tour is configured, the recording's
+  camera motion and length are driven by one full (non-looping) pass
+  through the tour; otherwise it falls back to driving the Diagram
+  Animation through in real time if one exists (each step's own on-screen
+  duration, exactly like a live playback), or a fixed ~8-second ambient
+  orbiting shot if neither exists. A configured Diagram Animation reveal
+  still plays out concurrently alongside a tour, if both are set up. Works
+  the same way in Realistic Room mode as the default view.
+- **Presentation export.** "📊 Export 3D Presentation" exports a real
+  `.pptx` file: one slide per Camera Tour shot (or per Diagram Animation
+  step if no tour is configured, or a single overview slide if neither
+  exists), each showing that shot's/step's exact camera framing and reveal
+  state as a full-size image.
 - Closing the overlay (✕ or `Esc`) returns to normal editing; nothing
-  about the 3D view is itself saved as diagram data.
+  about the 3D view (including any Camera Tour) is itself saved as diagram
+  data — a tour lives only for the current 3D session, the same as the
+  camera's own position.
 
 ### 4.72 Demo Projects
 "🎓 Demo Projects" (Create menu) opens a picker listing one ready-made

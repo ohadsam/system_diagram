@@ -9,6 +9,14 @@
 // core/animationVideoTiming.js already defines for the 2D export, for the
 // same reason: a click-only step becomes a fixed dwell here too, since
 // nothing is present to click during an unattended recording.
+//
+// If the scene has a "🎬 Camera Tour" configured (see
+// render3d/scene3dRenderer.js), the tour drives the recording's camera
+// motion and duration instead of the passive auto-rotate — it's a much
+// better recorded shot (deliberate, per-component framing) than a slow
+// constant spin. Any Diagram Animation reveal still runs concurrently on
+// its own real-time pace, exactly as before; the two are independent
+// timelines that happen to share one recording.
 import { downloadBlob, sanitizeFilename } from '../utils/download.js';
 import { computeStepDurationMs } from '../core/animationVideoTiming.js';
 import { startAnimationPlayback, stopAnimationPlayback } from '../canvas/canvas.js';
@@ -29,9 +37,14 @@ function sleep(ms) {
 /**
  * @param {HTMLCanvasElement} canvasEl the live 3D view's own <canvas>
  * @param {object|null} animation the active Diagram Animation, if any —
- *   with no steps, this just records a fixed-length ambient clip instead.
+ *   with no steps, this just records a fixed-length ambient clip instead
+ *   (unless a camera tour drives the duration — see `controller` below).
+ * @param {object|null} controller the mounted scene's own controller (see
+ *   render3d/scene3dRenderer.js#mountScene3D) — when it has camera tour
+ *   shots configured, `controller.playTourForExport()` drives the
+ *   recording's camera motion and duration instead of the ambient clip.
  */
-export async function exportAnimationTo3DVideo(canvasEl, animation) {
+export async function exportAnimationTo3DVideo(canvasEl, animation, controller) {
   if (typeof MediaRecorder === 'undefined' || typeof canvasEl.captureStream !== 'function') {
     throw new Error('3D video export needs a browser that supports MediaRecorder and canvas.captureStream — try a recent Chrome, Edge, or Firefox.');
   }
@@ -44,20 +57,40 @@ export async function exportAnimationTo3DVideo(canvasEl, animation) {
   recorder.start();
 
   const steps = animation?.steps || [];
+  const hasTour = !!controller?.getTourShots?.().length;
   const wasAlreadyPlaying = isAnimationPlaying();
   try {
+    // The Diagram Animation reveal and the camera tour are independent
+    // timelines sharing one recording — start the reveal (fire-and-forget,
+    // it advances itself below) and separately await whichever one is the
+    // driving clock: the tour if present, or the reveal's own real-time
+    // pace, or a fixed ambient clip when neither exists.
+    let revealDone = Promise.resolve();
     if (steps.length) {
       if (!wasAlreadyPlaying) startAnimationPlayback();
       // Freezing disables the playback state machine's own auto-advance
       // timers entirely (see core/animationPlayback.js#scheduleCurrent) —
-      // this loop drives every step manually instead, so the two can't
-      // race and double-advance.
+      // this drives every step manually instead, so the two can't race
+      // and double-advance.
       setFrozen(true);
-      for (const step of steps) {
-        // eslint-disable-next-line no-await-in-loop -- steps must play back one after another in real time
-        await sleep(computeStepDurationMs(step));
-        nextStep();
-      }
+      revealDone = (async () => {
+        for (const step of steps) {
+          // eslint-disable-next-line no-await-in-loop -- steps must play back one after another in real time
+          await sleep(computeStepDurationMs(step));
+          nextStep();
+        }
+      })();
+    }
+
+    if (hasTour) {
+      await controller.playTourForExport();
+      // Let the reveal (if any) finish out its own remaining steps rather
+      // than cutting the recording off mid-reveal just because the tour's
+      // own shot sequence happened to be shorter.
+      await revealDone;
+      await sleep(500);
+    } else if (steps.length) {
+      await revealDone;
       await sleep(500);
     } else {
       await sleep(AMBIENT_DURATION_MS);
