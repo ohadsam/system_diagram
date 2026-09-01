@@ -134,6 +134,22 @@ concrete examples). Do all three, in order, every single time this skill runs:
      nothing about 3D Presentation itself had changed. A quick check: script a click on whichever
      button is currently *last* in the group you touched, at a short desktop height (~600px) in
      addition to mobile/tablet, not just visually eyeballing the open panel at a tall viewport.
+   - **A new DOM layer meant to sit clickably on top of arbitrary `.node` content needs its own
+     explicit `z-index`, not just later placement in the DOM.** Every `.node` carries its own
+     incrementing `z-index` (`canvas/node.js#updateNodeEl`) — CSS stacking rules place *any*
+     positioned element with an explicit positive z-index above a sibling left at the default
+     `z-index: auto`, regardless of DOM order, so appending a new overlay layer after `.node-layer`
+     in `initCanvas` (the same pattern `.comment-layer`/`.anim-badge-layer`/`.align-guide-layer`
+     already use) is not on its own enough to guarantee a button inside it stays clickable over an
+     arbitrary node's own body. This happened for real building "Group & Shrink"'s `.shrink-badge-
+     layer`: its 🔍 zoom button rendered fine in every screenshot but silently failed every click
+     once the anchor node it sat on top of had a higher per-node z-index than the very first node
+     created — a bug a screenshot alone can never catch (the button still *looks* right), only an
+     actual Playwright click on it. Fixed with a fixed `z-index` comfortably above any realistic
+     per-diagram node count. If a new overlay's own button/control ever needs to win a hit-test
+     against a node, script a real click on it (not just a screenshot) as part of this UI/UX pass —
+     ideally on a diagram with more than one node, so the target isn't accidentally the
+     lowest-z-index one by coincidence.
 
 Fix everything found before moving on. If a pass finds nothing, say so and continue — don't
 manufacture a finding.

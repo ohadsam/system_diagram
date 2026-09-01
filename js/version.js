@@ -2,9 +2,19 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.53.0';
+export const APP_VERSION = '1.54.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.54.0',
+    date: '2026-09-01',
+    highlights: [
+      '📦 New "Group & Shrink" (right-click a 2+ component selection) — groups the selection and collapses it down to the on-screen footprint of a single component, with a small "🗂️ N grouped" badge and a 🔍 zoom-in button that opens a read-only preview of everything folded inside (reusing the same drill-down view sequence diagrams already have).',
+      'Right-clicking the shrunk placeholder offers "🔎 Expand" (restores full size, stays grouped) or "✂️ Ungroup" (dissolves the grouping and restores full size) — an external connector to a hidden member now visually terminates at the placeholder instead of vanishing.',
+      'Saving a shrunk group as a reusable custom component remembers that it was shrunk — placing it again later reopens it already collapsed, ready to expand or zoom into.',
+      'The canvas background right-click menu now also offers ⌘ Command Palette, ↶ Undo/↷ Redo, 🗺️ Auto-arrange, 🩺 Check Diagram, and 🤖 AI Design Review — the most central actions, available without hunting through a toolbar dropdown first.',
+    ],
+  },
   {
     version: '1.53.0',
     date: '2026-09-01',

@@ -32,7 +32,7 @@ export function enterSubDiagramEdit(groupId) {
   const full = store.getState();
   const memberIds = new Set(full.nodes.filter((n) => n.groupId === groupId).map((n) => n.id));
   if (!memberIds.size) {
-    showToast('This sequence diagram no longer exists.', 'error', 2400);
+    showToast('This group no longer exists.', 'error', 2400);
     return;
   }
 
@@ -75,14 +75,14 @@ function exitSubDiagramEdit() {
   store.loadProject({ ...parentProject, nodes: mergedNodes, edges: mergedEdges });
   editState = null;
   hideEditBanner();
-  showToast('Saved changes to the sequence diagram.', 'success', 2000);
+  showToast('Saved changes to the group.', 'success', 2000);
 }
 
 function showEditBanner() {
   bannerEl = el('div', { class: 'subdiagram-edit-banner' });
   bannerEl.appendChild(el('span', {
     class: 'subdiagram-edit-banner-text',
-    text: '✏️ Editing this sequence diagram on its own — avoid New/Load/Import until you\'re done.',
+    text: '✏️ Editing this group on its own — avoid New/Load/Import until you\'re done.',
   }));
   bannerEl.appendChild(el('button', {
     type: 'button', class: 'btn btn-primary', text: '✅ Done editing', onClick: exitSubDiagramEdit,

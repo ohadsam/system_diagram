@@ -39,6 +39,7 @@ import { showContextMenu, hideContextMenu } from './contextMenu.js';
 import { getToolMode, onToolModeChange } from './toolMode.js';
 import { showSuggestionsFor } from './suggestions.js';
 import { computeGroupBounds } from './groupBackgrounds.js';
+import { computeShrunkGroups } from './shrinkGroups.js';
 import { confirmAction } from '../modals/confirmModal.js';
 import { promptNumber } from '../modals/promptModal.js';
 import { openBlastRadiusModal } from '../modals/blastRadiusModal.js';
@@ -55,11 +56,13 @@ let marqueeEl = null;
 let guideLayer = null;
 let commentLayer = null;
 let animBadgeLayer = null;
+let shrinkBadgeLayer = null;
 
 const nodeElements = new Map();
 const edgeElements = new Map();
 const groupBgElements = new Map();
 const animBadgeElements = new Map();
+const shrinkBadgeElements = new Map(); // anchorId -> its overlay element
 // Which `${targetType}:${targetId}` keys were revealed as of the *previous*
 // applyAnimationVisibility() pass — diffed against the current pass to spot
 // a target crossing from hidden to revealed, which gets a one-shot
@@ -127,6 +130,14 @@ export function initCanvas(root) {
   // never intercept clicks meant for a node/edge/the canvas background.
   animBadgeLayer = el('div', { class: 'anim-badge-layer' });
   contentEl.appendChild(animBadgeLayer);
+  // "Group & Shrink" placeholder overlay (label + zoom-in button) — must sit
+  // on top of .node-layer (unlike .group-bg-layer, appended *before* it)
+  // since it shares the exact same rect as its anchor node and its zoom
+  // button needs to actually be clickable, not painted under the node's own
+  // body — same "always on top, click-through everywhere else" reasoning as
+  // animBadgeLayer/commentLayer/guideLayer just above.
+  shrinkBadgeLayer = el('div', { class: 'shrink-badge-layer' });
+  contentEl.appendChild(shrinkBadgeLayer);
   viewportEl.appendChild(contentEl);
 
   marqueeEl = el('div', { class: 'marquee', hidden: true });
@@ -355,6 +366,7 @@ function render(state) {
       nodeElements.delete(id);
     }
   }
+  const nodesById = new Map(state.nodes.map((n) => [n.id, n]));
   const replicatedGroupIds = new Set();
   const frozenGroupIds = new Set();
   for (const p of state.replicationPairs) {
@@ -362,7 +374,24 @@ function render(state) {
     replicatedGroupIds.add(p.groupB);
     if (p.frozen) { frozenGroupIds.add(p.groupA); frozenGroupIds.add(p.groupB); }
   }
-  renderGroupBackgrounds(state.nodes, replicatedGroupIds);
+  // "Group & Shrink" (see core/project.js's shrunkAnchorId field comment):
+  // `shrunkGroups` maps each currently-shrunk group's anchor node id to its
+  // *other* (hidden) member ids. `anchorByHiddenId` is the inverse lookup,
+  // used below to redirect an edge that would otherwise terminate at an
+  // invisible hidden member onto its group's visible placeholder instead —
+  // an external connection to a shrunk group should visually read as
+  // "this connects to the group", not silently vanish.
+  const shrunkGroups = computeShrunkGroups(state.nodes);
+  const hiddenNodeIds = new Set();
+  const anchorByHiddenId = new Map();
+  const shrunkGroupIds = new Set();
+  for (const [anchorId, memberIds] of shrunkGroups) {
+    for (const id of memberIds) { hiddenNodeIds.add(id); anchorByHiddenId.set(id, anchorId); }
+    const groupId = nodesById.get(anchorId)?.groupId;
+    if (groupId) shrunkGroupIds.add(groupId);
+  }
+  renderGroupBackgrounds(state.nodes, replicatedGroupIds, shrunkGroupIds);
+  renderShrinkBadges(nodesById, shrunkGroups);
   renderReplicationSyncPaths(state.nodes, state.replicationPairs);
   for (const node of state.nodes) {
     let elRef = nodeElements.get(node.id);
@@ -377,6 +406,12 @@ function render(state) {
       replicated: !!node.groupId && replicatedGroupIds.has(node.groupId),
       replicationFrozen: !!node.groupId && frozenGroupIds.has(node.groupId),
     });
+    // Reclaims the hidden member's on-canvas footprint entirely (unlike the
+    // opacity-only `.dimmed`/`.anim-hidden` classes Focus Mode/Diagram
+    // Animation use elsewhere) — real `display: none`, same technique
+    // hideExcept() already uses for isolated group image export.
+    elRef.style.display = hiddenNodeIds.has(node.id) ? 'none' : '';
+    elRef.classList.toggle('node-shrunk-anchor', shrunkGroups.has(node.id));
   }
 
   const edgeIds = new Set(state.edges.map((e) => e.id));
@@ -386,11 +421,14 @@ function render(state) {
       edgeElements.delete(id);
     }
   }
-  const nodesById = new Map(state.nodes.map((n) => [n.id, n]));
   const sequenceNumbers = computeMessageSequenceNumbers(state.edges, nodesById);
   for (const edge of state.edges) {
-    const fromNode = nodesById.get(edge.from);
-    const toNode = nodesById.get(edge.to);
+    // A hidden shrunk member's own real position/side is meaningless once
+    // it's collapsed — route the edge to its group's placeholder instead.
+    const fromId = anchorByHiddenId.get(edge.from) ?? edge.from;
+    const toId = anchorByHiddenId.get(edge.to) ?? edge.to;
+    const fromNode = nodesById.get(fromId);
+    const toNode = nodesById.get(toId);
     if (!fromNode || !toNode) continue;
     let elRef = edgeElements.get(edge.id);
     if (!elRef) {
@@ -398,6 +436,20 @@ function render(state) {
       edgeElements.set(edge.id, elRef);
       edgeLayer.appendChild(elRef);
     }
+    // Both ends collapsed onto the *same* placeholder from two originally
+    // *different* nodes — an edge purely internal to a shrunk group has
+    // nothing meaningful left to draw. Excludes a genuine self-loop
+    // (edge.from === edge.to already, e.g. a lifeline's own self-message or
+    // an ER self-referencing relationship — see erDiagramPatterns.spec.js/
+    // sequence-diagram.spec.js), which renders normally at the anchor if
+    // its owner happens to be a hidden member, same as any other edge
+    // redirected there. Hidden, not removed, so a real collapsed edge
+    // reappears instantly on Expand/Ungroup without waiting to be recreated.
+    if (fromId === toId && edge.from !== edge.to) {
+      elRef.style.display = 'none';
+      continue;
+    }
+    elRef.style.display = '';
     updateEdgeEl(elRef, edge, fromNode, toNode, {
       selected: store.getSelection().edgeIds.includes(edge.id),
       allNodes: state.nodes,
@@ -1181,8 +1233,14 @@ export function stopAnimationPlayback() {
  * a node or the canvas background underneath; only its own "✕" dismiss
  * control opts back in. Dismissing is session-only (not saved with the
  * project) — the group itself is untouched, just its background. */
-function renderGroupBackgrounds(nodes, replicatedGroupIds) {
-  const bounds = computeGroupBounds(nodes, replicatedGroupIds).filter((b) => !hiddenGroupBackgrounds.has(b.groupId));
+function renderGroupBackgrounds(nodes, replicatedGroupIds, shrunkGroupIds = new Set()) {
+  // A shrunk group's own placeholder (see renderShrinkBadges) already
+  // communicates "this is a collapsed group" — its members' *real* bounding
+  // box would otherwise draw a big, mostly-empty dashed box around wherever
+  // the hidden members still logically sit, with only the placeholder
+  // peeking out of one corner.
+  const bounds = computeGroupBounds(nodes, replicatedGroupIds)
+    .filter((b) => !hiddenGroupBackgrounds.has(b.groupId) && !shrunkGroupIds.has(b.groupId));
   const seqGroupIds = new Set(getSequenceDiagramGroups().map((g) => g.groupId));
   const seen = new Set();
   for (const b of bounds) {
@@ -1230,6 +1288,46 @@ function renderGroupBackgrounds(nodes, replicatedGroupIds) {
   }
 }
 
+/** One overlay per shrunk group's anchor node — sized/positioned to exactly
+ * match the anchor's own rect (see .shrink-badge-layer's DOM position,
+ * *after* .node-layer, in initCanvas — needed so its "🔍" button paints on
+ * top of the node and is actually clickable) with a small "N grouped" label
+ * and a zoom-in button that reuses the exact same generic drill-down view
+ * sequence diagrams already have (modals/subDiagramModal.js —
+ * renderGroupSnapshot only ever looks at `groupId`, nothing lifeline-
+ * specific, so a "Group & Shrink" group opens in it unmodified). */
+function renderShrinkBadges(nodesById, shrunkGroups) {
+  const seen = new Set();
+  for (const [anchorId] of shrunkGroups) {
+    const anchor = nodesById.get(anchorId);
+    if (!anchor) continue;
+    seen.add(anchorId);
+    let elRef = shrinkBadgeElements.get(anchorId);
+    if (!elRef) {
+      elRef = el('div', { class: 'shrink-badge' });
+      elRef.appendChild(el('span', { class: 'shrink-badge-label' }));
+      elRef.appendChild(el('button', {
+        type: 'button', class: 'shrink-badge-zoom', text: '🔍', title: 'View the grouped components',
+        onClick: (e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('sdb:open-subdiagram', { detail: { groupId: anchor.groupId } })); },
+      }));
+      shrinkBadgeElements.set(anchorId, elRef);
+      shrinkBadgeLayer.appendChild(elRef);
+    }
+    const count = shrunkGroups.get(anchorId).length + 1;
+    elRef.querySelector('.shrink-badge-label').textContent = `🗂️ ${count} grouped`;
+    elRef.style.left = `${anchor.x}px`;
+    elRef.style.top = `${anchor.y}px`;
+    elRef.style.width = `${anchor.w}px`;
+    elRef.style.height = `${anchor.h}px`;
+  }
+  for (const [anchorId, elRef] of shrinkBadgeElements) {
+    if (!seen.has(anchorId)) {
+      elRef.remove();
+      shrinkBadgeElements.delete(anchorId);
+    }
+  }
+}
+
 function renderSelectionOnly(selection) {
   for (const [id, elRef] of nodeElements) elRef.classList.toggle('selected', selection.nodeIds.includes(id));
   for (const [id, elRef] of edgeElements) elRef.classList.toggle('selected', selection.edgeIds.includes(id));
@@ -1261,11 +1359,15 @@ export function getSelectionScreenRect(nodeIds, edgeIds) {
   const rects = [];
   for (const id of nodeIds) {
     const elRef = nodeElements.get(id);
-    if (elRef) rects.push(elRef.getBoundingClientRect());
+    // A shrunk group's hidden (non-anchor) members are display:none and
+    // report an all-zero rect — including one here would corrupt the union
+    // box toward the viewport's origin instead of simply being excluded, as
+    // a since-deleted id already is.
+    if (elRef && elRef.style.display !== 'none') rects.push(elRef.getBoundingClientRect());
   }
   for (const id of edgeIds) {
     const elRef = edgeElements.get(id);
-    if (elRef) rects.push(elRef.getBoundingClientRect());
+    if (elRef && elRef.style.display !== 'none') rects.push(elRef.getBoundingClientRect());
   }
   if (!rects.length) return null;
   const left = Math.min(...rects.map((r) => r.left));
@@ -1463,6 +1565,18 @@ function instantiatePatternAtPoint(defId, point) {
     const groupId = nextId('group');
     for (const n of newNodes) n.groupId = groupId;
   }
+  // "Group & Shrink" (see buildGroupSnapshotFromSelection's own
+  // startShrunk/shrinkAnchorKey comment): a component saved while shrunk
+  // reopens shrunk, by re-resolving its saved anchor key to this fresh
+  // instantiation's own new node id — the id saved on the definition itself
+  // is meaningless here (a different instantiation, possibly the very first
+  // one ever), same "resolve fresh every time" reasoning patternInstanceId
+  // above already documents.
+  let shrunkAnchorNodeId = null;
+  if (patternDef.startShrunk && patternDef.shrinkAnchorKey && idByKey.has(patternDef.shrinkAnchorKey)) {
+    shrunkAnchorNodeId = idByKey.get(patternDef.shrinkAnchorKey);
+    for (const n of newNodes) n.shrunkAnchorId = shrunkAnchorNodeId;
+  }
   const newEdges = (patternDef.pattern.edges || [])
     .filter((edgeSpec) => idByKey.has(edgeSpec.from) && idByKey.has(edgeSpec.to))
     .map((edgeSpec) => createEdge(idByKey.get(edgeSpec.from), idByKey.get(edgeSpec.to), edgeSpec.overrides || {
@@ -1477,7 +1591,7 @@ function instantiatePatternAtPoint(defId, point) {
     draft.nodes.push(...newNodes);
     draft.edges.push(...newEdges);
   });
-  store.select(newNodes.map((nd) => nd.id), []);
+  store.select(shrunkAnchorNodeId ? [shrunkAnchorNodeId] : newNodes.map((nd) => nd.id), []);
   showToast(`Added the "${patternDef.name}" pattern (${newNodes.length} components).`, 'success', 2400);
 }
 
@@ -1995,11 +2109,10 @@ export function duplicateSelection({ renameDuplicates = true } = {}) {
   // same reasoning as groupIdMap below.
   const patternInstanceIdMap = new Map();
   const usedNames = state.nodes.map((n) => n.text).filter(Boolean);
-  const newNodes = selection.nodeIds
-    .map((id) => state.nodes.find((n) => n.id === id))
-    .filter(Boolean)
+  const originals = selection.nodeIds.map((id) => state.nodes.find((n) => n.id === id)).filter(Boolean);
+  const newNodes = originals
     .map((n) => {
-      const { id: _oldId, x: _x, y: _y, groupId: oldGroupId, patternInstanceId: oldPatternInstanceId, ...rest } = n;
+      const { id: _oldId, x: _x, y: _y, groupId: oldGroupId, shrunkAnchorId: _oldShrunkAnchorId, patternInstanceId: oldPatternInstanceId, ...rest } = n;
       let newGroupId = null;
       if (oldGroupId) {
         if (!groupIdMap.has(oldGroupId)) groupIdMap.set(oldGroupId, nextId('group'));
@@ -2016,6 +2129,16 @@ export function duplicateSelection({ renameDuplicates = true } = {}) {
       idMap.set(n.id, clone.id);
       return clone;
     });
+  // shrunkAnchorId names a specific node, so — like patternInstanceId's own
+  // "resolve after every id exists" ordering just above — it can only be
+  // remapped once idMap is fully populated; a duplicated member whose
+  // anchor wasn't itself duplicated (only part of a shrunk group's members
+  // was selected) surfaces as a normal, fully-visible node instead of
+  // silently pointing at an id that isn't part of this batch at all.
+  newNodes.forEach((clone, i) => {
+    const oldAnchorId = originals[i].shrunkAnchorId;
+    clone.shrunkAnchorId = oldAnchorId && idMap.has(oldAnchorId) ? idMap.get(oldAnchorId) : null;
+  });
 
   // Duplicate both edges internal to the duplicated nodes AND any edge the
   // user explicitly selected directly (even if only one/neither endpoint
@@ -2071,7 +2194,14 @@ export function buildGroupSnapshotFromSelection() {
     // instantiatePatternAtPoint always stamps its own fresh values after
     // spreading these overrides regardless, so this is cleanup, not a
     // functional fix.
-    const { id: _id, x, y, zIndex: _zIndex, groupId: _groupId, defId: _defId, sourcePatternId: _sourcePatternId, patternInstanceId: _patternInstanceId, ...overrides } = n;
+    // shrunkAnchorId names a specific *node id* from the live canvas (not
+    // this selection's own defId-keyed blueprint), so — same reasoning as
+    // groupId just above — it would leak in as meaningless, dangling data.
+    // Whether the saved component should itself reopen shrunk is captured
+    // separately below (startShrunk/shrinkAnchorKey) and re-applied fresh
+    // by instantiatePatternAtPoint, the same two-step split
+    // groupOnInstantiate already uses for groupId.
+    const { id: _id, x, y, zIndex: _zIndex, groupId: _groupId, shrunkAnchorId: _shrunkAnchorId, defId: _defId, sourcePatternId: _sourcePatternId, patternInstanceId: _patternInstanceId, ...overrides } = n;
     return { key, defId: n.defId || null, dx: x + n.w / 2 - centerX, dy: y + n.h / 2 - centerY, overrides };
   });
 
@@ -2083,7 +2213,30 @@ export function buildGroupSnapshotFromSelection() {
     return { from: keyById.get(from), to: keyById.get(to), overrides };
   });
 
-  return { nodeCount: nodes.length, pattern: { nodes: patternNodes, edges: patternEdges } };
+  // "Group & Shrink" (see core/project.js's shrunkAnchorId field comment):
+  // if the *whole* selection currently forms one shrunk group, remember
+  // which member was its anchor (by the same `key` patternNodes above just
+  // assigned it) so a saved custom component built from it reopens already
+  // shrunk — the requirement instantiatePatternAtPoint's own
+  // startShrunk/shrinkAnchorKey handling exists for. A selection that's
+  // only *part* of a bigger shrunk group (the anchor wasn't included, or
+  // members disagree) isn't a coherent "this whole thing is shrunk" case,
+  // so it's saved as a normal, fully-visible component instead — same
+  // reasoning excludes a lone anchor node saved by itself (nodes.length > 1
+  // required): with no hidden members actually along for the ride, marking
+  // it startShrunk would just cosmetically label a single ordinary node as
+  // a "group of 1" with nothing to expand.
+  const commonAnchorId = nodes.length > 1 && nodes.every((n) => n.shrunkAnchorId && n.shrunkAnchorId === nodes[0].shrunkAnchorId)
+    ? nodes[0].shrunkAnchorId
+    : null;
+  const shrinkAnchorKey = commonAnchorId ? keyById.get(commonAnchorId) : null;
+
+  return {
+    nodeCount: nodes.length,
+    pattern: { nodes: patternNodes, edges: patternEdges },
+    startShrunk: !!shrinkAnchorKey,
+    shrinkAnchorKey,
+  };
 }
 
 /** Duplicates every node and connector currently on the canvas, offset in
@@ -2166,6 +2319,58 @@ export function ungroupSelection() {
 export function selectionHasGroup() {
   const state = store.getState();
   return store.getSelection().nodeIds.some((id) => state.nodes.find((n) => n.id === id)?.groupId);
+}
+
+/** "Group & Shrink" (right-click on a 2+ multi-selection): groups the
+ * selection under a fresh groupId (same as groupSelection(), even if some
+ * of it was already grouped — a clean regroup, not a merge) and collapses
+ * it down to the on-screen footprint of its topmost-left member, which
+ * becomes the anchor/placeholder (see core/project.js's shrunkAnchorId
+ * field and canvas.js#computeShrunkGroups). Deterministic member order
+ * (y then x) keeps repeat calls picking the same visual corner rather than
+ * an arbitrary one. */
+export function groupAndShrinkSelection() {
+  const selection = store.getSelection();
+  if (selection.nodeIds.length < 2) return;
+  const state = store.getState();
+  const selNodes = selection.nodeIds.map((id) => state.nodes.find((n) => n.id === id)).filter(Boolean);
+  if (selNodes.length < 2) return;
+  const anchor = [...selNodes].sort((a, b) => (a.y - b.y) || (a.x - b.x))[0];
+  const groupId = nextId('group');
+  store.dispatch((draft) => {
+    for (const id of selection.nodeIds) {
+      const n = draft.nodes.find((x) => x.id === id);
+      if (n) { n.groupId = groupId; n.shrunkAnchorId = anchor.id; }
+    }
+  });
+  store.select([anchor.id], []);
+  showToast(`Grouped and shrunk ${selNodes.length} components — click 🔍 to view them.`, 'success', 2600);
+}
+
+/** "Expand" (right-click on a shrunk placeholder): restores every member of
+ * `groupId` to full size without dissolving the grouping itself — the
+ * inverse of groupAndShrinkSelection()'s own shrunkAnchorId assignment. */
+export function expandShrunkGroup(groupId) {
+  if (!groupId) return;
+  store.dispatch((draft) => {
+    for (const n of draft.nodes) {
+      if (n.groupId === groupId) n.shrunkAnchorId = null;
+    }
+  });
+  showToast('Expanded back to full size.', 'success', 1800);
+}
+
+/** "Ungroup" (בטל קיבוץ) on a shrunk placeholder: dissolves the grouping
+ * *and* restores full size in one step, since a dissolved group has no
+ * groupId left for a later Expand to even target. */
+export function dissolveShrunkGroup(groupId) {
+  if (!groupId) return;
+  store.dispatch((draft) => {
+    for (const n of draft.nodes) {
+      if (n.groupId === groupId) { n.groupId = null; n.shrunkAnchorId = null; }
+    }
+  });
+  showToast('Ungrouped — components are back to full size.', 'success', 1800);
 }
 
 function isGroupInAnyPair(state, groupId) {
@@ -2594,10 +2799,19 @@ export function hideExcept(nodeIds) {
   const hidden = [];
   for (const [id, elRef] of nodeElements) {
     if (!idSet.has(id)) { hidden.push(elRef); elRef.style.display = 'none'; }
+    // A target node can already be display:none for an unrelated reason —
+    // e.g. it's a "Group & Shrink" hidden member (see render()'s own
+    // hiddenNodeIds) — in which case the capture must still show it: force
+    // it visible rather than trusting whatever the ongoing render loop left
+    // it at. The restore function's own render() call below reconciles this
+    // back to the correct hidden state afterward, so nothing needs undoing
+    // here specifically.
+    else if (elRef.style.display === 'none') { elRef.style.display = ''; }
   }
   for (const [id, elRef] of edgeElements) {
     const edge = edgesById.get(id);
     if (!edge || !idSet.has(edge.from) || !idSet.has(edge.to)) { hidden.push(elRef); elRef.style.display = 'none'; }
+    else if (elRef.style.display === 'none') { elRef.style.display = ''; }
   }
   const prevGroupBgDisplay = groupBgLayer.style.display;
   groupBgLayer.style.display = 'none';
@@ -2607,6 +2821,12 @@ export function hideExcept(nodeIds) {
     for (const elRef of hidden) elRef.style.display = '';
     groupBgLayer.style.display = prevGroupBgDisplay;
     edgeHandleLayer.style.display = prevHandleDisplay;
+    // Blindly restoring to '' above would incorrectly reveal a *different*
+    // group's shrunk (non-anchor) members if one happens to exist elsewhere
+    // on the canvas while this capture ran — a full render() reconciles
+    // every element's display back to whatever the current shrink state
+    // actually calls for, same as any other store-driven redraw.
+    render(store.getState());
   };
 }
 
@@ -2662,11 +2882,36 @@ function openNodeContextMenu(nodeId, evt) {
       onClick: () => window.dispatchEvent(new CustomEvent('sdb:open-replication', { detail: { nodeId } })),
     });
   }
+  // A shrunk placeholder (this specific node is its own group's anchor —
+  // see core/project.js's shrunkAnchorId field) offers Expand/Ungroup
+  // instead of the "Group & Shrink" offer below, which only makes sense on
+  // a multi-selection that isn't shrunk yet.
+  if (node?.shrunkAnchorId === nodeId) {
+    items.push(
+      'separator',
+      { label: 'Expand', icon: '🔎', onClick: () => expandShrunkGroup(node.groupId) },
+      { label: 'Ungroup', icon: '✂️', onClick: () => dissolveShrunkGroup(node.groupId) },
+    );
+  } else {
+    const shrinkItem = groupAndShrinkMenuItem(nodeId);
+    if (shrinkItem) items.push('separator', shrinkItem);
+  }
   items.push('separator', animationMenuItem('node', nodeId));
   const groupItem = selectionAnimationMenuItem('node', nodeId);
   if (groupItem) items.push(groupItem);
   items.push({ label: 'Delete', icon: '🗑️', danger: true, onClick: () => { store.select([nodeId], []); deleteSelection(); } });
   showContextMenu(evt.clientX, evt.clientY, items);
+}
+
+/** "Group & Shrink" (right-click): offered only when the right-clicked node
+ * is part of a *current* multi-selection (2+ items) — same "act on the
+ * whole selection, not just this one node" gating as
+ * selectionAnimationMenuItem just below. Returns null (nothing pushed) for
+ * a single-node selection. */
+function groupAndShrinkMenuItem(nodeId) {
+  const sel = store.getSelection();
+  if (sel.nodeIds.length < 2 || !sel.nodeIds.includes(nodeId)) return null;
+  return { label: 'Group & Shrink', icon: '📦', onClick: groupAndShrinkSelection };
 }
 
 /** Shared node/edge context-menu entry for Diagram Animation — toggles
@@ -2741,11 +2986,31 @@ function openEdgeContextMenu(edgeId, evt) {
   showContextMenu(evt.clientX, evt.clientY, items);
 }
 
+/** High-availability actions a user is likely to reach for from anywhere on
+ * the canvas — surfaced here in addition to their usual toolbar/shortcut
+ * homes, not instead of them. Command Palette/Undo/Redo/Auto-arrange/Check
+ * Diagram/AI Design Review are each already reachable elsewhere; this menu
+ * is a second, always-in-reach path so a user mid-diagram never has to hunt
+ * across dropdowns for something this central. Command Palette, Check
+ * Diagram, and AI Design Review are dispatched as sdb:open-* events (see
+ * modals/commandPaletteModal.js, modals/diagramLintModal.js,
+ * panel/aiReviewPanel.js) rather than imported directly, since each of
+ * those files itself imports from this one — a direct import here would be
+ * circular. */
 function openCanvasContextMenu(evt) {
   const items = [
+    { label: 'Command Palette…', icon: '⌘', onClick: () => window.dispatchEvent(new CustomEvent('sdb:open-command-palette')) },
+    'separator',
+    { label: 'Undo', icon: '↶', disabled: !store.canUndo(), onClick: () => store.undo() },
+    { label: 'Redo', icon: '↷', disabled: !store.canRedo(), onClick: () => store.redo() },
+    'separator',
     { label: 'Select all', icon: '▭', onClick: () => store.select(store.getState().nodes.map((n) => n.id), []) },
     { label: 'Fit to screen', icon: '🔍', onClick: fitToScreen },
     { label: 'Reset zoom to 100%', icon: '💯', onClick: () => viewport.zoomTo(1) },
+    'separator',
+    { label: 'Auto-arrange', icon: '🗺️', onClick: autoArrangeAll },
+    { label: 'Check Diagram', icon: '🩺', onClick: () => window.dispatchEvent(new CustomEvent('sdb:open-diagram-lint')) },
+    { label: 'AI Design Review', icon: '🤖', onClick: () => window.dispatchEvent(new CustomEvent('sdb:open-ai-review')) },
     'separator',
     { label: 'Add comment here', icon: '💬', onClick: () => addCommentAt(evt) },
     { label: 'Add sticky note here', icon: '🗒️', onClick: () => addStickyNote(viewport.screenToCanvas(evt.clientX, evt.clientY)) },

@@ -74,11 +74,19 @@ Or open `index.html` directly in a browser.
   connectors, via marquee, shift-click, or Ctrl/Cmd-click to toggle one
   item in/out of the current selection), duplicate, delete, rename
   inline, pan/zoom (buttons, Ctrl/Cmd+scroll, or keyboard Ctrl/Cmd +
-  "+"/"-"/"0"), right-click context menu (including "🧹 Clear canvas" to
+  "+"/"-"/"0"), right-click context menu (empty canvas now also offers
+  quick access to ⌘ Command Palette, ↶ Undo/↷ Redo, 🗺️ Auto-arrange, 🩺
+  Check Diagram, and 🤖 AI Design Review, alongside "🧹 Clear canvas" to
   wipe everything and start fresh, undoable), and Group/Ungroup for tying
   components together as one selectable/movable unit — a group of 2+ (and
   each side of a Live Replication pair) shows a dismissible dashed
   background so it reads as one unit at a glance.
+- **📦 Group & Shrink** — right-click a 2+ selection to collapse it down to
+  the footprint of one component, with a "🗂️ N grouped" badge and a 🔍
+  zoom-in button opening a read-only preview of everything folded inside.
+  Right-click the placeholder for "🔎 Expand" (back to full size, still
+  grouped) or "✂️ Ungroup" (dissolves it entirely) — saving a shrunk group
+  as a custom component remembers to reopen it shrunk next time.
 - **Navigation tools** — a 🖱️ Select / ✋ Hand toolbar toggle (`H`/`V`
   shortcuts, or hold **Space**): Hand pans the canvas by dragging anywhere,
   even over a component, without moving or altering it.

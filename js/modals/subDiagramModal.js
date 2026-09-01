@@ -43,7 +43,7 @@ export function openSubDiagramModal(groupId) {
   }
   let unsub = null;
   openModal({
-    title: '🔍 Sequence Diagram',
+    title: isSequenceDiagramGroup(groupId) ? '🔍 Sequence Diagram' : '🔍 Grouped Components',
     className: 'subdiagram-modal',
     onClose: () => unsub?.(),
     render: (body, api) => {
@@ -54,8 +54,22 @@ export function openSubDiagramModal(groupId) {
   });
 }
 
+/** Whether `groupId`'s members are all lifelines — the same eligibility
+ * check canvas.js#getSequenceDiagramGroups uses for the group-background's
+ * own zoom icon, duplicated here (rather than imported) since that function
+ * scans *every* group on the canvas and this only ever needs one. A
+ * "Group & Shrink" group (see canvas.js#groupAndShrinkSelection) reuses
+ * this exact same modal/snapshot machinery — it's generic, keyed only on
+ * groupId — but isn't a sequence diagram, so the Mermaid/PlantUML export
+ * buttons below (which assume lifeline messages) only make sense here. */
+function isSequenceDiagramGroup(groupId) {
+  const nodes = store.getState().nodes.filter((n) => n.groupId === groupId);
+  return nodes.length > 0 && nodes.every((n) => n.shape === 'lifeline');
+}
+
 function renderModalBody(body, api, groupId) {
   clear(body);
+  const isSequence = isSequenceDiagramGroup(groupId);
   body.appendChild(el('p', {
     class: 'modal-hint',
     text: 'A read-only zoomed-in view. Use "Edit" to change it — your edits save back to the main diagram when you\'re done.',
@@ -66,34 +80,36 @@ function renderModalBody(body, api, groupId) {
   body.appendChild(preview);
 
   const actions = el('div', { class: 'modal-actions' });
-  actions.appendChild(el('button', {
-    type: 'button', class: 'btn', text: '📋 Copy as Mermaid',
-    title: 'Copy this sequence diagram as Mermaid sequenceDiagram text',
-    onClick: async () => {
-      const state = store.getState();
-      const nodes = state.nodes.filter((n) => n.groupId === groupId);
-      if (!nodes.length) return;
-      const nodeIds = new Set(nodes.map((n) => n.id));
-      const edges = state.edges.filter((e) => nodeIds.has(e.from) && nodeIds.has(e.to));
-      const text = buildSequenceMermaid({ nodes, edges, allNodes: state.nodes });
-      await navigator.clipboard.writeText(text);
-      showToast('Mermaid text copied to clipboard.', 'success', 2000);
-    },
-  }));
-  actions.appendChild(el('button', {
-    type: 'button', class: 'btn', text: '📋 Copy as PlantUML',
-    title: 'Copy this sequence diagram as PlantUML sequence-diagram text',
-    onClick: async () => {
-      const state = store.getState();
-      const nodes = state.nodes.filter((n) => n.groupId === groupId);
-      if (!nodes.length) return;
-      const nodeIds = new Set(nodes.map((n) => n.id));
-      const edges = state.edges.filter((e) => nodeIds.has(e.from) && nodeIds.has(e.to));
-      const text = buildSequencePlantUML({ nodes, edges, allNodes: state.nodes });
-      await navigator.clipboard.writeText(text);
-      showToast('PlantUML text copied to clipboard.', 'success', 2000);
-    },
-  }));
+  if (isSequence) {
+    actions.appendChild(el('button', {
+      type: 'button', class: 'btn', text: '📋 Copy as Mermaid',
+      title: 'Copy this sequence diagram as Mermaid sequenceDiagram text',
+      onClick: async () => {
+        const state = store.getState();
+        const nodes = state.nodes.filter((n) => n.groupId === groupId);
+        if (!nodes.length) return;
+        const nodeIds = new Set(nodes.map((n) => n.id));
+        const edges = state.edges.filter((e) => nodeIds.has(e.from) && nodeIds.has(e.to));
+        const text = buildSequenceMermaid({ nodes, edges, allNodes: state.nodes });
+        await navigator.clipboard.writeText(text);
+        showToast('Mermaid text copied to clipboard.', 'success', 2000);
+      },
+    }));
+    actions.appendChild(el('button', {
+      type: 'button', class: 'btn', text: '📋 Copy as PlantUML',
+      title: 'Copy this sequence diagram as PlantUML sequence-diagram text',
+      onClick: async () => {
+        const state = store.getState();
+        const nodes = state.nodes.filter((n) => n.groupId === groupId);
+        if (!nodes.length) return;
+        const nodeIds = new Set(nodes.map((n) => n.id));
+        const edges = state.edges.filter((e) => nodeIds.has(e.from) && nodeIds.has(e.to));
+        const text = buildSequencePlantUML({ nodes, edges, allNodes: state.nodes });
+        await navigator.clipboard.writeText(text);
+        showToast('PlantUML text copied to clipboard.', 'success', 2000);
+      },
+    }));
+  }
   actions.appendChild(el('button', {
     type: 'button', class: 'btn', text: '📌 Pin to side panel',
     onClick: () => { pinGroup(groupId); api.close(); },
@@ -118,7 +134,7 @@ export function renderGroupSnapshot(container, groupId) {
   const state = store.getState();
   const nodes = state.nodes.filter((n) => n.groupId === groupId);
   if (!nodes.length) {
-    container.appendChild(el('p', { class: 'modal-hint', text: 'This sequence diagram no longer exists — its lifelines were deleted or ungrouped.' }));
+    container.appendChild(el('p', { class: 'modal-hint', text: 'This group no longer exists — its members were deleted or ungrouped.' }));
     return;
   }
   const nodeIds = new Set(nodes.map((n) => n.id));
@@ -181,15 +197,16 @@ function pinGroup(groupId) {
   if (pinnedGroupIds.has(groupId)) return;
   pinnedGroupIds.add(groupId);
 
+  const title = isSequenceDiagramGroup(groupId) ? '🔍 Sequence Diagram' : '🔍 Grouped Components';
   const panel = el('div', { class: 'subdiagram-pin-panel' });
   const header = el('div', { class: 'subdiagram-pin-header' });
-  header.appendChild(el('span', { class: 'subdiagram-pin-title', text: '🔍 Sequence Diagram' }));
+  header.appendChild(el('span', { class: 'subdiagram-pin-title', text: title }));
   header.appendChild(el('button', {
-    type: 'button', class: 'btn btn-icon', text: '✏️', title: 'Edit this sequence diagram', 'aria-label': 'Edit this sequence diagram',
+    type: 'button', class: 'btn btn-icon', text: '✏️', title: `Edit this ${title.slice(3).toLowerCase()}`, 'aria-label': `Edit this ${title.slice(3).toLowerCase()}`,
     onClick: () => { unpinGroup(groupId); enterSubDiagramEdit(groupId); },
   }));
   header.appendChild(el('button', {
-    type: 'button', class: 'btn btn-icon', text: '✕', title: 'Unpin', 'aria-label': 'Unpin this sequence diagram',
+    type: 'button', class: 'btn btn-icon', text: '✕', title: 'Unpin', 'aria-label': 'Unpin',
     onClick: () => unpinGroup(groupId),
   }));
   panel.appendChild(header);

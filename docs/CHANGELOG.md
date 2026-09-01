@@ -3,6 +3,66 @@
 All notable changes to this project. Format: date, then bullet list.
 Keep this in sync with `PLAN.md` as stages complete.
 
+## v1.54.0 (2026-09-01)
+
+- **"Group & Shrink"** (`js/core/project.js`, `js/canvas/canvas.js`,
+  `js/canvas/shrinkGroups.js` (new), `js/canvas/node.js`,
+  `js/modals/subDiagramModal.js`, `js/canvas/subDiagramEdit.js`,
+  `js/modals/saveComponentGroupModal.js`, `js/io/customComponents.js`,
+  `css/canvas.css`, `css/node.css`):
+  - New node field `shrunkAnchorId` (string node id, or `null`) —
+    independent of `groupId`, shared by every member of a shrunk group
+    including the anchor node itself. Right-click a 2+ multi-selection and
+    choose "Group & Shrink" to group it (a fresh `groupId`, same as plain
+    Group) and collapse it down to the on-screen footprint of one ordinary
+    component: the topmost-then-leftmost member becomes the visible
+    placeholder, every other member gets its DOM element hidden
+    (`display: none`, reclaiming its footprint) rather than merely dimmed.
+  - The placeholder shows a small "🗂️ N grouped" badge and a 🔍 zoom-in
+    button that opens the *exact same* read-only drill-down preview a
+    sequence-diagram group already had (`subDiagramModal.js`) — that view
+    needed no changes at all, since it was already generic (keyed only on
+    `groupId`). The modal's title and its Mermaid/PlantUML copy buttons are
+    now conditional on the group actually being all-lifeline, so a
+    non-sequence shrunk group gets a plain "🔍 Grouped Components" title
+    with no export buttons instead.
+  - An external connector to a now-hidden member redirects to visually
+    terminate at the placeholder instead of vanishing; an edge purely
+    internal to the shrunk group is hidden (a genuine self-loop is
+    unaffected and still renders normally).
+  - Right-clicking the placeholder offers "🔎 Expand" (restores full size,
+    stays grouped) and "✂️ Ungroup" (dissolves the group and restores full
+    size in the same step).
+  - Saving a shrunk selection via "⭐ Save as Component" remembers which
+    member was the anchor (`startShrunk`/`shrinkAnchorKey` on the saved
+    definition, the same two-field save/resolve pattern
+    `groupOnInstantiate` already established) — placing it again later
+    reopens it already shrunk.
+  - Fixed two pre-existing bugs found while building and testing this:
+    (1) right-clicking an already-multi-selected node that wasn't the most
+    recently focused one silently collapsed the selection back to just that
+    node (`canvas/node.js`'s pointerdown handler — a native focus-shift side
+    effect slipped past the "don't collapse on right-click" guard); (2) the
+    existing "N grouped"/"🔁 Replicated" group-background label
+    (`.group-bg-label`) visually reordered under Hebrew's RTL mode (now
+    fixed alongside the new `.shrink-badge-label`, both with an explicit
+    `direction: ltr`).
+  - New `tests/e2e/group-shrink.spec.js` and extended
+    `tests/unit/project.test.mjs`/new `tests/unit/shrinkGroups.test.mjs`.
+- **Canvas right-click quick actions** (`js/canvas/canvas.js`,
+  `js/modals/commandPaletteModal.js`, `js/modals/diagramLintModal.js`,
+  `js/panel/aiReviewPanel.js`):
+  - The empty-canvas right-click menu now also offers ⌘ Command Palette,
+    ↶ Undo/↷ Redo (disabled with nothing to undo/redo), 🗺️ Auto-arrange,
+    🩺 Check Diagram, and 🤖 AI Design Review — all pre-existing actions,
+    now reachable without opening a toolbar dropdown first.
+  - Command Palette/Check Diagram/AI Design Review are wired via three new
+    `sdb:open-*` window events (`sdb:open-command-palette`,
+    `sdb:open-diagram-lint`, `sdb:open-ai-review`) to avoid a circular
+    import, the same convention `sdb:open-subdiagram`/`sdb:open-details`
+    already use.
+  - New `tests/e2e/canvasContextMenu.spec.js`.
+
 ## v1.53.0 (2026-09-01)
 
 - **One-click Sticky Notes, plus a new generic node "Rotation" style field**

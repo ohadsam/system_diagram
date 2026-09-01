@@ -118,7 +118,17 @@ export function importCustomComponents(parsed) {
       tags: Array.isArray(raw.tags) ? raw.tags.filter((t) => typeof t === 'string') : [],
       subComponents: Array.isArray(raw.subComponents) ? raw.subComponents.filter((s) => s && typeof s.name === 'string') : [],
       defaultSize: raw.defaultSize && Number.isFinite(raw.defaultSize.w) && Number.isFinite(raw.defaultSize.h) ? raw.defaultSize : { w: 160, h: 84 },
-      ...(pattern ? { pattern, groupOnInstantiate: raw.groupOnInstantiate === true } : {}),
+      ...(pattern ? {
+        pattern,
+        groupOnInstantiate: raw.groupOnInstantiate === true,
+        // "Group & Shrink" (see canvas.js#buildGroupSnapshotFromSelection):
+        // a saved group that was shrunk when saved reopens shrunk — only
+        // trusted together, since a shrinkAnchorKey with no startShrunk (or
+        // vice versa) is meaningless to instantiatePatternAtPoint.
+        ...(raw.startShrunk === true && typeof raw.shrinkAnchorKey === 'string' && raw.shrinkAnchorKey
+          ? { startShrunk: true, shrinkAnchorKey: raw.shrinkAnchorKey }
+          : {}),
+      } : {}),
     });
     imported += 1;
   }

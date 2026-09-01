@@ -474,3 +474,8 @@ function buildSavedReviews() {
   }
   return wrap;
 }
+
+// Canvas-background right-click menu dispatches this to avoid a circular
+// import (this file imports from canvas/canvas.js) — see canvas.js's
+// openCanvasContextMenu and the sdb:open-* convention used throughout.
+window.addEventListener('sdb:open-ai-review', () => toggleAiReviewPanel());

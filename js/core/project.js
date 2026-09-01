@@ -216,6 +216,15 @@ export function createNode(def, x, y, overrides = {}) {
     rows: def?.shape === 'rows' ? ['Row 1'] : [],
     zIndex: 1,
     groupId: null,
+    // "Group & Shrink" (canvas.js#groupAndShrinkSelection): the id of the
+    // node acting as this group's collapsed placeholder, shared by every
+    // member of the group including the anchor itself (anchor: id ===
+    // shrunkAnchorId). null means the group (if any) is at full size.
+    // Deliberately independent of groupId (which only says "these nodes
+    // move together") so a plain Group/Ungroup never implicitly
+    // shrinks/expands anything, and Expand can restore full size without
+    // dissolving the grouping itself. See canvas.js#computeShrunkGroups.
+    shrunkAnchorId: null,
     // Opts this node out of core/replication.js's live mirroring, even while
     // its groupId belongs to an active replication pair's side — see
     // docs/SPEC.md "Live Replication".
@@ -358,6 +367,13 @@ export function duplicateProject(project) {
       subComponents: (n.subComponents || []).map((sc) => ({ ...sc, id: nextId('sc') })),
     };
   });
+  // shrunkAnchorId names a specific node (unlike groupId, a free-floating
+  // tag), so it can only be remapped once every node's own new id is known —
+  // a second pass over the now-complete nodeIdMap, same reasoning as
+  // validateContent's own post-pass above.
+  for (const n of nodes) {
+    n.shrunkAnchorId = n.shrunkAnchorId && nodeIdMap.has(n.shrunkAnchorId) ? nodeIdMap.get(n.shrunkAnchorId) : null;
+  }
   const edgeIdMap = new Map();
   const edges = project.edges
     .filter((e) => nodeIdMap.has(e.from) && nodeIdMap.has(e.to))
@@ -503,6 +519,15 @@ export function removeNode(project, nodeId) {
   removeAnimationTargets(project, (t) => (
     (t.targetType === 'node' && t.targetId === nodeId) || (t.targetType === 'edge' && removedEdgeIds.has(t.targetId))
   ));
+  // Deleting a shrink placeholder's anchor node would otherwise leave every
+  // other (hidden) member pointing at an id that no longer exists — expand
+  // them back to full size rather than leaving them permanently hidden with
+  // no way to reach them.
+  if (project.nodes.some((n) => n.shrunkAnchorId === nodeId)) {
+    for (const n of project.nodes) {
+      if (n.shrunkAnchorId === nodeId) n.shrunkAnchorId = null;
+    }
+  }
 }
 
 export function removeEdge(project, edgeId) {
@@ -566,6 +591,7 @@ function validateContent(rawNodes, rawEdges, rawReplicationPairs) {
         rows: Array.isArray(n.rows) ? n.rows.filter((r) => typeof r === 'string') : [],
         zIndex: Number.isFinite(n.zIndex) ? n.zIndex : 1,
         groupId: typeof n.groupId === 'string' ? n.groupId : null,
+        shrunkAnchorId: typeof n.shrunkAnchorId === 'string' ? n.shrunkAnchorId : null,
         replicationExcluded: n.replicationExcluded === true,
         destroyOffset: Number.isFinite(n.destroyOffset) ? Math.min(1, Math.max(0, n.destroyOffset)) : null,
         activations: Array.isArray(n.activations)
@@ -589,6 +615,15 @@ function validateContent(rawNodes, rawEdges, rawReplicationPairs) {
         ...(typeof n.patternInstanceId === 'string' && n.patternInstanceId ? { patternInstanceId: n.patternInstanceId } : {}),
       };
     });
+  // Unlike groupId (a free-floating shared tag), shrunkAnchorId names a
+  // specific *node*, so a stale/hand-edited reference to an id that isn't
+  // actually in this project would otherwise permanently hide the node
+  // behind a placeholder that can never be found — clear it back to "not
+  // shrunk" instead of trusting it blindly, same defensive spirit as every
+  // other field validated above.
+  for (const n of nodes) {
+    if (n.shrunkAnchorId && !nodeIds.has(n.shrunkAnchorId)) n.shrunkAnchorId = null;
+  }
   const edgeIds = new Set();
   const edges = (Array.isArray(rawEdges) ? rawEdges : [])
     .filter((e) => e && typeof e === 'object' && nodeIds.has(e.from) && nodeIds.has(e.to))

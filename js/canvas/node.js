@@ -44,10 +44,25 @@ export function createNodeEl(node) {
     // 'contextmenu' event — on a node that's already part of a multi-
     // -selection, it must not collapse that selection first, or a
     // context-menu action meant to act on the whole group (e.g. Diagram
-    // Animation's "Add Selection to Animation") would only ever see the one
-    // right-clicked item. Right-clicking something *not* already selected
-    // still selects just it, same as before.
-    if (e.button === 2 && root.classList.contains('selected')) return;
+    // Animation's "Add Selection to Animation", or "Group & Shrink") would
+    // only ever see the one right-clicked item. Right-clicking something
+    // *not* already selected still selects just it, same as before.
+    if (e.button === 2 && root.classList.contains('selected')) {
+      // Still must set the guard below — a right-click also shifts native
+      // DOM focus to this element if it wasn't already focused (browsers do
+      // this for any focusable element regardless of which mouse button was
+      // pressed), which fires this node's own 'focus' handler right after.
+      // Without `recentPointerdown` set here, that handler would see it as
+      // a genuine keyboard-driven focus change and call onSelect(id, false)
+      // — silently collapsing the very multi-selection this early return
+      // exists to preserve, but *only* for whichever member wasn't already
+      // focused (i.e. not the last one clicked) — the reason this bug
+      // stayed invisible until a menu item was right-clicked on a node
+      // other than the last-selected one.
+      recentPointerdown = true;
+      setTimeout(() => { recentPointerdown = false; }, 0);
+      return;
+    }
     recentPointerdown = true;
     setTimeout(() => { recentPointerdown = false; }, 0);
     handlers.onSelect(node.id, e.shiftKey || e.metaKey || e.ctrlKey, e);

@@ -476,6 +476,185 @@ it immediately, try to click its icon before scrolling/fitting to screen —
 "Fit to screen" (already a toolbar button) is the natural way out of it,
 same as for any other content that starts outside the current view.
 
+### Group & Shrink (`canvas.js#groupAndShrinkSelection`/`expandShrunkGroup`/`dissolveShrunkGroup`, `canvas/shrinkGroups.js`)
+
+A right-click "collapse a multi-selection down to one placeholder" action,
+reusing as much of the sequence-diagram drill-down machinery just above as
+possible rather than building a parallel system — deliberately, since the
+two features turned out to overlap almost entirely once researched.
+
+- **Data model** (`core/project.js`): one new field, `node.shrunkAnchorId`
+  (string node id, or `null`) — shared by every member of a shrunk group,
+  including the anchor itself (`n.id === n.shrunkAnchorId`). Deliberately a
+  field independent of `groupId`, not a variant of it: `groupId` alone
+  already means "moves/selects together" (see 4.3.1's Group/Ungroup), and
+  overloading it to also mean "collapsed" would make a plain Group action
+  accidentally shrink-able and a plain Ungroup accidentally lose the shrink
+  state's own restore path. `computeShrunkGroups(nodes)`
+  (`canvas/shrinkGroups.js`, pure, unit-tested like `groupBackgrounds.js`'s
+  `computeGroupBounds`) derives `anchorId -> [hidden member ids]` from that
+  field alone. `validateContent` clears a `shrunkAnchorId` pointing at a
+  nonexistent node (a hand-edited-JSON hazard `groupId` never had, since
+  that's just a free-floating shared tag, not a reference to a specific
+  other node) rather than trusting it; `removeNode` does the same live
+  cleanup when an anchor is deleted out from under its members; both
+  `duplicateProject` and `duplicateSelection` remap it to the copy's own new
+  anchor id in a second pass (it can only resolve once every node's new id
+  is known, same ordering `patternInstanceId` already needed).
+- **Rendering** (`canvas.js#render`): every render, `computeShrunkGroups` is
+  used to build a `hiddenNodeIds` set (every non-anchor member gets real
+  `elRef.style.display = 'none'` — reclaiming its footprint entirely, unlike
+  Focus Mode's/Diagram Animation's own opacity-only `.dimmed`/`.anim-hidden`
+  classes, the same technique `hideExcept` already used for isolated
+  per-group image export) and an `anchorByHiddenId` reverse lookup used to
+  redirect any edge endpoint landing on a hidden member onto its group's
+  anchor instead — an external connection to a shrunk group now visually
+  terminates at the placeholder rather than disappearing. An edge collapsing
+  onto the *same* placeholder from two *different* original endpoints (i.e.
+  purely internal to the group) is hidden entirely; a genuine self-loop
+  (`edge.from === edge.to` already, before any redirection) is deliberately
+  excluded from that check and renders normally. The regular dashed
+  group-background box (`renderGroupBackgrounds`) is suppressed for a
+  shrunk group's `groupId` — the placeholder's own badge already
+  communicates "this is a group," and the real box would otherwise span the
+  hidden members' full original extent with nothing visible inside most of
+  it. A new `renderShrinkBadges` pass draws the "🗂️ N grouped" label + 🔍
+  zoom button overlay, sized/positioned to exactly match the anchor node's
+  own rect, in a new `.shrink-badge-layer` appended *after* `.node-layer` in
+  `initCanvas` (unlike `.group-bg-layer`, appended before it) so the zoom
+  button is actually clickable rather than painted under the node's own
+  body.
+- **Zoom-in / Edit**: the 🔍 button dispatches the exact same
+  `sdb:open-subdiagram` event the sequence-diagram zoom icon uses, with this
+  group's `groupId` — `subDiagramModal.js`'s `renderGroupSnapshot`/"✏️ Edit"
+  needed no changes at all, confirming the research finding that this view
+  was already fully generic (keyed only on `groupId`, nothing
+  lifeline-specific in the renderer itself). Only the modal's own chrome
+  changed: title and the Mermaid/PlantUML copy buttons (which assume
+  lifeline messages) are now conditional on
+  `isSequenceDiagramGroup(groupId)` (all members `shape === 'lifeline'`,
+  the same predicate `getSequenceDiagramGroups` already applies per-group)
+  so a non-sequence shrunk group gets a generic "🔍 Grouped Components"
+  title with no export buttons instead.
+- **Context menu** (`canvas.js#openNodeContextMenu`): "Group & Shrink" is
+  offered only when the right-clicked node is part of a *current*
+  multi-selection (2+ items) — `groupAndShrinkMenuItem`, the same gating
+  `selectionAnimationMenuItem` already established for "act on the whole
+  selection, not just this one item." Right-clicking a shrunk placeholder
+  itself instead offers "🔎 Expand" (clears `shrunkAnchorId` for every
+  member, keeping `groupId`) and "✂️ Ungroup" (clears both — a dissolved
+  group leaves nothing left for a later Expand to target, so this has to
+  restore full size in the same step).
+- **Persisting through "⭐ Save as Component"**
+  (`canvas.js#buildGroupSnapshotFromSelection`,
+  `modals/saveComponentGroupModal.js`, `io/customComponents.js`): if every
+  selected node shares the same `shrunkAnchorId`, the snapshot records
+  `startShrunk: true` and `shrinkAnchorKey` (the pattern-node `key`, not the
+  live node id, the same key `groupOnInstantiate` itself is keyed by) —
+  `shrunkAnchorId` itself is excluded from each node's captured
+  `overrides`, same reasoning as `groupId`'s own exclusion there (a raw old
+  session's node id would be meaningless, dangling data in a reusable
+  definition). `instantiatePatternAtPoint` re-applies it fresh on every
+  placement, resolving `shrinkAnchorKey` through that instantiation's own
+  `idByKey` map — the exact same two-step "capture a key at save time,
+  resolve it to a fresh id at placement time" shape `groupOnInstantiate`
+  already established for groupId. A lone anchor node saved by itself
+  (`nodeCount === 1`, no hidden members along for the ride) is deliberately
+  excluded from this — nothing to expand, so marking it shrunk would just
+  be a cosmetic "group of 1" label on an ordinary component.
+
+**Gotcha — right-clicking an already-selected-but-not-last-focused member of
+a multi-selection silently collapsed the selection back to just that one
+item**, a pre-existing bug in `canvas/node.js`'s pointerdown handler
+uncovered while building this feature's own e2e test (right-clicking the
+*first* of two selected nodes reliably failed where right-clicking the
+*second* — the more recently focused one — worked). The handler's own
+"don't collapse an already-multi-selected node's selection on right-click"
+early-return (added for Diagram Animation's "Add Selection to Animation")
+returned *before* setting the shared `recentPointerdown` guard flag that
+suppresses the node's own `focus` handler from independently calling
+`onSelect(id, false)`. A right-click's mousedown still shifts native DOM
+focus to whichever element wasn't already focused (true for any button,
+regardless of which one triggered the native context menu), and without the
+guard set, that focus *change* fires the plain non-additive select path,
+collapsing the very selection the early return exists to protect — but only
+for a member that wasn't already the last-focused one, which is exactly why
+every existing test happened to right-click the last-clicked member and
+never noticed. Fixed by setting the guard on that early-return path too. Any
+future context-menu action gated on "the whole current multi-selection" (not
+just `selectionAnimationMenuItem`'s own callers) benefits from this fix, not
+just Group & Shrink.
+
+**Gotcha — a new "always on top of `.node-layer`" overlay layer needs an
+explicit `z-index`, not just later DOM placement.** `.shrink-badge-layer` is
+appended after `.node-layer` in `initCanvas`, same as `.comment-layer`/
+`.anim-badge-layer`/`.align-guide-layer` already are — but unlike those,
+its own 🔍 button needs to win a hit-test against an *arbitrary* `.node`
+element specifically, and every `.node` carries its own explicit
+`z-index` (`node.js#updateNodeEl` — an incrementing per-node counter,
+practically always ≥ 1 on any diagram with more than one component). CSS
+stacking rules place *any* positioned element with an explicit positive
+z-index above a sibling at the default `z-index: auto`, regardless of DOM
+order — so without its own z-index, `.shrink-badge-layer`'s badge would
+render fine but be genuinely unclickable, covered by the anchor node's own
+body, on any diagram where that particular node wasn't the very first one
+created. Fixed with a fixed `z-index: 100000` on the layer, comfortably
+above any realistic per-diagram node count. Caught only by an actual
+Playwright click on the zoom button, not by a screenshot (visually
+indistinguishable — the button still *renders*, it just doesn't receive the
+click) — worth remembering for any future overlay meant to sit above
+arbitrary node content.
+
+**Gotcha — English-only "N grouped" label text visually reordered to
+"grouped N" under Hebrew's `dir="rtl"`**, an instance of the same
+always-English-content-under-an-RTL-ancestor bidi-reordering issue
+`css/hints.css`'s `.hint-bubble` already guards against with its own
+`direction: ltr`. Building this feature's own screenshot pass found the
+identical, previously-uncaught bug already present on the pre-existing
+`.group-bg-label` (the analogous "N grouped"/"🔁 Replicated" text on a
+regular group's background box) — canvas content was never part of any
+prior batch's RTL screenshot pass, since the translated surface is
+explicitly scoped to the toolbar/sidebar chrome (see `io/i18n.js`'s header
+comment), so nothing had exercised this specific label under `dir="rtl"`
+before. Fixed both `.shrink-badge-label` and `.group-bg-label` with the same
+`direction: ltr` rule.
+
+### Canvas right-click quick actions (`canvas.js#openCanvasContextMenu`)
+
+Six pre-existing actions — ⌘ Command Palette, ↶ Undo, ↷ Redo, 🗺️
+Auto-arrange, 🩺 Check Diagram, 🤖 AI Design Review — added to the
+empty-canvas right-click menu alongside its pre-existing Select
+all/Fit/Reset zoom/Add comment/Add sticky note/Duplicate/Clear canvas
+entries. Nothing new was built; this is purely about availability — the
+canvas background is right-clickable from anywhere the user's cursor
+already is, so it's a second, always-reachable path to each action that
+doesn't require first knowing which toolbar dropdown it lives under.
+
+- Undo/Redo call `store.undo()`/`store.redo()` directly (already imported
+  as `store` in this file) and are `disabled` per `store.canUndo()`/
+  `canRedo()` — evaluated fresh each time the menu opens (menu items are
+  rebuilt on every right-click, not a persistent DOM node), so no separate
+  subscription/refresh path is needed the way the toolbar's own
+  `syncHistoryButtons` requires for its always-visible buttons.
+- Auto-arrange calls `autoArrangeAll`, exported by this same module.
+- Command Palette, Check Diagram, and AI Design Review each live in a file
+  that itself imports from `canvas.js` (`modals/commandPaletteModal.js`,
+  `modals/diagramLintModal.js`, `panel/aiReviewPanel.js`) — importing
+  `openCommandPaletteModal`/`openDiagramLintModal`/`toggleAiReviewPanel`
+  directly here would be circular. Same `sdb:open-*`
+  `window.dispatchEvent`/`window.addEventListener` convention already used
+  for `sdb:open-subdiagram`/`sdb:open-details`/`sdb:open-replication`/
+  `sdb:open-group-explanation` — three new event names
+  (`sdb:open-command-palette`, `sdb:open-diagram-lint`,
+  `sdb:open-ai-review`), each with its listener registered at the bottom of
+  its own target file.
+- Check Diagram's context-menu icon is 🩺, not the 🔍 the toolbar itself
+  uses for the same button — a deliberate deviation, made only here: this
+  menu already has 🔍 for "Fit to screen" a few rows up, and two identical
+  icons for two unrelated actions in one menu list is worse for quick
+  scanning than a one-off icon mismatch with the toolbar. The label text
+  ("Check Diagram") stays byte-identical either way.
+
 ### Message style presets (`toolbar/arrowEditor.js#renderMessagePresets`)
 
 A `<select>` (not buttons — see the gotcha below) added to the single-edge

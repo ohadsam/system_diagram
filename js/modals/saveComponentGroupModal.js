@@ -64,6 +64,7 @@ export function openSaveComponentGroupModal() {
             defaultSize: { w: 1, h: 1 },
             pattern: snapshot.pattern,
             groupOnInstantiate: snapshot.nodeCount > 1,
+            ...(snapshot.startShrunk ? { startShrunk: true, shrinkAnchorKey: snapshot.shrinkAnchorKey } : {}),
           });
           showToast(`Saved "${model.name.trim()}" to My Components.`, 'success');
           api.close();

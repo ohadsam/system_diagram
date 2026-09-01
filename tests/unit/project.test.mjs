@@ -408,6 +408,54 @@ test('validateProject preserves a valid groupId and defaults a missing/invalid o
   assert.equal(result.project.nodes[2].groupId, null);
 });
 
+test('createNode defaults shrunkAnchorId to null and it is overridable', () => {
+  const node = createNode(null, 0, 0);
+  assert.equal(node.shrunkAnchorId, null);
+  const shrunk = createNode(null, 0, 0, { shrunkAnchorId: 'node_abc' });
+  assert.equal(shrunk.shrunkAnchorId, 'node_abc');
+});
+
+test('validateProject preserves a shrunkAnchorId that names a real node, but clears a dangling one', () => {
+  const raw = {
+    nodes: [
+      { id: 'n1', x: 0, y: 0, shrunkAnchorId: 'n1' },
+      { id: 'n2', x: 100, y: 0, shrunkAnchorId: 'n1' },
+      { id: 'n3', x: 200, y: 0, shrunkAnchorId: 'does-not-exist' },
+      { id: 'n4', x: 300, y: 0, shrunkAnchorId: 42 },
+    ],
+    edges: [],
+  };
+  const result = validateProject(raw);
+  assert.equal(result.project.nodes[0].shrunkAnchorId, 'n1', 'anchor pointing at itself is valid');
+  assert.equal(result.project.nodes[1].shrunkAnchorId, 'n1', 'member pointing at a real anchor is valid');
+  assert.equal(result.project.nodes[2].shrunkAnchorId, null, 'dangling reference to a nonexistent node is cleared');
+  assert.equal(result.project.nodes[3].shrunkAnchorId, null, 'non-string value falls back to null');
+});
+
+test('removeNode expands (clears shrunkAnchorId on) every other member when its anchor is deleted', () => {
+  const p = createEmptyProject();
+  const anchor = createNode(null, 0, 0);
+  const member = createNode(null, 100, 0, { shrunkAnchorId: anchor.id, groupId: 'g1' });
+  anchor.shrunkAnchorId = anchor.id;
+  anchor.groupId = 'g1';
+  p.nodes.push(anchor, member);
+  removeNode(p, anchor.id);
+  assert.equal(p.nodes.length, 1);
+  assert.equal(p.nodes[0].shrunkAnchorId, null, 'the remaining member must be expanded, not left pointing at a deleted node');
+});
+
+test('duplicateProject remaps shrunkAnchorId to the copy\'s own new anchor id', () => {
+  const p = createEmptyProject();
+  const anchor = createNode(null, 0, 0, { groupId: 'group_x' });
+  anchor.shrunkAnchorId = anchor.id;
+  const member = createNode(null, 100, 0, { groupId: 'group_x', shrunkAnchorId: anchor.id });
+  p.nodes.push(anchor, member);
+  const copy = duplicateProject(p);
+  assert.notEqual(copy.nodes[0].id, anchor.id);
+  assert.equal(copy.nodes[0].shrunkAnchorId, copy.nodes[0].id, 'copied anchor should point at its own new id');
+  assert.equal(copy.nodes[1].shrunkAnchorId, copy.nodes[0].id, 'copied member should point at the copied anchor\'s new id');
+});
+
 test('validateProject accepts "magic" as a valid edge routing', () => {
   const raw = {
     nodes: [{ id: 'n1', x: 0, y: 0 }, { id: 'n2', x: 100, y: 0 }],

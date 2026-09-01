@@ -130,6 +130,12 @@
   font-weight: 600;
   color: var(--color-text-muted);
   background: var(--color-bg);
+  /* Always-English content ("3 grouped", "🔁 Replicated") sitting inside a
+     canvas that itself never flips to RTL — but Hebrew mode's `dir="rtl"`
+     on <html> still reaches down into it, and without an explicit ltr an
+     RTL ancestor silently bidi-reorders this into "grouped 3" (same class
+     of bug css/hints.css's .hint-bubble already guards against). */
+  direction: ltr;
 }
 
 .group-bg-replicated .group-bg-label {
@@ -189,6 +195,64 @@
 
 .group-bg:hover .group-bg-zoom {
   opacity: 1;
+}
+
+/* "Group & Shrink" placeholder overlay (see canvas.js#renderShrinkBadges) —
+   sits above .node-layer (unlike .group-bg-layer, which sits below it) so
+   its own zoom button is actually clickable rather than painted under the
+   anchor node's own body; everything else stays click-through so normal
+   select/drag/right-click on the placeholder node underneath still works. */
+.shrink-badge-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  /* A `.node`'s own z-index (node.js#updateNodeEl — an incrementing counter,
+     often well above 1) is a *positive* z-index, which always paints above
+     any sibling stacked at the default z-index:auto regardless of DOM
+     order — appending this layer after .node-layer in initCanvas isn't
+     enough on its own to guarantee its 🔍 button sits on top of (and stays
+     clickable over) an arbitrary node's own body. A fixed value comfortably
+     above any realistic node count settles it outright. */
+  z-index: 100000;
+}
+
+.shrink-badge {
+  position: absolute;
+  pointer-events: none;
+}
+
+.shrink-badge-label {
+  position: absolute;
+  top: -9px;
+  left: 10px;
+  padding: 0 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  background: var(--color-bg);
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  /* Same always-English-content-under-an-RTL-ancestor fix as .group-bg-label
+     just above — without it Hebrew mode's dir="rtl" bidi-reorders "2
+     grouped" into "grouped 2". */
+  direction: ltr;
+}
+
+.shrink-badge-zoom {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  font-size: 11px;
+  line-height: 1;
+  pointer-events: auto;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
 }
 
 .node-layer {

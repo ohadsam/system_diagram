@@ -357,6 +357,34 @@ template's lifelines/messages instead of text when hovering one of those.
   copies their own new group, independent of the original. A group of 2+
   members shows the same dashed background boundary described in 4.14 for
   a replication side.
+- **Group & Shrink**: right-click a member of a 2+ selection and choose
+  "Group & Shrink" to group it (same mechanism as above, always a fresh
+  group) *and* collapse it down to the on-screen footprint of one ordinary
+  component — the topmost-then-leftmost member becomes the visible
+  placeholder ("anchor"); every other member gets hidden (`display: none`,
+  reclaiming its footprint entirely, unlike Focus Mode's or Diagram
+  Animation's own opacity-only dimming) rather than merely dimmed. The
+  placeholder shows a small "🗂️ N grouped" badge and a 🔍 zoom-in button that
+  opens the exact same read-only drill-down preview a sequence-diagram group
+  already has (4.15) — that view is generic (keyed only on `groupId`), so it
+  needed no changes to support this. An external connector to a now-hidden
+  member is redirected to visually terminate at the placeholder instead of
+  vanishing; an edge purely internal to the shrunk group is hidden (not a
+  genuine self-loop, which still renders normally at the placeholder).
+  Right-clicking the placeholder itself offers "🔎 Expand" (restores every
+  member to full size, keeping the group) and "✂️ Ungroup" (dissolves the
+  group *and* restores full size — the same label as plain Ungroup above,
+  since a dissolved group leaves nothing for a later Expand to target).
+  Persisted as `node.shrunkAnchorId` (the id of the group's anchor node,
+  shared by every member including the anchor itself; `null` means full
+  size) — round-trips through JSON/save/load/duplicate like any other node
+  field, independent of `groupId` so a plain Group/Ungroup never implicitly
+  shrinks or expands anything. Saving a shrunk selection via "⭐ Save as
+  Component" (4.2.7) remembers which member was the anchor
+  (`startShrunk`/`shrinkAnchorKey` on the saved definition, the same
+  two-field pattern `groupOnInstantiate` — 4.19 — already established for
+  "extra state to restore on the whole group at placement time") so
+  re-placing it later reopens already shrunk.
 
 #### 4.3.2 Navigation tools
 - **Select tool** (default) and **Hand tool** are a mutually-exclusive
@@ -601,6 +629,18 @@ a brand-new, separate project. Ctrl/Cmd+Z immediately after undoes it,
 bringing everything back exactly as it was — this genuinely works (unlike
 if it were implemented as "load an empty project", which would reset undo
 history instead of adding to it).
+
+#### 4.7.6 Canvas right-click quick actions
+Right-clicking empty canvas surfaces the app's most central actions
+directly, in addition to their usual toolbar/keyboard-shortcut homes — a
+user mid-diagram never has to open a dropdown to reach something this
+common: ⌘ Command Palette, ↶ Undo/↷ Redo (disabled when there's nothing to
+undo/redo, mirroring the toolbar's own buttons), 🗺️ Auto-arrange, 🩺 Check
+Diagram, and 🤖 AI Design Review, alongside the pre-existing Select
+all/Fit to screen/Reset zoom/Add comment/Add sticky note/Duplicate/Clear
+canvas entries. Nothing here is a new capability — every item already
+exists elsewhere in the app — this is purely a second, always-in-reach path
+to reduce hunting.
 
 ### 4.8 Export
 - PNG: rasterize the current canvas (or just the diagram bounds) to an

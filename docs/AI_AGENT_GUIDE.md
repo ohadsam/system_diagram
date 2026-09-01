@@ -69,10 +69,12 @@ this repo" quick-start.
 | Add a state-machine shape/pattern                  | `js/data/categories/state-machines.js` — plain `c(...)` for a state shape, `definePattern(...)` for a whole template; a transition's condition is just that edge's `label`, nothing special |
 | Change the "hide State Machines" (or any future hideable category) setting | `js/io/librarySettings.js` (storage) + `js/modals/defaultSettingsModal.js` "Component library" section (UI) + `js/sidebar/sidebar.js#HIDEABLE_CATEGORIES` (the filter) |
 | Change Group/Ungroup or mixed component+connector selection | `js/canvas/canvas.js` (`groupSelection`/`ungroupSelection`/`selectNode`/`beginMarquee`/`duplicateSelection`) + `js/toolbar/toolbar.js#renderContextRow` |
+| Change "Group & Shrink" (right-click a 2+ selection → collapse to one placeholder) | `js/canvas/canvas.js` (`groupAndShrinkSelection`/`expandShrunkGroup`/`dissolveShrunkGroup`, the `render()` hidden-member/edge-redirect logic) + `js/canvas/shrinkGroups.js#computeShrunkGroups` (pure) + `core/project.js`'s `shrunkAnchorId` field. See "Common pitfalls" below and docs/ARCHITECTURE.md's own "Group & Shrink" section (three real gotchas found building this: a pre-existing right-click multi-selection bug, an overlay z-index bug, and an RTL bidi-reordering bug) before touching this. |
 | Change obstacle-avoiding connector routing (default + the per-edge "Magic" routing style) | `js/core/magicRouter.js` (pure grid router, DOM-free — unit-test it directly) + `js/canvas/connector.js#buildEdgePath` (rendering, falls back to `orthogonal` on failure) — no separate toolbar arming step exists any more, both `'orthogonal'` (default) and `'magic'` (explicit per-edge choice via the arrow editor's Routing dropdown, adds the `.edge-magic` glow) route through the same function |
 | Change the "What's New" modal / version highlights  | `js/version.js` (`APP_VERSION`, `VERSION_HISTORY`) + `js/io/whatsNew.js` (last-seen-version tracking) + `js/modals/whatsNewModal.js` (UI) |
 | Change "Duplicate Project" / "Duplicate entire canvas" | `js/core/project.js#duplicateProject` (pure id-remapping clone) + `js/canvas/canvas.js` (`duplicateProjectAsNew`/`duplicateEntireCanvas`) + toolbar/canvas-context-menu wiring in `toolbar.js`/`canvas.js#openCanvasContextMenu` |
 | Change "Clear canvas" (canvas right-click)          | `js/canvas/canvas.js#clearCanvas` — uses `store.dispatch()`, not `store.loadProject()`, so it stays undoable; see "Common pitfalls" below and docs/ARCHITECTURE.md's "Undo/redo" section before copying this pattern elsewhere |
+| Add/change an entry in the canvas background right-click menu | `js/canvas/canvas.js#openCanvasContextMenu` — for an action whose implementation lives in a file that itself imports from `canvas.js` (a modal/panel), don't import it directly (circular); dispatch a new `sdb:open-*` `CustomEvent` from here and register a `window.addEventListener` at the bottom of that target file instead, same as `sdb:open-subdiagram`/`sdb:open-command-palette`/`sdb:open-diagram-lint`/`sdb:open-ai-review` |
 | Change the AI Design Review prompt/providers/panel  | `js/io/aiReview.js` (`buildReviewPrompt`, `AI_PROVIDERS`) + `js/panel/aiReviewPanel.js` (UI, paste-back). See "Common pitfalls" below before touching this — it's intentionally not an API integration. |
 | Change the Generate Design from Spec prompt/wizard   | `js/io/aiGenerateDesign.js` (`buildGenerateDesignPrompt`, `extractProjectJSON`, `autoArrangeIfNeeded`) + `js/modals/generateDesignModal.js` (the 3-step wizard UI). Same "not an API integration" constraint as AI Design Review applies. |
 | Change how missing node/edge ids are handled on import | `js/core/project.js#validateProject` — backfills a missing/invalid id via `core/id.js#nextId` rather than dropping the node/edge; covers file import, backup restore, and pasted AI results alike |
@@ -1187,6 +1189,28 @@ npm test
   a single node needs the same right-click "Open details" path documented
   (or tested) as the way in for a grouped node; don't assume a sidebar-added
   or clicked node always yields a single-node selection.
+- **Right-clicking an already-multi-selected node that isn't the *most
+  recently focused* one used to silently collapse the selection back to
+  just that one node** (`canvas/node.js`'s pointerdown handler) — its own
+  "don't collapse on right-click of an already-selected node" early return
+  skipped setting the `recentPointerdown` guard, so the native focus shift a
+  right-click still triggers (to whichever node wasn't already focused) fell
+  through to the plain non-additive select path. Fixed (the guard is now set
+  on that early-return path too) while building "Group & Shrink" — see
+  docs/ARCHITECTURE.md's own section for the full story. If a future e2e
+  test for a "right-click acts on the whole selection" menu item flakes
+  depending on *which* selected node gets right-clicked, this is almost
+  certainly the class of bug to suspect first.
+- **An overlay layer meant to sit clickably on top of arbitrary `.node`
+  content needs its own explicit `z-index`, not just later placement in the
+  DOM.** Every `.node` carries its own incrementing `z-index`
+  (`node.js#updateNodeEl`), which — per normal CSS stacking rules — always
+  wins against a later sibling left at the default `z-index: auto`,
+  regardless of DOM order. `.shrink-badge-layer` (Group & Shrink's 🗂️/🔍
+  overlay) needed `z-index: 100000` for its own button to actually receive
+  clicks rather than being invisibly covered by whichever node's own
+  z-index happened to be higher — a bug a screenshot alone can't catch
+  (the button still renders fine), only a real Playwright click.
 - **A large blob download (roughly ~1MB+, e.g. an image-heavy `.pptx`) can
   take Playwright's headless test Chromium 20+ seconds to surface as a
   `'download'` event in this environment, even though the app-side work
