@@ -422,18 +422,6 @@
   box-shadow: 0 0 0 2px var(--color-primary), var(--node-extra-shadow, var(--shadow-md));
 }
 
-/* "Group & Shrink" placeholder (see canvas.js's shrinkGroups.js /
-   renderShrinkBadges) — a dashed ring around the whole node, echoing
-   .group-bg's own dashed-box language for "this represents a group", so a
-   shrunk node reads as visually distinct from an ordinary component even
-   before noticing its 🗂️ badge/🔍 button (see .shrink-badge in canvas.css).
-   `outline` (not `box-shadow`, which .selected/:hover above already use)
-   so both can show at once without one silently overwriting the other. */
-.node.node-shrunk-anchor .node-body {
-  outline: 2px dashed #94A3B8;
-  outline-offset: 3px;
-}
-
 .node-standard {
   display: flex;
   flex-direction: column;

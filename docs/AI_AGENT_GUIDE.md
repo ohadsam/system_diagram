@@ -69,7 +69,8 @@ this repo" quick-start.
 | Add a state-machine shape/pattern                  | `js/data/categories/state-machines.js` — plain `c(...)` for a state shape, `definePattern(...)` for a whole template; a transition's condition is just that edge's `label`, nothing special |
 | Change the "hide State Machines" (or any future hideable category) setting | `js/io/librarySettings.js` (storage) + `js/modals/defaultSettingsModal.js` "Component library" section (UI) + `js/sidebar/sidebar.js#HIDEABLE_CATEGORIES` (the filter) |
 | Change Group/Ungroup or mixed component+connector selection | `js/canvas/canvas.js` (`groupSelection`/`ungroupSelection`/`selectNode`/`beginMarquee`/`duplicateSelection`) + `js/toolbar/toolbar.js#renderContextRow` |
-| Change "Group & Shrink" (right-click a 2+ selection → collapse to one placeholder) | `js/canvas/canvas.js` (`groupAndShrinkSelection`/`expandShrunkGroup`/`dissolveShrunkGroup`, the `render()` hidden-member/edge-redirect logic) + `js/canvas/shrinkGroups.js#computeShrunkGroups` (pure) + `core/project.js`'s `shrunkAnchorId` field. See "Common pitfalls" below and docs/ARCHITECTURE.md's own "Group & Shrink" section (three real gotchas found building this: a pre-existing right-click multi-selection bug, an overlay z-index bug, and an RTL bidi-reordering bug) before touching this. |
+| Change "Group & Shrink" (right-click a 2+ selection → collapse to one placeholder) | `js/canvas/canvas.js` (`groupAndShrinkSelection`/`expandShrunkGroup`/`dissolveShrunkGroup`, the `render()` hidden-member/edge-redirect logic, `renderGroupBackgrounds`'s anchor-rect override) + `js/canvas/shrinkGroups.js#computeShrunkGroups` (pure) + `core/project.js`'s `shrunkAnchorId` field. The placeholder is rendered through the *same* `renderGroupBackgrounds` pass every other group uses (the anchor node itself gets no special styling at all) — see docs/ARCHITECTURE.md's own "Group & Shrink" section, including its redesign note, before touching this. |
+| Change a group's custom name/frame color (double-click a group's own dashed-frame label, or its color swatch) | `core/project.js`'s `project.groups` array + `upsertGroupMeta` + `canvas.js#renameGroup`/`#setGroupColor` — applies to a regular Group/Ungroup group and a "Group & Shrink" group alike, but never a replication side (its label/color are a fixed signal). See docs/ARCHITECTURE.md's own "Group & Shrink" section. |
 | Change obstacle-avoiding connector routing (default + the per-edge "Magic" routing style) | `js/core/magicRouter.js` (pure grid router, DOM-free — unit-test it directly) + `js/canvas/connector.js#buildEdgePath` (rendering, falls back to `orthogonal` on failure) — no separate toolbar arming step exists any more, both `'orthogonal'` (default) and `'magic'` (explicit per-edge choice via the arrow editor's Routing dropdown, adds the `.edge-magic` glow) route through the same function |
 | Change the "What's New" modal / version highlights  | `js/version.js` (`APP_VERSION`, `VERSION_HISTORY`) + `js/io/whatsNew.js` (last-seen-version tracking) + `js/modals/whatsNewModal.js` (UI) |
 | Change "Duplicate Project" / "Duplicate entire canvas" | `js/core/project.js#duplicateProject` (pure id-remapping clone) + `js/canvas/canvas.js` (`duplicateProjectAsNew`/`duplicateEntireCanvas`) + toolbar/canvas-context-menu wiring in `toolbar.js`/`canvas.js#openCanvasContextMenu` |
@@ -1206,11 +1207,24 @@ npm test
   DOM.** Every `.node` carries its own incrementing `z-index`
   (`node.js#updateNodeEl`), which — per normal CSS stacking rules — always
   wins against a later sibling left at the default `z-index: auto`,
-  regardless of DOM order. `.shrink-badge-layer` (Group & Shrink's 🗂️/🔍
-  overlay) needed `z-index: 100000` for its own button to actually receive
-  clicks rather than being invisibly covered by whichever node's own
-  z-index happened to be higher — a bug a screenshot alone can't catch
-  (the button still renders fine), only a real Playwright click.
+  regardless of DOM order — a bug a screenshot alone can't catch (the
+  button still renders fine), only a real Playwright click. (Group &
+  Shrink's own placeholder no longer needs this — its early node-overlay
+  design was reworked to render through `.group-bg-layer`, which sits
+  *behind* `.node-layer` like any other group's frame; this pitfall still
+  applies to any *future* overlay meant to sit visually on top of arbitrary
+  node content.)
+- **A label mixing always-English computed text with free-form user text
+  needs its RTL `direction` set per-render, not once in CSS.** A blanket
+  `direction: ltr` in the stylesheet is correct for computed English text
+  under Hebrew's `dir="rtl"` (see docs/ARCHITECTURE.md's "Group & Shrink"
+  section for the bidi-reordering bug this originally fixed), but breaks
+  the moment that same element can also show arbitrary
+  user-typed text (which could itself be Hebrew) — forcing ltr on that
+  renders it backward. `canvas.js#renderGroupBackgrounds`'s group-name
+  label sets `labelEl.style.direction` to `'ltr'` for its computed "N
+  grouped" fallback and `'inherit'` (an inline override beats the
+  stylesheet's own `ltr` rule) once a custom name is shown.
 - **A large blob download (roughly ~1MB+, e.g. an image-heavy `.pptx`) can
   take Playwright's headless test Chromium 20+ seconds to surface as a
   `'download'` event in this environment, even though the app-side work

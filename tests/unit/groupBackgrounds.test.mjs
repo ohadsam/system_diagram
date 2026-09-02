@@ -42,6 +42,14 @@ test('a non-replicated groupId with 1 member still gets nothing, even when other
   assert.ok(!bounds.some((b) => b.groupId === 'gPlain'));
 });
 
+test('a groupId in oneMemberOkGroupIds (a shrunk "Group & Shrink" group) gets a background with just 1 member', () => {
+  const nodes = [node('a', 'gShrunk', 0, 0)];
+  const bounds = computeGroupBounds(nodes, new Set(), new Set(['gShrunk']));
+  assert.equal(bounds.length, 1);
+  assert.equal(bounds[0].count, 1);
+  assert.equal(bounds[0].w, 100 + 40);
+});
+
 test('multiple independent groups each get their own box', () => {
   const nodes = [
     node('a', 'g1', 0, 0), node('b', 'g1', 100, 0),

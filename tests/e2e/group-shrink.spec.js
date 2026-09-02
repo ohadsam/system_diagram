@@ -18,7 +18,7 @@ async function selectBoth(page) {
   return nodes;
 }
 
-test('"Group & Shrink" collapses a 2-component selection to one visible placeholder with a zoom badge', async ({ page }) => {
+test('"Group & Shrink" collapses a 2-component selection to one visible placeholder, sized and looking like an ordinary component, with a group frame around it', async ({ page }) => {
   await addComponentByName(page, 'Kafka');
   await addComponentByName(page, 'MongoDB');
   const nodes = page.locator('.node');
@@ -32,13 +32,23 @@ test('"Group & Shrink" collapses a 2-component selection to one visible placehol
   await page.locator('.context-menu-item', { hasText: 'Group & Shrink' }).click();
 
   await expect.poll(() => nodeCount(page)).toBe(2); // both still exist in the DOM
-  await expect(page.locator('.node:visible')).toHaveCount(1); // only the anchor is shown
-  await expect(page.locator('.node-shrunk-anchor')).toHaveCount(1);
-  await expect(page.locator('.shrink-badge')).toHaveCount(1);
-  await expect(page.locator('.shrink-badge-label')).toHaveText('🗂️ 2 grouped');
-  // The regular dashed group-background box is suppressed while shrunk —
-  // the badge on the placeholder itself communicates "this is a group".
-  await expect(page.locator('.group-bg')).toHaveCount(0);
+  const visibleNode = page.locator('.node:visible');
+  await expect(visibleNode).toHaveCount(1); // only the anchor is shown
+  // The anchor gets no special class/outline of its own — it renders
+  // exactly as it did before shrinking (see canvas.js#render's own comment
+  // on the removed .node-shrunk-anchor class).
+  await expect(visibleNode).not.toHaveClass(/node-shrunk-anchor/);
+  // A real group frame now wraps just the one visible placeholder — the
+  // same mechanism (and, with no custom name set, the same "N grouped"
+  // fallback text) an ordinary 2+ member group's background already uses.
+  const groupBg = page.locator('.group-bg');
+  await expect(groupBg).toHaveCount(1);
+  await expect(groupBg.locator('.group-bg-label')).toHaveText('2 grouped');
+  const anchorBox = await visibleNode.boundingBox();
+  const frameBox = await groupBg.boundingBox();
+  // The frame is snug around the one visible anchor (padded, not spanning
+  // the hidden member's own original, far-away position).
+  expect(frameBox.width).toBeLessThan(anchorBox.width + 100);
 });
 
 test('the zoom button opens a read-only preview of both grouped components', async ({ page }) => {
@@ -50,7 +60,7 @@ test('the zoom button opens a read-only preview of both grouped components', asy
   await nodes.nth(0).click({ button: 'right', force: true });
   await page.locator('.context-menu-item', { hasText: 'Group & Shrink' }).click();
 
-  await page.locator('.shrink-badge-zoom').click();
+  await page.locator('.group-bg-zoom').click();
   const modal = page.locator('.subdiagram-modal');
   await expect(modal).toBeVisible();
   await expect(modal.locator('h2')).toHaveText('🔍 Grouped Components');
@@ -60,6 +70,30 @@ test('the zoom button opens a read-only preview of both grouped components', asy
   await expect(modal.locator('.subdiagram-preview .node')).toHaveCount(2);
   await modal.locator('button', { hasText: 'Close' }).click();
   await expect(modal).toBeHidden();
+});
+
+test('double-clicking the group frame label renames it, and the color swatch recolors the frame', async ({ page }) => {
+  await addComponentByName(page, 'Kafka');
+  await addComponentByName(page, 'MongoDB');
+  const nodes = page.locator('.node');
+  await dragNodeBy(page, nodes.nth(1), 220, 0);
+  await selectBoth(page);
+  await nodes.nth(0).click({ button: 'right', force: true });
+  await page.locator('.context-menu-item', { hasText: 'Group & Shrink' }).click();
+
+  const label = page.locator('.group-bg-label');
+  await label.dblclick();
+  const input = page.locator('.group-bg .inline-edit-input');
+  await expect(input).toBeVisible();
+  await input.fill('Messaging Cluster');
+  await input.press('Enter');
+  await expect(label).toHaveText('Messaging Cluster');
+
+  await page.locator('.group-bg-color').evaluate((el) => {
+    el.value = '#ff0000';
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await expect(page.locator('.group-bg')).toHaveCSS('border-color', 'rgb(255, 0, 0)');
 });
 
 test('"Expand" restores full size while keeping the group, "Ungroup" also dissolves it', async ({ page }) => {
@@ -74,12 +108,12 @@ test('"Expand" restores full size while keeping the group, "Ungroup" also dissol
 
   // The shrunk placeholder's own context menu offers Expand/Ungroup instead
   // of "Group & Shrink" (which only makes sense before it's shrunk).
-  const anchor = page.locator('.node-shrunk-anchor');
+  const anchor = page.locator('.node:visible');
   await anchor.click({ button: 'right', force: true });
   await expect(page.locator('.context-menu-item', { hasText: 'Group & Shrink' })).toHaveCount(0);
   await page.locator('.context-menu-item', { hasText: 'Expand' }).click();
   await expect(page.locator('.node:visible')).toHaveCount(2);
-  await expect(page.locator('.node-shrunk-anchor')).toHaveCount(0);
+  await expect(page.locator('.group-bg')).toHaveCount(1); // still a regular 2-member group frame
   // Still grouped — clicking one member selects both (see canvas.js#selectNode).
   await nodes.nth(0).click({ force: true });
   await expect(page.locator('.node.selected')).toHaveCount(2);
@@ -89,9 +123,10 @@ test('"Expand" restores full size while keeping the group, "Ungroup" also dissol
   // — an extra shift-click here would just toggle node[1] back off.
   await nodes.nth(0).click({ button: 'right', force: true });
   await page.locator('.context-menu-item', { hasText: 'Group & Shrink' }).click();
-  await page.locator('.node-shrunk-anchor').click({ button: 'right', force: true });
+  await page.locator('.node:visible').click({ button: 'right', force: true });
   await page.locator('.context-menu-item', { hasText: 'Ungroup' }).click();
   await expect(page.locator('.node:visible')).toHaveCount(2);
+  await expect(page.locator('.group-bg')).toHaveCount(0);
   await nodes.nth(0).click({ force: true });
   await expect(page.locator('.node.selected')).toHaveCount(1, 'no longer grouped — selecting one must not select the other');
 });
@@ -108,7 +143,7 @@ test('a shrunk group saved as a custom component reopens shrunk when placed agai
   // Clicking the shrunk placeholder selects the whole (hidden) group, so the
   // usual multi-node save flow captures both members even though only one
   // is currently visible.
-  await page.locator('.node-shrunk-anchor').click({ force: true });
+  await page.locator('.node:visible').click({ force: true });
   await expect(page.locator('.node.selected')).toHaveCount(2);
   await page.locator('.toolbar-row-context button[title="Save selection as a reusable custom component"]').click();
   await expect(page.locator('.custom-component-modal')).toBeVisible();
@@ -125,5 +160,5 @@ test('a shrunk group saved as a custom component reopens shrunk when placed agai
 
   await expect.poll(() => nodeCount(page)).toBe(4); // original 2 + newly-instantiated 2
   await expect(page.locator('.node:visible')).toHaveCount(2); // original anchor + new anchor
-  await expect(page.locator('.node-shrunk-anchor')).toHaveCount(2);
+  await expect(page.locator('.group-bg')).toHaveCount(2); // one frame per shrunk group
 });

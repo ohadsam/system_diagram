@@ -513,17 +513,49 @@ two features turned out to overlap almost entirely once researched.
   onto the *same* placeholder from two *different* original endpoints (i.e.
   purely internal to the group) is hidden entirely; a genuine self-loop
   (`edge.from === edge.to` already, before any redirection) is deliberately
-  excluded from that check and renders normally. The regular dashed
-  group-background box (`renderGroupBackgrounds`) is suppressed for a
-  shrunk group's `groupId` — the placeholder's own badge already
-  communicates "this is a group," and the real box would otherwise span the
-  hidden members' full original extent with nothing visible inside most of
-  it. A new `renderShrinkBadges` pass draws the "🗂️ N grouped" label + 🔍
-  zoom button overlay, sized/positioned to exactly match the anchor node's
-  own rect, in a new `.shrink-badge-layer` appended *after* `.node-layer` in
-  `initCanvas` (unlike `.group-bg-layer`, appended before it) so the zoom
-  button is actually clickable rather than painted under the node's own
-  body.
+  excluded from that check and renders normally. The anchor node itself
+  gets **no special class or styling of its own** — it renders exactly as
+  it looked before being shrunk. Instead, the shrunk group reuses the exact
+  same `renderGroupBackgrounds` pass every other 2+ member group and
+  replication side already goes through (see the Group/Ungroup section
+  above): `computeGroupBounds` gets a shrunk group's `groupId` added to its
+  `oneMemberOkGroupIds` set (lifting the regular "2+ members" floor to 1,
+  the same way `replicatedGroupIds` already does, since a shrunk group's
+  own count of *visible* members is always 1 — the count used for its
+  label still comes from *every* member, hidden or not, so "N grouped"
+  stays accurate), and `render()` overrides just that box's own x/y/w/h
+  afterward to the one visible anchor's own rect (`shrunkAnchorByGroupId`)
+  — `computeGroupBounds` itself has no notion of a hidden node, so without
+  this override the box would span every member's original position,
+  including a hidden one's own stale, possibly far-away spot. The result:
+  the placeholder is the size and appearance of one ordinary component,
+  wrapped in the same dashed frame/label language as any other group — see
+  the redesign note below for why this replaced an earlier, node-level
+  badge-overlay approach.
+- **Group naming & frame color** (`core/project.js#upsertGroupMeta`,
+  `canvas.js#renameGroup`/`#setGroupColor`): `project.groups` is a new
+  array of `{ groupId, name, color }` entries — created lazily (only once a
+  group is actually renamed/recolored), validated on load/import the same
+  "drop it if the groupId it names no longer exists" way `shrunkAnchorId`
+  is (`validateGroups`, using every current node's `groupId` as the
+  liveness set), and remapped to a duplicated project's own fresh group ids
+  in `duplicateProject` exactly like `groupId` itself. Applies uniformly to
+  a regular Group/Ungroup group *and* a shrunk group (both are just nodes
+  sharing a `groupId` — this was never shrink-specific) — but **not** a
+  replication side, whose "🔁 N replicated"/purple color is a fixed,
+  meaningful signal a custom label shouldn't be able to obscure
+  (`renderGroupBackgrounds` checks `isReplicated` before honoring either).
+  Double-clicking `.group-bg-label` starts the exact same
+  `node.js#startInlineEdit` helper node/sub-component text editing already
+  uses (exported for this reuse) — same commit-on-Enter/blur,
+  discard-on-Escape behavior, and the same "skip re-rendering this label
+  while its own `<input>` is live" guard `updateNodeEl` already needed for
+  node text (this function reruns on *every* store change anywhere in the
+  app, not just a change to this one group). The frame color swatch is a
+  bare `<input type="color">` restyled into a small circle (`.group-bg-
+  color` in `css/canvas.css`) rather than a custom palette popover — it's
+  the same native-control-as-a-styled-button trick, just applied to a
+  group's frame instead of a node's fill/border.
 - **Zoom-in / Edit**: the 🔍 button dispatches the exact same
   `sdb:open-subdiagram` event the sequence-diagram zoom icon uses, with this
   group's `groupId` — `subDiagramModal.js`'s `renderGroupSnapshot`/"✏️ Edit"
@@ -585,39 +617,51 @@ future context-menu action gated on "the whole current multi-selection" (not
 just `selectionAnimationMenuItem`'s own callers) benefits from this fix, not
 just Group & Shrink.
 
-**Gotcha — a new "always on top of `.node-layer`" overlay layer needs an
-explicit `z-index`, not just later DOM placement.** `.shrink-badge-layer` is
-appended after `.node-layer` in `initCanvas`, same as `.comment-layer`/
-`.anim-badge-layer`/`.align-guide-layer` already are — but unlike those,
-its own 🔍 button needs to win a hit-test against an *arbitrary* `.node`
-element specifically, and every `.node` carries its own explicit
-`z-index` (`node.js#updateNodeEl` — an incrementing per-node counter,
-practically always ≥ 1 on any diagram with more than one component). CSS
-stacking rules place *any* positioned element with an explicit positive
-z-index above a sibling at the default `z-index: auto`, regardless of DOM
-order — so without its own z-index, `.shrink-badge-layer`'s badge would
-render fine but be genuinely unclickable, covered by the anchor node's own
-body, on any diagram where that particular node wasn't the very first one
-created. Fixed with a fixed `z-index: 100000` on the layer, comfortably
-above any realistic per-diagram node count. Caught only by an actual
-Playwright click on the zoom button, not by a screenshot (visually
-indistinguishable — the button still *renders*, it just doesn't receive the
-click) — worth remembering for any future overlay meant to sit above
-arbitrary node content.
+**Redesign note — the placeholder used to be a node-level badge overlay;
+it's now a group-level frame, unified with every other group's own
+rendering.** The first version of this feature drew a dashed *outline*
+directly on the anchor node's own body (`.node-shrunk-anchor`) plus a
+separate floating `.shrink-badge` overlay (its own layer, own z-index, own
+"N grouped" label) positioned on top of it. A later request — "make the
+shrunk placeholder look exactly like the component did before shrinking,
+just with the group's own frame around it, nameable/colorable like any
+group" — made clear the *node* itself should carry zero shrink-specific
+styling at all, and the "this is a group" signal belongs entirely to the
+group's own frame (the same one every other 2+ member group already has),
+not to something drawn on the component. That reframing let the entire
+separate `renderShrinkBadges`/`.shrink-badge-layer` mechanism (and its own
+z-index workaround, and its own "N grouped" label) be deleted outright —
+one unification instead of two parallel "put a dashed thing near a
+node" implementations. Two gotchas from the earlier design are recorded
+here for anyone who finds them referenced elsewhere in history: an overlay
+meant to sit clickably on top of arbitrary node content needs its own
+explicit `z-index` (any `.node` carries its own incrementing one via
+`node.js#updateNodeEl`, which otherwise wins regardless of DOM order —
+still true and still relevant for *other* future overlays, just no longer
+needed here since the frame now lives in `.group-bg-layer`, which sits
+*behind* `.node-layer` the same as any other group's frame, its corner
+controls landing in the padding space around the anchor rather than over
+it); and a previously-uncaught bug where the pre-existing `.group-bg-label`
+(the analogous "N grouped"/"🔁 Replicated" text any group's background box
+already shows) visually reordered to "grouped N" under Hebrew's
+`dir="rtl"`, fixed with an explicit `direction: ltr` — canvas content was
+never part of any prior batch's RTL screenshot pass, since the translated
+surface is explicitly scoped to the toolbar/sidebar chrome (`io/i18n.js`'s
+header comment), so nothing had exercised this label under `dir="rtl"`
+before this feature's own screenshot pass found it.
 
-**Gotcha — English-only "N grouped" label text visually reordered to
-"grouped N" under Hebrew's `dir="rtl"`**, an instance of the same
-always-English-content-under-an-RTL-ancestor bidi-reordering issue
-`css/hints.css`'s `.hint-bubble` already guards against with its own
-`direction: ltr`. Building this feature's own screenshot pass found the
-identical, previously-uncaught bug already present on the pre-existing
-`.group-bg-label` (the analogous "N grouped"/"🔁 Replicated" text on a
-regular group's background box) — canvas content was never part of any
-prior batch's RTL screenshot pass, since the translated surface is
-explicitly scoped to the toolbar/sidebar chrome (see `io/i18n.js`'s header
-comment), so nothing had exercised this specific label under `dir="rtl"`
-before. Fixed both `.shrink-badge-label` and `.group-bg-label` with the same
-`direction: ltr` rule.
+**Gotcha — that same `direction: ltr` fix is only correct for the
+*computed* fallback text, not a user-typed custom name.** Once group
+naming existed, `.group-bg-label` could show either the always-English
+"N grouped" fallback (needs the ltr override) *or* an arbitrary
+user-typed name (which could itself be Hebrew — forcing ltr on *that*
+would render it backward instead). `renderGroupBackgrounds` sets
+`labelEl.style.direction` per-render: `'ltr'` for the fallback, `'inherit'`
+for a custom name (an inline `direction: inherit` beats the stylesheet's
+own `ltr` rule — inline styles always win — and falls back to whatever the
+ambient direction actually is, same as if the label had no direction rule
+of its own at all). Worth remembering for any other label that mixes
+always-English computed text with free-form user text in the same element.
 
 ### Canvas right-click quick actions (`canvas.js#openCanvasContextMenu`)
 

@@ -364,11 +364,16 @@ template's lifelines/messages instead of text when hovering one of those.
   placeholder ("anchor"); every other member gets hidden (`display: none`,
   reclaiming its footprint entirely, unlike Focus Mode's or Diagram
   Animation's own opacity-only dimming) rather than merely dimmed. The
-  placeholder shows a small "🗂️ N grouped" badge and a 🔍 zoom-in button that
-  opens the exact same read-only drill-down preview a sequence-diagram group
-  already has (4.15) — that view is generic (keyed only on `groupId`), so it
-  needed no changes to support this. An external connector to a now-hidden
-  member is redirected to visually terminate at the placeholder instead of
+  anchor itself renders with no special treatment at all — exactly as it
+  looked before being grouped — and is instead wrapped in the same dashed
+  group-background frame described just above for any other 2+ member
+  group (padded to just the anchor's own rect, so the frame is sized like a
+  small group of one, not spanning where the hidden members used to sit),
+  with the same "N grouped" label and a 🔍 zoom-in button that opens the
+  exact same read-only drill-down preview a sequence-diagram group already
+  has (4.15) — that view is generic (keyed only on `groupId`), so it needed
+  no changes to support this. An external connector to a now-hidden member
+  is redirected to visually terminate at the placeholder instead of
   vanishing; an edge purely internal to the shrunk group is hidden (not a
   genuine self-loop, which still renders normally at the placeholder).
   Right-clicking the placeholder itself offers "🔎 Expand" (restores every
@@ -385,6 +390,17 @@ template's lifelines/messages instead of text when hovering one of those.
   two-field pattern `groupOnInstantiate` — 4.19 — already established for
   "extra state to restore on the whole group at placement time") so
   re-placing it later reopens already shrunk.
+- **Group naming & frame color**: double-click any non-replicated group's
+  own dashed-frame label (a regular Group/Ungroup group or a "Group &
+  Shrink" group alike) to give it a custom name, replacing the computed
+  "N grouped" text; a small color swatch on the same frame recolors its
+  dashed border. Both persist in `project.groups` (an array of
+  `{ groupId, name, color }` entries, only created once a group is actually
+  renamed/recolored — see `core/project.js#upsertGroupMeta`) and round-trip
+  through JSON/save/load/duplicate like any other project content. Not
+  offered on a replication pair's side — its "🔁 N replicated" label and
+  purple frame color are a fixed, meaningful signal, not something a custom
+  label should be able to obscure.
 
 #### 4.3.2 Navigation tools
 - **Select tool** (default) and **Hand tool** are a mutually-exclusive

@@ -516,7 +516,14 @@ function buildRowsBody(node) {
   return wrap;
 }
 
-function startInlineEdit(labelEl, currentValue, onCommit) {
+/** Swaps `labelEl` for a text `<input>` pre-filled with `currentValue`,
+ * committing the trimmed result to `onCommit` on Enter/blur (a no-op if
+ * unchanged/empty) or discarding on Escape — the shared "click text to
+ * rename it in place" mechanism used for node labels, sub-component rows,
+ * and (see canvas.js#renderGroupBackgrounds) a group's own name. Exported
+ * so canvas.js can reuse the exact same interaction/edge-cases rather than
+ * re-implementing them for a group label. */
+export function startInlineEdit(labelEl, currentValue, onCommit) {
   const input = document.createElement('input');
   input.type = 'text';
   input.className = 'inline-edit-input';

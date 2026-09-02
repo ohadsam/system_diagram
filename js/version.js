@@ -2,9 +2,17 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.54.0';
+export const APP_VERSION = '1.55.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.55.0',
+    date: '2026-09-02',
+    highlights: [
+      '📦 Redesigned "Group & Shrink": the collapsed placeholder now looks exactly like the component did before shrinking (no special outline), wrapped in the same dashed group frame every other group already has — sized to just that one component.',
+      '🏷️ Any group (a regular Group/Ungroup group or a shrunk one) can now be given a custom name — double-click its frame label to rename it — and its own frame color via a small swatch, both saved with the project.',
+    ],
+  },
   {
     version: '1.54.0',
     date: '2026-09-01',

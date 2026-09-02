@@ -68,6 +68,15 @@ export function createEmptyProject(name = 'Untitled Diagram') {
     nodes: [],
     edges: [],
     replicationPairs: [],
+    // Optional per-`groupId` metadata (custom name, frame color) a user has
+    // set on a regular Group/Ungroup group or a "Group & Shrink" group —
+    // see canvas.js#renderGroupBackgrounds and upsertGroupMeta below. Not
+    // eagerly created for every group; an entry only exists once its group
+    // has actually been renamed/recolored at least once. Deliberately
+    // excludes a replication pair's side — its "🔁 N replicated" label and
+    // purple frame color are a meaningful, fixed signal, not something a
+    // custom name/color should be able to obscure.
+    groups: [],
     // Named snapshots of this project's own content (nodes/edges/
     // replicationPairs) the user has explicitly captured — see
     // canvas.js#saveDiagramVersion/#revertToVersion and
@@ -410,6 +419,11 @@ export function duplicateProject(project) {
     nodes,
     edges,
     replicationPairs,
+    // Same remap as groupId itself on the nodes above — a copied group's
+    // custom name/color should stick with its (fresh-id) copy, not vanish.
+    groups: (project.groups || [])
+      .filter((g) => groupIdMap.has(g.groupId))
+      .map((g) => ({ ...g, groupId: groupIdMap.get(g.groupId) })),
     // A copy's version history/presentations describe the *original*
     // project's own editing timeline — carrying them over into an
     // independent copy (whose future edits are unrelated) would be
@@ -527,6 +541,12 @@ export function removeNode(project, nodeId) {
     for (const n of project.nodes) {
       if (n.shrunkAnchorId === nodeId) n.shrunkAnchorId = null;
     }
+  }
+  // A group's custom name/color (project.groups, see upsertGroupMeta) is
+  // meaningless once its last member is gone — drop it rather than leaving
+  // it to linger until the next load/import cycle's validateGroups pass.
+  if (project.groups?.length) {
+    project.groups = project.groups.filter((g) => project.nodes.some((n) => n.groupId === g.groupId));
   }
 }
 
@@ -846,6 +866,41 @@ function validateLinks(rawLinks) {
     }));
 }
 
+const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
+
+/** Validates `project.groups` (see createEmptyProject's own comment) —
+ * `liveGroupIds` is every `groupId` any current node actually carries, so a
+ * hand-edited/stale entry whose group has since been fully deleted or
+ * ungrouped is dropped rather than accumulating forever, the same
+ * "clear a dangling reference instead of trusting it" spirit as
+ * `shrunkAnchorId` above (an entry here doesn't point at a *node*, but a
+ * `groupId` no node carries any more is exactly as meaningless). */
+function validateGroups(rawGroups, liveGroupIds) {
+  if (!Array.isArray(rawGroups)) return [];
+  return rawGroups
+    .filter((g) => g && typeof g === 'object' && typeof g.groupId === 'string' && liveGroupIds.has(g.groupId))
+    .map((g) => ({
+      groupId: g.groupId,
+      name: typeof g.name === 'string' ? g.name : '',
+      color: typeof g.color === 'string' && HEX_COLOR_RE.test(g.color) ? g.color : null,
+    }));
+}
+
+/** Sets a custom name and/or frame color on `groupId`'s entry in
+ * `project.groups`, creating it on first use — the shared upsert both
+ * canvas.js#renameGroup and #setGroupColor dispatch through, since both
+ * need identical "find or create the one entry for this groupId" logic.
+ * Mutates `project` in place (a `store.dispatch` draft), same convention
+ * as every other in-place project mutator in this file. */
+export function upsertGroupMeta(project, groupId, patch) {
+  let entry = project.groups.find((g) => g.groupId === groupId);
+  if (!entry) {
+    entry = { groupId, name: '', color: null };
+    project.groups.push(entry);
+  }
+  Object.assign(entry, patch);
+}
+
 /**
  * Validate an arbitrary parsed-JSON value as a project, returning
  * { ok: true, project } with unknown/invalid fields coerced to safe
@@ -864,6 +919,7 @@ export function validateProject(input) {
     const comments = validateComments(input.comments);
     const { animations, activeAnimationId } = validateAnimations(input, new Set(nodes.map((n) => n.id)), new Set(edges.map((e) => e.id)));
     const links = validateLinks(input.links);
+    const groups = validateGroups(input.groups, new Set(nodes.map((n) => n.groupId).filter(Boolean)));
     const reviewStatus = REVIEW_STATUSES.includes(input.reviewStatus) ? input.reviewStatus : 'draft';
     const reviewedBy = typeof input.reviewedBy === 'string' ? input.reviewedBy : '';
     const reviewedAt = typeof input.reviewedAt === 'string' ? input.reviewedAt : null;
@@ -882,6 +938,7 @@ export function validateProject(input) {
       nodes,
       edges,
       replicationPairs,
+      groups,
       versions,
       presentations,
       comments,

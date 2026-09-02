@@ -3,6 +3,29 @@
 All notable changes to this project. Format: date, then bullet list.
 Keep this in sync with `PLAN.md` as stages complete.
 
+## v1.55.0 (2026-09-02)
+
+- **Group & Shrink redesign + group naming/coloring** (`js/core/project.js`,
+  `js/canvas/canvas.js`, `js/canvas/groupBackgrounds.js`,
+  `js/canvas/node.js`, `css/canvas.css`, `css/node.css`):
+  - The shrunk placeholder no longer carries any special outline/badge of
+    its own — the anchor node renders exactly as it looked before
+    shrinking. It's now wrapped in the same dashed group-background frame
+    every other 2+ member group and replication side already uses (sized
+    to just the one visible anchor), unifying what were two separate
+    "draw a dashed thing near a node" implementations into one.
+  - Any non-replicated group (a regular Group/Ungroup group or a shrunk
+    one) can now be given a custom name — double-click its frame's label
+    — and a custom frame color via a small swatch button, both persisted
+    in a new `project.groups` array (`core/project.js#upsertGroupMeta`).
+  - Fixed an RTL edge case introduced by naming: the frame label's
+    `direction: ltr` fix (for the always-English "N grouped" fallback)
+    would have rendered a Hebrew custom name backward — now only applied
+    to the computed fallback text.
+  - `tests/e2e/group-shrink.spec.js` rewritten for the new DOM shape;
+    `tests/unit/groupBackgrounds.test.mjs` extended for the new
+    `oneMemberOkGroupIds` param.
+
 ## v1.54.0 (2026-09-01)
 
 - **"Group & Shrink"** (`js/core/project.js`, `js/canvas/canvas.js`,

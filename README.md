@@ -82,11 +82,13 @@ Or open `index.html` directly in a browser.
   each side of a Live Replication pair) shows a dismissible dashed
   background so it reads as one unit at a glance.
 - **📦 Group & Shrink** — right-click a 2+ selection to collapse it down to
-  the footprint of one component, with a "🗂️ N grouped" badge and a 🔍
+  the footprint of one component, looking exactly like it did before
+  shrinking, wrapped in a dashed group frame ("N grouped") with a 🔍
   zoom-in button opening a read-only preview of everything folded inside.
   Right-click the placeholder for "🔎 Expand" (back to full size, still
   grouped) or "✂️ Ungroup" (dissolves it entirely) — saving a shrunk group
-  as a custom component remembers to reopen it shrunk next time.
+  as a custom component remembers to reopen it shrunk next time. Any
+  group's frame (shrunk or not) can be given a custom name and color.
 - **Navigation tools** — a 🖱️ Select / ✋ Hand toolbar toggle (`H`/`V`
   shortcuts, or hold **Space**): Hand pans the canvas by dragging anywhere,
   even over a component, without moving or altering it.

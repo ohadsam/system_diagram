@@ -2,7 +2,7 @@
 // store, and owns pan/zoom/marquee-selection. See docs/ARCHITECTURE.md
 // "Canvas rendering".
 import * as store from '../core/store.js';
-import { createEdge, nextZIndex, removeNode as removeNodeFromProject, removeEdge as removeEdgeFromProject, createNode, duplicateProject, createVersionSnapshot, removeVersion as removeVersionFromProject, createComment, createReply, createAnimationStep, createAnimation, createProjectLink } from '../core/project.js';
+import { createEdge, nextZIndex, removeNode as removeNodeFromProject, removeEdge as removeEdgeFromProject, createNode, duplicateProject, createVersionSnapshot, removeVersion as removeVersionFromProject, createComment, createReply, createAnimationStep, createAnimation, createProjectLink, upsertGroupMeta } from '../core/project.js';
 import { copyVersionToBranch } from '../core/versionBranches.js';
 import { onAnimationChange, isAnimationPlaying, getAnimationPlaybackState, startPlayback, stopPlayback } from '../core/animationPlayback.js';
 import { buildAutoWalkthroughAnimation } from '../core/animationAutoBuild.js';
@@ -28,7 +28,7 @@ import { nextId } from '../core/id.js';
 import { sanitizeAddNode, sanitizeAddEdge, sanitizeNodeUpdateFields, sanitizeEdgeUpdateFields } from '../io/aiEditDesign.js';
 import { showToast } from '../utils/toast.js';
 import * as viewport from './viewport.js';
-import { createNodeEl, updateNodeEl, configureNodeHandlers } from './node.js';
+import { createNodeEl, updateNodeEl, configureNodeHandlers, startInlineEdit } from './node.js';
 import { attachNodeInteractions } from './nodeInteractions.js';
 import { createEdgeEl, updateEdgeEl, configureEdgeHandlers, initConnectorDefs } from './connector.js';
 import { initConnectorInteractions } from './connectorInteractions.js';
@@ -38,7 +38,7 @@ import { initCommentPins, renderCommentPins } from './commentPins.js';
 import { showContextMenu, hideContextMenu } from './contextMenu.js';
 import { getToolMode, onToolModeChange } from './toolMode.js';
 import { showSuggestionsFor } from './suggestions.js';
-import { computeGroupBounds } from './groupBackgrounds.js';
+import { computeGroupBounds, PADDING as GROUP_BOUNDS_PADDING } from './groupBackgrounds.js';
 import { computeShrunkGroups } from './shrinkGroups.js';
 import { confirmAction } from '../modals/confirmModal.js';
 import { promptNumber } from '../modals/promptModal.js';
@@ -56,13 +56,11 @@ let marqueeEl = null;
 let guideLayer = null;
 let commentLayer = null;
 let animBadgeLayer = null;
-let shrinkBadgeLayer = null;
 
 const nodeElements = new Map();
 const edgeElements = new Map();
 const groupBgElements = new Map();
 const animBadgeElements = new Map();
-const shrinkBadgeElements = new Map(); // anchorId -> its overlay element
 // Which `${targetType}:${targetId}` keys were revealed as of the *previous*
 // applyAnimationVisibility() pass — diffed against the current pass to spot
 // a target crossing from hidden to revealed, which gets a one-shot
@@ -130,14 +128,6 @@ export function initCanvas(root) {
   // never intercept clicks meant for a node/edge/the canvas background.
   animBadgeLayer = el('div', { class: 'anim-badge-layer' });
   contentEl.appendChild(animBadgeLayer);
-  // "Group & Shrink" placeholder overlay (label + zoom-in button) — must sit
-  // on top of .node-layer (unlike .group-bg-layer, appended *before* it)
-  // since it shares the exact same rect as its anchor node and its zoom
-  // button needs to actually be clickable, not painted under the node's own
-  // body — same "always on top, click-through everywhere else" reasoning as
-  // animBadgeLayer/commentLayer/guideLayer just above.
-  shrinkBadgeLayer = el('div', { class: 'shrink-badge-layer' });
-  contentEl.appendChild(shrinkBadgeLayer);
   viewportEl.appendChild(contentEl);
 
   marqueeEl = el('div', { class: 'marquee', hidden: true });
@@ -385,13 +375,21 @@ function render(state) {
   const hiddenNodeIds = new Set();
   const anchorByHiddenId = new Map();
   const shrunkGroupIds = new Set();
+  const shrunkAnchorByGroupId = new Map();
   for (const [anchorId, memberIds] of shrunkGroups) {
     for (const id of memberIds) { hiddenNodeIds.add(id); anchorByHiddenId.set(id, anchorId); }
-    const groupId = nodesById.get(anchorId)?.groupId;
-    if (groupId) shrunkGroupIds.add(groupId);
+    const anchorNode = nodesById.get(anchorId);
+    if (anchorNode?.groupId) { shrunkGroupIds.add(anchorNode.groupId); shrunkAnchorByGroupId.set(anchorNode.groupId, anchorNode); }
   }
-  renderGroupBackgrounds(state.nodes, replicatedGroupIds, shrunkGroupIds);
-  renderShrinkBadges(nodesById, shrunkGroups);
+  // Bounds/count still come from *every* member (as for any other group —
+  // computeGroupBounds itself is unaware anything is hidden, so a shrunk
+  // group's label still correctly reads its true member count) — only the
+  // box's own x/y/w/h get overridden below, to just the one visible anchor's
+  // rect, since a hidden member still carries its own original, possibly
+  // far-away position and including it in the box itself would draw the
+  // frame around that stale spread-out area instead of snugly around the
+  // one visible placeholder.
+  renderGroupBackgrounds(state.nodes, replicatedGroupIds, shrunkGroupIds, state.groups, shrunkAnchorByGroupId);
   renderReplicationSyncPaths(state.nodes, state.replicationPairs);
   for (const node of state.nodes) {
     let elRef = nodeElements.get(node.id);
@@ -409,9 +407,12 @@ function render(state) {
     // Reclaims the hidden member's on-canvas footprint entirely (unlike the
     // opacity-only `.dimmed`/`.anim-hidden` classes Focus Mode/Diagram
     // Animation use elsewhere) — real `display: none`, same technique
-    // hideExcept() already uses for isolated group image export.
+    // hideExcept() already uses for isolated group image export. The
+    // anchor itself gets no special class/outline of its own any more — it
+    // renders exactly as it did before being shrunk; the group's own frame
+    // (renderGroupBackgrounds, sized to just this rect) is what signals
+    // "this is a collapsed group" now, not a mark on the node itself.
     elRef.style.display = hiddenNodeIds.has(node.id) ? 'none' : '';
-    elRef.classList.toggle('node-shrunk-anchor', shrunkGroups.has(node.id));
   }
 
   const edgeIds = new Set(state.edges.map((e) => e.id));
@@ -1226,31 +1227,70 @@ export function stopAnimationPlayback() {
 }
 
 /** One subtle bounding box behind every multi-member group — a regular
- * Group/Ungroup group and a replication pair's side are both just nodes
- * sharing a `groupId`, so this renders identically for either, with only
- * the label/color telling them apart. `pointer-events: none` on the box
- * itself (see css/canvas.css) keeps it from intercepting clicks meant for
- * a node or the canvas background underneath; only its own "✕" dismiss
- * control opts back in. Dismissing is session-only (not saved with the
- * project) — the group itself is untouched, just its background. */
-function renderGroupBackgrounds(nodes, replicatedGroupIds, shrunkGroupIds = new Set()) {
-  // A shrunk group's own placeholder (see renderShrinkBadges) already
-  // communicates "this is a collapsed group" — its members' *real* bounding
-  // box would otherwise draw a big, mostly-empty dashed box around wherever
-  // the hidden members still logically sit, with only the placeholder
-  // peeking out of one corner.
-  const bounds = computeGroupBounds(nodes, replicatedGroupIds)
-    .filter((b) => !hiddenGroupBackgrounds.has(b.groupId) && !shrunkGroupIds.has(b.groupId));
+ * Group/Ungroup group, a replication pair's side, and a "Group & Shrink"
+ * group (canvas.js#groupAndShrinkSelection) are all just nodes sharing a
+ * `groupId`, so this renders identically for all three, with only the
+ * label/color/zoom-button visibility telling them apart. `pointer-events:
+ * none` on the box itself (see css/canvas.css) keeps it from intercepting
+ * clicks meant for a node or the canvas background underneath; only its
+ * own label/color-swatch/zoom/dismiss controls opt back in.
+ *
+ * A shrunk group's own box gets its x/y/w/h overridden below to its one
+ * visible anchor's own rect (`shrunkAnchorByGroupId`) — `computeGroupBounds`
+ * itself doesn't know or care that a member is hidden, so without this
+ * override the box would span every member's original position, including
+ * a hidden one's own stale, possibly far-away spot. The override makes the
+ * frame come out sized to exactly the anchor's own rect, same footprint as
+ * an ordinary node: the anchor itself renders with zero special treatment
+ * (see render()'s own comment on the removed `.node-shrunk-anchor` class),
+ * so "shrunk" now reads purely as "this ordinary-looking component has a
+ * group frame around it," not as a mark on the component itself.
+ *
+ * A custom name (double-click the label to rename) and frame color (the
+ * small swatch) are `project.groups`-backed (see core/project.js's
+ * `upsertGroupMeta`) and available on any group here *except* a
+ * replication side — its "🔁 N replicated"/purple color is a fixed,
+ * meaningful signal, not something a custom label should be able to
+ * obscure. Dismissing the background entirely (the "✕") stays session-only
+ * (not saved with the project) — the group itself, and any custom name/
+ * color it has, are untouched. */
+function renderGroupBackgrounds(nodes, replicatedGroupIds, shrunkGroupIds = new Set(), groupsMeta = [], shrunkAnchorByGroupId = new Map()) {
+  const bounds = computeGroupBounds(nodes, replicatedGroupIds, shrunkGroupIds)
+    .filter((b) => !hiddenGroupBackgrounds.has(b.groupId));
+  // Override just the box's own rect for a shrunk group, to its one visible
+  // anchor's rect (padded the same amount computeGroupBounds itself uses) —
+  // `count` (and everything else about `b`) stays exactly what
+  // computeGroupBounds already gave it, computed from *every* member,
+  // hidden or not.
+  for (const b of bounds) {
+    const anchor = shrunkAnchorByGroupId.get(b.groupId);
+    if (!anchor) continue;
+    b.x = anchor.x - GROUP_BOUNDS_PADDING;
+    b.y = anchor.y - GROUP_BOUNDS_PADDING;
+    b.w = anchor.w + GROUP_BOUNDS_PADDING * 2;
+    b.h = anchor.h + GROUP_BOUNDS_PADDING * 2;
+  }
   const seqGroupIds = new Set(getSequenceDiagramGroups().map((g) => g.groupId));
+  const metaByGroupId = new Map(groupsMeta.map((g) => [g.groupId, g]));
   const seen = new Set();
   for (const b of bounds) {
     seen.add(b.groupId);
     let elRef = groupBgElements.get(b.groupId);
     if (!elRef) {
       elRef = el('div', { class: 'group-bg' });
-      elRef.appendChild(el('span', { class: 'group-bg-label' }));
+      const label = el('span', { class: 'group-bg-label', title: 'Double-click to rename this group' });
+      label.addEventListener('dblclick', (e) => {
+        if (elRef.classList.contains('group-bg-replicated')) return;
+        e.stopPropagation();
+        startInlineEdit(label, label.textContent, (value) => renameGroup(b.groupId, value));
+      });
+      elRef.appendChild(label);
+      elRef.appendChild(el('input', {
+        type: 'color', class: 'group-bg-color', title: 'Set this group\'s frame color',
+        onInput: (e) => setGroupColor(b.groupId, e.target.value),
+      }));
       elRef.appendChild(el('button', {
-        type: 'button', class: 'group-bg-zoom', text: '🔍', title: 'View this sequence diagram zoomed in',
+        type: 'button', class: 'group-bg-zoom', text: '🔍', title: 'View this group zoomed in',
         onClick: (e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('sdb:open-subdiagram', { detail: { groupId: b.groupId } })); },
       }));
       elRef.appendChild(el('button', {
@@ -1260,20 +1300,45 @@ function renderGroupBackgrounds(nodes, replicatedGroupIds, shrunkGroupIds = new 
       groupBgElements.set(b.groupId, elRef);
       groupBgLayer.appendChild(elRef);
     }
-    // A group only qualifies for the zoom-in/drill-down view while every one
-    // of its members is a lifeline (see getSequenceDiagramGroups) — hidden
-    // rather than removed so the toggle is instant if that ever flips.
-    elRef.querySelector('.group-bg-zoom').hidden = !seqGroupIds.has(b.groupId);
+    // A group qualifies for the zoom-in/drill-down view either because
+    // every member is a lifeline (getSequenceDiagramGroups) or because it's
+    // currently shrunk — hidden rather than removed so the toggle is
+    // instant if either ever flips.
+    const isShrunk = shrunkGroupIds.has(b.groupId);
+    elRef.querySelector('.group-bg-zoom').hidden = !seqGroupIds.has(b.groupId) && !isShrunk;
     const isReplicated = replicatedGroupIds.has(b.groupId);
     elRef.classList.toggle('group-bg-replicated', isReplicated);
-    // A replication side is commonly just 1 component (the mirror is on
-    // the *other* side's own box, not this one) — "🔁 1 replicated" would
-    // read oddly, so drop the count in that case; a regular group is
-    // never rendered below 2 members (see computeGroupBounds), so it
-    // always has one to show.
-    elRef.querySelector('.group-bg-label').textContent = isReplicated
-      ? (b.count === 1 ? '🔁 Replicated' : `🔁 ${b.count} replicated`)
-      : `${b.count} grouped`;
+    elRef.querySelector('.group-bg-color').hidden = isReplicated;
+    const meta = metaByGroupId.get(b.groupId);
+    const labelEl = elRef.querySelector('.group-bg-label');
+    // Skip while a rename is live in this exact element (startInlineEdit
+    // swapped the label out for an <input>) — this whole function reruns on
+    // every store change anywhere in the app, not just a change to this
+    // group, so without this guard a concurrent unrelated dispatch would
+    // tear out the in-progress <input> and its unsaved text.
+    if (!elRef.querySelector('.inline-edit-input')) {
+      // A replication side is commonly just 1 component (the mirror is on
+      // the *other* side's own box, not this one) — "🔁 1 replicated" would
+      // read oddly, so drop the count in that case; a regular/shrunk group
+      // is never rendered below 1 member (see computeGroupBounds), so it
+      // always has one to show.
+      const fallback = isReplicated ? (b.count === 1 ? '🔁 Replicated' : `🔁 ${b.count} replicated`) : `${b.count} grouped`;
+      const hasCustomName = !isReplicated && meta?.name;
+      labelEl.textContent = hasCustomName ? meta.name : fallback;
+      // css/canvas.css forces this label's `direction: ltr` for the
+      // computed fallback text above, which is always-English and would
+      // otherwise bidi-reorder under Hebrew's `dir="rtl"` — but a custom
+      // name is arbitrary user text (it could itself be Hebrew), so forcing
+      // ltr on it would render *that* backward instead. An inline
+      // `direction: inherit` beats the stylesheet's own `ltr` rule (inline
+      // styles always win) and falls back to whatever the ambient
+      // direction actually is, same as if this label had no direction rule
+      // of its own at all.
+      labelEl.style.direction = hasCustomName ? 'inherit' : 'ltr';
+    }
+    const colorEl = elRef.querySelector('.group-bg-color');
+    colorEl.value = meta?.color || '#94A3B8';
+    elRef.style.borderColor = (!isReplicated && meta?.color) ? meta.color : '';
     elRef.style.left = `${b.x}px`;
     elRef.style.top = `${b.y}px`;
     elRef.style.width = `${b.w}px`;
@@ -1284,46 +1349,6 @@ function renderGroupBackgrounds(nodes, replicatedGroupIds, shrunkGroupIds = new 
       elRef.remove();
       groupBgElements.delete(groupId);
       hiddenGroupBackgrounds.delete(groupId);
-    }
-  }
-}
-
-/** One overlay per shrunk group's anchor node — sized/positioned to exactly
- * match the anchor's own rect (see .shrink-badge-layer's DOM position,
- * *after* .node-layer, in initCanvas — needed so its "🔍" button paints on
- * top of the node and is actually clickable) with a small "N grouped" label
- * and a zoom-in button that reuses the exact same generic drill-down view
- * sequence diagrams already have (modals/subDiagramModal.js —
- * renderGroupSnapshot only ever looks at `groupId`, nothing lifeline-
- * specific, so a "Group & Shrink" group opens in it unmodified). */
-function renderShrinkBadges(nodesById, shrunkGroups) {
-  const seen = new Set();
-  for (const [anchorId] of shrunkGroups) {
-    const anchor = nodesById.get(anchorId);
-    if (!anchor) continue;
-    seen.add(anchorId);
-    let elRef = shrinkBadgeElements.get(anchorId);
-    if (!elRef) {
-      elRef = el('div', { class: 'shrink-badge' });
-      elRef.appendChild(el('span', { class: 'shrink-badge-label' }));
-      elRef.appendChild(el('button', {
-        type: 'button', class: 'shrink-badge-zoom', text: '🔍', title: 'View the grouped components',
-        onClick: (e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('sdb:open-subdiagram', { detail: { groupId: anchor.groupId } })); },
-      }));
-      shrinkBadgeElements.set(anchorId, elRef);
-      shrinkBadgeLayer.appendChild(elRef);
-    }
-    const count = shrunkGroups.get(anchorId).length + 1;
-    elRef.querySelector('.shrink-badge-label').textContent = `🗂️ ${count} grouped`;
-    elRef.style.left = `${anchor.x}px`;
-    elRef.style.top = `${anchor.y}px`;
-    elRef.style.width = `${anchor.w}px`;
-    elRef.style.height = `${anchor.h}px`;
-  }
-  for (const [anchorId, elRef] of shrinkBadgeElements) {
-    if (!seen.has(anchorId)) {
-      elRef.remove();
-      shrinkBadgeElements.delete(anchorId);
     }
   }
 }
@@ -2371,6 +2396,23 @@ export function dissolveShrunkGroup(groupId) {
     }
   });
   showToast('Ungrouped — components are back to full size.', 'success', 1800);
+}
+
+/** Double-click a group's own frame label (renderGroupBackgrounds) to set
+ * a custom name — persisted via `upsertGroupMeta`, replacing the computed
+ * "N grouped"/"🗂️ N grouped" fallback text for that box from then on.
+ * Works the same for a regular Group/Ungroup group and a "Group & Shrink"
+ * group; not offered for a replication side (see renderGroupBackgrounds's
+ * own comment on why). */
+export function renameGroup(groupId, name) {
+  store.dispatch((draft) => { upsertGroupMeta(draft, groupId, { name }); });
+}
+
+/** The small color swatch on a group's frame (renderGroupBackgrounds) —
+ * recolors just that group's dashed border, same persistence/scope as
+ * renameGroup above. */
+export function setGroupColor(groupId, color) {
+  store.dispatch((draft) => { upsertGroupMeta(draft, groupId, { color }); });
 }
 
 function isGroupInAnyPair(state, groupId) {
