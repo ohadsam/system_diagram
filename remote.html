@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>Diagram Remote</title>
+  <style>
+    :root { color-scheme: light dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      padding: 24px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #111827;
+      color: #F9FAFB;
+      text-align: center;
+    }
+    h1 { font-size: 18px; margin: 0; font-weight: 600; }
+    p.hint { font-size: 13px; color: #9CA3AF; margin: 0; max-width: 320px; }
+    input[type="text"] {
+      font-size: 20px;
+      letter-spacing: 0.15em;
+      text-align: center;
+      text-transform: uppercase;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid #374151;
+      background: #1F2937;
+      color: #F9FAFB;
+      width: 180px;
+    }
+    button {
+      font-size: 16px;
+      font-weight: 600;
+      padding: 12px 20px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+    }
+    #connect-btn { background: #4F46E5; color: #fff; }
+    #connect-btn:disabled { opacity: 0.5; cursor: default; }
+    .remote-buttons { display: none; gap: 16px; }
+    .remote-buttons.visible { display: flex; }
+    .remote-buttons button {
+      width: 130px;
+      height: 130px;
+      font-size: 32px;
+      background: #1F2937;
+      color: #F9FAFB;
+      border: 1px solid #374151;
+    }
+    .remote-buttons button:active { background: #374151; }
+    #status { font-size: 13px; color: #9CA3AF; min-height: 18px; }
+    #status.connected { color: #34D399; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <h1>📱 Diagram Remote</h1>
+  <p class="hint">Controls Next/Previous step for Diagram Animation playback on the presenter's screen.</p>
+
+  <div id="connect-form">
+    <input type="text" id="code-input" placeholder="ROOM CODE" maxlength="8" />
+    <button type="button" id="connect-btn">Connect</button>
+  </div>
+
+  <div class="remote-buttons" id="remote-buttons">
+    <button type="button" id="prev-btn" aria-label="Previous step">⬅</button>
+    <button type="button" id="next-btn" aria-label="Next step">➡</button>
+  </div>
+
+  <p id="status"></p>
+
+  <script type="module">
+    import { createPresenterRemoteGuestTransport, sendRemoteCommand } from './js/collab/presenterRemote.js';
+
+    const codeInput = document.getElementById('code-input');
+    const connectBtn = document.getElementById('connect-btn');
+    const connectForm = document.getElementById('connect-form');
+    const remoteButtons = document.getElementById('remote-buttons');
+    const statusEl = document.getElementById('status');
+    const prevBtn = document.getElementById('prev-btn');
+    const nextBtn = document.getElementById('next-btn');
+
+    const params = new URLSearchParams(location.search);
+    const prefilledCode = params.get('code');
+    if (prefilledCode) codeInput.value = prefilledCode.toUpperCase();
+
+    let transport = null;
+
+    async function connect() {
+      const code = codeInput.value.trim();
+      if (!code) return;
+      connectBtn.disabled = true;
+      statusEl.textContent = 'Connecting…';
+      statusEl.className = '';
+      transport = createPresenterRemoteGuestTransport();
+      transport.onStatusChange((status) => {
+        if (status === 'connected') {
+          statusEl.textContent = '🟢 Connected';
+          statusEl.className = 'connected';
+          connectForm.style.display = 'none';
+          remoteButtons.classList.add('visible');
+        } else if (status === 'closed' || status === 'error') {
+          statusEl.textContent = status === 'error' ? 'Connection lost.' : 'Disconnected.';
+          statusEl.className = '';
+          remoteButtons.classList.remove('visible');
+          connectForm.style.display = 'block';
+          connectBtn.disabled = false;
+        }
+      });
+      const result = await transport.join(code);
+      if (!result.ok) {
+        statusEl.textContent = result.error;
+        connectBtn.disabled = false;
+      }
+    }
+
+    connectBtn.addEventListener('click', connect);
+    codeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') connect(); });
+    prevBtn.addEventListener('click', () => transport && sendRemoteCommand(transport, 'prev'));
+    nextBtn.addEventListener('click', () => transport && sendRemoteCommand(transport, 'next'));
+
+    if (prefilledCode) connect();
+  </script>
+</body>
+</html>

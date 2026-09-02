@@ -44,6 +44,16 @@ test('an invalid saved scene3dBarPosition/scene3dBarCompact falls back to the de
   assert.equal(prefs.scene3dBarCompact, false);
 });
 
+test('inlineLintBadges/sketchMode default to off and round-trip a saved true', () => {
+  assert.equal(getUiPrefs().inlineLintBadges, false);
+  assert.equal(getUiPrefs().sketchMode, false);
+
+  saveUiPrefs({ inlineLintBadges: true, sketchMode: true });
+  const prefs = getUiPrefs();
+  assert.equal(prefs.inlineLintBadges, true);
+  assert.equal(prefs.sketchMode, true);
+});
+
 test('SCENE3D_BAR_POSITIONS covers every position getUiPrefs will accept', () => {
   assert.deepEqual(SCENE3D_BAR_POSITIONS, ['bottom', 'top', 'left', 'right']);
   for (const pos of SCENE3D_BAR_POSITIONS) {

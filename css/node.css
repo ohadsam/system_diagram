@@ -822,6 +822,29 @@
   background: var(--color-amber-soft);
 }
 
+/* Ambient "Check Diagram" indicator (io/uiPrefs.js#inlineLintBadges) — off by
+   default, bottom-left is the one corner none of the other always-on badges
+   above (info/menu top corners, suggestion bottom-right) already use. */
+.node-lint-badge {
+  position: absolute;
+  bottom: -12px;
+  left: -12px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  border: 1px solid #DC2626;
+  font-size: 12px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-sm);
+}
+
+.node.has-lint-findings .node-lint-badge {
+  display: flex;
+}
+
 /* Keyboard-connect numbered badges (canvas/keyboardConnect.js) — appended
    directly as a child of each candidate target node, so it inherits that
    node's own pan/zoom transform for free instead of needing separate

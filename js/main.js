@@ -27,6 +27,7 @@ import { openWhatsNewModal } from './modals/whatsNewModal.js';
 import * as viewport from './canvas/viewport.js';
 import { setToolMode, setSpaceHeld } from './canvas/toolMode.js';
 import { openCommandPaletteModal } from './modals/commandPaletteModal.js';
+import { openKeyboardShortcutsModal } from './modals/keyboardShortcutsModal.js';
 import { initTheme } from './io/theme.js';
 import { isKioskMode, setKioskMode } from './core/kioskMode.js';
 import { initKioskModeUi } from './toolbar/kioskModeUi.js';
@@ -131,6 +132,9 @@ function initKeyboardShortcuts() {
       // active, Figma-style — released back to whatever was active before.
       e.preventDefault();
       setSpaceHeld(true);
+    } else if (!mod && e.key === '?') {
+      e.preventDefault();
+      openKeyboardShortcutsModal();
     } else if (!mod && e.key.toLowerCase() === 'h') {
       setToolMode('hand');
     } else if (!mod && e.key.toLowerCase() === 'v') {

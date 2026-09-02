@@ -176,6 +176,13 @@ export function createNodeEl(node) {
   });
   root.appendChild(suggestionBadge);
 
+  // Ambient "Check Diagram" indicator (io/uiPrefs.js#inlineLintBadges) — same
+  // rule-based findings the 🔍 Check Diagram modal computes, surfaced right
+  // on the node(s) involved. Hidden unless updateNodeEl is passed a non-empty
+  // `lintMessages` list (canvas.js#render, only when the pref is on).
+  const lintBadge = el('span', { class: 'node-lint-badge', 'aria-hidden': 'true' }, '⚠️');
+  root.appendChild(lintBadge);
+
   const menuBtn = el('button', {
     class: 'node-menu-btn',
     type: 'button',
@@ -194,7 +201,7 @@ export function createNodeEl(node) {
   return root;
 }
 
-export function updateNodeEl(rootEl, node, { selected = false, replicated = false, replicationFrozen = false } = {}) {
+export function updateNodeEl(rootEl, node, { selected = false, replicated = false, replicationFrozen = false, lintMessages = null } = {}) {
   rootEl.dataset.shape = node.shape;
   rootEl.style.left = `${node.x}px`;
   rootEl.style.top = `${node.y}px`;
@@ -214,6 +221,11 @@ export function updateNodeEl(rootEl, node, { selected = false, replicated = fals
   const hasInfo = !!(node.notes?.trim() || node.labels?.length || (node.subComponents?.length && node.shape !== 'rows'));
   rootEl.classList.toggle('has-info', hasInfo);
   rootEl.classList.toggle('has-suggestions', hasSuggestions(node));
+
+  const hasLintFindings = !!(lintMessages && lintMessages.length);
+  rootEl.classList.toggle('has-lint-findings', hasLintFindings);
+  const lintBadgeEl = rootEl.querySelector('.node-lint-badge');
+  if (lintBadgeEl) lintBadgeEl.title = hasLintFindings ? lintMessages.join('\n') : '';
   rootEl.setAttribute('aria-label', node.text || 'component');
 
   const body = rootEl.querySelector('.node-body');

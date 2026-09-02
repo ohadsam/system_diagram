@@ -25,9 +25,11 @@ import * as store from '../core/store.js';
 import { createManualTransport } from '../collab/webrtcCollab.js';
 import { createPeerJsTransport } from '../collab/peerjsCollab.js';
 import { startCollabSession } from '../collab/collabSession.js';
+import { startCursorSync } from '../collab/cursorSync.js';
 
 let transport = null;
 let session = null;
+let cursorSync = null;
 let role = null; // 'host' | 'guest'
 let method = null; // 'manual' | 'peerjs'
 let screen = 'choose';
@@ -56,6 +58,7 @@ function notifyStatus() {
 function handleTransportStatusChange() {
   if (transport?.getStatus() === 'connected' && !session) {
     session = startCollabSession(transport);
+    cursorSync = startCursorSync(transport);
     if (role === 'host') session.sendInitialState();
     screen = 'connected';
   }
@@ -87,8 +90,10 @@ function resetFlowState() {
 
 function disconnect() {
   session?.stop();
+  cursorSync?.stop();
   transport?.close();
   session = null;
+  cursorSync = null;
   transport = null;
   screen = 'choose';
   resetFlowState();

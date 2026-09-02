@@ -105,6 +105,10 @@
      is hidden — it must win over literally everything else still capable of
      rendering, including a toast, so it's the highest value in the scale. */
   --z-kiosk-exit: 90;
+  /* Presenter Mode's spotlight overlay (toolbar/kioskModeUi.js) — must sit
+     above the diagram it's dimming but below the exit/spotlight buttons
+     themselves, or the dimming layer would swallow their own clicks. */
+  --z-spotlight: 88;
   /* Diagram Animation playback (core/animationPlayback.js) reuses kiosk
      mode as its base, then layers its own chrome on top: the free-draw
      canvas must sit above the diagram but below both the playback controls

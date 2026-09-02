@@ -17,7 +17,7 @@ import { el, clear, rerenderPreservingUiState } from '../utils/dom.js';
 import {
   deleteSelection, duplicateSelection, groupSelection, ungroupSelection, selectionHasGroup, duplicateProjectAsNew,
   getSelectionScreenRect, autoArrangeAll, distributeSequenceDiagram, setFocusMode, setFlowSimulationEnabled,
-  resolveComponentDef, fixTextDisplay, autoBuildAndPlayAnimation, addStickyNote,
+  resolveComponentDef, fixTextDisplay, autoBuildAndPlayAnimation, addStickyNote, render as renderCanvas,
 } from '../canvas/canvas.js';
 import { getBaseToolMode, setToolMode, onToolModeChange } from '../canvas/toolMode.js';
 import { onViewportChange, centerOn } from '../canvas/viewport.js';
@@ -38,6 +38,10 @@ import { openCustomShapeModal } from '../modals/customShapeModal.js';
 import { openDefaultSettingsModal } from '../modals/defaultSettingsModal.js';
 import { openBackupModal } from '../modals/backupModal.js';
 import { openWhatsNewModal } from '../modals/whatsNewModal.js';
+import { openKeyboardShortcutsModal } from '../modals/keyboardShortcutsModal.js';
+import { getComponentById, CATEGORIES } from '../data/index.js';
+
+const CATEGORY_LABEL_BY_ID = new Map(CATEGORIES.map((c) => [c.id, c.label]));
 import { openReplicationModal } from '../modals/replicationModal.js';
 import { openAiEditModal } from '../modals/aiEditModal.js';
 import { openAiConversationModal } from '../modals/aiConversationModal.js';
@@ -477,6 +481,23 @@ function matchCenter(match, state) {
   };
 }
 
+/** Whether `node` should count as a match for `q` beyond its own visible
+ * name — a loose, offline "understands what this is" fallback: matches the
+ * category label or any search tag of the underlying library component
+ * (e.g. "database" finds every node built from a `category: 'databases'`
+ * or `tags: ['database', ...]` component, regardless of what the user
+ * actually renamed it to). Deliberately not a real NLP/AI match — just
+ * reusing metadata this app's own library already carries — so it costs
+ * nothing, needs no setup, and is safe to run on every keystroke. */
+function nodeMatchesCategoryOrTag(node, q) {
+  if (!node.defId) return false;
+  const def = getComponentById(node.defId);
+  if (!def) return false;
+  const category = CATEGORY_LABEL_BY_ID.get(def.categoryId)?.toLowerCase() || '';
+  if (category.includes(q)) return true;
+  return (def.tags || []).some((tag) => tag.toLowerCase().includes(q));
+}
+
 function runCanvasSearch(query) {
   const q = query.trim().toLowerCase();
   searchIndex = -1;
@@ -486,10 +507,17 @@ function runCanvasSearch(query) {
     return;
   }
   const state = store.getState();
-  searchMatches = [
+  const nameMatches = [
     ...state.nodes.filter((n) => n.text?.toLowerCase().includes(q)).map((n) => ({ type: 'node', id: n.id })),
     ...state.edges.filter((e) => e.label?.toLowerCase().includes(q)).map((e) => ({ type: 'edge', id: e.id })),
   ];
+  // Only reached when nothing matched by name — a query specific enough to
+  // hit a real name shouldn't also drag in every same-category node the
+  // user didn't mean.
+  const categoryMatches = nameMatches.length ? [] : state.nodes
+    .filter((n) => nodeMatchesCategoryOrTag(n, q))
+    .map((n) => ({ type: 'node', id: n.id }));
+  searchMatches = [...nameMatches, ...categoryMatches];
   canvasSearchCount.hidden = false;
   canvasSearchCount.textContent = searchMatches.length ? `1/${searchMatches.length}` : 'No matches';
   canvasSearchCount.classList.toggle('no-matches', !searchMatches.length);
@@ -710,6 +738,40 @@ function buildToolsGroupButtons() {
   });
   if (prefs.focusMode) {
     requestAnimationFrame(() => setFocusMode(true));
+  }
+
+  // Ambient "Check Diagram" badges directly on canvas nodes (io/uiPrefs.js#
+  // inlineLintBadges) — a UI-only preference, so the toggle forces a redraw
+  // by calling canvas.js's exported `render` directly rather than
+  // store.dispatch (which would add a spurious undo-history entry for a
+  // change that isn't project data — see render()'s own export comment).
+  const inlineLintBadgesBtn = el('button', {
+    type: 'button', class: `btn${prefs.inlineLintBadges ? ' active' : ''}`,
+    title: 'Inline Diagnostics: show a ⚠️ badge directly on any component involved in a "Check Diagram" finding',
+    text: '⚠️ Inline Diagnostics',
+    onClick: () => {
+      const next = !inlineLintBadgesBtn.classList.contains('active');
+      saveUiPrefs({ inlineLintBadges: next });
+      inlineLintBadgesBtn.classList.toggle('active', next);
+      renderCanvas(store.getState());
+    },
+  });
+
+  // Hand-drawn "Sketch Mode" (css/canvas.css) — purely visual, a body-level
+  // class toggle, so it needs no store re-render at all.
+  const sketchModeBtn = el('button', {
+    type: 'button', class: `btn${prefs.sketchMode ? ' active' : ''}`,
+    title: 'Sketch Mode: give every component and connector a hand-drawn, wireframe look',
+    text: '✏️ Sketch Mode',
+    onClick: () => {
+      const next = !sketchModeBtn.classList.contains('active');
+      saveUiPrefs({ sketchMode: next });
+      sketchModeBtn.classList.toggle('active', next);
+      document.body.classList.toggle('sketch-mode', next);
+    },
+  });
+  if (prefs.sketchMode) {
+    requestAnimationFrame(() => document.body.classList.add('sketch-mode'));
   }
 
   const alignGuidesBtn = el('button', {
@@ -973,9 +1035,9 @@ function buildToolsGroupButtons() {
     [
       { packId: 'ai-tools', buttons: [aiReviewBtn, aiChatBtn, aiLayoutBtn] },
       { packId: 'collaboration', buttons: [collabBtn] },
-      { packId: 'analysis', buttons: [lintBtn, lintNudgesBtn, costBtn, describeBtn, interviewBtn, reviewStatusBtn] },
+      { packId: 'analysis', buttons: [lintBtn, lintNudgesBtn, inlineLintBadgesBtn, costBtn, describeBtn, interviewBtn, reviewStatusBtn] },
       { packId: 'layout-tools', buttons: [autoArrangeBtn, distributeBtn, scaleBtn, findReplaceBtn, fixTextDisplayBtn] },
-      { packId: 'visual-extras', buttons: [minimapBtn, focusModeBtn, diagramThemeBtn, presenterModeBtn, animationBtn, autoPlayBtn, flowSimBtn, scene3dBtn] },
+      { packId: 'visual-extras', buttons: [minimapBtn, focusModeBtn, sketchModeBtn, diagramThemeBtn, presenterModeBtn, animationBtn, autoPlayBtn, flowSimBtn, scene3dBtn] },
     ],
   );
 }
@@ -1014,7 +1076,11 @@ function buildHelpGroupButtons() {
     type: 'button', class: 'btn', title: 'Show the getting-started checklist again', text: '🚀 Getting Started',
     onClick: openOnboardingChecklistWidget,
   });
-  return [helpBtn, aiIntegrationBtn, cliSetupBtn, hintsBtn, hintsToggleBtn, whatsNewBtn, onboardingBtn];
+  const shortcutsBtn = el('button', {
+    type: 'button', class: 'btn', title: 'A reference list of every keyboard shortcut this app has (also opens with "?")', text: '⌨️ Keyboard Shortcuts',
+    onClick: () => openKeyboardShortcutsModal(),
+  });
+  return [helpBtn, aiIntegrationBtn, cliSetupBtn, hintsBtn, hintsToggleBtn, whatsNewBtn, onboardingBtn, shortcutsBtn];
 }
 
 /** Short human summary of the current selection, shown in the contextual

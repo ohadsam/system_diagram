@@ -2,9 +2,23 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.56.0';
+export const APP_VERSION = '1.57.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.57.0',
+    date: '2026-09-02',
+    highlights: [
+      '✏️ Sketch Mode (Tools menu): gives every component and connector a hand-drawn, wireframe look for informal whiteboard-style presentations.',
+      '🔦 Presenter Mode Spotlight: dims everything except a circle following your cursor, to draw an audience\'s eye to one part of the diagram while presenting.',
+      '📱 Presenter Mode Remote Control: scan a QR code with your phone to get Next/Previous buttons for Diagram Animation playback, so you\'re not tied to the laptop keyboard while presenting.',
+      '🖱️ Live Collaboration now shows the other person\'s cursor moving on the canvas in real time, not just their edits.',
+      '⚠️ Inline Diagnostics (Tools menu): an opt-in ⚠️ badge directly on any component involved in a "Check Diagram" finding, so you notice a problem without opening the Check Diagram modal first.',
+      '🔎 "Find on canvas" now also matches by category or tag when nothing matches by name — e.g. searching "cache" finds every cache-layer component regardless of what you renamed it to.',
+      '⌨️ A new "⌨️ Keyboard Shortcuts" reference (press "?", or find it in the Help menu/Command Palette) lists every global shortcut this app wires.',
+      '🤏 Pinch-to-zoom and two-finger rotate (when exactly one component is selected) on touch devices.',
+    ],
+  },
   {
     version: '1.56.0',
     date: '2026-09-02',

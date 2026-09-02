@@ -1,13 +1,14 @@
 # Vendored libraries
 
-This app is otherwise 100% hand-written vanilla JS. These six files are
+This app is otherwise 100% hand-written vanilla JS. These seven files are
 the only exceptions, and are loaded lazily — the first three only when the
 user actually clicks Export PNG/PDF or exports a presentation to
 PowerPoint, the fourth only when someone opts into Settings -> AI
 Providers -> Local AI (in-browser), the fifth only when someone picks the
 "quick room code" connection method in the Live Collaboration modal, the
-sixth only when someone opens Tools -> 3D Presentation — rather than on
-page load.
+sixth only when someone opens Tools -> 3D Presentation, the seventh only
+when someone opens the 📱 Remote Control panel in Presenter Mode — rather
+than on page load.
 
 They are vendored locally (not loaded from a CDN) so the app works fully
 offline/air-gapped on GitHub Pages with no third-party network dependency
@@ -21,6 +22,7 @@ or SRI-hash maintenance burden.
 | `web-llm.min.js`         | @mlc-ai/web-llm | 0.2.84 | Apache-2.0 | https://github.com/mlc-ai/web-llm |
 | `peerjs.min.js`          | PeerJS      | 1.5.4 | MIT | https://github.com/peers/peerjs |
 | `three.module.min.js`    | three.js    | 0.160.0 | MIT | https://github.com/mrdoob/three.js |
+| `qrcode.js`              | qrcode-generator | 1.4.4 | MIT | https://github.com/kazuhikoarase/qrcode-generator |
 
 The first three are the official pre-built UMD/minified/bundled
 distributables from the package's npm `dist/` folder, copied unmodified.
@@ -87,3 +89,18 @@ underlying 2D project data is completely unaffected. To upgrade: `npm pack
 three@<version>` elsewhere, take `build/three.module.min.js`, replace here
 unmodified (it needs no minification step of its own, unlike web-llm.min.js
 above).
+
+`qrcode.js` is the package's plain classic script (`qrcode.js`, not the
+`qrcode_UTF8.js`/`qrcode_SJIS.js` variants, which add encoding tables this
+app doesn't need since it only ever encodes a plain-ASCII `remote.html?code=`
+URL) from the npm `qrcode-generator` package, copied unmodified — it sets a
+top-level `var qrcode = ...` global despite predating the UMD pattern (a
+classic, non-module `<script>` tag's top-level `var` is itself already a
+global, so no wrapper was needed). Used only by
+`js/collab/presenterRemote.js`'s "📱 Remote Control" panel (Presenter Mode)
+to render a QR code encoding a link to `remote.html` — scanning it with a
+phone opens a big-button Prev/Next remote that drives the presenter's own
+Diagram Animation playback over the same PeerJS room-code connection
+Live Collaboration already uses. To upgrade: `npm pack
+qrcode-generator@<version>` elsewhere, take `qrcode.js`, replace here
+unmodified.

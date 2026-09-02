@@ -3,6 +3,62 @@
 All notable changes to this project. Format: date, then bullet list.
 Keep this in sync with `PLAN.md` as stages complete.
 
+## v1.57.0 (2026-09-02)
+
+- **8 UX/UI additions** (a "creative suggestions" batch, all implemented except a
+  proposed voice-narration feature the user decided wasn't needed yet):
+  - **Sketch Mode** (`js/toolbar/toolbar.js`, `css/canvas.css`, `index.html`): a
+    toggle giving every component/connector a hand-drawn, wireframe look via a
+    shared SVG `feTurbulence`+`feDisplacementMap` filter (`#sketch-wobble`) plus
+    an informal font-family, for informal whiteboard-style presentations.
+  - **Presenter Mode Spotlight** (`js/toolbar/kioskModeUi.js`, `css/toolbar.css`):
+    an in-memory-only (not persisted) dimming overlay with a bright circle
+    following the pointer, toggled independently of Presenter Mode's clean-chrome
+    state; force-cleared on exiting Presenter Mode.
+  - **Presenter Mode Remote Control** (`js/collab/presenterRemote.js`,
+    `js/modals/presenterRemoteModal.js`, `remote.html`, new vendored
+    `vendor/qrcode.js`): hosts a PeerJS room-code session (reusing
+    `collab/peerjsCollab.js`, the same transport Live Collaboration uses) purely
+    as a one-way command channel, and renders a QR code linking to a new
+    standalone `remote.html` page — scanning it with a phone gives big
+    Prev/Next buttons that drive `core/animationPlayback.js` on the presenter's
+    screen. No project data crosses this channel.
+  - **Live collaboration cursors** (`js/collab/cursorSync.js`, new
+    `.collab-remote-cursor` CSS): shows the other person's pointer moving on the
+    canvas in real time during a Live Collaboration session, as a colored dot
+    appended to `.canvas-content` (inheriting its pan/zoom transform for free)
+    — throttled to 80ms and multiplexed over the same transport
+    `collabSession.js` already uses (a distinct `type: 'cursor'` message, never
+    touching `store.dispatch`/undo history since it's presence data, not
+    project state).
+  - **Inline Diagnostics** (`io/uiPrefs.js#inlineLintBadges`, `js/canvas/node.js`,
+    `css/node.css`): an opt-in ⚠️ badge (bottom-left corner) directly on any
+    node involved in a `core/diagramLint.js` finding — the same deterministic,
+    offline "🔍 Check Diagram" engine, computed once per render pass and
+    surfaced without opening the modal first. `canvas.js#render` is now
+    exported so the toolbar toggle can force an immediate redraw without a
+    fake no-op `store.dispatch` that would otherwise pollute undo history.
+  - **Canvas search category/tag fallback** (`js/toolbar/toolbar.js`): "Find on
+    canvas" now also matches a node's underlying component category label or
+    search tags when nothing matches by name (e.g. "cache" finds every
+    cache-layer component) — only once a plain name search comes up empty, so
+    a specific query never gets diluted by unrelated same-category matches.
+  - **Keyboard Shortcuts reference** (new `js/modals/keyboardShortcutsModal.js`):
+    a static, hand-maintained "⌨️ Keyboard Shortcuts" modal listing every
+    global shortcut this app wires, reachable via "?", the Help menu, or the
+    Command Palette.
+  - **Touch gestures** (`js/canvas/touchGeometry.js`, `js/canvas/canvas.js`):
+    real two-pointer tracking adds pinch-to-zoom (a previously-missing standard
+    mobile gesture — `touch-action: none` disabled the browser's native one)
+    and two-finger rotate, applied to the selected node's rotation when exactly
+    one is selected. A second finger cancels whatever single-finger pan the
+    first one had already started.
+- `tests/unit/touchGeometry.test.mjs` and `tests/unit/touchGestureCoordinator.test.mjs`
+  (new), `tests/unit/uiPrefs.test.mjs` (extended), `tests/e2e/uxAdditionsBatch.spec.js`
+  (new, covers all 8 features except the two collaboration ones that need a
+  real network peer — same documented sandbox limitation as WebLLM/PeerJS
+  elsewhere in this project).
+
 ## v1.56.0 (2026-09-02)
 
 - **Flow-diagram suggestions surfaced persistently** (`js/canvas/suggestions.js`,

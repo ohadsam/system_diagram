@@ -22,7 +22,7 @@ import {
   deleteSelection, duplicateSelection, autoArrangeAll, distributeSequenceDiagram, duplicateProjectAsNew,
   addRelatedComponent, addLayerToNode, instantiatePatternNearNode, instantiatePatternAtCenter, addComponentAtCenter,
   resolveComponentDef, clearCanvas, setFocusMode, addCommentAtCenter, fitToSelection, fitToScreen, fixTextDisplay,
-  autoBuildAndPlayAnimation, addStickyNote,
+  autoBuildAndPlayAnimation, addStickyNote, render as renderCanvas,
 } from '../canvas/canvas.js';
 import * as viewport from '../canvas/viewport.js';
 import { openSaveAsModal } from './saveAsModal.js';
@@ -80,6 +80,7 @@ import { toggleAnimationPanel } from '../panel/animationPanel.js';
 import { openAiLayoutModal } from './aiLayoutModal.js';
 import { openDiagramDescriptionModal } from './diagramDescriptionModal.js';
 import { openWhatsNewModal } from './whatsNewModal.js';
+import { openKeyboardShortcutsModal } from './keyboardShortcutsModal.js';
 import { openDemoProjectsModal } from './demoProjectsModal.js';
 import { setFlowSimulationEnabled } from '../canvas/canvas.js';
 import { toggleKioskMode } from '../core/kioskMode.js';
@@ -149,6 +150,24 @@ export function buildAppCommands() {
         document.querySelector('#toolbar button[title^="Focus Mode"]')?.classList.toggle('active', next);
       },
     },
+    {
+      id: 'toggle-sketch-mode', label: '✏️ Toggle Sketch Mode', keywords: ['sketch', 'hand-drawn', 'wireframe', 'whiteboard'],
+      run: () => {
+        const next = !getUiPrefs().sketchMode;
+        saveUiPrefs({ sketchMode: next });
+        document.body.classList.toggle('sketch-mode', next);
+        document.querySelector('#toolbar button[title^="Sketch Mode"]')?.classList.toggle('active', next);
+      },
+    },
+    {
+      id: 'toggle-inline-diagnostics', label: '⚠️ Toggle Inline Diagnostics', keywords: ['lint', 'diagnostics', 'check diagram', 'badge', 'warning'],
+      run: () => {
+        const next = !getUiPrefs().inlineLintBadges;
+        saveUiPrefs({ inlineLintBadges: next });
+        renderCanvas(store.getState());
+        document.querySelector('#toolbar button[title^="Inline Diagnostics"]')?.classList.toggle('active', next);
+      },
+    },
     { id: 'new-component', label: '🧩 New Component', keywords: ['custom component', 'new component', 'create component'], run: () => openCustomComponentModal({}) },
     { id: 'new-shape', label: '✏️ New Custom Shape', keywords: ['custom shape', 'new shape'], run: openCustomShapeModal },
     { id: 'default-settings', label: '🎛️ Default Settings', keywords: ['settings', 'defaults', 'preferences'], run: openDefaultSettingsModal },
@@ -206,6 +225,7 @@ export function buildAppCommands() {
       },
     },
     { id: 'whats-new', label: "🆕 What's New", keywords: ["what's new", 'changelog', 'version', 'updates'], run: () => openWhatsNewModal() },
+    { id: 'keyboard-shortcuts', label: '⌨️ Keyboard Shortcuts', keywords: ['keyboard', 'shortcuts', 'hotkeys', 'help', 'reference'], run: () => openKeyboardShortcutsModal() },
     { id: 'interview-mode', label: '🎓 Interview Mode', keywords: ['interview', 'practice', 'system design', 'timer', 'grading'], run: () => openInterviewModeModal() },
     { id: 'import-url', label: '🔗 Import from URL/Gist', keywords: ['import', 'url', 'gist', 'github', 'link'], run: () => openImportFromUrlModal() },
     { id: 'system-map', label: '🗺️ System Map', keywords: ['system map', 'projects', 'graph', 'link'], run: () => openSystemMapModal() },

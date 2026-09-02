@@ -520,18 +520,34 @@ Or open `index.html` directly in a browser.
   identical-looking twin.
 - **Fit to selection** — the toolbar's "⛶" fit button fits just the current
   selection once something is selected, not just the whole diagram.
+- **✏️ Sketch Mode** — a Tools-menu toggle gives every component and
+  connector a hand-drawn, wireframe look for informal presentations.
+- **🔦 Presenter Mode Spotlight & 📱 Remote Control** — Presenter Mode's own
+  floating controls now also offer a cursor-following spotlight to dim
+  everything else, and a QR code that turns your phone into a Next/Previous
+  remote for Diagram Animation playback.
+- **🖱️ Live cursors** — Live Collaboration now shows the other person's
+  cursor moving on the canvas in real time, not just their finished edits.
+- **⚠️ Inline Diagnostics** — an opt-in badge directly on any component
+  involved in a "🔍 Check Diagram" finding, so you notice a problem without
+  opening the dialog first.
+- **⌨️ Keyboard Shortcuts reference** — press "?" (or find it in the Help
+  menu/Command Palette) for a full list of this app's global shortcuts.
+- **🤏 Touch gestures** — pinch to zoom, and twist two fingers to rotate the
+  selected component, on any touch device.
 
 See [`help.html`](help.html) for the full interactive user guide.
 
 ## Tech stack
 
 Vanilla HTML/CSS/JavaScript (ES modules), no framework, no bundler. The
-only six runtime dependencies — `html2canvas` and `jsPDF` for PNG/PDF
+only seven runtime dependencies — `html2canvas` and `jsPDF` for PNG/PDF
 export, `PptxGenJS` for the Presentations/Diagram Animation `.pptx`
 exports, `@mlc-ai/web-llm` for Local AI mode's in-browser inference,
-`PeerJS` for Live Collaboration's quick-room-code connection method, and
-`three.js` for 3D Presentation Mode — are vendored locally in `vendor/`
-(see [`vendor/VENDOR.md`](vendor/VENDOR.md)), not loaded from a CDN, and
+`PeerJS` for Live Collaboration's quick-room-code connection method,
+`three.js` for 3D Presentation Mode, and `qrcode-generator` for Presenter
+Mode's phone remote — are vendored locally in `vendor/` (see
+[`vendor/VENDOR.md`](vendor/VENDOR.md)), not loaded from a CDN, and
 only fetched lazily when you actually use the feature that needs them.
 
 ## Project structure
@@ -555,7 +571,9 @@ js/
   utils/    small shared DOM/color/form helpers
 vendor/     vendored html2canvas + jsPDF + PptxGenJS (export) + web-llm
             (Local AI) + PeerJS (Live Collaboration) + three.js
-            (3D Presentation Mode)
+            (3D Presentation Mode) + qrcode-generator (Presenter remote)
+remote.html                    standalone phone-side page for the Presenter
+                                Mode remote control (📱 Remote)
 tests/
   unit/     Node test-runner tests for pure logic
   e2e/      Playwright browser tests

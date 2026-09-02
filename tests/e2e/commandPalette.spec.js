@@ -81,6 +81,7 @@ test('every action added across recent batches is reachable from the palette (re
     '🤖 AI Chat', '🖥️ Working with CLI',
     '🔎 Find & Replace', '🔎 Fit to Selection', '📌 Manage Pinned Toolbar Actions', '🔔 Toggle Diagram Nudges',
     '🔤 Fix Text Display', '📖 Show Descriptions', '🪄 Auto-Play Diagram', '🗒️ Add Sticky Note',
+    '✏️ Toggle Sketch Mode', '⚠️ Toggle Inline Diagnostics', '⌨️ Keyboard Shortcuts',
   ];
   for (const label of expectedLabels) {
     await page.keyboard.press('ControlOrMeta+k');

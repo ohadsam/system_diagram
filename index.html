@@ -45,6 +45,18 @@
 <body>
   <noscript>This app needs JavaScript enabled to run — it builds diagrams entirely in your browser, no server involved.</noscript>
 
+  <!-- Sketch Mode's hand-drawn wobble (css/canvas.css's body.sketch-mode rules
+       reference this by url(#sketch-wobble)) — a shared SVG filter def lives
+       here rather than per-element inline, since a filter def is inert on
+       its own (no visual output, `width`/`height` 0 keeps it fully out of
+       layout) and every sketched element references the same one. -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <filter id="sketch-wobble">
+      <feTurbulence type="fractalNoise" baseFrequency="0.012 0.035" numOctaves="2" seed="3" result="noise" />
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="4" xChannelSelector="R" yChannelSelector="G" />
+    </filter>
+  </svg>
+
   <div id="app">
     <header id="toolbar" aria-label="Toolbar"></header>
     <div class="app-body">

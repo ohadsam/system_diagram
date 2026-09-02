@@ -5244,6 +5244,122 @@ chrome:
   title was just `'AI Design Review'` with no explanation of what clicking
   it does — brought in line with the rest.
 
+## 8 UX/UI additions (`canvas/touchGeometry.js`, `collab/presenterRemote.js`, `collab/cursorSync.js`, `modals/keyboardShortcutsModal.js`, `modals/presenterRemoteModal.js`)
+
+A batch of small, independent creative UX suggestions, all implemented in one pass:
+
+- **Sketch Mode** (`io/uiPrefs.js#sketchMode`, toggled in `toolbar.js`) — a
+  `body.sketch-mode` class flips on `filter: url(#sketch-wobble)` (a single shared
+  SVG `<filter>` in `index.html`, `feTurbulence` + `feDisplacementMap`) plus an
+  informal `font-family`, applied broadly to `.node-body`/`.edge-line` in
+  `css/canvas.css`. Purely visual — one filter def, referenced everywhere, rather
+  than duplicating it per element.
+- **Presenter Mode Spotlight & Remote Control** — both live in
+  `toolbar/kioskModeUi.js`, which now builds a single `.kiosk-controls` flex row
+  (Spotlight/Remote/Exit) instead of three independently `position: fixed`
+  buttons with hand-computed pixel offsets between them (the previous approach,
+  replaced here since a flex row survives future button-text changes for free).
+  Spotlight sets `--spot-x`/`--spot-y` custom properties on pointermove, read by
+  a `radial-gradient` on `.kiosk-spotlight` (`css/toolbar.css`); both it and the
+  phone-remote host session are force-cleared the moment `onKioskModeChange`
+  reports Presenter Mode itself ending. Remote Control's own host/guest pairing
+  (`collab/presenterRemote.js`) reuses `collab/peerjsCollab.js`'s exact
+  `createPeerJsTransport()` — the same PeerJS room-code broker Live
+  Collaboration already depends on — purely as a one-way `{type:'remote-cmd',
+  cmd}` channel: the host (this app's own tab) calls `core/animationPlayback.js`'s
+  `nextStep()`/`prevStep()` directly on receipt, gated by `isAnimationPlaying()`
+  so a stray button press before playback starts is a no-op rather than an
+  error. `modals/presenterRemoteModal.js` renders the room code as a QR code via
+  the newly-vendored `vendor/qrcode.js` (see VENDOR.md), linking to a new
+  standalone top-level `remote.html` — a page with no dependency on the rest of
+  the app beyond `collab/presenterRemote.js`'s guest-side exports
+  (`createPresenterRemoteGuestTransport`, `sendRemoteCommand`), so it can be
+  opened on a phone with nothing else loaded.
+- **Live collaboration cursors** (`collab/cursorSync.js`) — `startCursorSync(transport)`
+  is wired alongside (not inside) `collab/collabSession.js`'s
+  `startCollabSession(transport)` in `modals/collaborationModal.js`, sharing the
+  identical transport: `transport.onMessage` is backed by a `Set` of handlers
+  (see `peerjsCollab.js`/`webrtcCollab.js`), so cursorSync's own listener,
+  filtered by its distinct `type: 'cursor'`, coexists with collabSession's
+  `type: 'state'` listener on the same channel without collision. A throttled
+  (80ms) `pointermove` on the canvas viewport converts to canvas-space via
+  `viewport.js#screenToCanvas` and sends `{x, y}`; on receipt, a small
+  `.collab-remote-cursor` div is appended as a child of `.canvas-content` (not
+  positioned via a separate screen-space calculation) so it inherits that
+  element's own pan/zoom `transform` for free — the same trick `docs/
+  ARCHITECTURE.md`'s cuboid-shape/pseudo-3D-face pattern uses elsewhere for
+  "let CSS do the coordinate math." An idle cursor (no message for 4s) fades
+  out via a `.visible` class toggle rather than freezing on screen as a
+  ghost pointer.
+- **Inline Diagnostics** (`io/uiPrefs.js#inlineLintBadges`) — `canvas.js#render`
+  is now `export`ed (previously module-private, only reachable as the store's
+  own `'change'` subscriber) specifically so `toolbar.js`'s toggle button can
+  force an immediate redraw via `render(store.getState())` without a fake no-op
+  `store.dispatch` call, which would otherwise add a spurious entry to undo
+  history for a change that isn't project data (see `core/store.js#dispatch`'s
+  own doc comment: every non-coalesced dispatch calls `history.commit`
+  unconditionally). `render()` now also computes
+  `computeDiagramLint`/`computeCustomLint` findings once per pass (when the pref
+  is on) into a `nodeId -> messages[]` map, passed to each `updateNodeEl(...,
+  { lintMessages })` call; `node.js` renders a `.node-lint-badge` (bottom-left —
+  the one corner not already used by the info/menu/suggestion badges) toggled by
+  a new `.has-lint-findings` class, with the joined messages as its `title`.
+- **Canvas search category/tag fallback** (`toolbar.js#nodeMatchesCategoryOrTag`,
+  `runCanvasSearch`) — `nameMatches` (existing name/label substring match) is
+  computed first; `categoryMatches` (a node's `getComponentById(node.defId)`
+  category label or `tags` array, matched the same way) is computed **only**
+  when `nameMatches.length === 0`, so a query specific enough to hit a real name
+  never also pulls in every same-category node the user didn't mean.
+- **Keyboard Shortcuts reference** (`modals/keyboardShortcutsModal.js`) — a
+  static, hand-maintained list (no registry to introspect from — see the file's
+  own header comment), reachable via a new `?` branch in
+  `main.js#initKeyboardShortcuts` (same "not while typing" guard every other
+  global shortcut there already uses), the Help-menu dropdown, and a new
+  Command Palette entry.
+- **Touch gestures** (`canvas/touchGeometry.js`, `canvas/canvas.js`) — pinch-to-
+  zoom and two-finger rotate needed real multi-touch tracking, which didn't
+  exist anywhere in this app (every existing touch interaction — `beginPan`,
+  node drag/resize — only ever handles one pointer at a time). The pure math
+  (`touchPointDistance`, `touchPointAngleDeg`, `normalizeRotationDeg`) lives in
+  its own dependency-free module specifically so it's unit-testable — `canvas.js`
+  itself can't be imported outside a browser (a `document`-touching import chain
+  fails at module-evaluation time under plain Node, same class of issue
+  `release-checklist`'s "Common pitfalls" section already documents for a
+  different reason). `canvas.js#wireTouchGestures` adds one `capture: true`
+  `pointerdown` listener at the **`window`** level (not `viewportEl`) purely to
+  track every active touch pointer in a `Map`; because capture-phase listeners
+  fire top-down (window before any descendant, regardless of registration
+  order), this always sees a second finger's `pointerdown` before
+  `wireBackgroundInteractions`'s own `viewportEl`-level capture listener does,
+  letting it call `e.stopPropagation()` to prevent that second touch from
+  *also* starting its own competing `beginPan`. It only hijacks the gesture
+  into pinch/rotate when the *first* finger's original target was inside the
+  canvas viewport (`touchGestureFirstTarget`) — a two-finger gesture starting
+  inside an open `<dialog>` (e.g. a native pinch-zoom on some embedded content)
+  is left completely alone. `canvas/touchGestureCoordinator.js` (a tiny,
+  independent module — see its own header for why it isn't just more state
+  inside canvas.js) holds a single "cancel the currently-active single-finger
+  gesture" callback; `beginPan` (canvas.js) and `beginMove`/`beginResize`/
+  `beginActivationMove`/`beginActivationResize` (nodeInteractions.js) all
+  register/clear themselves there when `e.pointerType === 'touch'`, and the
+  second-finger handler above calls it unconditionally before starting the
+  pinch/rotate gesture. Without this, none of this app's drag gestures filter
+  by `pointerId` (they all just track "whatever the pointer is doing since
+  the last event"), so the first finger's still-running gesture would keep
+  reading the second finger's own `pointermove` events too — a node with a
+  first finger already on it, for instance, would otherwise jump around
+  erratically for the duration of the two-finger gesture. Deliberately NOT
+  wired into every drag gesture in the app — `connectorInteractions.js`'s
+  draw-a-connector, `edgeReconnect.js`, `waypointHandles.js`, and
+  `minimap.js`'s drag are small precision-target gestures a two-finger pinch
+  is vanishingly unlikely to interrupt, and for connector-draw specifically,
+  "cancelling" by simulating its own pointerup could silently commit an edge
+  to a stale hover target instead of cleanly aborting — worse than the tiny
+  gap it would close. Rotation updates go through `store.dispatch(...,
+  { coalesce: true })` during the gesture and a single `store.commitHistory()`
+  on release, the same drag-gesture convention `nodeInteractions.js`'s own
+  resize/activation-resize handlers already use.
+
 ## Security notes
 
 - No `innerHTML` is ever fed unsanitized/user-provided strings; text

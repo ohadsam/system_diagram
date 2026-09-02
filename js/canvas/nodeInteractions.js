@@ -9,6 +9,7 @@ import { beginConnectFromNode } from './connectorInteractions.js';
 import { computeAlignmentGuides, boundingBoxOf } from '../core/alignmentGuides.js';
 import { showAlignmentGuides, hideAlignmentGuides } from './canvas.js';
 import { getUiPrefs } from '../io/uiPrefs.js';
+import { registerTouchGestureCancel, clearTouchGestureCancel } from './touchGestureCoordinator.js';
 
 const MIN_SIZE = 40;
 const IGNORE_SELECTOR = '.conn-point, .resize-handle, .node-info-btn, .node-menu-btn, .row-item, .node-add-row, .inline-edit-input, .lifeline-activation';
@@ -154,7 +155,9 @@ function beginMove(nodeId, e) {
     // guide for the position it dispatched) — clearing first and calling
     // apply() after would leave that last guide stuck on screen forever.
     hideAlignmentGuides();
+    clearTouchGestureCancel(onUp);
   };
+  if (e.pointerType === 'touch') registerTouchGestureCancel(onUp);
   window.addEventListener('pointermove', onMove);
   window.addEventListener('pointerup', onUp);
 }
@@ -213,7 +216,9 @@ function beginResize(nodeId, handle, e) {
     if (raf) cancelAnimationFrame(raf);
     apply();
     store.commitHistory();
+    clearTouchGestureCancel(onUp);
   };
+  if (e.pointerType === 'touch') registerTouchGestureCancel(onUp);
   window.addEventListener('pointermove', onMove);
   window.addEventListener('pointerup', onUp);
 }
@@ -261,7 +266,9 @@ function beginActivationMove(nodeId, activationId, e) {
     if (raf) cancelAnimationFrame(raf);
     apply();
     store.commitHistory();
+    clearTouchGestureCancel(onUp);
   };
+  if (e.pointerType === 'touch') registerTouchGestureCancel(onUp);
   window.addEventListener('pointermove', onMove);
   window.addEventListener('pointerup', onUp);
 }
@@ -303,7 +310,9 @@ function beginActivationResize(nodeId, activationId, edge, e) {
     if (raf) cancelAnimationFrame(raf);
     apply();
     store.commitHistory();
+    clearTouchGestureCancel(onUp);
   };
+  if (e.pointerType === 'touch') registerTouchGestureCancel(onUp);
   window.addEventListener('pointermove', onMove);
   window.addEventListener('pointerup', onUp);
 }

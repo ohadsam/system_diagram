@@ -18,6 +18,9 @@ import { scaleNodes } from '../core/scaleDiagram.js';
 import { applyDiagramTheme, DIAGRAM_THEMES } from '../core/diagramTheme.js';
 import { initMinimap } from './minimap.js';
 import { computeFocusedIds } from '../core/focusMode.js';
+import { computeDiagramLint, computeCustomLint } from '../core/diagramLint.js';
+import { getCustomLintRules } from '../io/customLintRules.js';
+import { getUiPrefs } from '../io/uiPrefs.js';
 import { getComponentById } from '../data/index.js';
 import { getCustomComponents } from '../io/customComponents.js';
 import { buildCreationOverrides } from '../io/nodeDefaults.js';
@@ -28,6 +31,8 @@ import { nextId } from '../core/id.js';
 import { sanitizeAddNode, sanitizeAddEdge, sanitizeNodeUpdateFields, sanitizeEdgeUpdateFields } from '../io/aiEditDesign.js';
 import { showToast } from '../utils/toast.js';
 import * as viewport from './viewport.js';
+import { touchPointDistance, touchPointAngleDeg, normalizeRotationDeg } from './touchGeometry.js';
+import { registerTouchGestureCancel, clearTouchGestureCancel, cancelAnyActiveTouchGesture } from './touchGestureCoordinator.js';
 import { createNodeEl, updateNodeEl, configureNodeHandlers, startInlineEdit } from './node.js';
 import { attachNodeInteractions } from './nodeInteractions.js';
 import { createEdgeEl, updateEdgeEl, configureEdgeHandlers, initConnectorDefs } from './connector.js';
@@ -80,6 +85,15 @@ let animationAutoFocusedCount = 0;
 // computeGroupBounds() and is cleaned up in render() below regardless of
 // whether it's in this set, so this never leaks stale entries.
 const hiddenGroupBackgrounds = new Set();
+
+// Two-finger touch gestures (pinch-to-zoom, and rotate when exactly one
+// node is selected) — see wireTouchGestures()/beginTouchPinchRotate() below.
+// `touchGestureFirstTarget` records where the *first* finger of a
+// candidate gesture landed, so a second finger touching down somewhere
+// unrelated (e.g. a native pinch inside an open <dialog>) never gets
+// hijacked into a canvas zoom just because it happened at the same time.
+const activeTouchPoints = new Map();
+let touchGestureFirstTarget = null;
 
 export function initCanvas(root) {
   viewportEl = root;
@@ -152,6 +166,7 @@ export function initCanvas(root) {
     onContextMenu: (edgeId, evt) => openEdgeContextMenu(edgeId, evt),
   });
 
+  wireTouchGestures();
   wireBackgroundInteractions();
   wireWheel();
 
@@ -250,9 +265,91 @@ function beginPan(e) {
     window.removeEventListener('pointermove', onMove);
     window.removeEventListener('pointerup', onUp);
     viewportEl.classList.remove('is-panning');
+    // See wireTouchGestures below — a second finger touching down converts
+    // this single-finger pan into a pinch/rotate gesture by calling this
+    // same onUp (via the shared coordinator) to tear the pan down first.
+    clearTouchGestureCancel(onUp);
   };
+  if (e.pointerType === 'touch') registerTouchGestureCancel(onUp);
   window.addEventListener('pointermove', onMove);
   window.addEventListener('pointerup', onUp);
+}
+
+/** Two-finger pinch-to-zoom (always) + rotate (only while exactly one node
+ * is selected — mirrors the Rotation field in toolbar/styleEditor.js, just
+ * driven by a gesture instead of a number input). Started once a second
+ * touch lands on top of an already-tracked first one — see the pointerdown
+ * listener in wireTouchGestures below, which also cancels whatever
+ * single-finger pan that first touch had already started. */
+function beginTouchPinchRotate() {
+  const ids = [...activeTouchPoints.keys()];
+  if (ids.length !== 2) return;
+
+  let prevDist = touchPointDistance(activeTouchPoints.get(ids[0]), activeTouchPoints.get(ids[1]));
+  let prevAngle = touchPointAngleDeg(activeTouchPoints.get(ids[0]), activeTouchPoints.get(ids[1]));
+
+  const selection = store.getSelection();
+  const rotatingNodeId = (selection.nodeIds.length === 1 && selection.edgeIds.length === 0)
+    ? selection.nodeIds[0]
+    : null;
+
+  const onMove = (ev) => {
+    if (!activeTouchPoints.has(ev.pointerId)) return;
+    activeTouchPoints.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    const p1 = activeTouchPoints.get(ids[0]);
+    const p2 = activeTouchPoints.get(ids[1]);
+    if (!p1 || !p2) return;
+    const dist = touchPointDistance(p1, p2);
+    const angle = touchPointAngleDeg(p1, p2);
+    if (prevDist > 0 && dist > 0) {
+      viewport.zoomAt(dist / prevDist, (p1.x + p2.x) / 2, (p1.y + p2.y) / 2);
+    }
+    if (rotatingNodeId) {
+      const angleDelta = angle - prevAngle;
+      store.dispatch((draft) => {
+        const n = draft.nodes.find((x) => x.id === rotatingNodeId);
+        if (n) n.rotation = normalizeRotationDeg((n.rotation || 0) + angleDelta);
+      }, { coalesce: true });
+    }
+    prevDist = dist;
+    prevAngle = angle;
+  };
+  const onEnd = (ev) => {
+    activeTouchPoints.delete(ev.pointerId);
+    if (activeTouchPoints.size >= 2) return;
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onEnd);
+    window.removeEventListener('pointercancel', onEnd);
+    if (rotatingNodeId) store.commitHistory();
+  };
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', onEnd);
+  window.addEventListener('pointercancel', onEnd);
+}
+
+/** Tracks every active touch pointer at the window level (capture phase, so
+ * it always runs before viewportEl's own pointerdown listener below) purely
+ * to detect a second finger landing while a first is already down. Only
+ * hijacks the gesture into pinch/rotate when the *first* finger's original
+ * target was inside the canvas viewport — a two-finger gesture starting
+ * elsewhere (say, inside an open <dialog>) is left completely alone. */
+function wireTouchGestures() {
+  window.addEventListener('pointerdown', (e) => {
+    if (e.pointerType !== 'touch') return;
+    if (activeTouchPoints.size === 0) touchGestureFirstTarget = e.target;
+    activeTouchPoints.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (activeTouchPoints.size === 2 && viewportEl.contains(touchGestureFirstTarget)) {
+      e.stopPropagation();
+      cancelAnyActiveTouchGesture();
+      beginTouchPinchRotate();
+    }
+  }, { capture: true });
+  const clearTouchPoint = (e) => {
+    if (e.pointerType !== 'touch') return;
+    activeTouchPoints.delete(e.pointerId);
+  };
+  window.addEventListener('pointerup', clearTouchPoint, { capture: true });
+  window.addEventListener('pointercancel', clearTouchPoint, { capture: true });
 }
 
 function beginMarquee(e) {
@@ -348,7 +445,14 @@ function selectEdge(edgeId, additive) {
 
 // ---- rendering ----
 
-function render(state) {
+/** Exported (in addition to being the store's own 'change' subscriber
+ * below) so a UI-only preference that changes what a node's own DOM looks
+ * like — but isn't itself project data, so toggling it must not touch
+ * store.dispatch/history — can force an immediate re-render without a
+ * fake no-op mutation that would otherwise leave a spurious "nothing
+ * changed" entry in undo history. See toolbar.js's inline-lint-badges
+ * toggle for the one current caller. */
+export function render(state) {
   const nodeIds = new Set(state.nodes.map((n) => n.id));
   for (const [id, elRef] of nodeElements) {
     if (!nodeIds.has(id)) {
@@ -391,6 +495,25 @@ function render(state) {
   // one visible placeholder.
   renderGroupBackgrounds(state.nodes, replicatedGroupIds, shrunkGroupIds, state.groups, shrunkAnchorByGroupId);
   renderReplicationSyncPaths(state.nodes, state.replicationPairs);
+  // Ambient "Check Diagram" badges (io/uiPrefs.js#inlineLintBadges) — same
+  // deterministic, offline findings the "🔍 Check Diagram" modal computes
+  // (core/diagramLint.js), just surfaced directly on the node(s) involved
+  // instead of requiring the modal to be opened first. Computed once per
+  // render pass (not per node) since it's an O(nodes+edges) scan.
+  let lintMessagesByNodeId = null;
+  if (getUiPrefs().inlineLintBadges) {
+    lintMessagesByNodeId = new Map();
+    const findings = [
+      ...computeDiagramLint(state.nodes, state.edges, state.replicationPairs, resolveComponentDef),
+      ...computeCustomLint(state.nodes, state.edges, getCustomLintRules(), resolveComponentDef),
+    ];
+    for (const finding of findings) {
+      for (const nodeId of finding.nodeIds) {
+        if (!lintMessagesByNodeId.has(nodeId)) lintMessagesByNodeId.set(nodeId, []);
+        lintMessagesByNodeId.get(nodeId).push(finding.message);
+      }
+    }
+  }
   for (const node of state.nodes) {
     let elRef = nodeElements.get(node.id);
     if (!elRef) {
@@ -403,6 +526,7 @@ function render(state) {
       selected: store.getSelection().nodeIds.includes(node.id),
       replicated: !!node.groupId && replicatedGroupIds.has(node.groupId),
       replicationFrozen: !!node.groupId && frozenGroupIds.has(node.groupId),
+      lintMessages: lintMessagesByNodeId?.get(node.id) || null,
     });
     // Reclaims the hidden member's on-canvas footprint entirely (unlike the
     // opacity-only `.dimmed`/`.anim-hidden` classes Focus Mode/Diagram

@@ -98,6 +98,18 @@ export const DEFAULT_UI_PREFS = {
   // more of it visible at once.
   scene3dBarPosition: 'bottom',
   scene3dBarCompact: false,
+  // canvas.js#render — an ambient ⚠️ badge directly on any node involved in
+  // a "Check Diagram" finding (core/diagramLint.js's built-in checks plus
+  // any custom rules), hover for the message, no need to open the Check
+  // Diagram modal first. Off by default, same "don't clutter a new
+  // visitor's first canvas" reasoning as showGrid/showMinimap — this is
+  // the rule-based, always-offline engine (no AI/API call), so it costs
+  // nothing to compute once turned on.
+  inlineLintBadges: false,
+  // css/canvas.css's "Sketch Mode" — a hand-drawn look (wobbly SVG-filtered
+  // outlines, an informal font) for every node/connector, purely visual —
+  // see canvas.css's own comment on the filter. Off by default.
+  sketchMode: false,
 };
 
 export function getUiPrefs() {

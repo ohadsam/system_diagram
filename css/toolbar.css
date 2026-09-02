@@ -512,16 +512,33 @@
   font-weight: 600;
 }
 
-/* Presenter/Kiosk clean mode's floating exit affordance — see
-   core/kioskMode.js and toolbar/kioskModeUi.js. Always in the DOM, but only
-   shown while body has the kiosk-mode class (js/toolbar/kioskModeUi.js
-   toggles it) so it never intrudes on the normal editing UI. */
-.kiosk-exit-btn {
+/* Presenter/Kiosk clean mode's floating control row (Spotlight, Remote,
+   Exit) — see core/kioskMode.js and toolbar/kioskModeUi.js. Always in the
+   DOM, but only shown while body has the kiosk-mode class
+   (js/toolbar/kioskModeUi.js toggles it) so it never intrudes on the
+   normal editing UI. A flex row (rather than each button independently
+   `position: fixed` with hand-computed pixel offsets between them) lays
+   itself out correctly regardless of each button's text/width. */
+.kiosk-controls {
   display: none;
   position: fixed;
   top: var(--space-3);
   right: var(--space-3);
   z-index: var(--z-kiosk-exit);
+  gap: var(--space-2);
+}
+
+body.kiosk-mode .kiosk-controls {
+  display: flex;
+}
+
+[dir="rtl"] .kiosk-controls {
+  right: auto;
+  left: var(--space-3);
+}
+
+.kiosk-floating-btn {
+  display: flex;
   align-items: center;
   gap: var(--space-1);
   padding: var(--space-2) var(--space-3);
@@ -534,19 +551,40 @@
   color: var(--color-text);
   opacity: 0.55;
   transition: opacity 0.15s ease;
+  white-space: nowrap;
 }
 
-.kiosk-exit-btn:hover {
+.kiosk-floating-btn:hover {
   opacity: 1;
 }
 
-body.kiosk-mode .kiosk-exit-btn {
-  display: flex;
+.kiosk-floating-btn.active {
+  opacity: 1;
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
-[dir="rtl"] .kiosk-exit-btn {
-  right: auto;
-  left: var(--space-3);
+/* Presenter Mode Spotlight (toolbar/kioskModeUi.js) — a dimming overlay with
+   a bright circle following the cursor, toggled independently of kiosk mode
+   itself. `--spot-x`/`--spot-y` are set on pointermove; before the first
+   move they fall back to the viewport center via the radial-gradient's own
+   default position so the overlay never starts anchored at (0,0). */
+.kiosk-spotlight {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-spotlight);
+  pointer-events: none;
+  background: radial-gradient(
+    circle at var(--spot-x, 50vw) var(--spot-y, 50vh),
+    transparent 0,
+    transparent 140px,
+    rgba(0, 0, 0, 0.65) 320px
+  );
+}
+
+body.spotlight-mode .kiosk-spotlight {
+  display: block;
 }
 
 /* "🧊 3D Presentation" (canvas/scene3dOverlay.js) — a full-viewport layer,

@@ -2483,6 +2483,44 @@ Two additions to the style editor and quick-add tooling:
   PNG/PDF/PPTX like any other node. Distinct from **Pinned Comments** (4.27) — a comment is a
   lightweight, unstylable review-thread pin, not a resizable/colorable canvas component.
 
+### 4.94 8 UX/UI additions: Sketch Mode, Presenter spotlight/remote, live cursors, Inline Diagnostics, canvas search fallback, Keyboard Shortcuts reference, touch gestures
+A batch of small, independent additions, all suggested and implemented in one pass (a proposed
+voice-narration feature was suggested too but the user decided not to build it):
+
+- **Sketch Mode** (Tools menu toggle) — a purely cosmetic hand-drawn wireframe look for every
+  component/connector via a shared SVG `feTurbulence`+`feDisplacementMap` filter, plus an informal
+  font-family. `io/uiPrefs.js#sketchMode`.
+- **Presenter Mode Spotlight** — an in-memory-only (not persisted) dimming overlay with a bright
+  circle following the pointer, toggled from Presenter Mode's own floating control row
+  (`toolbar/kioskModeUi.js`), independent of the clean-chrome state itself; force-cleared on exit.
+- **Presenter Mode Remote Control** — a "📱 Remote" button hosts a `collab/peerjsCollab.js` room-code
+  session as a one-way command channel (`collab/presenterRemote.js`) and shows a QR code (vendored
+  `qrcode-generator`, `vendor/qrcode.js`) linking to a new standalone `remote.html` page; scanning it
+  gives Next/Previous buttons that drive `core/animationPlayback.js` on the presenter's screen. No
+  project data crosses this channel.
+- **Live collaboration cursors** — during a Live Collaboration session (4.30/4.77), the other
+  person's pointer position is shown as a colored dot on the canvas (`collab/cursorSync.js`),
+  throttled and multiplexed over the same transport `collab/collabSession.js` uses via a distinct
+  `type: 'cursor'` message — presence data, never touching `store.dispatch`/undo history.
+  `.collab-remote-cursor` is appended as a child of `.canvas-content` so it inherits the existing
+  pan/zoom transform for free.
+- **Inline Diagnostics** (Tools menu toggle, `io/uiPrefs.js#inlineLintBadges`) — an opt-in ⚠️ badge
+  directly on any node involved in a `core/diagramLint.js` finding (built-in or custom rules),
+  computed once per `canvas.js#render` pass. `render` is now exported so the toolbar toggle can force
+  an immediate redraw without a fake no-op `store.dispatch` that would otherwise pollute undo history.
+- **Canvas search category/tag fallback** — "Find on canvas" (4.13) now also matches a node's
+  underlying component's category label or search tags once a plain name search comes up empty
+  (`toolbar.js#nodeMatchesCategoryOrTag`), so e.g. "cache" finds every cache-layer component
+  regardless of what it's been renamed to.
+- **Keyboard Shortcuts reference** (`modals/keyboardShortcutsModal.js`) — a static, hand-maintained
+  modal listing every global shortcut this app wires, reachable via `?`, the Help menu, or the
+  Command Palette.
+- **Touch gestures** — real two-finger pointer tracking (`canvas/touchGeometry.js`'s pure math,
+  wired into `canvas/canvas.js`) adds pinch-to-zoom (previously missing since `touch-action: none`
+  disables the browser's native gesture) and two-finger rotate, applied to the selected node's
+  rotation field (4.93) when exactly one node is selected. A second finger cancels whatever
+  single-finger pan the first one had already started, rather than fighting it.
+
 ## 7. Out of scope for v1 (ideas for later, see PLAN.md §7)
 
 Versioned history beyond in-session undo/redo (superseded by 4.17/4.63

@@ -494,3 +494,64 @@
 .subdiagram-pin-body .subdiagram-snapshot-viewport {
   border: none;
 }
+
+/* Sketch Mode (io/uiPrefs.js#sketchMode) — a purely cosmetic, hand-drawn
+   wireframe look for every component and connector, toggled via the
+   toolbar's "✏️ Sketch Mode" button (toolbar.js). Reuses the single shared
+   SVG filter defined in index.html (#sketch-wobble, a feTurbulence +
+   feDisplacementMap pair) rather than a per-element inline filter, since
+   every sketched element wants the identical wobble — one filter def,
+   applied broadly, is both simpler and cheaper than duplicating it. */
+body.sketch-mode .node-body,
+body.sketch-mode .edge-line {
+  filter: url(#sketch-wobble);
+}
+
+body.sketch-mode .node-body {
+  font-family: 'Comic Sans MS', 'Segoe Print', 'Bradley Hand', cursive;
+}
+
+/* Live collaboration cursor (collab/cursorSync.js) — appended as a child of
+   .canvas-content, so it inherits that element's own pan/zoom transform for
+   free instead of needing separate screen-space conversion math (see
+   cursorSync.js's own header comment). Hidden by default (opacity 0, not
+   display:none) so the fade-in/out on the `.visible` toggle can transition. */
+.collab-remote-cursor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  z-index: 5;
+  opacity: 0;
+  transition: opacity 0.25s ease, left 0.08s linear, top 0.08s linear;
+  color: var(--color-primary);
+}
+
+.collab-remote-cursor.visible {
+  opacity: 1;
+}
+
+.collab-remote-cursor svg {
+  display: block;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
+}
+
+.collab-remote-cursor svg path {
+  fill: currentColor;
+  stroke: #fff;
+  stroke-width: 1;
+}
+
+.collab-remote-cursor-label {
+  position: absolute;
+  left: 16px;
+  top: 14px;
+  white-space: nowrap;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+}
