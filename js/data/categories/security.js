@@ -11,7 +11,7 @@ export const components = [
   c('sec-ddos', 'DDoS Protection', '🛡️', { color: SEC, related: ['sec-waf'] }),
   c('sec-firewall', 'Firewall', '🧱', { color: SEC }),
   c('sec-identity-provider', 'Identity Provider (IdP)', '🪪', { color: SEC, related: ['sec-sso'], relatedPatterns: ['seq-scim-provisioning', 'seq-sso-saml', 'seq-password-reset'] }),
-  c('sec-jwt', 'JWT', '🎫', { color: SEC, relatedPatterns: ['seq-rbac-check'] }),
+  c('sec-jwt', 'JWT', '🎫', { color: SEC, relatedPatterns: ['seq-rbac-check', 'seq-abac-check'] }),
   c('sec-ldap', 'LDAP / Active Directory', '🗃️', { color: SEC }),
   c('sec-oauth', 'OAuth / OIDC', '🔓', { popular: true, color: SEC, related: ['sec-jwt'], relatedPatterns: ['seq-oauth-handshake', 'seq-pkce-flow', 'seq-oauth-client-credentials'] }),
   c('sec-secrets-manager', 'Secrets Manager', '🤫', { color: SEC }),

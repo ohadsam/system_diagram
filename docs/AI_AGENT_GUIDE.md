@@ -112,6 +112,7 @@ this repo" quick-start.
 | Add/change a UML combined-fragment shape (Alt/Opt/Loop/Par/Critical/Break) | `js/core/project.js` (`fragmentType` field, `FRAGMENT_TYPES`) + `js/data/categories/sequence-templates.js#fragment()` (the six sidebar shapes) + `js/canvas/node.js`/`css/node.css` (`.fragment-tag` pentagon) — reuses the plain `rect` shape, **not** a new node shape |
 | Add/change a ready-made sequence-diagram template | `js/data/categories/sequence-templates.js` — `definePattern(id, name, icon, { groupOnInstantiate: true, nodes: lifelines(...), edges: [msg(...), ...] })`; use the raw edge-spec shape via `msg()`, not `e()` — see docs/ARCHITECTURE.md's "Ready-made templates" section for why |
 | Add/change a "Smart Suggestions" sequence-diagram pairing | `relatedPatterns: ['seq-...']` in the `c(...)` call (ids must be `kind: 'pattern'`) — same curation bar as `related`/`relatedLayers`, see `add-library-item` skill |
+| Change the persistent (badge/details-panel) surfacing of `relatedPatterns`, separate from the placement-time banner | `js/canvas/suggestions.js#getPatternSuggestionsForNode`/`hasSuggestions` + `js/panel/detailsPanel.js#renderSuggestedPatterns` ("🔀 Suggested flow diagrams" section, unfiltered — a template can be added more than once) |
 | Change dragging a pattern sidebar item onto an existing node | `js/canvas/canvas.js#instantiatePatternNearNode` (positions the pattern clearing the target node's actual leftmost edge, not a flat offset) + `js/sidebar/dragSource.js` (`.pattern-drop-target` hover affordance) |
 | Change the sequence-diagram "Copy as Mermaid" export | `js/io/exportSequenceMermaid.js#buildSequenceMermaid` (pure) + `js/modals/subDiagramModal.js` (the button, clipboard write) |
 | Change the sequence-diagram "Copy as PlantUML" export | `js/io/exportSequencePlantUML.js#buildSequencePlantUML` (pure, deliberately self-contained rather than sharing code with the Mermaid exporter) + `js/modals/subDiagramModal.js` (the button, clipboard write) |
@@ -714,6 +715,17 @@ npm test
   sequence-diagram pattern until that label is generalized — this was
   deliberately left un-curated for the ER patterns added in this batch for
   exactly that reason.
+- **Instantiating a pattern next to a node closes that node's own details
+  panel, even from the panel's own "🔀 Suggested flow diagrams" button** —
+  `instantiatePatternNearNode`/`instantiatePattern` select the *new*
+  template's own nodes afterward (multiple, for anything but a 1-node
+  pattern), and `panel/detailsPanel.js`'s `selection` subscriber closes the
+  panel outright on any non-single-node selection. A test (or a future
+  "keep showing this node's panel after adding a pattern" feature) can't
+  just re-click the original node afterward either — that same subscriber
+  early-returns when the panel is already closed (`if (!currentNodeId &&
+  !currentEdgeId) return;`), so a plain click never reopens it; only an
+  explicit `onOpenDetails` call (the ⓘ button, or the 💡 badge) does.
 - **When a drag gesture's expensive per-frame work (a geometry scan, a DOM
   rebuild) moves from raw `pointermove` into the existing RAF-batched
   `apply()` callback, any code that calls `apply()` a second time outside

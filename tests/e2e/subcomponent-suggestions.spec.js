@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { dismissHints, addComponentByName } from './helpers.js';
+import { dismissHints, addComponentByName, nodeCount } from './helpers.js';
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/index.html');
@@ -77,4 +77,47 @@ test('adding just one selected suggestion leaves the still-unattached one availa
   await expect(page.locator('.suggested-subcomponent-row')).toHaveCount(1);
   await expect(page.locator('.suggested-subcomponent-name')).toHaveText('Middleware');
   await expect(page.locator('.node-suggestion-badge')).toBeVisible();
+});
+
+// A component with curated `relatedPatterns` (flow diagrams) but no
+// `relatedLayers` still gets the badge, and its section is independent of
+// the sub-component one above — see canvas/suggestions.js#hasSuggestions
+// and panel/detailsPanel.js#renderSuggestedPatterns.
+test('a component with curated flow-diagram suggestions shows the badge, and the details panel offers them under their own heading', async ({ page }) => {
+  await addComponentByName(page, 'OAuth / OIDC'); // sec-oauth: relatedPatterns only, no relatedLayers
+  await expect(page.locator('.node-suggestion-badge')).toBeVisible();
+
+  await page.locator('.suggestion-banner-close').click();
+  await page.locator('.node-suggestion-badge').click();
+  await expect(page.locator('.details-panel')).toHaveClass(/open/);
+
+  // No sub-component suggestions for this one (relatedLayers is empty).
+  await expect(page.locator('.suggested-subcomponents')).toHaveCount(0);
+
+  await expect(page.locator('.suggested-patterns')).toBeVisible();
+  const rows = page.locator('.suggested-pattern-row');
+  await expect(rows).toHaveCount(3); // seq-oauth-handshake, seq-pkce-flow, seq-oauth-client-credentials
+  await expect(page.locator('.suggested-pattern-name')).toContainText(['PKCE Authorization Flow']);
+});
+
+test('clicking a flow diagram\'s "+ Add" instantiates the whole template next to the component, and the suggestion stays available (it isn\'t a one-time attach)', async ({ page }) => {
+  await addComponentByName(page, 'OAuth / OIDC');
+  await page.locator('.suggestion-banner-close').click();
+  await page.locator('.node-suggestion-badge').click();
+
+  await page.locator('.suggested-pattern-row', { hasText: 'PKCE Authorization Flow' }).locator('button', { hasText: '+ Add' }).click();
+
+  // The 1 OAuth node plus PKCE's 3 lifelines.
+  await expect.poll(() => nodeCount(page)).toBe(4);
+  await expect(page.locator('.node[data-shape="lifeline"]')).toHaveCount(3);
+
+  // Instantiating selects the new diagram's own (multi-node) lifelines
+  // instead (same as the placement-time banner), which closes the details
+  // panel entirely (see detailsPanel.js's `selection` subscriber — a
+  // multi-node selection always closes it). Reopening via the OAuth node's
+  // own badge confirms adding a flow diagram isn't a one-time "attach":
+  // it's still offered, unlike a sub-component that disappears from the
+  // list once attached.
+  await page.locator('.node', { hasText: 'OAuth / OIDC' }).locator('.node-suggestion-badge').click();
+  await expect(page.locator('.suggested-pattern-row', { hasText: 'PKCE Authorization Flow' })).toBeVisible();
 });

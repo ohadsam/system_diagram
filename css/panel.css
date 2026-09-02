@@ -201,6 +201,48 @@ body.resizing-details-panel {
   flex: 1 1 auto;
 }
 
+/* Flow-diagram (sequence-diagram template) suggestions — same shape as
+   .suggested-subcomponents above, but purple-tinted (matching the Sequence
+   Diagram Templates category color and .suggestion-banner-btn-pattern) to
+   read as "adds a separate diagram nearby", not "attaches onto this node"
+   the way the amber sub-component list above does. Each row gets its own
+   "+ Add" button instead of a shared checkbox list, since instantiating a
+   template again isn't an "already attached" toggle. */
+.suggested-patterns {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.suggested-patterns-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid rgba(124, 58, 237, 0.35);
+  background: rgba(124, 58, 237, 0.08);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2);
+}
+
+.suggested-pattern-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 13px;
+  padding: 2px 0;
+}
+
+.suggested-pattern-icon {
+  font-size: 15px;
+  width: 20px;
+  text-align: center;
+  flex: 0 0 auto;
+}
+
+.suggested-pattern-name {
+  flex: 1 1 auto;
+}
+
 .ai-review-title {
   flex: 1 1 auto;
   font-weight: 700;

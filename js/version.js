@@ -2,9 +2,17 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.55.0';
+export const APP_VERSION = '1.56.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.56.0',
+    date: '2026-09-02',
+    highlights: [
+      '🔀 A component\'s "💡 Suggested sub-components" (details panel, or the 💡 badge on the canvas) now also offers curated flow diagrams under a new "Suggested flow diagrams" section — e.g. OAuth/OIDC suggests its PKCE Authorization Flow, and Authorization suggests the RBAC and ABAC Authorization Check flows. Each gets its own one-click "+ Add" button, and — unlike a sub-component — stays offered afterward, since adding a flow diagram again is a normal, repeatable action.',
+      '🛂 Added four new "Layers & Roles" sub-components for policy-based authorization: Policy Administration Point (PAP), Policy Decision Point (PDP), Policy Enforcement Point (PEP), and Policy Information Point (PIP) — the standard XACML reference-architecture roles, each with a full description and cross-linked to the others. Attaching "Authorization" now suggests PEP/PDP, and the existing "ABAC Authorization Check" flow diagram (previously not suggested anywhere) is now surfaced from Authorization, JWT, PDP, and PEP.',
+    ],
+  },
   {
     version: '1.55.0',
     date: '2026-09-02',

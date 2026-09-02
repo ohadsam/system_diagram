@@ -243,16 +243,31 @@ Clicking one attaches it exactly like dragging that item from "Layers &
 Roles" onto the node, instead of creating a new standalone node, and an
 already-attached sub-component is never re-suggested.
 
+A third, optional banner row — "🔀 Sequence diagrams for X" — suggests one
+or more built-in **flow diagrams** (sequence-diagram templates, e.g.
+OAuth/OIDC → its PKCE Authorization Flow; Authorization → the RBAC and ABAC
+Authorization Check flows) genuinely central to what the placed component
+does. Curated via `relatedPatterns` (ids of `kind: 'pattern'` components —
+see "Sequence Diagrams", 4.9). Clicking one instantiates the whole grouped
+template positioned next to the placed node, the same as dragging it from
+the sidebar, rather than attaching onto the node the way a sub-component
+does — so, unlike a sub-component, a flow-diagram suggestion is never
+"used up": it stays offered even after being added, since drawing the same
+flow again nearby is a normal, repeatable action.
+
 **Revisiting sub-component suggestions later** (4.6): the placement-time
 banner is easy to miss or dismiss, and a node loaded from a saved project
 never sees it at all in that session — so any component with unattached
-`relatedLayers` suggestions shows a small 💡 badge on the node itself,
-persisting for as long as any curated suggestion remains unattached.
-Clicking it opens the details panel's "Suggested sub-components" section:
-the same curated list, but as checkboxes — check any number and click
-"Add selected" to attach them all in one step, instead of one click per
-suggestion like the banner. The badge and section both disappear once
-every curated suggestion for that component is attached.
+`relatedLayers` suggestions, and/or any curated `relatedPatterns`, shows a
+small 💡 badge on the node itself, persisting for as long as either kind of
+suggestion still applies. Clicking it opens the details panel, which shows
+up to two independent sections: "💡 Suggested sub-components" — the same
+curated `relatedLayers` list as checkboxes, check any number and click
+"Add selected" to attach them all in one step — and "🔀 Suggested flow
+diagrams" — every curated `relatedPatterns` entry, each with its own
+one-click "+ Add" button (not a checkbox list, matching the banner's
+"never used up" behavior above). Either section renders only when it has
+something to show; the badge disappears only once *both* are empty.
 
 #### 4.2.9 Popular component highlighting
 A hand-curated subset of components — the ones most engineers would

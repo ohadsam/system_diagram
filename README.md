@@ -110,11 +110,15 @@ Or open `index.html` directly in a browser.
   the connecting arrow automatically and places the new component sensibly
   — and, where relevant, a second row of one-click sub-components to attach
   directly onto that node (Express → Controller/Middleware; React →
-  Hook/Component; API Gateway → Authentication/Rate Limiter). Off switch in
-  Default Settings for anyone who doesn't want it. A component with any
-  unattached sub-component suggestion keeps a small 💡 badge — click it any
-  time to check off any number in the details panel and attach them all at
-  once, not just right after placing it.
+  Hook/Component; API Gateway → Authentication/Rate Limiter) — and, where
+  relevant, a third row suggesting a built-in flow diagram to add nearby
+  (OAuth/OIDC → its PKCE Authorization Flow; Authorization → the RBAC/ABAC
+  Authorization Check flows). Off switch in Default Settings for anyone who
+  doesn't want it. A component with any unattached sub-component or flow-
+  diagram suggestion keeps a small 💡 badge — click it any time to revisit
+  them in the details panel: check off any number of sub-components and
+  attach them all at once, or add any flow diagram with its own one-click
+  button (staying offered afterward, since adding one again is normal).
 - **Connectors** — drag between components to draw arrows that anchor on
   whichever side actually makes sense between the two (not just whichever
   point you dragged from) with configurable routing (straight/elbow/curved,

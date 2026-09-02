@@ -847,6 +847,26 @@ each pattern's actual leftmost edge (`min(spec.dx - w/2)` over its own
 nodes) and solves for the center point that clears the target node's right
 edge by a fixed margin regardless of the template's shape.
 
+**`relatedPatterns` also has a persistent surface, not just the
+placement-time banner.** `canvas/suggestions.js#getPatternSuggestionsForNode`
+mirrors `getUnattachedLayerSuggestions` but with no filtering — instantiating
+a template again isn't "already attached," there's nothing to drop from the
+list. `hasSuggestions(node)` ORs both kinds together to drive
+`canvas/node.js`'s 💡 badge (so a component with only `relatedPatterns` and
+no `relatedLayers`, like "OAuth / OIDC", still gets one), and
+`panel/detailsPanel.js` renders it as an independent "🔀 Suggested flow
+diagrams" section below "💡 Suggested sub-components" — each entry gets its
+own one-click "+ Add" button (`instantiatePatternNearNode`) rather than the
+layer section's shared checkbox-list-plus-"Add selected" control, since
+there's no multi-select "attach all" concept for something that isn't
+attached at all. One thing to know if extending this: instantiating selects
+the new template's own nodes (same as the banner), which — since those are
+multiple nodes — closes the details panel outright (see its `selection`
+subscriber below), so re-opening the *original* node's panel afterward
+needs its own badge click, not just re-selecting it (a bare click while the
+panel is closed doesn't reopen it — see that subscriber's own early-return
+guard).
+
 ### Export as Mermaid (`io/exportSequenceMermaid.js`, `modals/subDiagramModal.js`)
 
 `buildSequenceMermaid({nodes, edges, allNodes})` is pure/DOM-free (mirrors

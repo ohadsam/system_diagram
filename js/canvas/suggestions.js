@@ -53,6 +53,27 @@ export function getUnattachedLayerSuggestions(node) {
   return getRelatedLayers(node.defId).filter((rel) => !existingSubNames.has(rel.name));
 }
 
+/** Curated "flow diagram" (sequence-diagram template) suggestions for
+ * `node`, revisitable any time from the details panel the same way
+ * `getUnattachedLayerSuggestions` is — e.g. selecting "Authorization"
+ * suggests the RBAC/ABAC Authorization Check flows. Unlike a sub-component,
+ * instantiating a template again isn't "already attached" (it just adds
+ * another copy of the diagram nearby), so there's nothing to filter out —
+ * every curated pattern always shows. Returns `[]` for a node with no def
+ * or no curated `relatedPatterns`. */
+export function getPatternSuggestionsForNode(node) {
+  return node.defId ? getRelatedPatterns(node.defId) : [];
+}
+
+/** Whether `node` has anything at all to show in its persistent
+ * suggestions surface (canvas/node.js's badge, panel/detailsPanel.js's
+ * sections) — either kind counts, so a component with only curated
+ * `relatedPatterns` and no `relatedLayers` (or vice versa) still gets the
+ * badge. */
+export function hasSuggestions(node) {
+  return getUnattachedLayerSuggestions(node).length > 0 || getPatternSuggestionsForNode(node).length > 0;
+}
+
 function ensureBanner() {
   if (bannerEl) return bannerEl;
   bannerEl = el('div', { class: 'suggestion-banner', hidden: true, role: 'status', 'aria-live': 'polite' });

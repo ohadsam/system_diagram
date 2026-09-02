@@ -4,7 +4,7 @@
 // directly since they involve no pointer-move gesture state.
 import * as store from '../core/store.js';
 import { el, clear } from '../utils/dom.js';
-import { getUnattachedLayerSuggestions } from './suggestions.js';
+import { hasSuggestions } from './suggestions.js';
 import { formatMonthlyCost } from '../core/cost.js';
 
 let handlers = {
@@ -166,8 +166,8 @@ export function createNodeEl(node) {
   const suggestionBadge = el('button', {
     class: 'node-suggestion-badge',
     type: 'button',
-    title: 'Suggested sub-components available — click to view them in the details panel',
-    'aria-label': 'View suggested sub-components',
+    title: 'Suggestions available (sub-components and/or flow diagrams) — click to view them in the details panel',
+    'aria-label': 'View suggestions',
     text: '💡',
     onClick: (e) => {
       e.stopPropagation();
@@ -213,7 +213,7 @@ export function updateNodeEl(rootEl, node, { selected = false, replicated = fals
 
   const hasInfo = !!(node.notes?.trim() || node.labels?.length || (node.subComponents?.length && node.shape !== 'rows'));
   rootEl.classList.toggle('has-info', hasInfo);
-  rootEl.classList.toggle('has-suggestions', getUnattachedLayerSuggestions(node).length > 0);
+  rootEl.classList.toggle('has-suggestions', hasSuggestions(node));
   rootEl.setAttribute('aria-label', node.text || 'component');
 
   const body = rootEl.querySelector('.node-body');

@@ -3,6 +3,32 @@
 All notable changes to this project. Format: date, then bullet list.
 Keep this in sync with `PLAN.md` as stages complete.
 
+## v1.56.0 (2026-09-02)
+
+- **Flow-diagram suggestions surfaced persistently** (`js/canvas/suggestions.js`,
+  `js/canvas/node.js`, `js/panel/detailsPanel.js`, `css/panel.css`):
+  - `relatedPatterns` (sequence-diagram template suggestions) previously
+    only appeared in the transient, auto-hiding placement-time banner.
+    They're now also revisitable any time via the same mechanism
+    `relatedLayers` (sub-component) suggestions already use: a new
+    `getPatternSuggestionsForNode`/`hasSuggestions` pair in
+    `suggestions.js`, the node's 💡 badge now lights up for either kind,
+    and the details panel gets an independent "🔀 Suggested flow diagrams"
+    section (each entry a one-click "+ Add", never removed from the list —
+    unlike a sub-component, adding a flow diagram again is a normal,
+    repeatable action).
+  - New "Layers & Roles" sub-components for policy-based authorization —
+    Policy Administration Point (PAP), Policy Decision Point (PDP), Policy
+    Enforcement Point (PEP), and Policy Information Point (PIP) — the
+    standard XACML reference-architecture roles, cross-linked to each
+    other and to the existing generic "Authorization" layer.
+  - Curated the new suggestions: "Authorization" now suggests PEP/PDP as
+    sub-components and the RBAC/ABAC Authorization Check flows; PDP/PEP
+    and JWT now also suggest the ABAC flow, previously wired to no
+    component at all despite already existing in the template library.
+  - `tests/unit/suggestions.test.mjs` extended; `tests/e2e/subcomponent-suggestions.spec.js`
+    gained 2 new tests for the flow-diagram section.
+
 ## v1.55.0 (2026-09-02)
 
 - **Group & Shrink redesign + group naming/coloring** (`js/core/project.js`,

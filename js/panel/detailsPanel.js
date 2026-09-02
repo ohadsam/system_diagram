@@ -10,8 +10,8 @@ import { textInput, field, selectInput, checkbox, numberInput } from '../utils/f
 import { formatMonthlyCost } from '../core/cost.js';
 import { LAYER_DATALIST_ID, ensureLayerDatalist, findLayerByName } from '../utils/layerDatalist.js';
 import { SUBCOMPONENTS_DISPLAY_MODES } from '../core/project.js';
-import { getReplicationInfoForNode, computeMessageSequenceNumbers } from '../canvas/canvas.js';
-import { getUnattachedLayerSuggestions } from '../canvas/suggestions.js';
+import { getReplicationInfoForNode, computeMessageSequenceNumbers, instantiatePatternNearNode } from '../canvas/canvas.js';
+import { getUnattachedLayerSuggestions, getPatternSuggestionsForNode } from '../canvas/suggestions.js';
 import { readJSON, writeJSON } from '../io/storage.js';
 import { openGroupExplanationModal } from '../modals/groupExplanationModal.js';
 
@@ -289,6 +289,12 @@ function render(node) {
     body.appendChild(suggestions);
   }
 
+  const patternSuggestions = renderSuggestedPatterns(node);
+  if (patternSuggestions) {
+    body.appendChild(el('h3', { text: '🔀 Suggested flow diagrams' }));
+    body.appendChild(patternSuggestions);
+  }
+
   if (node.shape === 'rows') {
     body.appendChild(el('h3', { text: 'Rows' }));
     body.appendChild(renderRows(node));
@@ -458,6 +464,39 @@ function renderSuggestedSubComponents(node) {
   }
   wrap.appendChild(list);
   wrap.appendChild(addBtn);
+  return wrap;
+}
+
+/** The same curated "sequence diagrams for X" suggestions Smart
+ * Suggestions offers right after placement, but revisitable any time —
+ * same rationale as renderSuggestedSubComponents above. Unlike a
+ * sub-component, adding a flow diagram again isn't "already attached" —
+ * there's nothing to filter out, so every curated template always shows
+ * with its own one-click "+ Add" button instead of a shared checkbox
+ * list. Returns null (renders nothing) when this component has no curated
+ * `relatedPatterns`. */
+function renderSuggestedPatterns(node) {
+  const patterns = getPatternSuggestionsForNode(node);
+  if (!patterns.length) return null;
+
+  const wrap = el('div', { class: 'suggested-patterns' });
+  wrap.appendChild(el('p', { class: 'modal-hint', text: 'Common flow diagrams for this component, hand-picked — not automatic. Adds the whole diagram next to this component.' }));
+
+  const list = el('div', { class: 'suggested-patterns-list' });
+  for (const pat of patterns) {
+    const row = el('div', { class: 'suggested-pattern-row' });
+    row.appendChild(el('span', { class: 'suggested-pattern-icon', text: pat.icon, 'aria-hidden': 'true' }));
+    row.appendChild(el('span', { class: 'suggested-pattern-name', text: pat.name }));
+    row.appendChild(el('button', {
+      type: 'button',
+      class: 'btn btn-secondary btn-sm',
+      text: '+ Add',
+      title: `Add the "${pat.name}" flow diagram next to this component`,
+      onClick: () => instantiatePatternNearNode(pat.id, node.id),
+    }));
+    list.appendChild(row);
+  }
+  wrap.appendChild(list);
   return wrap;
 }
 
