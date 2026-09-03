@@ -260,7 +260,9 @@ read-only drill-down, big and clear, "Pin to side panel" included) rather
 than at full size (`canvas.js#attachSuggestedPatternAsMiniature`). Unlike
 attaching a sub-component, it's never "used up": it stays offered even
 after being added, since drawing the same flow again nearby is a normal,
-repeatable action.
+repeatable action. The miniature stays anchored to its host's corner —
+dragging or arrow-nudging the host moves the miniature (and its hidden
+group members) right along with it (`node.attachedHostId`).
 
 **Revisiting sub-component suggestions later** (4.6): the placement-time
 banner is easy to miss or dismiss, and a node loaded from a saved project

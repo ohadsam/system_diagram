@@ -234,6 +234,16 @@ export function createNode(def, x, y, overrides = {}) {
     // shrinks/expands anything, and Expand can restore full size without
     // dissolving the grouping itself. See canvas.js#computeShrunkGroups.
     shrunkAnchorId: null,
+    // canvas.js#attachSuggestedPatternAsMiniature: set only on a Group &
+    // Shrink anchor created that way, naming the *host* component this
+    // miniature is a small attached indicator for — unrelated to `groupId`
+    // (reserved for the miniature's own hidden pattern members, whose "N
+    // grouped" count must stay accurate) so this is a separate field purely
+    // for canvas.js#selectNode to also select/move the host whenever the
+    // miniature (or vice versa) is selected, keeping them visually attached
+    // through any drag/nudge/auto-arrange. null for every node that isn't
+    // such an anchor.
+    attachedHostId: null,
     // Opts this node out of core/replication.js's live mirroring, even while
     // its groupId belongs to an active replication pair's side — see
     // docs/SPEC.md "Live Replication".
@@ -382,6 +392,7 @@ export function duplicateProject(project) {
   // validateContent's own post-pass above.
   for (const n of nodes) {
     n.shrunkAnchorId = n.shrunkAnchorId && nodeIdMap.has(n.shrunkAnchorId) ? nodeIdMap.get(n.shrunkAnchorId) : null;
+    n.attachedHostId = n.attachedHostId && nodeIdMap.has(n.attachedHostId) ? nodeIdMap.get(n.attachedHostId) : null;
   }
   const edgeIdMap = new Map();
   const edges = project.edges
@@ -542,6 +553,13 @@ export function removeNode(project, nodeId) {
       if (n.shrunkAnchorId === nodeId) n.shrunkAnchorId = null;
     }
   }
+  // Deleting either side of an attachSuggestedPatternAsMiniature pairing
+  // (the host, or the miniature's own anchor) leaves the other side's
+  // attachedHostId dangling — same live-cleanup reasoning as shrunkAnchorId
+  // just above, just for a different cross-node reference.
+  for (const n of project.nodes) {
+    if (n.attachedHostId === nodeId) n.attachedHostId = null;
+  }
   // A group's custom name/color (project.groups, see upsertGroupMeta) is
   // meaningless once its last member is gone — drop it rather than leaving
   // it to linger until the next load/import cycle's validateGroups pass.
@@ -612,6 +630,7 @@ function validateContent(rawNodes, rawEdges, rawReplicationPairs) {
         zIndex: Number.isFinite(n.zIndex) ? n.zIndex : 1,
         groupId: typeof n.groupId === 'string' ? n.groupId : null,
         shrunkAnchorId: typeof n.shrunkAnchorId === 'string' ? n.shrunkAnchorId : null,
+        attachedHostId: typeof n.attachedHostId === 'string' ? n.attachedHostId : null,
         replicationExcluded: n.replicationExcluded === true,
         destroyOffset: Number.isFinite(n.destroyOffset) ? Math.min(1, Math.max(0, n.destroyOffset)) : null,
         activations: Array.isArray(n.activations)
@@ -643,6 +662,7 @@ function validateContent(rawNodes, rawEdges, rawReplicationPairs) {
   // other field validated above.
   for (const n of nodes) {
     if (n.shrunkAnchorId && !nodeIds.has(n.shrunkAnchorId)) n.shrunkAnchorId = null;
+    if (n.attachedHostId && !nodeIds.has(n.attachedHostId)) n.attachedHostId = null;
   }
   const edgeIds = new Set();
   const edges = (Array.isArray(rawEdges) ? rawEdges : [])

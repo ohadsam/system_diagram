@@ -424,12 +424,32 @@ function selectNode(nodeId, additive) {
     return;
   }
   // Clicking any member of a group selects the whole group, so moving or
-  // editing one grouped node naturally acts on all of them together.
-  const node = store.getState().nodes.find((n) => n.id === nodeId);
-  const nodeIds = node?.groupId
-    ? store.getState().nodes.filter((n) => n.groupId === node.groupId).map((n) => n.id)
-    : [nodeId];
-  store.select(nodeIds, []);
+  // editing one grouped node naturally acts on all of them together. A
+  // node that hosts an attached suggested-flow-diagram miniature (see
+  // attachSuggestedPatternAsMiniature) is linked to that miniature's own
+  // group by attachedHostId instead of sharing groupId with it — kept
+  // separate so it doesn't inflate groupBackgrounds.js's "N grouped" count
+  // — so expand across that link too, in both directions, and pull in the
+  // miniature's own (hidden, shrunk) group members along with it. Without
+  // this, dragging or arrow-nudging the host leaves the miniature behind
+  // at its original position instead of moving with the component it's
+  // attached to.
+  const nodes = store.getState().nodes;
+  const selected = new Set();
+  const queue = [nodeId];
+  while (queue.length) {
+    const id = queue.shift();
+    if (selected.has(id)) continue;
+    selected.add(id);
+    const n = nodes.find((m) => m.id === id);
+    if (!n) continue;
+    if (n.groupId) {
+      for (const m of nodes) if (m.groupId === n.groupId) queue.push(m.id);
+    }
+    if (n.attachedHostId) queue.push(n.attachedHostId);
+    for (const m of nodes) if (m.attachedHostId === n.id) queue.push(m.id);
+  }
+  store.select([...selected], []);
 }
 
 function selectEdge(edgeId, additive) {
@@ -1884,7 +1904,16 @@ export function attachSuggestedPatternAsMiniature(defId, hostNodeId) {
       n.y += dy;
       n.groupId = groupId;
       n.shrunkAnchorId = anchor.id;
-      if (n.id === anchor.id) { n.w = SUGGESTED_MINIATURE_W; n.h = SUGGESTED_MINIATURE_H; n.zIndex = z; }
+      if (n.id === anchor.id) {
+        n.w = SUGGESTED_MINIATURE_W;
+        n.h = SUGGESTED_MINIATURE_H;
+        n.zIndex = z;
+        // Independent of groupId on purpose (see project.js's field comment) —
+        // this is what lets selectNode() move the miniature together with its
+        // host on drag/nudge without inflating groupBackgrounds.js's "N
+        // grouped" member count for a group the user never asked to make.
+        n.attachedHostId = hostNode.id;
+      }
     }
   });
   // Keeps the host node selected (not the new anchor) — the user is
@@ -2385,7 +2414,7 @@ export function duplicateSelection({ renameDuplicates = true } = {}) {
   const originals = selection.nodeIds.map((id) => state.nodes.find((n) => n.id === id)).filter(Boolean);
   const newNodes = originals
     .map((n) => {
-      const { id: _oldId, x: _x, y: _y, groupId: oldGroupId, shrunkAnchorId: _oldShrunkAnchorId, patternInstanceId: oldPatternInstanceId, ...rest } = n;
+      const { id: _oldId, x: _x, y: _y, groupId: oldGroupId, shrunkAnchorId: _oldShrunkAnchorId, attachedHostId: _oldAttachedHostId, patternInstanceId: oldPatternInstanceId, ...rest } = n;
       let newGroupId = null;
       if (oldGroupId) {
         if (!groupIdMap.has(oldGroupId)) groupIdMap.set(oldGroupId, nextId('group'));
@@ -2411,6 +2440,12 @@ export function duplicateSelection({ renameDuplicates = true } = {}) {
   newNodes.forEach((clone, i) => {
     const oldAnchorId = originals[i].shrunkAnchorId;
     clone.shrunkAnchorId = oldAnchorId && idMap.has(oldAnchorId) ? idMap.get(oldAnchorId) : null;
+    // Same reasoning, same ordering requirement, for the host<->miniature
+    // link — a duplicated miniature whose host wasn't itself duplicated
+    // surfaces with no attachedHostId rather than pointing at the
+    // original host's id (which would misattribute/move the wrong node).
+    const oldHostId = originals[i].attachedHostId;
+    clone.attachedHostId = oldHostId && idMap.has(oldHostId) ? idMap.get(oldHostId) : null;
   });
 
   // Duplicate both edges internal to the duplicated nodes AND any edge the

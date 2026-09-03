@@ -456,6 +456,57 @@ test('duplicateProject remaps shrunkAnchorId to the copy\'s own new anchor id', 
   assert.equal(copy.nodes[1].shrunkAnchorId, copy.nodes[0].id, 'copied member should point at the copied anchor\'s new id');
 });
 
+test('createNode defaults attachedHostId to null and it is overridable', () => {
+  const node = createNode(null, 0, 0);
+  assert.equal(node.attachedHostId, null);
+  const attached = createNode(null, 0, 0, { attachedHostId: 'node_abc' });
+  assert.equal(attached.attachedHostId, 'node_abc');
+});
+
+test('validateProject preserves an attachedHostId that names a real node, but clears a dangling one', () => {
+  const raw = {
+    nodes: [
+      { id: 'host', x: 0, y: 0 },
+      { id: 'mini', x: 100, y: 0, attachedHostId: 'host' },
+      { id: 'orphan', x: 200, y: 0, attachedHostId: 'does-not-exist' },
+      { id: 'bad', x: 300, y: 0, attachedHostId: 42 },
+    ],
+    edges: [],
+  };
+  const result = validateProject(raw);
+  assert.equal(result.project.nodes[1].attachedHostId, 'host', 'miniature pointing at a real host is valid');
+  assert.equal(result.project.nodes[2].attachedHostId, null, 'dangling reference to a nonexistent node is cleared');
+  assert.equal(result.project.nodes[3].attachedHostId, null, 'non-string value falls back to null');
+});
+
+test('removeNode clears attachedHostId on its miniature when the host is deleted', () => {
+  const p = createEmptyProject();
+  const host = createNode(null, 0, 0);
+  const mini = createNode(null, 100, 0, { attachedHostId: host.id });
+  p.nodes.push(host, mini);
+  removeNode(p, host.id);
+  assert.equal(p.nodes.length, 1);
+  assert.equal(p.nodes[0].attachedHostId, null, 'the orphaned miniature must not be left pointing at a deleted host');
+});
+
+test('duplicateProject remaps attachedHostId to the copy\'s own new host id', () => {
+  const p = createEmptyProject();
+  const host = createNode(null, 0, 0);
+  const mini = createNode(null, 100, 0, { attachedHostId: host.id });
+  p.nodes.push(host, mini);
+  const copy = duplicateProject(p);
+  assert.notEqual(copy.nodes[0].id, host.id);
+  assert.equal(copy.nodes[1].attachedHostId, copy.nodes[0].id, 'copied miniature should point at the copied host\'s new id');
+});
+
+test('duplicateProject clears attachedHostId when only the miniature (not its host) is part of the copy', () => {
+  const p = createEmptyProject();
+  const mini = createNode(null, 0, 0, { attachedHostId: 'not-in-this-project' });
+  p.nodes.push(mini);
+  const copy = duplicateProject(p);
+  assert.equal(copy.nodes[0].attachedHostId, null);
+});
+
 test('validateProject accepts "magic" as a valid edge routing', () => {
   const raw = {
     nodes: [{ id: 'n1', x: 0, y: 0 }, { id: 'n2', x: 100, y: 0 }],

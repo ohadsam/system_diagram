@@ -901,6 +901,32 @@ anchor, so a details panel already open (the common case — this is
 triggered from its own "+ Add" button) stays open on the host instead of
 jumping to the anchor.
 
+**Gotcha found via live QA — the miniature didn't follow its host when
+dragged.** `attachSuggestedPatternAsMiniature` originally positioned the
+anchor once, relative to the host's position *at creation time*, with no
+ongoing link back to the host: `canvas/nodeInteractions.js#beginMove`
+derives `movingIds` purely from `store.getSelection().nodeIds`, and the host
+was never part of the miniature's own `groupId`, so dragging (or
+arrow-nudging) the host left the miniature exactly where it was, orphaned.
+Fixed with a new `node.attachedHostId` field, set on the anchor alone
+(`attachedHostId: hostNode.id`) — deliberately independent of `groupId`,
+same reasoning as `shrunkAnchorId` above: `groupId` alone already means
+"moves/selects together," and a `computeGroupBounds` "N grouped" count
+keyed off it must not grow just because a component happens to host an
+attached indicator. `canvas.js#selectNode`'s non-additive-click path now
+does a small BFS instead of a single `groupId` lookup: starting from the
+clicked node, it pulls in that node's own `groupId` siblings, then follows
+`attachedHostId` in *both* directions (host → its miniature, and miniature →
+its host) and pulls in *that* node's `groupId` siblings too — so clicking
+either the host or the miniature selects the host, the miniature, and every
+one of the miniature's own hidden shrunk-group members together, and every
+existing move mechanism (drag, arrow-key nudge) that already reads
+`store.getSelection().nodeIds` moves all of them as one unit with no
+mechanism-specific change needed. Schema plumbing mirrors `shrunkAnchorId`
+exactly: defaults to `null` in `createNode`, cleared by `removeNode` when
+the node it names is deleted, remapped by `duplicateProject`, and validated/
+dangling-reference-cleared by `validateProject`.
+
 `instantiatePatternNearNode` (unchanged) is still what a pattern sidebar
 item dropped directly onto an existing node does (`sidebar/dragSource.js` —
 same hover-highlight affordance the drag-a-layer-onto-a-node flow already

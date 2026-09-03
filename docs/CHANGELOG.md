@@ -3,6 +3,19 @@
 All notable changes to this project. Format: date, then bullet list.
 Keep this in sync with `PLAN.md` as stages complete.
 
+## v1.58.3 (2026-09-03)
+
+- **Fix: an attached flow-diagram miniature didn't move when its host
+  component was dragged or arrow-nudged**, left orphaned at its original
+  position. New `node.attachedHostId` field (set on the miniature's anchor,
+  naming its host) is now followed by `canvas.js#selectNode` in both
+  directions alongside `groupId`, so selecting either the host or the
+  miniature pulls in both (plus the miniature's own hidden group members)
+  and every existing move mechanism moves them together automatically.
+- **Fix: stale help text** in the details panel's "Suggested flow diagrams"
+  section still described the old full-size-diagram-next-to-the-component
+  behavior that v1.58.1 replaced.
+
 ## v1.58.2 (2026-09-03)
 
 - **Fix: a "Group & Shrink" miniature still looked broken when one of its

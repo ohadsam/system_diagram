@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { dismissHints, addComponentByName, nodeCount } from './helpers.js';
+import { dismissHints, addComponentByName, nodeCount, dragNodeBy } from './helpers.js';
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/index.html');
@@ -124,4 +124,68 @@ test('clicking a flow diagram\'s "+ Add" attaches it as a small collapsed indica
   // unlike a sub-component that disappears from the list once attached.
   await expect(page.locator('.details-panel')).toHaveClass(/open/);
   await expect(page.locator('.suggested-pattern-row', { hasText: 'PKCE Authorization Flow' })).toBeVisible();
+});
+
+test('dragging the host node carries an attached flow-diagram miniature along with it (canvas.js#attachedHostId)', async ({ page }) => {
+  await addComponentByName(page, 'OAuth / OIDC');
+  await page.locator('.suggestion-banner-close').click();
+  await page.locator('.node-suggestion-badge').click();
+  await page.locator('.suggested-pattern-row', { hasText: 'PKCE Authorization Flow' }).locator('button', { hasText: '+ Add' }).click();
+
+  const host = page.locator('.node:visible', { hasText: 'OAuth / OIDC' });
+  const miniature = page.locator('.node[data-shape="lifeline"]:visible');
+  const hostBefore = await host.boundingBox();
+  const miniBefore = await miniature.boundingBox();
+
+  await dragNodeBy(page, host, 220, 140);
+
+  const hostAfter = await host.boundingBox();
+  const miniAfter = await miniature.boundingBox();
+
+  // Without attachedHostId, the miniature stays exactly where it was
+  // created and becomes visually orphaned once the host moves away — the
+  // real bug this test guards against. It must move by the same delta as
+  // the host, keeping it anchored to the host's corner.
+  expect(Math.abs((hostAfter.x - hostBefore.x) - (miniAfter.x - miniBefore.x))).toBeLessThan(2);
+  expect(Math.abs((hostAfter.y - hostBefore.y) - (miniAfter.y - miniBefore.y))).toBeLessThan(2);
+});
+
+test('duplicating a host+miniature pair (Ctrl+D) re-links the copy to its own new host, not the original', async ({ page }) => {
+  await addComponentByName(page, 'OAuth / OIDC');
+  await page.locator('.suggestion-banner-close').click();
+  await page.locator('.node-suggestion-badge').click();
+  await page.locator('.suggested-pattern-row', { hasText: 'PKCE Authorization Flow' }).locator('button', { hasText: '+ Add' }).click();
+
+  // Clicking the host now also selects its attached miniature (and the
+  // miniature's own hidden group members) via canvas.js#selectNode's
+  // attachedHostId traversal, so Ctrl+D duplicates the whole attached pair
+  // together, not just the host.
+  await page.locator('.node:visible', { hasText: 'OAuth / OIDC' }).click();
+  await page.keyboard.press('Control+d');
+  await page.waitForTimeout(150);
+
+  const hosts = page.locator('.node:visible', { hasText: 'OAuth / OIDC' });
+  const miniatures = page.locator('.node[data-shape="lifeline"]:visible');
+  await expect(hosts).toHaveCount(2);
+  await expect(miniatures).toHaveCount(2);
+
+  const newHost = hosts.nth(1);
+  const originalMiniBefore = await miniatures.nth(0).boundingBox();
+  const newMiniBefore = await miniatures.nth(1).boundingBox();
+
+  await dragNodeBy(page, newHost, 180, 120);
+
+  const originalMiniAfter = await miniatures.nth(0).boundingBox();
+  const newMiniAfter = await miniatures.nth(1).boundingBox();
+
+  // The original pair must be untouched by dragging the copy...
+  expect(Math.abs(originalMiniAfter.x - originalMiniBefore.x)).toBeLessThan(2);
+  expect(Math.abs(originalMiniAfter.y - originalMiniBefore.y)).toBeLessThan(2);
+  // ...while the copy's own miniature — pointing at the copy's own new
+  // attachedHostId, not the stale original id — moves with its own host.
+  // Without the duplicateSelection() remap, the copy's miniature would
+  // either stay put (dangling attachedHostId) or, worse, jump to follow
+  // the *original* host instead of its own.
+  expect(Math.abs(newMiniAfter.x - newMiniBefore.x)).toBeGreaterThan(100);
+  expect(Math.abs(newMiniAfter.y - newMiniBefore.y)).toBeGreaterThan(80);
 });

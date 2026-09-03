@@ -480,7 +480,7 @@ function renderSuggestedPatterns(node) {
   if (!patterns.length) return null;
 
   const wrap = el('div', { class: 'suggested-patterns' });
-  wrap.appendChild(el('p', { class: 'modal-hint', text: 'Common flow diagrams for this component, hand-picked — not automatic. Adds the whole diagram next to this component.' }));
+  wrap.appendChild(el('p', { class: 'modal-hint', text: 'Common flow diagrams for this component, hand-picked — not automatic. Attaches as a small indicator on this component — click its 🔍 to view it full size.' }));
 
   const list = el('div', { class: 'suggested-patterns-list' });
   for (const pat of patterns) {
