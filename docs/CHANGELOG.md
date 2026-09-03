@@ -3,6 +3,17 @@
 All notable changes to this project. Format: date, then bullet list.
 Keep this in sync with `PLAN.md` as stages complete.
 
+## v1.58.2 (2026-09-03)
+
+- **Fix: a "Group & Shrink" miniature still looked broken when one of its
+  members had a self-loop message** (e.g. a lifeline sending itself a
+  message) — the self-loop's own normal-sized path, arrowhead, and label
+  rendered at full scale regardless of how tiny the miniature itself was,
+  spilling out well past its frame. Self-loop edges are now hidden while
+  their anchor is showing a live `shrinkThumbnail` composite, the same
+  treatment already given to edges purely internal to the group — still
+  fully visible in the 🔍 zoom-in drill-down, unaffected.
+
 ## v1.58.1 (2026-09-03)
 
 - **Fix: suggested flow diagrams appeared full-size next to the component they

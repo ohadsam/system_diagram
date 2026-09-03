@@ -511,9 +511,14 @@ two features turned out to overlap almost entirely once researched.
   anchor instead — an external connection to a shrunk group now visually
   terminates at the placeholder rather than disappearing. An edge collapsing
   onto the *same* placeholder from two *different* original endpoints (i.e.
-  purely internal to the group) is hidden entirely; a genuine self-loop
-  (`edge.from === edge.to` already, before any redirection) is deliberately
-  excluded from that check and renders normally. The anchor node itself
+  purely internal to the group) is hidden entirely. A genuine self-loop
+  (`edge.from === edge.to` already, before any redirection) is *also* hidden
+  whenever its anchor is actually drawing a live `shrinkThumbnail` composite
+  (`shrinkThumbnailByAnchorId.has(fromId)`) — its own normal-sized
+  path/arrowhead/label has no room at a miniature's tiny footprint and would
+  spill out past it; a solo/degenerate anchor with no composite to show
+  (every other member since deleted) still renders it normally, unaffected.
+  The anchor node itself
   gets **no special class or outline of its own** — but its *face* is
   replaced by a small live composite of every member's own box, icon and
   connecting lines (`canvas/shrinkThumbnail.js#computeShrinkThumbnail` +

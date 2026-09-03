@@ -2,9 +2,16 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.58.1';
+export const APP_VERSION = '1.58.2';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.58.2',
+    date: '2026-09-03',
+    highlights: [
+      '📦 "Group & Shrink" miniatures no longer show an oversized, overflowing self-message arrow/label for a lifeline that talks to itself — it stays hidden (still visible in the 🔍 zoom-in view) so the miniature itself stays clean at any size.',
+    ],
+  },
   {
     version: '1.58.1',
     date: '2026-09-03',

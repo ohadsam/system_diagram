@@ -1,7 +1,20 @@
 import { test, expect } from '@playwright/test';
 import {
-  dismissHints, addComponentByName, nodeCount, dragNodeBy,
+  dismissHints, addComponentByName, nodeCount, edgeCount, dragNodeBy, openToolbarGroup, connectAtHeight,
 } from './helpers.js';
+
+async function createSequenceDiagram(page, names) {
+  await openToolbarGroup(page, 'Create');
+  await page.locator('#toolbar button', { hasText: 'Sequence Diagram' }).click();
+  const rows = page.locator('.sequence-participant-list .field-row input');
+  for (let i = 0; i < names.length; i++) {
+    if (i >= (await rows.count())) {
+      await page.locator('.sequence-diagram-modal button', { hasText: '+ Add participant' }).click();
+    }
+    await page.locator('.sequence-participant-list .field-row input').nth(i).fill(names[i]);
+  }
+  await page.locator('.sequence-diagram-modal button', { hasText: '🔀 Create' }).click();
+}
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/index.html');
@@ -78,6 +91,30 @@ test('right-click on a multi-selection offers a plain "Group" item alongside "Gr
   // Still grouped — clicking one member selects both.
   await nodes.nth(0).click({ force: true });
   await expect(page.locator('.node.selected')).toHaveCount(2);
+});
+
+test('a self-loop message belonging to a shrunk group is hidden while the miniature is showing, and reappears full-size once expanded or zoomed in', async ({ page }) => {
+  await createSequenceDiagram(page, ['Client', 'Server']);
+  const nodes = page.locator('.node[data-shape="lifeline"]');
+  await connectAtHeight(page, nodes.nth(0), nodes.nth(0), 0.3, 0.5);
+  await expect.poll(() => edgeCount(page)).toBe(1);
+  await expect(page.locator('.edge')).toBeVisible();
+
+  await nodes.nth(0).click({ force: true });
+  await nodes.nth(1).click({ force: true, modifiers: ['Shift'] });
+  await nodes.nth(0).click({ button: 'right', force: true });
+  await page.locator('.context-menu-item', { hasText: 'Group & Shrink' }).click();
+
+  // The self-loop's own path/arrowhead/label would otherwise render at
+  // normal size regardless of how tiny the anchor's own miniature footprint
+  // is — hidden instead so nothing spills outside the small composite.
+  await expect(page.locator('.node:visible')).toHaveCount(1);
+  await expect(page.locator('.edge')).toBeHidden();
+
+  // Still there once expanded back to full size — hidden, not deleted.
+  await page.locator('.node:visible').click({ button: 'right', force: true });
+  await page.locator('.context-menu-item', { hasText: 'Expand' }).click();
+  await expect(page.locator('.edge')).toBeVisible();
 });
 
 test('the zoom button opens a read-only preview of both grouped components', async ({ page }) => {

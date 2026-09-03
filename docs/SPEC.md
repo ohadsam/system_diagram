@@ -407,8 +407,11 @@ template's lifelines/messages instead of text when hovering one of those.
   "📌 Pin to side panel" option is the "view it large in a side panel" path
   for a shrunk group specifically. An external connector to a now-hidden
   member is redirected to visually terminate at the placeholder instead of
-  vanishing; an edge purely internal to the shrunk group is hidden (not a
-  genuine self-loop, which still renders normally at the placeholder).
+  vanishing; an edge purely internal to the shrunk group is hidden. A
+  genuine self-loop (e.g. a lifeline's own self-message) is hidden too while
+  the placeholder is showing its live composite — its own normal-sized
+  path/label has no room at a small miniature and would spill out past it —
+  still fully visible in the 🔍 zoom-in view.
   Right-clicking the placeholder itself offers "🔎 Expand" (restores every
   member to full size, keeping the group) and "✂️ Ungroup" (dissolves the
   group *and* restores full size — the same label as plain Ungroup above,

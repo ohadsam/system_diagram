@@ -583,14 +583,28 @@ export function render(state) {
     }
     // Both ends collapsed onto the *same* placeholder from two originally
     // *different* nodes — an edge purely internal to a shrunk group has
-    // nothing meaningful left to draw. Excludes a genuine self-loop
-    // (edge.from === edge.to already, e.g. a lifeline's own self-message or
-    // an ER self-referencing relationship — see erDiagramPatterns.spec.js/
-    // sequence-diagram.spec.js), which renders normally at the anchor if
-    // its owner happens to be a hidden member, same as any other edge
-    // redirected there. Hidden, not removed, so a real collapsed edge
-    // reappears instantly on Expand/Ungroup without waiting to be recreated.
-    if (fromId === toId && edge.from !== edge.to) {
+    // nothing meaningful left to draw. Hidden, not removed, so a real
+    // collapsed edge reappears instantly on Expand/Ungroup without waiting
+    // to be recreated.
+    //
+    // A genuine self-loop (edge.from === edge.to already, e.g. a lifeline's
+    // own self-message or an ER self-referencing relationship — see
+    // erDiagramPatterns.spec.js/sequence-diagram.spec.js) used to always
+    // render normally at the anchor regardless, on the reasoning that the
+    // anchor kept its own full, unscaled size — so a self-loop's normal
+    // path/arrowhead/label never overflowed it. That stopped being true
+    // once a shrunk anchor could also show a live shrinkThumbnail composite
+    // (canvas/shrinkThumbnail.js) at a footprint far smaller than a normal
+    // node (see attachSuggestedPatternAsMiniature's 84x60 miniature): the
+    // self-loop's own normal-sized rendering then spilled out well past the
+    // tiny box, looking broken rather than "shrunk." So a self-loop is now
+    // hidden too whenever its anchor is actually drawing that composite
+    // (`shrinkThumbnailByAnchorId.has(fromId)`) — implementation-detail
+    // message text/arrows have no room at miniature scale; the group's own
+    // name is still shown via its frame's `.group-bg-label`, and the full
+    // self-loop is still visible in the 🔍 zoom-in drill-down, which renders
+    // the group's real nodes/edges independently of this hiding.
+    if (fromId === toId && (edge.from !== edge.to || shrinkThumbnailByAnchorId.has(fromId))) {
       elRef.style.display = 'none';
       continue;
     }
