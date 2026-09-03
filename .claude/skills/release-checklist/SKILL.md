@@ -345,6 +345,25 @@ reports a wide, unrelated-looking spread of failures, check `ps aux` for another
 Playwright/Chromium process before spending time debugging any of them individually — kill or
 wait out the other run, then re-run clean.
 
+**A wide, unrelated-looking spread of e2e failures is not automatically "just resource
+contention" — check what the failing specs have in common before assuming it's the item above.**
+Changing `js/sidebar/search.js#nameMatchRank`'s ranking formula to a naive "prefix always beats
+substring" rule shipped briefly and broke ~10 specs across `context-row-modes`/`group-shrink`/
+`nav-tools-and-custom-group`/`state-machines-and-canvas-tools`/`liveCollaboration` — files with
+nothing to do with search — because they all call the shared `addComponentByName(page, 'Kafka')`
+test helper (`tests/e2e/helpers.js`), which searches-and-clicks-the-first-match; the new ranking
+put a same-prefixed sequence-diagram template ("Kafka Consumer-Group Rebalance") ahead of the
+actual "Apache Kafka" component, so the helper instantiated a whole lifeline cluster instead of
+one node, inflating those tests' own `nodeCount`/`edgeCount` assertions by many times the expected
+value. This looked exactly like the contention symptom above (many unrelated files, no obvious
+connection to what changed) but re-running in isolation reproduced it every time — the real
+tell isn't "does it reproduce alone," it's "do the failing specs share a common test *helper* call
+(`addComponentByName`, `dragNodeBy`, `connectNodes`, ...) whose behavior depends on whatever you
+just touched." Any change to a helper or to logic a helper transitively depends on (search/match
+ranking, default component placement, dialog auto-focus) needs the **full** suite re-run before
+shipping, specifically because its blast radius is invisible from reading the diff alone — grep
+`tests/e2e/*.spec.js` for the helper's name to see how many files are actually exposed to it.
+
 ## 10. Merge to main and push
 
 This repo's convention (established across every batch) is a **fast-forward merge**, not a PR:
