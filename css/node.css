@@ -869,3 +869,35 @@
   pointer-events: none;
   z-index: 5;
 }
+
+/* "Group & Shrink" anchor content (canvas/node.js#buildShrinkThumbnailBody,
+   canvas/shrinkThumbnail.js) — a small live composite of every grouped
+   member's own box/icon, replacing the anchor's normal face entirely while
+   shrunk. `pointer-events: none` (same convention as .node-standard's own
+   icon/label — see node.js's dblclick-fallthrough comment) so drag/select/
+   rename still land on the node itself, not this decorative overlay. */
+.node-shrink-thumbnail {
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.node-shrink-thumbnail-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.node-shrink-thumb-box {
+  stroke: var(--color-border-strong);
+  stroke-width: 1;
+}
+
+.node-shrink-thumb-edge {
+  stroke: var(--color-text-muted);
+  stroke-width: 1;
+}
+
+.node-shrink-thumb-icon {
+  pointer-events: none;
+}

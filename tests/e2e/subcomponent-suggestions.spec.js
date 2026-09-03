@@ -100,24 +100,28 @@ test('a component with curated flow-diagram suggestions shows the badge, and the
   await expect(page.locator('.suggested-pattern-name')).toContainText(['PKCE Authorization Flow']);
 });
 
-test('clicking a flow diagram\'s "+ Add" instantiates the whole template next to the component, and the suggestion stays available (it isn\'t a one-time attach)', async ({ page }) => {
+test('clicking a flow diagram\'s "+ Add" attaches it as a small collapsed indicator on the component (not a full-size diagram next to it), and the suggestion stays available (it isn\'t a one-time attach)', async ({ page }) => {
   await addComponentByName(page, 'OAuth / OIDC');
   await page.locator('.suggestion-banner-close').click();
   await page.locator('.node-suggestion-badge').click();
 
   await page.locator('.suggested-pattern-row', { hasText: 'PKCE Authorization Flow' }).locator('button', { hasText: '+ Add' }).click();
 
-  // The 1 OAuth node plus PKCE's 3 lifelines.
+  // The 1 OAuth node plus PKCE's 3 lifelines all exist in the DOM, but the
+  // pattern's own nodes are immediately collapsed into a single small
+  // "Group & Shrink" miniature (canvas.js#attachSuggestedPatternAsMiniature)
+  // instead of appearing at full size next to the OAuth node — that full-size
+  // "separate diagram" look was the literal bug this fixes.
   await expect.poll(() => nodeCount(page)).toBe(4);
   await expect(page.locator('.node[data-shape="lifeline"]')).toHaveCount(3);
+  await expect(page.locator('.node[data-shape="lifeline"]:visible')).toHaveCount(1);
+  await expect(page.locator('.node:visible', { hasText: 'OAuth / OIDC' }).locator('.node-shrink-thumbnail')).toHaveCount(0);
+  await expect(page.locator('.group-bg')).toHaveCount(1);
 
-  // Instantiating selects the new diagram's own (multi-node) lifelines
-  // instead (same as the placement-time banner), which closes the details
-  // panel entirely (see detailsPanel.js's `selection` subscriber — a
-  // multi-node selection always closes it). Reopening via the OAuth node's
-  // own badge confirms adding a flow diagram isn't a one-time "attach":
-  // it's still offered, unlike a sub-component that disappears from the
-  // list once attached.
-  await page.locator('.node', { hasText: 'OAuth / OIDC' }).locator('.node-suggestion-badge').click();
+  // The host node itself stays selected/focused (not the new miniature), so
+  // the details panel it was already open on simply keeps showing — adding a
+  // flow diagram isn't a one-time "attach": it's still offered right there,
+  // unlike a sub-component that disappears from the list once attached.
+  await expect(page.locator('.details-panel')).toHaveClass(/open/);
   await expect(page.locator('.suggested-pattern-row', { hasText: 'PKCE Authorization Flow' })).toBeVisible();
 });

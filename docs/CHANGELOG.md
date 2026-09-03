@@ -3,6 +3,31 @@
 All notable changes to this project. Format: date, then bullet list.
 Keep this in sync with `PLAN.md` as stages complete.
 
+## v1.58.1 (2026-09-03)
+
+- **Fix: suggested flow diagrams appeared full-size next to the component they
+  were "added to"**, reading as an unrelated second diagram rather than
+  something attached to that component. `canvas.js#attachSuggestedPatternAsMiniature`
+  (used by both the details panel's "+ Add" button and the placement-time
+  suggestion banner) now creates the pattern and immediately collapses it into
+  a "Group & Shrink" miniature, resized small and positioned overlapping the
+  host node's own corner, with the existing 🔍 zoom-in view as the "see it
+  full size" action. Dragging a pattern from the sidebar onto a node is
+  unchanged (still full size — a deliberate drag-drop placement, not an
+  implicit "add near this component").
+- **Fix: "Group & Shrink" placeholders rendered as a blank/pristine copy of
+  the anchor component**, giving no indication of what was actually grouped
+  inside. The anchor's face is now a small live composite of every member's
+  own box, icon and connecting lines, all scaled by the same ratio and laid
+  out to preserve their real relative positions
+  (`js/canvas/shrinkThumbnail.js#computeShrinkThumbnail`,
+  `js/canvas/node.js#buildShrinkThumbnailBody`) — so a shrunk group reads as
+  "the original components, just much smaller," not an empty stand-in.
+- **Fix: the right-click menu on a multi-selection had no plain "Group"
+  action** — only "Group & Shrink," even though grouping without collapsing
+  was already possible from the toolbar's contextual style row. Both are now
+  offered side by side in the context menu.
+
 ## v1.58.0 (2026-09-03)
 
 - **Configurable "Recently Used" sections** across the app, built on a new generic

@@ -34,10 +34,15 @@ test('"Group & Shrink" collapses a 2-component selection to one visible placehol
   await expect.poll(() => nodeCount(page)).toBe(2); // both still exist in the DOM
   const visibleNode = page.locator('.node:visible');
   await expect(visibleNode).toHaveCount(1); // only the anchor is shown
-  // The anchor gets no special class/outline of its own — it renders
-  // exactly as it did before shrinking (see canvas.js#render's own comment
-  // on the removed .node-shrunk-anchor class).
+  // The anchor gets no special class/outline of its own — the group's own
+  // frame is what signals "this is a collapsed group" — but its *face* is
+  // replaced by a small live composite of both members (canvas/node.js
+  // #buildShrinkThumbnailBody) instead of rendering exactly as it did
+  // before shrinking, so the placeholder still gives an at-a-glance
+  // indication of what's grouped inside it.
   await expect(visibleNode).not.toHaveClass(/node-shrunk-anchor/);
+  await expect(visibleNode.locator('.node-shrink-thumbnail')).toBeVisible();
+  await expect(visibleNode.locator('.node-shrink-thumb-box')).toHaveCount(2);
   // A real group frame now wraps just the one visible placeholder — the
   // same mechanism (and, with no custom name set, the same "N grouped"
   // fallback text) an ordinary 2+ member group's background already uses.
@@ -49,6 +54,30 @@ test('"Group & Shrink" collapses a 2-component selection to one visible placehol
   // The frame is snug around the one visible anchor (padded, not spanning
   // the hidden member's own original, far-away position).
   expect(frameBox.width).toBeLessThan(anchorBox.width + 100);
+});
+
+test('right-click on a multi-selection offers a plain "Group" item alongside "Group & Shrink" — grouping without collapsing', async ({ page }) => {
+  await addComponentByName(page, 'Kafka');
+  await addComponentByName(page, 'MongoDB');
+  const nodes = page.locator('.node');
+  await dragNodeBy(page, nodes.nth(1), 220, 0);
+  await selectBoth(page);
+  await nodes.nth(0).click({ button: 'right', force: true });
+
+  // Both actions are offered side by side — "Group" (groupSelection, until
+  // now only reachable from the toolbar's contextual style row) and "Group &
+  // Shrink" (groupAndShrinkSelection) — since they serve different intents.
+  await expect(page.locator('.context-menu-item', { hasText: 'Group' })).toHaveCount(2);
+  await page.locator('.context-menu-item').filter({ has: page.locator('span:text-is("Group")') }).click();
+
+  // Both members stay fully visible and full size — no shrink happened.
+  await expect(page.locator('.node:visible')).toHaveCount(2);
+  await expect(page.locator('.group-bg')).toHaveCount(1);
+  await expect(page.locator('.node-shrink-thumbnail')).toHaveCount(0);
+
+  // Still grouped — clicking one member selects both.
+  await nodes.nth(0).click({ force: true });
+  await expect(page.locator('.node.selected')).toHaveCount(2);
 });
 
 test('the zoom button opens a read-only preview of both grouped components', async ({ page }) => {

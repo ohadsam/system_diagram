@@ -119,9 +119,10 @@ function buildRow(label, items, buildButton) {
  *   chosen layer's id when its "attach" button is clicked
  * @param {(patternDefId: string) => void} callbacks.onAddPattern called with
  *   the chosen sequence-diagram template's id when its button is clicked —
- *   instantiates the whole template next to this node (canvas.js
- *   #instantiatePatternNearNode), not attached as a sub-component the way
- *   a layer is.
+ *   instantiates the whole template and collapses it into a small "Group &
+ *   Shrink" miniature attached to this node (canvas.js
+ *   #attachSuggestedPatternAsMiniature), not attached as a sub-component the
+ *   way a layer is.
  */
 export function showSuggestionsFor(def, node, { onAddComponent, onAddLayer, onAddPattern }) {
   if (!getLibrarySettings().suggestionsEnabled) return;

@@ -248,12 +248,19 @@ or more built-in **flow diagrams** (sequence-diagram templates, e.g.
 OAuth/OIDC → its PKCE Authorization Flow; Authorization → the RBAC and ABAC
 Authorization Check flows) genuinely central to what the placed component
 does. Curated via `relatedPatterns` (ids of `kind: 'pattern'` components —
-see "Sequence Diagrams", 4.9). Clicking one instantiates the whole grouped
-template positioned next to the placed node, the same as dragging it from
-the sidebar, rather than attaching onto the node the way a sub-component
-does — so, unlike a sub-component, a flow-diagram suggestion is never
-"used up": it stays offered even after being added, since drawing the same
-flow again nearby is a normal, repeatable action.
+see "Sequence Diagrams", 4.9). Clicking one instantiates the whole
+template's nodes and immediately collapses them into a small "Group &
+Shrink" miniature (4.13) positioned overlapping the placed node's own
+bottom-right corner — a real, full-size flow diagram appearing right next
+to the component it was "added to" read as an unrelated second diagram,
+not an attached indicator, so it's shown small instead, exactly as any
+other Group & Shrink placeholder (a live scaled composite of the flow's
+own nodes, its group frame, and a 🔍 zoom-in button that opens the same
+read-only drill-down, big and clear, "Pin to side panel" included) rather
+than at full size (`canvas.js#attachSuggestedPatternAsMiniature`). Unlike
+attaching a sub-component, it's never "used up": it stays offered even
+after being added, since drawing the same flow again nearby is a normal,
+repeatable action.
 
 **Revisiting sub-component suggestions later** (4.6): the placement-time
 banner is easy to miss or dismiss, and a node loaded from a saved project
@@ -365,30 +372,41 @@ template's lifelines/messages instead of text when hovering one of those.
   both act on the whole current selection — components, connectors, or a
   mix — in one step/undo entry.
 - **Group / Ungroup**: with 2+ components selected, the 🔗 "Group" button
-  ties them together — clicking (or dragging) any one member afterwards
-  selects/moves the whole group as a unit. The ✂️ "Ungroup" button (shown
-  whenever the selection includes a grouped component) releases them back
-  to independent components. Duplicating a grouped selection gives the
-  copies their own new group, independent of the original. A group of 2+
-  members shows the same dashed background boundary described in 4.14 for
-  a replication side.
-- **Group & Shrink**: right-click a member of a 2+ selection and choose
-  "Group & Shrink" to group it (same mechanism as above, always a fresh
+  (in the toolbar's contextual style row, *and* — same action — the
+  right-click context menu's own "Group" item) ties them together —
+  clicking (or dragging) any one member afterwards selects/moves the whole
+  group as a unit. The ✂️ "Ungroup" button (shown whenever the selection
+  includes a grouped component) releases them back to independent
+  components. Duplicating a grouped selection gives the copies their own
+  new group, independent of the original. A group of 2+ members shows the
+  same dashed background boundary described in 4.14 for a replication
+  side.
+- **Group & Shrink**: right-click a 2+ selection and choose "Group & Shrink"
+  (offered right alongside the plain "Group" item above, since the two
+  serve different intents — one keeps every member full size, the other
+  collapses them) to group it (same mechanism as above, always a fresh
   group) *and* collapse it down to the on-screen footprint of one ordinary
   component — the topmost-then-leftmost member becomes the visible
   placeholder ("anchor"); every other member gets hidden (`display: none`,
   reclaiming its footprint entirely, unlike Focus Mode's or Diagram
-  Animation's own opacity-only dimming) rather than merely dimmed. The
-  anchor itself renders with no special treatment at all — exactly as it
-  looked before being grouped — and is instead wrapped in the same dashed
-  group-background frame described just above for any other 2+ member
-  group (padded to just the anchor's own rect, so the frame is sized like a
-  small group of one, not spanning where the hidden members used to sit),
-  with the same "N grouped" label and a 🔍 zoom-in button that opens the
-  exact same read-only drill-down preview a sequence-diagram group already
-  has (4.15) — that view is generic (keyed only on `groupId`), so it needed
-  no changes to support this. An external connector to a now-hidden member
-  is redirected to visually terminate at the placeholder instead of
+  Animation's own opacity-only dimming) rather than merely dimmed. Instead
+  of rendering its own normal face, the anchor shows a small live composite
+  of every member's own box, icon and connecting lines, scaled by a single
+  shared ratio and laid out to preserve their real relative positions
+  (`canvas/shrinkThumbnail.js#computeShrinkThumbnail`,
+  `canvas/node.js#buildShrinkThumbnailBody`) — so the placeholder reads as
+  "the original components, just shrunk," not a blank stand-in, without
+  affecting the anchor's own on-canvas size. It's wrapped in the same
+  dashed group-background frame described just above for any other 2+
+  member group (padded to just the anchor's own rect, so the frame is
+  sized like a small group of one, not spanning where the hidden members
+  used to sit), with the same "N grouped" label and a 🔍 zoom-in button
+  that opens the exact same read-only drill-down preview a sequence-diagram
+  group already has (4.15) — that view is generic (keyed only on
+  `groupId`), so it needed no changes to support this, and its own
+  "📌 Pin to side panel" option is the "view it large in a side panel" path
+  for a shrunk group specifically. An external connector to a now-hidden
+  member is redirected to visually terminate at the placeholder instead of
   vanishing; an edge purely internal to the shrunk group is hidden (not a
   genuine self-loop, which still renders normally at the placeholder).
   Right-clicking the placeholder itself offers "🔎 Expand" (restores every

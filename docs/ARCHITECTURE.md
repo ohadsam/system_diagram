@@ -514,10 +514,14 @@ two features turned out to overlap almost entirely once researched.
   purely internal to the group) is hidden entirely; a genuine self-loop
   (`edge.from === edge.to` already, before any redirection) is deliberately
   excluded from that check and renders normally. The anchor node itself
-  gets **no special class or styling of its own** — it renders exactly as
-  it looked before being shrunk. Instead, the shrunk group reuses the exact
-  same `renderGroupBackgrounds` pass every other 2+ member group and
-  replication side already goes through (see the Group/Ungroup section
+  gets **no special class or outline of its own** — but its *face* is
+  replaced by a small live composite of every member's own box, icon and
+  connecting lines (`canvas/shrinkThumbnail.js#computeShrinkThumbnail` +
+  `canvas/node.js#buildShrinkThumbnailBody` — see the redesign note below
+  for why a later batch replaced the original "renders exactly as it looked
+  before being shrunk" behavior with this). Separately, the shrunk group
+  reuses the exact same `renderGroupBackgrounds` pass every other 2+ member
+  group and replication side already goes through (see the Group/Ungroup section
   above): `computeGroupBounds` gets a shrunk group's `groupId` added to its
   `oneMemberOkGroupIds` set (lifting the regular "2+ members" floor to 1,
   the same way `replicatedGroupIds` already does, since a shrunk group's
@@ -528,7 +532,8 @@ two features turned out to overlap almost entirely once researched.
   — `computeGroupBounds` itself has no notion of a hidden node, so without
   this override the box would span every member's original position,
   including a hidden one's own stale, possibly far-away spot. The result:
-  the placeholder is the size and appearance of one ordinary component,
+  the placeholder is the size of one ordinary component (its *content* now
+  the shrink-thumbnail composite described above, not its own normal face),
   wrapped in the same dashed frame/label language as any other group — see
   the redesign note below for why this replaced an earlier, node-level
   badge-overlay approach.
@@ -572,7 +577,13 @@ two features turned out to overlap almost entirely once researched.
   offered only when the right-clicked node is part of a *current*
   multi-selection (2+ items) — `groupAndShrinkMenuItem`, the same gating
   `selectionAnimationMenuItem` already established for "act on the whole
-  selection, not just this one item." Right-clicking a shrunk placeholder
+  selection, not just this one item." A plain "Group" item
+  (`groupMenuItem`, identical gating, calling the pre-existing
+  `groupSelection`) sits right alongside it — until a later batch's bug
+  report, `groupSelection` was reachable only from the toolbar's contextual
+  style row's own 🔗 button, so the right-click menu offered a way to
+  group-and-collapse but no way to just group without collapsing.
+  Right-clicking a shrunk placeholder
   itself instead offers "🔎 Expand" (clears `shrunkAnchorId` for every
   member, keeping `groupId`) and "✂️ Ungroup" (clears both — a dissolved
   group leaves nothing left for a later Expand to target, so this has to
@@ -662,6 +673,33 @@ own `ltr` rule — inline styles always win — and falls back to whatever the
 ambient direction actually is, same as if the label had no direction rule
 of its own at all). Worth remembering for any other label that mixes
 always-English computed text with free-form user text in the same element.
+
+**Second redesign note — the "pristine anchor" decision above (task #364)
+was itself later reverted in favor of a live composite, once live-testing
+turned up that it gave no visual indication of what's actually inside a
+shrunk group.** `canvas/shrinkThumbnail.js#computeShrinkThumbnail(members,
+edges, targetW, targetH)` is a pure, DOM-free function mirroring
+`core/patternThumbnailLayout.js`'s existing box+edge geometry (already used
+for the template gallery's own hover-preview SVGs), but built from a
+group's real, *live* member nodes (actual x/y/w/h/icon/fill) rather than a
+static pattern template's fixed dx/dy offsets, and scaled — a single shared
+ratio (`Math.min` of the width-fit and height-fit ratios, never a different
+ratio per axis, so nothing looks stretched) plus a small fixed padding and
+centering offset — to fit whatever the anchor's own current w/h happens to
+be, rather than a fixed thumbnail size. `canvas/node.js#buildShrinkThumbnailBody`
+turns that into an actual `<svg>` (`<rect>`/`<text>`/`<line>` elements via
+`utils/dom.js#svgEl`, the same convention `templateGalleryModal.js#buildThumbnail`
+already established) and `updateNodeEl` swaps it in for the anchor's normal
+`buildStandardBody`/`buildRowsBody` content whenever `canvas.js#render`
+passes it a non-null `shrinkThumbnail` (computed once per shrunk anchor from
+that anchor's own live member list + the edges strictly between two
+members — an edge to something *outside* the group is already redirected
+onto the anchor elsewhere in `render`, so including it here too would
+double-draw it). Every piece of the composite is `pointer-events: none`,
+the same convention `.node-standard`'s own icon/label already use, so
+drag/select/double-click-to-rename still land on the node itself rather
+than being eaten by this decorative content. Purely derived/display —
+nothing about it is persisted, so it can't go stale and needs no migration.
 
 ### Canvas right-click quick actions (`canvas.js#openCanvasContextMenu`)
 
@@ -824,28 +862,58 @@ OIDC" offers "OAuth Handshake" and "PKCE Authorization Flow".
 `canvas/suggestions.js#showSuggestionsFor` reads it via
 `data/index.js#getRelatedPatterns` and renders a "🔀 Sequence diagrams for
 X" row alongside the existing companion-component and attach-a-layer rows;
-accepting one calls `canvas.js#instantiatePatternNearNode(patternDefId,
+accepting one calls `canvas.js#attachSuggestedPatternAsMiniature(patternDefId,
 nodeId)` — **not** `onAddLayer`, since a pattern isn't attached onto the
-node the way a layer is, it's instantiated as its own separate grouped
-diagram beside it.
+node the way a layer is, it's instantiated as its own grouped diagram, just
+collapsed to a small "Group & Shrink" miniature (see just below) overlapping
+the node's own corner instead of sitting beside it at full size.
 
-`instantiatePatternNearNode` is also what a pattern sidebar item dropped
-directly onto an existing node now does (`sidebar/dragSource.js` — same
-hover-highlight affordance the drag-a-layer-onto-a-node flow already has,
-`.pattern-drop-target` instead of `.layer-drop-target`, a solid purple
+**`attachSuggestedPatternAsMiniature` fixes a real reported bug**: a
+full-size flow diagram materializing right next to the component it was
+"added to" read as an unrelated second diagram dropped on the canvas, not
+as something attached to that component — especially jarring for a small
+host node next to a multi-lifeline sequence template several times its
+size. It calls the same `instantiatePatternAtPoint` core as
+`instantiatePattern`/`instantiatePatternNearNode` (with a new `{ silent:
+true }` option that skips that function's own toast *and* its own
+`store.select` — the latter matters because a multi-node selection would
+otherwise close the details panel this is usually invoked from, before this
+function gets to make its own final selection), then immediately shrinks
+the result: picks an anchor (a pattern that itself declares
+`startShrunk`/`shrinkAnchorKey` keeps that choice; otherwise the same
+"topmost, then leftmost" tie-break `groupAndShrinkSelection` uses),
+translates *every* newly created node by the same (dx, dy) offset to land
+the anchor overlapping the host's bottom-right corner (translating only the
+anchor while leaving the rest at their far-away creation position would
+corrupt `shrinkThumbnail.js`'s bounding-box math the moment the group is
+later expanded), resizes just the anchor to a small fixed footprint, and
+assigns a fresh `groupId`/`shrunkAnchorId` to the whole set — the exact
+same fields `groupAndShrinkSelection` sets for a manual Group & Shrink, so
+every downstream mechanism (rendering, the 🔍 zoom-in, Expand/Ungroup,
+save-as-custom-component) needs no special-casing for how a shrunk group
+came to exist. It finishes by re-selecting the **host** node, not the new
+anchor, so a details panel already open (the common case — this is
+triggered from its own "+ Add" button) stays open on the host instead of
+jumping to the anchor.
+
+`instantiatePatternNearNode` (unchanged) is still what a pattern sidebar
+item dropped directly onto an existing node does (`sidebar/dragSource.js` —
+same hover-highlight affordance the drag-a-layer-onto-a-node flow already
+has, `.pattern-drop-target` instead of `.layer-drop-target`, a solid purple
 outline instead of the layer row's dashed green to read as a visually
-distinct kind of drop). Positioning it correctly needs more than a flat
-pixel offset from the target node's right edge: `instantiatePatternAtPoint`
-(the refactored-out core of `instantiatePattern`, now shared by both the
-screen-space and canvas-space-point call paths) places each pattern node at
-`center.x + spec.dx - w/2`, so the template's own *leftmost real edge*
-relative to its own center can be well left of `dx = 0` depending on how
-many lifelines it has and how wide they are — a fixed margin computed
-without accounting for that undershoots for a wider template and
-overshoots for a narrower one. `instantiatePatternNearNode` instead computes
-each pattern's actual leftmost edge (`min(spec.dx - w/2)` over its own
-nodes) and solves for the center point that clears the target node's right
-edge by a fixed margin regardless of the template's shape.
+distinct kind of drop) — a deliberate drag-and-drop placement keeps its
+full size, only the *suggestion* button's implicit placement gets shrunk.
+Positioning it correctly needs more than a flat pixel offset from the
+target node's right edge: `instantiatePatternAtPoint` (the refactored-out
+core of `instantiatePattern`, shared by every call path above) places each
+pattern node at `center.x + spec.dx - w/2`, so the template's own *leftmost
+real edge* relative to its own center can be well left of `dx = 0`
+depending on how many lifelines it has and how wide they are — a fixed
+margin computed without accounting for that undershoots for a wider
+template and overshoots for a narrower one. `instantiatePatternNearNode`
+instead computes each pattern's actual leftmost edge (`min(spec.dx - w/2)`
+over its own nodes) and solves for the center point that clears the target
+node's right edge by a fixed margin regardless of the template's shape.
 
 **`relatedPatterns` also has a persistent surface, not just the
 placement-time banner.** `canvas/suggestions.js#getPatternSuggestionsForNode`
@@ -856,7 +924,7 @@ list. `hasSuggestions(node)` ORs both kinds together to drive
 no `relatedLayers`, like "OAuth / OIDC", still gets one), and
 `panel/detailsPanel.js` renders it as an independent "🔀 Suggested flow
 diagrams" section below "💡 Suggested sub-components" — each entry gets its
-own one-click "+ Add" button (`instantiatePatternNearNode`) rather than the
+own one-click "+ Add" button (`attachSuggestedPatternAsMiniature`) rather than the
 layer section's shared checkbox-list-plus-"Add selected" control, since
 there's no multi-select "attach all" concept for something that isn't
 attached at all. One thing to know if extending this: instantiating selects

@@ -10,7 +10,7 @@ import { textInput, field, selectInput, checkbox, numberInput } from '../utils/f
 import { formatMonthlyCost } from '../core/cost.js';
 import { LAYER_DATALIST_ID, ensureLayerDatalist, findLayerByName } from '../utils/layerDatalist.js';
 import { SUBCOMPONENTS_DISPLAY_MODES } from '../core/project.js';
-import { getReplicationInfoForNode, computeMessageSequenceNumbers, instantiatePatternNearNode } from '../canvas/canvas.js';
+import { getReplicationInfoForNode, computeMessageSequenceNumbers, attachSuggestedPatternAsMiniature } from '../canvas/canvas.js';
 import { getUnattachedLayerSuggestions, getPatternSuggestionsForNode } from '../canvas/suggestions.js';
 import { readJSON, writeJSON } from '../io/storage.js';
 import { openGroupExplanationModal } from '../modals/groupExplanationModal.js';
@@ -491,8 +491,8 @@ function renderSuggestedPatterns(node) {
       type: 'button',
       class: 'btn btn-secondary btn-sm',
       text: '+ Add',
-      title: `Add the "${pat.name}" flow diagram next to this component`,
-      onClick: () => instantiatePatternNearNode(pat.id, node.id),
+      title: `Add the "${pat.name}" flow diagram as a small indicator on this component (click 🔍 to view it full size)`,
+      onClick: () => attachSuggestedPatternAsMiniature(pat.id, node.id),
     }));
     list.appendChild(row);
   }

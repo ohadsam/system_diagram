@@ -3,9 +3,10 @@
 // row edit, info/menu buttons) are wired here and dispatch to the store
 // directly since they involve no pointer-move gesture state.
 import * as store from '../core/store.js';
-import { el, clear } from '../utils/dom.js';
+import { el, clear, svgEl } from '../utils/dom.js';
 import { hasSuggestions } from './suggestions.js';
 import { formatMonthlyCost } from '../core/cost.js';
+import { computeShrinkThumbnail } from './shrinkThumbnail.js';
 
 let handlers = {
   onSelect: () => {},
@@ -201,7 +202,7 @@ export function createNodeEl(node) {
   return root;
 }
 
-export function updateNodeEl(rootEl, node, { selected = false, replicated = false, replicationFrozen = false, lintMessages = null } = {}) {
+export function updateNodeEl(rootEl, node, { selected = false, replicated = false, replicationFrozen = false, lintMessages = null, shrinkThumbnail = null } = {}) {
   rootEl.dataset.shape = node.shape;
   rootEl.style.left = `${node.x}px`;
   rootEl.style.top = `${node.y}px`;
@@ -343,7 +344,9 @@ export function updateNodeEl(rootEl, node, { selected = false, replicated = fals
 
   if (!editingInternalLabel) {
     clear(body);
-    if (node.shape === 'rows') {
+    if (shrinkThumbnail) {
+      body.appendChild(buildShrinkThumbnailBody(node, shrinkThumbnail));
+    } else if (node.shape === 'rows') {
       body.appendChild(buildRowsBody(node));
     } else {
       body.appendChild(buildStandardBody(node));
@@ -373,6 +376,39 @@ function buildIconEl(node) {
   if (node.iconImage) return el('img', { class: 'node-icon node-icon-image', src: node.iconImage, alt: '', draggable: false });
   if (node.icon) return el('div', { class: 'node-icon', text: node.icon });
   return null;
+}
+
+/** "Group & Shrink" anchor content: a small live composite of every member's
+ * icon+color, scaled and arranged to preserve their real relative layout
+ * (canvas/shrinkThumbnail.js), instead of the anchor's own normal face —
+ * this is what actually gives an at-a-glance "here's what's grouped in
+ * here" indication (see docs/ARCHITECTURE.md's "Group & Shrink miniature"
+ * section for why the earlier "pristine node, frame only" design didn't).
+ * Every piece is `pointer-events: none` (css/node.css), same as
+ * `.node-standard`'s own icon/label, so drag/select/dblclick-rename still
+ * land on the node itself rather than being eaten by this decorative
+ * content. Purely visual/derived — nothing here is persisted. */
+function buildShrinkThumbnailBody(node, { members, edges }) {
+  const wrap = el('div', { class: 'node-shrink-thumbnail', title: `${members.length} components grouped — click the group frame's 🔍 to view them at full size` });
+  const { boxes, lines } = computeShrinkThumbnail(members, edges, node.w, node.h);
+  const svg = svgEl('svg', { class: 'node-shrink-thumbnail-svg', viewBox: `0 0 ${node.w} ${node.h}`, preserveAspectRatio: 'none' });
+  for (const line of lines) {
+    svg.appendChild(svgEl('line', { x1: line.x1, y1: line.y1, x2: line.x2, y2: line.y2, class: 'node-shrink-thumb-edge' }));
+  }
+  for (const box of boxes) {
+    svg.appendChild(svgEl('rect', { x: box.x, y: box.y, width: box.w, height: box.h, rx: 2, class: 'node-shrink-thumb-box', style: `fill:${box.fill};` }));
+    if (box.icon) {
+      const fontSize = Math.max(5, Math.min(box.h * 0.6, box.w * 0.6, 14));
+      const icon = svgEl('text', {
+        x: box.x + box.w / 2, y: box.y + box.h / 2 + fontSize * 0.35, 'text-anchor': 'middle',
+        class: 'node-shrink-thumb-icon', style: `font-size:${fontSize}px;`,
+      });
+      icon.textContent = box.icon;
+      svg.appendChild(icon);
+    }
+  }
+  wrap.appendChild(svg);
+  return wrap;
 }
 
 function buildStandardBody(node) {

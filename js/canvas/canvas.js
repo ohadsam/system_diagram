@@ -480,10 +480,28 @@ export function render(state) {
   const anchorByHiddenId = new Map();
   const shrunkGroupIds = new Set();
   const shrunkAnchorByGroupId = new Map();
+  // What canvas/node.js actually draws *inside* a shrunk anchor's own face
+  // instead of its normal icon/label — a live miniature of every member's
+  // box+icon (canvas/shrinkThumbnail.js), not just the anchor's own
+  // appearance, so "shrunk" reads as "here's a small preview of what's
+  // grouped in here" rather than hiding that information entirely (see
+  // docs/ARCHITECTURE.md's "Group & Shrink miniature" section for why the
+  // previous "pristine node, frame only" design didn't give any indication).
+  // Only every member's real, current x/y/w/h/icon/fill and the edges
+  // strictly between two members are used — an edge to something outside
+  // the group is already redirected onto the anchor itself elsewhere below,
+  // so including it here too would double-draw it.
+  const shrinkThumbnailByAnchorId = new Map();
   for (const [anchorId, memberIds] of shrunkGroups) {
     for (const id of memberIds) { hiddenNodeIds.add(id); anchorByHiddenId.set(id, anchorId); }
     const anchorNode = nodesById.get(anchorId);
     if (anchorNode?.groupId) { shrunkGroupIds.add(anchorNode.groupId); shrunkAnchorByGroupId.set(anchorNode.groupId, anchorNode); }
+    if (!memberIds.length) continue; // a degenerate solo anchor (every other member since deleted) has nothing to preview
+    const allIds = new Set([anchorId, ...memberIds]);
+    const members = [...allIds].map((id) => nodesById.get(id)).filter(Boolean);
+    if (members.length < 2) continue;
+    const memberEdges = state.edges.filter((e) => allIds.has(e.from) && allIds.has(e.to));
+    shrinkThumbnailByAnchorId.set(anchorId, { members, edges: memberEdges });
   }
   // Bounds/count still come from *every* member (as for any other group —
   // computeGroupBounds itself is unaware anything is hidden, so a shrunk
@@ -527,15 +545,17 @@ export function render(state) {
       replicated: !!node.groupId && replicatedGroupIds.has(node.groupId),
       replicationFrozen: !!node.groupId && frozenGroupIds.has(node.groupId),
       lintMessages: lintMessagesByNodeId?.get(node.id) || null,
+      shrinkThumbnail: shrinkThumbnailByAnchorId.get(node.id) || null,
     });
     // Reclaims the hidden member's on-canvas footprint entirely (unlike the
     // opacity-only `.dimmed`/`.anim-hidden` classes Focus Mode/Diagram
     // Animation use elsewhere) — real `display: none`, same technique
-    // hideExcept() already uses for isolated group image export. The
-    // anchor itself gets no special class/outline of its own any more — it
-    // renders exactly as it did before being shrunk; the group's own frame
-    // (renderGroupBackgrounds, sized to just this rect) is what signals
-    // "this is a collapsed group" now, not a mark on the node itself.
+    // hideExcept() already uses for isolated group image export. The anchor
+    // itself gets no special outline/border of its own — the group's own
+    // frame (renderGroupBackgrounds, sized to just this rect) is what
+    // signals "this is a collapsed group"; its *face*, though, is replaced
+    // by the shrinkThumbnail composite above rather than rendering exactly
+    // as it did before being shrunk (see node.js#buildShrinkThumbnailBody).
     elRef.style.display = hiddenNodeIds.has(node.id) ? 'none' : '';
   }
 
@@ -1588,7 +1608,7 @@ export function createNodeFromDrop(defId, clientX, clientY) {
   showSuggestionsFor(def, node, {
     onAddComponent: (relDefId, offsetIndex) => addRelatedComponent(relDefId, node.id, offsetIndex),
     onAddLayer: (layerDefId) => addLayerToNode(layerDefId, node.id),
-    onAddPattern: (patternDefId) => instantiatePatternNearNode(patternDefId, node.id),
+    onAddPattern: (patternDefId) => attachSuggestedPatternAsMiniature(patternDefId, node.id),
   });
 }
 
@@ -1668,11 +1688,13 @@ export function instantiatePattern(defId, clientX, clientY) {
 
 /** Core of instantiatePattern, taking an already-canvas-space center point
  * instead of screen coordinates — shared by instantiatePattern (drop/click,
- * screen-space) and instantiatePatternNearNode (Smart Suggestions "Add this
- * sequence diagram" button, canvas-space relative to an existing node). */
-function instantiatePatternAtPoint(defId, point) {
+ * screen-space), instantiatePatternNearNode (sidebar drag-onto-node), and
+ * attachSuggestedPatternAsMiniature (Smart Suggestions "+ Add" button, which
+ * needs the raw created nodes back to shrink them, and suppresses this
+ * function's own toast in favor of its own more specific one). */
+function instantiatePatternAtPoint(defId, point, { silent = false } = {}) {
   const patternDef = resolveComponentDef(defId);
-  if (!patternDef?.pattern) return;
+  if (!patternDef?.pattern) return null;
 
   const state = store.getState();
   let z = nextZIndex(state);
@@ -1736,12 +1758,28 @@ function instantiatePatternAtPoint(defId, point) {
       endArrow: edgeSpec.endArrow || 'filled',
     }));
 
+  // A silent caller always follows up with its own dispatch right away
+  // (attachSuggestedPatternAsMiniature's own shrink/reposition one) — this
+  // one deliberately skips its own history commit, the same `{ coalesce:
+  // true }` idiom drag/resize gestures already use (nodeInteractions.js,
+  // waypointHandles.js) for "several dispatches, one undo step," so a single
+  // Undo removes the whole "added as a miniature" action in one step instead
+  // of first un-shrinking a stray full-size pattern.
   store.dispatch((draft) => {
     draft.nodes.push(...newNodes);
     draft.edges.push(...newEdges);
-  });
-  store.select(shrunkAnchorNodeId ? [shrunkAnchorNodeId] : newNodes.map((nd) => nd.id), []);
-  showToast(`Added the "${patternDef.name}" pattern (${newNodes.length} components).`, 'success', 2400);
+  }, { coalesce: silent });
+  // A silent caller (attachSuggestedPatternAsMiniature) still needs the
+  // freshly created nodes' own ids/positions back, but sets its own final
+  // selection itself once it's done repositioning/shrinking them — selecting
+  // here too would fire an extra (multi-node) selection change in between
+  // that a details-panel-open caller doesn't want to be visible even
+  // momentarily (e.g. it would close an already-open details panel).
+  if (!silent) {
+    store.select(shrunkAnchorNodeId ? [shrunkAnchorNodeId] : newNodes.map((nd) => nd.id), []);
+    showToast(`Added the "${patternDef.name}" pattern (${newNodes.length} components).`, 'success', 2400);
+  }
+  return { nodes: newNodes, edges: newEdges, shrunkAnchorNodeId };
 }
 
 export function instantiatePatternAtCenter(defId) {
@@ -1771,6 +1809,78 @@ export function instantiatePatternNearNode(defId, nodeId) {
     return spec.dx - w / 2;
   }));
   instantiatePatternAtPoint(defId, { x: node.x + node.w + MARGIN - leftmostEdge, y: node.y + node.h / 2 });
+}
+
+const SUGGESTED_MINIATURE_W = 84;
+const SUGGESTED_MINIATURE_H = 60;
+// How much of the miniature's own footprint overlaps onto the host node's
+// corner (rather than sitting fully outside it) — this, plus rendering it via
+// the same "Group & Shrink" thumbnail (canvas/shrinkThumbnail.js), is what
+// reads as "a small indicator attached to this component" instead of "a
+// separate diagram that happens to be nearby", without requiring literal DOM
+// nesting inside the host's own node box (this app's nodes are flat,
+// absolutely-positioned siblings — there's no such thing as "inside" another
+// node's DOM).
+const SUGGESTED_MINIATURE_OVERLAP = 0.35;
+
+/** Smart Suggestions' "+ Add" button (panel/detailsPanel.js#renderSuggestedPatterns)
+ * for a suggested flow diagram. Unlike instantiatePatternNearNode (which drops
+ * the pattern at full size next to the host node — the literal bug this fixes:
+ * a full-size flow diagram appearing next to a component it was "added to"
+ * looked like an unrelated second diagram, not an attached indicator), this
+ * creates the pattern and immediately collapses it into the existing "Group &
+ * Shrink" miniature (see shrinkThumbnail.js/node.js#buildShrinkThumbnailBody),
+ * resized small and positioned overlapping the host's bottom-right corner —
+ * so it reads as a small attached indicator, not a same-size sibling diagram,
+ * and its existing 🔍 zoom button (subDiagramModal.js) is the "view it large"
+ * action the user asked for, reused as-is. */
+export function attachSuggestedPatternAsMiniature(defId, hostNodeId) {
+  const hostNode = store.getState().nodes.find((n) => n.id === hostNodeId);
+  const patternDef = resolveComponentDef(defId);
+  if (!hostNode || !patternDef?.pattern) { instantiatePatternAtCenter(defId); return; }
+  const MARGIN = 60;
+  const result = instantiatePatternAtPoint(defId, { x: hostNode.x + hostNode.w + MARGIN, y: hostNode.y + hostNode.h / 2 }, { silent: true });
+  if (!result?.nodes.length) return;
+  const { nodes: newNodes, shrunkAnchorNodeId } = result;
+  // A pattern already saved shrunk (patternDef.startShrunk/shrinkAnchorKey —
+  // see instantiatePatternAtPoint) already designated its own anchor; honor
+  // that instead of overriding it with the generic tie-break below, same as
+  // groupAndShrinkSelection's own "topmost, then leftmost" pick for every
+  // other (undesignated) case.
+  const anchor = shrunkAnchorNodeId
+    ? newNodes.find((n) => n.id === shrunkAnchorNodeId)
+    : [...newNodes].sort((a, b) => (a.y - b.y) || (a.x - b.x))[0];
+  const targetX = hostNode.x + hostNode.w - SUGGESTED_MINIATURE_W * SUGGESTED_MINIATURE_OVERLAP;
+  const targetY = hostNode.y + hostNode.h - SUGGESTED_MINIATURE_H * SUGGESTED_MINIATURE_OVERLAP;
+  const dx = targetX - anchor.x;
+  const dy = targetY - anchor.y;
+  const groupId = nextId('group');
+  const newNodeIds = new Set(newNodes.map((n) => n.id));
+  store.dispatch((draft) => {
+    const z = nextZIndex(draft);
+    for (const n of draft.nodes) {
+      if (!newNodeIds.has(n.id)) continue;
+      // Translating every member together (not just the anchor) preserves
+      // their real relative layout — the shrink-thumbnail's own scaling math
+      // (shrinkThumbnail.js#computeShrinkThumbnail) depends on each member's
+      // actual x/y relative to the others, so moving only the anchor while
+      // leaving the rest at their original, far-away creation position would
+      // corrupt that bounding box the moment the group is later expanded.
+      n.x += dx;
+      n.y += dy;
+      n.groupId = groupId;
+      n.shrunkAnchorId = anchor.id;
+      if (n.id === anchor.id) { n.w = SUGGESTED_MINIATURE_W; n.h = SUGGESTED_MINIATURE_H; n.zIndex = z; }
+    }
+  });
+  // Keeps the host node selected (not the new anchor) — the user is
+  // typically mid-flow in the host's own details panel, adding one or more
+  // suggested flow diagrams in a row; jumping the selection to the newly
+  // created anchor would close/replace that panel on every click instead of
+  // letting them keep going (panel/detailsPanel.js's `selection` subscriber
+  // only reacts when a single *different* node is selected).
+  store.select([hostNode.id], []);
+  showToast(`Added the "${patternDef.name}" flow diagram as a small indicator — click 🔍 to view it full size.`, 'success', 2800);
 }
 
 /** Creates a fresh set of titled "lifeline" nodes for a sequence/
@@ -3059,14 +3169,29 @@ function openNodeContextMenu(nodeId, evt) {
       { label: 'Ungroup', icon: '✂️', onClick: () => dissolveShrunkGroup(node.groupId) },
     );
   } else {
+    const plainGroupItem = groupMenuItem(nodeId);
     const shrinkItem = groupAndShrinkMenuItem(nodeId);
-    if (shrinkItem) items.push('separator', shrinkItem);
+    if (plainGroupItem || shrinkItem) items.push('separator');
+    if (plainGroupItem) items.push(plainGroupItem);
+    if (shrinkItem) items.push(shrinkItem);
   }
   items.push('separator', animationMenuItem('node', nodeId));
   const groupItem = selectionAnimationMenuItem('node', nodeId);
   if (groupItem) items.push(groupItem);
   items.push({ label: 'Delete', icon: '🗑️', danger: true, onClick: () => { store.select([nodeId], []); deleteSelection(); } });
   showContextMenu(evt.clientX, evt.clientY, items);
+}
+
+/** "Group" (right-click): the plain, no-shrink grouping action — previously
+ * only reachable from the toolbar's contextual style row (🔗 icon), which
+ * meant the right-click menu offered "Group & Shrink" with no way to just
+ * group without collapsing. Same "act on the whole 2+ selection" gating as
+ * groupAndShrinkMenuItem just below; returns null for a single-node
+ * selection. */
+function groupMenuItem(nodeId) {
+  const sel = store.getSelection();
+  if (sel.nodeIds.length < 2 || !sel.nodeIds.includes(nodeId)) return null;
+  return { label: 'Group', icon: '🔗', onClick: groupSelection };
 }
 
 /** "Group & Shrink" (right-click): offered only when the right-clicked node

@@ -81,14 +81,16 @@ Or open `index.html` directly in a browser.
   components together as one selectable/movable unit — a group of 2+ (and
   each side of a Live Replication pair) shows a dismissible dashed
   background so it reads as one unit at a glance.
-- **📦 Group & Shrink** — right-click a 2+ selection to collapse it down to
-  the footprint of one component, looking exactly like it did before
-  shrinking, wrapped in a dashed group frame ("N grouped") with a 🔍
-  zoom-in button opening a read-only preview of everything folded inside.
-  Right-click the placeholder for "🔎 Expand" (back to full size, still
-  grouped) or "✂️ Ungroup" (dissolves it entirely) — saving a shrunk group
-  as a custom component remembers to reopen it shrunk next time. Any
-  group's frame (shrunk or not) can be given a custom name and color.
+- **📦 Group & Shrink** — right-click a 2+ selection (alongside a plain
+  "Group" item, for grouping without collapsing) to collapse it down to the
+  footprint of one component, showing a small live preview of the grouped
+  components' own icons and colors scaled down together, wrapped in a
+  dashed group frame ("N grouped") with a 🔍 zoom-in button opening a
+  read-only preview of everything folded inside. Right-click the placeholder
+  for "🔎 Expand" (back to full size, still grouped) or "✂️ Ungroup"
+  (dissolves it entirely) — saving a shrunk group as a custom component
+  remembers to reopen it shrunk next time. Any group's frame (shrunk or not)
+  can be given a custom name and color.
 - **Navigation tools** — a 🖱️ Select / ✋ Hand toolbar toggle (`H`/`V`
   shortcuts, or hold **Space**): Hand pans the canvas by dragging anywhere,
   even over a component, without moving or altering it.
@@ -111,14 +113,16 @@ Or open `index.html` directly in a browser.
   — and, where relevant, a second row of one-click sub-components to attach
   directly onto that node (Express → Controller/Middleware; React →
   Hook/Component; API Gateway → Authentication/Rate Limiter) — and, where
-  relevant, a third row suggesting a built-in flow diagram to add nearby
-  (OAuth/OIDC → its PKCE Authorization Flow; Authorization → the RBAC/ABAC
-  Authorization Check flows). Off switch in Default Settings for anyone who
-  doesn't want it. A component with any unattached sub-component or flow-
-  diagram suggestion keeps a small 💡 badge — click it any time to revisit
-  them in the details panel: check off any number of sub-components and
-  attach them all at once, or add any flow diagram with its own one-click
-  button (staying offered afterward, since adding one again is normal).
+  relevant, a third row suggesting a built-in flow diagram to attach as a
+  small collapsed indicator on that component (OAuth/OIDC → its PKCE
+  Authorization Flow; Authorization → the RBAC/ABAC Authorization Check
+  flows) — click its 🔍 any time to view the flow at full size. Off switch
+  in Default Settings for anyone who doesn't want it. A component with any
+  unattached sub-component or flow-diagram suggestion keeps a small 💡
+  badge — click it any time to revisit them in the details panel: check off
+  any number of sub-components and attach them all at once, or add any flow
+  diagram with its own one-click button (staying offered afterward, since
+  adding one again is normal).
 - **Connectors** — drag between components to draw arrows that anchor on
   whichever side actually makes sense between the two (not just whichever
   point you dragged from) with configurable routing (straight/elbow/curved,
