@@ -42,6 +42,19 @@ export const FRAGMENT_TYPES = ['alt', 'opt', 'loop', 'par', 'critical', 'break',
 // section. 'auto' fires on its own after `delayMs`; 'click' waits for the
 // presenter to advance manually (mouse click or a keyboard shortcut).
 export const ANIMATION_REVEAL_MODES = ['auto', 'click'];
+// How a step's own target(s) visually enter the canvas the moment they're
+// revealed during playback — see canvas.js#applyAnimationVisibility and
+// docs/ARCHITECTURE.md's "Diagram Animation" section. 'fade' is the
+// original, pure-opacity behavior every step already had before this field
+// existed, so it stays the default for both a brand-new step and an
+// older/imported project that predates this field. 'draw' (the line
+// visibly extends from start to end) only actually applies to an edge
+// target using the default *solid* border style — see
+// canvas.js#applyEdgeDrawEntrance for why a dashed/dotted connector's own
+// pattern would otherwise get clobbered — and silently behaves like 'fade'
+// for anything else (a node, or a dashed/dotted edge) rather than a broken
+// half-effect.
+export const ANIMATION_ENTRANCE_STYLES = ['fade', 'slide-up', 'zoom', 'draw'];
 // Safety cap on how many named animations one project can hold, and how
 // many targets one step can group together — generous enough that no real
 // use ever hits it, just a backstop against a malformed/hostile import file
@@ -140,6 +153,18 @@ export function createAnimationStep(targets, overrides = {}) {
     targets: Array.isArray(targets) ? targets : [targets],
     revealMode: 'click',
     delayMs: 2000,
+    // See ANIMATION_ENTRANCE_STYLES above.
+    entranceStyle: 'fade',
+    // How long (ms) after this step reveals before its own targets
+    // automatically hide themselves again — 0 (the default) means "stays
+    // revealed for the rest of the presentation," matching every step's
+    // behavior before this field existed. Independent of `revealMode`/
+    // `delayMs`, which only govern *advancing to the next step*: a step can
+    // freely be 'click' (the presenter advances manually) while still
+    // auto-hiding itself a few seconds after it appears (e.g. a transient
+    // "retry" arrow that shouldn't stay on screen once the point is made).
+    // See core/animationPlayback.js's expire-timer handling.
+    hideAfterMs: 0,
     // Presenter-only free text shown during playback (see
     // canvas/animationOverlay.js) — never part of the diagram content
     // itself, purely a reminder of what to say at this step.
@@ -825,6 +850,8 @@ function validateAnimationStep(raw, nodeIds, edgeIds) {
     targets,
     revealMode: ANIMATION_REVEAL_MODES.includes(raw.revealMode) ? raw.revealMode : 'click',
     delayMs: Number.isFinite(raw.delayMs) && raw.delayMs > 0 ? raw.delayMs : 2000,
+    entranceStyle: ANIMATION_ENTRANCE_STYLES.includes(raw.entranceStyle) ? raw.entranceStyle : 'fade',
+    hideAfterMs: Number.isFinite(raw.hideAfterMs) && raw.hideAfterMs > 0 ? raw.hideAfterMs : 0,
     notes: typeof raw.notes === 'string' ? raw.notes : '',
   };
 }

@@ -4,7 +4,13 @@
   user-select: none;
   touch-action: none;
   opacity: 1;
-  transition: opacity 0.15s ease;
+  /* `transform` is included unconditionally (not just for the entrance
+     styles below) since nothing else ever sets `.node`'s own transform —
+     positioning uses plain left/top (canvas/node.js#updateNodeEl), and the
+     per-node "Rotation" style field applies to .node-body instead (see its
+     own comment further down) — so this can never fight another feature's
+     transform or visibly affect a node whose transform never changes. */
+  transition: opacity 0.15s ease, transform 0.35s cubic-bezier(0.34, 1.15, 0.64, 1);
 }
 
 /* Focus Mode (see canvas/canvas.js#applyFocusDimming) — everything not
@@ -37,6 +43,23 @@
 
 .node.anim-just-revealed {
   animation: anim-reveal-pulse 700ms ease-out;
+}
+
+/* Diagram Animation entrance styles (core/project.js#ANIMATION_ENTRANCE_STYLES,
+   canvas.js#applyAnimationVisibility) — `data-anim-entrance` is set on a
+   node the moment it's hidden by the current step's own chosen style, so
+   the *pre-reveal* offset transform below is already in place the instant
+   `.anim-hidden` is added; removing `.anim-hidden` on reveal then
+   transitions it back to `.node`'s own default (no transform at all),
+   using the transition already declared on `.node` above. 'fade' (the
+   default) and 'draw' (edge-only — see css/connector.css) intentionally
+   have no rule here, since they don't move/scale the node at all. */
+.node.anim-hidden[data-anim-entrance="slide-up"] {
+  transform: translateY(28px);
+}
+
+.node.anim-hidden[data-anim-entrance="zoom"] {
+  transform: scale(0.6);
 }
 
 .node-body {

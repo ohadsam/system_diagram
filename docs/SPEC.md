@@ -2595,6 +2595,75 @@ number:
   number input per scope (saving immediately, like the Component library checkboxes above it) plus
   a "Clear all" button.
 
+### 4.96 Diagram Animation: entrance styles and auto-hide-after-time
+Two new per-step properties on `core/project.js`'s animation step
+(`ANIMATION_ENTRANCE_STYLES`, `hideAfterMs`), plus their bulk counterparts,
+alongside Diagram Animation's existing reveal-mode/delay fields (4.36):
+
+- **Entrance style** — a step's own "Entrance" dropdown (panel, next to its
+  reveal-mode controls) picks how its target(s) visually enter the canvas
+  the moment they're revealed during playback: **Fade** (the original,
+  default behavior — plain opacity), **Slide up**, **Zoom in** (both nodes
+  only — `css/node.css`'s `.node.anim-hidden[data-anim-entrance="..."]`
+  pre-positions the node offset/scaled down while hidden, then transitions
+  to normal on reveal), and **Draw** (edges only — the connector's line
+  visibly extends from start to end via the standard SVG stroke-dasharray/
+  stroke-dashoffset technique, `canvas.js#applyEdgeDrawEntrance`; only
+  applies to a *solid*-style connector, since layering a computed dash
+  pattern on top of a Dashed/Dotted one would silently override the user's
+  own chosen pattern — anything else just falls back to the plain fade).
+  "Entrance for all steps" (step-list bulk row) applies one style to every
+  step in the active animation at once.
+- **Hide after (auto-hide)** — a step's own "Hide after" checkbox + seconds
+  field makes its target(s) automatically disappear again a fixed time
+  after they reveal, independent of `revealMode`/`delayMs` (which only
+  govern *advancing to the next step*) — e.g. a step can be 'click'
+  (presenter-advanced) while still auto-hiding a few seconds after
+  appearing. Implemented as a set of "expired" step ids
+  (`core/animationPlayback.js`) tracked alongside `revealedCount`: stepping
+  backward past an expired step (or jumping there) un-expires it, so
+  revealing it again later always gets a full, fresh countdown rather than
+  an instantly-elapsed one; freezing (the presenter's draw-annotation
+  pause) pauses the countdown entirely and resumes it at its full duration
+  on unfreeze, same "always a fresh window" philosophy the existing
+  next-step auto-advance timer already used. "Hide every step after"
+  (step-list bulk row, a seconds field + "⏱️ Apply"/"🚫 Never hide")
+  applies (or clears) this on every step in the active animation at once —
+  useful for a "flash card" style walkthrough where every step should
+  disappear again shortly after it appears.
+- Both fields are optional/additive (default `'fade'`/`0`) and round-trip
+  through a project's own JSON export/import and Diagram Animation's
+  standalone export/import (`io/exportAnimation.js`) — an older file
+  without them simply gets the same defaults a brand-new step would.
+- **"🗑️ Remove All"** (step-list bulk row, `canvas.js#removeAnimationSteps`)
+  clears every step from the active animation in one click — confirming
+  first (`modals/confirmModal.js`) once 2+ steps would be removed, matching
+  this step-list bulk row's already-consequential-feeling siblings; a
+  single step skips the confirmation, same as the per-step ✕ button
+  already does.
+- **Per-step selection scopes every bulk action.** Each step in the "In
+  animation" list has its own checkbox, plus a "Select all" toggle above
+  the bulk rows. The moment 1+ steps are checked, *every* bulk action on
+  this page — reveal mode, entrance style, hide-after, and Remove — applies
+  only to the checked steps instead of the whole animation, and each row's
+  own label/button text switches to say so ("Set 3 selected steps to:",
+  "Entrance for 3 selected steps:", "Remove Selected (3)") so it's never
+  ambiguous which one a click will do; with nothing checked, every bulk
+  action still means "every step," unchanged from before this existed.
+- **"+ Add All" and a new "+ Add Selected From Canvas" both sit right below
+  "Play Animation,"** always visible with a live count (e.g. "+ Add All
+  (3)"), rather than requiring a scroll past the entire "In animation" list
+  and down into the "Add more" section below it — found to be genuinely
+  easy to miss once a walkthrough had a handful of steps. "+ Add Selected
+  From Canvas" is new: it adds whatever is currently selected *on the
+  canvas* as one grouped step, the panel's own reachable equivalent of
+  right-clicking a multi-selection and choosing "Add Selection to
+  Animation" — its own count updates live as the canvas selection changes
+  while the panel stays open. "+ Add All" itself is unchanged functionally
+  (still adds every remaining item as its own separate step) — only its
+  position moved, and it now stays visible (disabled, showing "(0)") once
+  nothing is left to add, instead of disappearing outright.
+
 ## 7. Out of scope for v1 (ideas for later, see PLAN.md §7)
 
 Versioned history beyond in-session undo/redo (superseded by 4.17/4.63

@@ -26,6 +26,20 @@ let autoPlayAll = false;
 let loop = false;
 let timerHandle = null;
 const listeners = new Set();
+// Steps whose own `hideAfterMs` has elapsed since they were revealed — see
+// armExpiryFor/syncExpiryToRevealedCount below. A step's targets are
+// excluded from the "revealed" set canvas.js#applyAnimationVisibility
+// computes once its id lands here,
+// even though `revealedCount` itself never moves backward on its own —
+// `hideAfterMs` only ever hides a step's *targets*, it never un-advances
+// the presentation or affects which step reveals next.
+let expiredStepIds = new Set();
+// stepId -> setTimeout handle for that step's own pending auto-hide, kept
+// separate from `timerHandle` (which only ever tracks the *next-step*
+// auto-advance) since a step can have both running at once — a step can be
+// 'auto'-advancing to the next one *and* independently counting down its
+// own hideAfterMs at the same time.
+const expireTimers = new Map();
 
 // Brief pause before looping back to the start, so restarting doesn't feel
 // like a jarring instant cut.
@@ -43,6 +57,71 @@ function notify() {
   listeners.forEach((fn) => fn(snapshot));
 }
 
+function clearExpireTimer(stepId) {
+  const handle = expireTimers.get(stepId);
+  if (handle != null) {
+    clearTimeout(handle);
+    expireTimers.delete(stepId);
+  }
+}
+
+function clearAllExpireTimers() {
+  for (const handle of expireTimers.values()) clearTimeout(handle);
+  expireTimers.clear();
+}
+
+/** Arms (or re-arms) a step's own `hideAfterMs` countdown — always the
+ * step's *full* duration, never a resumed remainder, same "fresh window"
+ * philosophy as setFrozen's own comment below. A no-op step (`hideAfterMs`
+ * falsy) just cancels any stale timer, so calling this unconditionally on
+ * every reveal is always safe. */
+function armExpiryFor(step) {
+  clearExpireTimer(step.id);
+  if (!step.hideAfterMs) return;
+  const handle = setTimeout(() => {
+    expiredStepIds.add(step.id);
+    expireTimers.delete(step.id);
+    notify();
+  }, step.hideAfterMs);
+  expireTimers.set(step.id, handle);
+}
+
+/** Keeps the expire-timer bookkeeping in sync with `revealedCount` actually
+ * changing (forward or back) — every step newly in `[oldCount, newCount)`
+ * gets a fresh countdown armed (and is un-expired first, in case it was
+ * left expired from a previous visit), and every step falling *out* of
+ * "revealed" in `[newCount, oldCount)` has its pending countdown cancelled
+ * and its expired flag cleared, so revealing it again later always gets a
+ * full, fresh hideAfterMs window rather than an instantly-expired one. */
+function syncExpiryToRevealedCount(oldCount, newCount) {
+  if (newCount > oldCount) {
+    for (let i = oldCount; i < newCount; i++) {
+      const step = steps[i];
+      if (!step) continue;
+      expiredStepIds.delete(step.id);
+      armExpiryFor(step);
+    }
+  } else if (newCount < oldCount) {
+    for (let i = newCount; i < oldCount; i++) {
+      const step = steps[i];
+      if (!step) continue;
+      clearExpireTimer(step.id);
+      expiredStepIds.delete(step.id);
+    }
+  }
+}
+
+/** Re-arms a full, fresh hideAfterMs countdown for every currently-revealed,
+ * not-yet-expired step — used when resuming from a freeze (see setFrozen),
+ * mirroring its "always a fresh window, never a resumed remainder" choice
+ * for the next-step auto-advance timer. */
+function rearmExpiryForRevealed() {
+  for (let i = 0; i < revealedCount; i++) {
+    const step = steps[i];
+    if (step && !expiredStepIds.has(step.id)) armExpiryFor(step);
+  }
+}
+
 /** Arms the next timer: an auto-advance for the next not-yet-revealed step
  * (if it's an 'auto' step, or `autoPlayAll` is forcing every step to
  * advance on its own regardless of its own revealMode), or — once every
@@ -54,6 +133,8 @@ function scheduleCurrent() {
   if (revealedCount >= steps.length) {
     if (loop && steps.length) {
       timerHandle = setTimeout(() => {
+        clearAllExpireTimers();
+        expiredStepIds = new Set();
         revealedCount = 0;
         notify();
         scheduleCurrent();
@@ -69,30 +150,35 @@ function scheduleCurrent() {
 
 export function startPlayback(newSteps) {
   clearTimer();
+  clearAllExpireTimers();
   playing = true;
   steps = [...newSteps];
   revealedCount = 0;
   frozen = false;
   autoPlayAll = false;
   loop = false;
+  expiredStepIds = new Set();
   notify();
   scheduleCurrent();
 }
 
 export function stopPlayback() {
   clearTimer();
+  clearAllExpireTimers();
   playing = false;
   steps = [];
   revealedCount = 0;
   frozen = false;
   autoPlayAll = false;
   loop = false;
+  expiredStepIds = new Set();
   notify();
 }
 
 export function nextStep() {
   if (!playing || revealedCount >= steps.length) return;
   clearTimer();
+  syncExpiryToRevealedCount(revealedCount, revealedCount + 1);
   revealedCount += 1;
   notify();
   scheduleCurrent();
@@ -101,6 +187,7 @@ export function nextStep() {
 export function prevStep() {
   if (!playing || revealedCount <= 0) return;
   clearTimer();
+  syncExpiryToRevealedCount(revealedCount, revealedCount - 1);
   revealedCount -= 1;
   notify();
 }
@@ -113,6 +200,7 @@ export function jumpToStep(targetRevealedCount) {
   const clamped = Math.max(0, Math.min(steps.length, targetRevealedCount));
   if (clamped === revealedCount) return;
   clearTimer();
+  syncExpiryToRevealedCount(revealedCount, clamped);
   revealedCount = clamped;
   notify();
   scheduleCurrent();
@@ -124,12 +212,22 @@ export function jumpToStep(targetRevealedCount) {
  * still auto-advancing underneath it. Resuming always restarts the current
  * step's *full* delay rather than trying to track and resume a partial
  * remaining time — simpler, and a presenter resuming from a freeze almost
- * always wants a fresh, predictable window to keep talking anyway. */
+ * always wants a fresh, predictable window to keep talking anyway. Any
+ * step's own `hideAfterMs` countdown gets the identical treatment: paused
+ * (not just left running invisibly) while frozen, then re-armed at its
+ * full duration on resume — a presenter who freezes to talk through a step
+ * shouldn't come back to find it already vanished, or vanishing a moment
+ * later from a countdown that kept running unseen. */
 export function setFrozen(next) {
   if (!playing || frozen === next) return;
   frozen = next;
-  if (frozen) clearTimer();
-  else scheduleCurrent();
+  if (frozen) {
+    clearTimer();
+    clearAllExpireTimers();
+  } else {
+    scheduleCurrent();
+    rearmExpiryForRevealed();
+  }
   notify();
 }
 
@@ -172,7 +270,7 @@ export function isLoopEnabled() {
 }
 
 export function getAnimationPlaybackState() {
-  return { playing, steps, revealedCount, frozen, autoPlayAll, loop };
+  return { playing, steps, revealedCount, frozen, autoPlayAll, loop, expiredStepIds };
 }
 
 /** `fn(state)` is called whenever playback starts/stops or the revealed

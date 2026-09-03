@@ -1019,6 +1019,14 @@ body.resizing-details-panel {
   font-size: 12.5px;
 }
 
+.animation-step-select {
+  flex: 0 0 auto;
+}
+
+.animation-remove-all-btn {
+  flex: 0 0 auto;
+}
+
 .animation-step-order {
   flex: 0 0 auto;
   min-width: 18px;
@@ -1058,11 +1066,43 @@ body.resizing-details-panel {
   padding: 2px 4px;
 }
 
-.animation-step-delay {
+.animation-step-delay,
+.animation-step-hide-after {
   width: 52px;
   font-size: 11.5px;
   padding: 2px 4px;
   text-align: center;
+}
+
+/* "How it looks while revealed" — entrance style + optional auto-hide
+   timer — kept on its own row below the main one (which governs *when it
+   advances*, via .animation-step-controls) so the two kinds of per-step
+   setting don't visually blur into one crowded line. */
+.animation-step-appearance-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 var(--space-2) var(--space-2);
+  margin-top: -4px;
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+}
+
+.animation-step-appearance-row select {
+  font-size: 11.5px;
+  padding: 2px 4px;
+}
+
+.animation-step-appearance-label {
+  flex: 0 0 auto;
+}
+
+.animation-step-appearance-row .field-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
 }
 
 .animation-step-move,

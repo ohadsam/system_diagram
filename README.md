@@ -402,11 +402,20 @@ Or open `index.html` directly in a browser.
   real `.pptx` (one slide per step) or a real video file. After an
   AI-generated diagram, a prompt offers to auto-build a walkthrough
   animation revealing everything in the order it was generated. "+ Add All"
-  adds every remaining component/connector as its own step in one click, and
-  "Set all steps to: Auto-play/Click" changes every step's reveal mode at
-  once. "🪄 Auto-Play Diagram" (Tools menu, or ⌘K) instantly builds a
+  and "+ Add Selected From Canvas" (right under "Play Animation") add every
+  remaining component/connector, or whatever's currently selected on the
+  canvas, in one click; "Set all steps to: Auto-play/Click" changes every
+  step's reveal mode at once. "🪄 Auto-Play Diagram" (Tools menu, or ⌘K) instantly builds a
   walkthrough from everything already on the canvas and starts playing it
-  right away — no manual setup needed.
+  right away — no manual setup needed. Each step also has its own
+  "Entrance" style (Fade, Slide up, Zoom in, or Draw — a connector's line
+  visibly extending from start to end) and an optional "Hide after" timer
+  that makes it disappear again a chosen number of seconds after it
+  appears, for a "flash card" style walkthrough; both have a bulk control
+  to apply one choice to every step at once. "🗑️ Remove All" clears every
+  step in one click, and checking any step(s) in the list scopes every
+  bulk action (reveal mode, entrance, hide-after, and remove) to just the
+  checked steps instead of the whole animation.
 - **🔤 Fix Text Display** — re-spaces overlapping labeled content (a busy
   sequence diagram's messages, or any diagram's cramped connector labels) so
   wrapped text has room to display cleanly, in one undoable step; edge

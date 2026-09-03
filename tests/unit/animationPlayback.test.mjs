@@ -6,6 +6,13 @@ import {
   isAnimationPlaying, isAnimationFrozen, getAnimationPlaybackState, onAnimationChange,
 } from '../../js/core/animationPlayback.js';
 
+/** A step whose own `hideAfterMs` auto-hides it a fixed time after it's
+ * revealed — independent of revealMode/delayMs, which only govern
+ * *advancing to the next step* (see core/project.js#createAnimationStep). */
+function hideAfterStep(hideAfterMs, revealMode = 'click', delayMs = 1000) {
+  return { id: `s${Math.random()}`, targets: [{ targetType: 'node', targetId: `n${Math.random()}` }], revealMode, delayMs, hideAfterMs };
+}
+
 // The module holds its state at module scope (like core/kioskMode.js), so
 // every test explicitly stops playback first to start from a clean slate —
 // there's no other reset hook, same convention as this repo's other
@@ -200,4 +207,112 @@ test('onAnimationChange fires with the latest state on every change, and unsubsc
   nextStep();
   assert.deepEqual(seen, [0, 1]);
   assert.equal(getAnimationPlaybackState().revealedCount, 2, 'the underlying state still advances after unsubscribing, only notifications stop');
+});
+
+test('a step with hideAfterMs is not expired the instant it reveals', () => {
+  const step = hideAfterStep(20);
+  startPlayback([step]);
+  nextStep();
+  assert.equal(getAnimationPlaybackState().expiredStepIds.has(step.id), false);
+});
+
+test('a step with hideAfterMs auto-expires once its own timer elapses', (t, done) => {
+  const step = hideAfterStep(20);
+  startPlayback([step]);
+  nextStep();
+  setTimeout(() => {
+    assert.equal(getAnimationPlaybackState().expiredStepIds.has(step.id), true);
+    done();
+  }, 60);
+});
+
+test('a step with hideAfterMs unset (0) never expires', (t, done) => {
+  const step = hideAfterStep(0);
+  startPlayback([step]);
+  nextStep();
+  setTimeout(() => {
+    assert.equal(getAnimationPlaybackState().expiredStepIds.has(step.id), false);
+    done();
+  }, 60);
+});
+
+test('stepping back before an expired step un-expires it, and stepping forward again gets a fresh countdown', (t, done) => {
+  const step = hideAfterStep(20);
+  startPlayback([step, clickStep()]);
+  nextStep(); // reveal the hideAfter step
+  setTimeout(() => {
+    assert.equal(getAnimationPlaybackState().expiredStepIds.has(step.id), true, 'expired after its own timer');
+    prevStep(); // un-reveal it
+    assert.equal(getAnimationPlaybackState().expiredStepIds.has(step.id), false, 'un-expired the moment it is no longer revealed');
+    nextStep(); // reveal it again — should start a brand-new full countdown
+    assert.equal(getAnimationPlaybackState().expiredStepIds.has(step.id), false, 'not immediately expired on a fresh reveal');
+    setTimeout(() => {
+      assert.equal(getAnimationPlaybackState().expiredStepIds.has(step.id), true, 'expires again after the fresh countdown elapses');
+      done();
+    }, 30);
+  }, 30);
+});
+
+test('jumpToStep forward arms hideAfterMs for every newly-revealed step, and jumping back un-expires steps no longer revealed', (t, done) => {
+  const a = hideAfterStep(20);
+  const b = hideAfterStep(20);
+  startPlayback([a, b]);
+  jumpToStep(2); // reveal both at once
+  setTimeout(() => {
+    const state = getAnimationPlaybackState();
+    assert.equal(state.expiredStepIds.has(a.id), true);
+    assert.equal(state.expiredStepIds.has(b.id), true);
+    jumpToStep(0); // un-reveal both
+    const stateAfter = getAnimationPlaybackState();
+    assert.equal(stateAfter.expiredStepIds.has(a.id), false, 'jumping back un-expires a step no longer revealed');
+    assert.equal(stateAfter.expiredStepIds.has(b.id), false);
+    done();
+  }, 60);
+});
+
+test('setFrozen pauses a pending hideAfterMs countdown; resuming re-arms its full duration', (t, done) => {
+  const step = hideAfterStep(40);
+  startPlayback([step]);
+  nextStep();
+  setFrozen(true);
+  setTimeout(() => {
+    assert.equal(getAnimationPlaybackState().expiredStepIds.has(step.id), false, 'frozen — the hide timer must not have fired');
+    setFrozen(false);
+    setTimeout(() => {
+      assert.equal(getAnimationPlaybackState().expiredStepIds.has(step.id), false, 'resumed with a fresh full countdown, not the already-elapsed remainder');
+      setTimeout(() => {
+        assert.equal(getAnimationPlaybackState().expiredStepIds.has(step.id), true, 'the fresh post-resume countdown eventually elapses');
+        done();
+      }, 30);
+    }, 10);
+  }, 60);
+});
+
+test('stopPlayback and a fresh startPlayback both clear any stale expiredStepIds', (t, done) => {
+  const step = hideAfterStep(20);
+  startPlayback([step]);
+  nextStep();
+  setTimeout(() => {
+    assert.equal(getAnimationPlaybackState().expiredStepIds.has(step.id), true);
+    stopPlayback();
+    assert.equal(getAnimationPlaybackState().expiredStepIds.size, 0);
+    startPlayback([hideAfterStep(0)]);
+    assert.equal(getAnimationPlaybackState().expiredStepIds.size, 0);
+    done();
+  }, 60);
+});
+
+test('looping back to the start clears expiredStepIds so a hideAfterMs step shows again next time around', (t, done) => {
+  const step = hideAfterStep(20);
+  startPlayback([step]);
+  nextStep(); // now at the end
+  setLoop(true);
+  setTimeout(() => {
+    assert.equal(getAnimationPlaybackState().expiredStepIds.has(step.id), true, 'expired during the first pass');
+    setTimeout(() => {
+      assert.equal(getAnimationPlaybackState().revealedCount, 0, 'looped back to the start');
+      assert.equal(getAnimationPlaybackState().expiredStepIds.has(step.id), false, 'expiry reset for the new pass');
+      done();
+    }, 1400);
+  }, 60);
 });

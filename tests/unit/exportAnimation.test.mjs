@@ -73,9 +73,9 @@ test('v1 (legacy): skips malformed step entries without throwing', () => {
   assert.equal(result.skippedCount, 3);
 });
 
-test('v2: keeps a grouped step (multiple targets) and per-step notes/autoFocus', () => {
+test('v2: keeps a grouped step (multiple targets) and per-step notes/entranceStyle/hideAfterMs/autoFocus', () => {
   const text = v2File([
-    { name: 'Onboarding', autoFocus: true, steps: [{ targets: [{ targetType: 'node', targetId: 'node_1' }, { targetType: 'edge', targetId: 'edge_1' }], revealMode: 'click', delayMs: 2000, notes: 'Explain the gateway' }] },
+    { name: 'Onboarding', autoFocus: true, steps: [{ targets: [{ targetType: 'node', targetId: 'node_1' }, { targetType: 'edge', targetId: 'edge_1' }], revealMode: 'click', delayMs: 2000, entranceStyle: 'slide-up', hideAfterMs: 6000, notes: 'Explain the gateway' }] },
   ], 'Onboarding');
   const result = parseAnimationFile(text, new Set(['node_1']), new Set(['edge_1']));
   assert.equal(result.ok, true);
@@ -87,8 +87,20 @@ test('v2: keeps a grouped step (multiple targets) and per-step notes/autoFocus',
   assert.equal(anim.autoFocus, true);
   assert.equal(anim.steps.length, 1);
   assert.equal(anim.steps[0].targets.length, 2);
+  assert.equal(anim.steps[0].entranceStyle, 'slide-up');
+  assert.equal(anim.steps[0].hideAfterMs, 6000);
   assert.equal(anim.steps[0].notes, 'Explain the gateway');
   assert.equal(result.activeAnimationId, anim.id);
+});
+
+test('v2 (pre-entranceStyle/hideAfterMs export): a step with neither field still defaults to fade/never-hide', () => {
+  const text = v2File([
+    { name: 'A', steps: [{ targets: [{ targetType: 'node', targetId: 'node_1' }], revealMode: 'click', delayMs: 2000, notes: '' }] },
+  ]);
+  const result = parseAnimationFile(text, new Set(['node_1']), new Set());
+  const step = result.animations[0].steps[0];
+  assert.equal(step.entranceStyle, 'fade');
+  assert.equal(step.hideAfterMs, 0);
 });
 
 test('v2: drops just the missing target from a grouped step, keeping the rest', () => {
@@ -130,12 +142,14 @@ test('v2: falls back to the first animation when activeAnimationName does not ma
   assert.equal(result.activeAnimationId, result.animations[0].id);
 });
 
-test('v2: falls back to defaults for an invalid revealMode/delayMs', () => {
+test('v2: falls back to defaults for an invalid revealMode/delayMs/entranceStyle/hideAfterMs', () => {
   const text = v2File([
-    { name: 'A', steps: [{ targets: [{ targetType: 'node', targetId: 'node_1' }], revealMode: 'nonsense', delayMs: -100 }] },
+    { name: 'A', steps: [{ targets: [{ targetType: 'node', targetId: 'node_1' }], revealMode: 'nonsense', delayMs: -100, entranceStyle: 'nonsense', hideAfterMs: -100 }] },
   ]);
   const result = parseAnimationFile(text, new Set(['node_1']), new Set());
   const step = result.animations[0].steps[0];
   assert.equal(step.revealMode, 'click');
   assert.equal(step.delayMs, 2000);
+  assert.equal(step.entranceStyle, 'fade');
+  assert.equal(step.hideAfterMs, 0);
 });

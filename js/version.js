@@ -2,9 +2,20 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.58.4';
+export const APP_VERSION = '1.59.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.59.0',
+    date: '2026-09-03',
+    highlights: [
+      '🎬 Diagram Animation: each step now has its own "Entrance" style — Fade (the original look), Slide up, Zoom in (both for components), or Draw, which visibly extends a connector\'s line from start to end. A "Entrance for all steps" bulk control applies one style to a whole walkthrough at once.',
+      '⏱️ Diagram Animation: a new "Hide after" option on each step makes it disappear again a set number of seconds after it appears — independent of whether that step advances automatically or waits for a click, so a "flash card" style walkthrough is now possible. "Hide every step after" applies (or clears) this across every step at once. Freezing the presentation (to draw on it) pauses the countdown, and stepping backward past a hidden step and forward again always gives it a full, fresh countdown.',
+      '🗑️ Diagram Animation: a new "Remove All" button clears every step from the active animation in one click (with a confirmation once 2+ steps would be removed).',
+      '☑️ Diagram Animation: check any step(s) in "In animation" to scope every bulk action — reveal mode, entrance style, hide-after, and Remove — to just the checked steps instead of the whole animation; a "Select all" checkbox and live labels ("Set 3 selected steps to:", "Remove Selected (3)") make it clear which one a click will do.',
+      '📍 Diagram Animation: "+ Add All" moved right under "Play Animation" (previously buried at the bottom of the panel), and a new "+ Add Selected From Canvas" sits right beside it — adds whatever\'s currently selected on the canvas as one step, the same as right-clicking a multi-selection and choosing "Add Selection to Animation," just directly reachable from the panel.',
+    ],
+  },
   {
     version: '1.58.4',
     date: '2026-09-03',

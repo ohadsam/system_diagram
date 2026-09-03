@@ -517,8 +517,68 @@ test('"+ Add All" adds every remaining component/connector as its own step, in o
 
   await expect(page.locator('.animation-step-row')).toHaveCount(3);
   await expect(page.locator('.animation-add-row')).toHaveCount(0);
-  // Nothing left to add — the bulk-add row (gated on 2+ candidates) is gone too.
-  await expect(page.locator('button', { hasText: '+ Add All' })).toHaveCount(0);
+  // "+ Add All" itself stays visible (always reachable near the top of the
+  // panel, not buried below a growing step list) but disables once nothing
+  // is left to add, showing "(0)" rather than disappearing outright.
+  await expect(page.locator('button', { hasText: '+ Add All' })).toBeDisabled();
+  await expect(page.locator('button', { hasText: '+ Add All (0)' })).toBeVisible();
+});
+
+test('"+ Add All" and "+ Add Selected From Canvas" are both visible right under Play Animation, with no scrolling needed', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await addComponentByName(page, 'Redis Cache');
+  // addComponentByName leaves the just-placed component selected — deselect
+  // so this test's own assertion below reflects an empty canvas selection.
+  await page.locator('#canvas-viewport').click({ position: { x: 20, y: 400 } });
+  await openAnimationPanel(page);
+
+  const playBtnBox = await page.locator('.animation-play-btn').boundingBox();
+  const quickAddRow = page.locator('.animation-quick-add-row');
+  const quickAddBox = await quickAddRow.boundingBox();
+  expect(quickAddBox.y).toBeGreaterThan(playBtnBox.y);
+  expect(quickAddBox.y - playBtnBox.y).toBeLessThan(150); // right below it, not buried under other sections
+
+  await expect(quickAddRow.locator('button', { hasText: '+ Add All (2)' })).toBeVisible();
+  await expect(quickAddRow.locator('button', { hasText: '+ Add Selected From Canvas (0)' })).toBeVisible();
+});
+
+test('"+ Add Selected From Canvas" adds the current canvas multi-selection as one grouped step, and its own count tracks the live selection', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await addComponentByName(page, 'Redis Cache');
+  await addComponentByName(page, 'PostgreSQL');
+
+  await page.locator('.node', { hasText: 'API Gateway' }).click();
+  await page.locator('.node', { hasText: 'Redis Cache' }).click({ modifiers: ['Control'] });
+
+  await openAnimationPanel(page);
+  const addSelectedBtn = page.locator('button', { hasText: '+ Add Selected From Canvas' });
+  await expect(addSelectedBtn).toHaveText('+ Add Selected From Canvas (2)');
+  await expect(addSelectedBtn).toBeEnabled();
+
+  await addSelectedBtn.click();
+  await expect(page.locator('.animation-step-row')).toHaveCount(1);
+  await expect(page.locator('.animation-step-row')).toContainText('API Gateway, Redis Cache');
+  await expect(page.locator('.animation-step-target-chip')).toHaveCount(2);
+});
+
+test('"+ Add Selected From Canvas" is disabled with nothing selected, and its count updates live as the canvas selection changes while the panel is open', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  // addComponentByName leaves the just-placed component selected — deselect
+  // first so this test starts from a real empty-selection state.
+  await page.locator('#canvas-viewport').click({ position: { x: 20, y: 400 } });
+  await openAnimationPanel(page);
+
+  const addSelectedBtn = page.locator('button', { hasText: '+ Add Selected From Canvas' });
+  await expect(addSelectedBtn).toHaveText('+ Add Selected From Canvas (0)');
+  await expect(addSelectedBtn).toBeDisabled();
+
+  await page.locator('.node', { hasText: 'API Gateway' }).click();
+  await expect(addSelectedBtn).toHaveText('+ Add Selected From Canvas (1)');
+  await expect(addSelectedBtn).toBeEnabled();
+
+  await page.locator('#canvas-viewport').click({ position: { x: 20, y: 400 } });
+  await expect(addSelectedBtn).toHaveText('+ Add Selected From Canvas (0)');
+  await expect(addSelectedBtn).toBeDisabled();
 });
 
 test('bulk "Set all steps to" buttons change every step\'s reveal mode at once', async ({ page }) => {
@@ -538,6 +598,223 @@ test('bulk "Set all steps to" buttons change every step\'s reveal mode at once',
   await page.locator('button', { hasText: '🖱️ Click' }).click();
   await expect(modeSelects.nth(0)).toHaveValue('click');
   await expect(modeSelects.nth(1)).toHaveValue('click');
+});
+
+test('a step\'s entrance style defaults to Fade and can be changed per-step', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await openAnimationPanel(page);
+  await page.locator('.animation-add-row', { hasText: 'API Gateway' }).locator('button', { hasText: '+ Add' }).click();
+
+  const entranceSelect = page.locator('.animation-step-appearance-row select');
+  await expect(entranceSelect).toHaveValue('fade');
+  await entranceSelect.selectOption('slide-up');
+  await expect(entranceSelect).toHaveValue('slide-up');
+});
+
+test('a node set to "Slide up" carries the matching data-anim-entrance attribute while hidden, then reveals normally', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await openAnimationPanel(page);
+  await page.locator('.animation-add-row', { hasText: 'API Gateway' }).locator('button', { hasText: '+ Add' }).click();
+  await page.locator('.animation-step-appearance-row select').selectOption('slide-up');
+
+  await page.locator('.animation-play-btn').click();
+  const node = page.locator('.node', { hasText: 'API Gateway' });
+  await expect(node).toHaveClass(/anim-hidden/);
+  await expect(node).toHaveAttribute('data-anim-entrance', 'slide-up');
+
+  await page.keyboard.press('ArrowRight');
+  await expect(node).not.toHaveClass(/anim-hidden/);
+});
+
+test('an edge set to "Draw" animates its line\'s stroke-dashoffset to 0 once revealed, having started at its full drawn length while hidden', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await addComponentByName(page, 'Redis Cache');
+  await connectNodes(page, page.locator('.node').first(), page.locator('.node').nth(1));
+  await openAnimationPanel(page);
+  await page.locator('button', { hasText: '+ Add All' }).click();
+  // 3rd step (after the 2 components) is the connector.
+  await page.locator('.animation-step-appearance-row').nth(2).locator('select').selectOption('draw');
+
+  await page.locator('.animation-play-btn').click();
+  const line = page.locator('.edge-line');
+  const offsetWhileHidden = await line.evaluate((el) => el.style.strokeDashoffset);
+  const dasharrayWhileHidden = await line.evaluate((el) => el.style.strokeDasharray);
+  expect(offsetWhileHidden).toBe(dasharrayWhileHidden);
+  expect(Number(offsetWhileHidden)).toBeGreaterThan(0);
+
+  await page.keyboard.press('ArrowRight'); // API Gateway
+  await page.keyboard.press('ArrowRight'); // Redis Cache
+  await page.keyboard.press('ArrowRight'); // the connector itself
+  await expect.poll(() => line.evaluate((el) => el.style.strokeDashoffset)).toBe('0');
+});
+
+test('a step with "Hide after" enabled auto-hides its target a few seconds after it reveals during playback', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await openAnimationPanel(page);
+  await page.locator('.animation-add-row', { hasText: 'API Gateway' }).locator('button', { hasText: '+ Add' }).click();
+  await page.locator('.animation-step-appearance-row .field-checkbox input').check();
+  await page.locator('.animation-step-appearance-row input[type=number]').fill('0.5');
+
+  await page.locator('.animation-play-btn').click();
+  const node = page.locator('.node', { hasText: 'API Gateway' });
+  await page.keyboard.press('ArrowRight');
+  await expect(node).not.toHaveClass(/anim-hidden/);
+  await expect(node).toHaveClass(/anim-hidden/, { timeout: 2000 });
+});
+
+test('going back before an auto-hidden step and forward again reveals it for a fresh countdown', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await addComponentByName(page, 'Redis Cache');
+  await openAnimationPanel(page);
+  await page.locator('button', { hasText: '+ Add All' }).click();
+  await page.locator('.animation-step-appearance-row').nth(0).locator('.field-checkbox input').check();
+  await page.locator('.animation-step-appearance-row').nth(0).locator('input[type=number]').fill('0.5');
+
+  await page.locator('.animation-play-btn').click();
+  const node = page.locator('.node', { hasText: 'API Gateway' });
+  await page.keyboard.press('ArrowRight');
+  await expect(node).toHaveClass(/anim-hidden/, { timeout: 2000 }); // auto-hid after 0.5s
+
+  await page.keyboard.press('ArrowLeft'); // back before it — un-reveals it
+  await expect(node).toHaveClass(/anim-hidden/);
+  await page.keyboard.press('ArrowRight'); // reveal again — fresh countdown
+  await expect(node).not.toHaveClass(/anim-hidden/);
+  await expect(node).toHaveClass(/anim-hidden/, { timeout: 2000 });
+});
+
+test('bulk "Entrance for all steps" applies one entrance style to every step at once', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await addComponentByName(page, 'Redis Cache');
+  await openAnimationPanel(page);
+  await page.locator('button', { hasText: '+ Add All' }).click();
+  await expect(page.locator('.animation-step-row')).toHaveCount(2);
+
+  await page.locator('.animation-bulk-row select').selectOption('zoom');
+  const entranceSelects = page.locator('.animation-step-appearance-row select');
+  await expect(entranceSelects.nth(0)).toHaveValue('zoom');
+  await expect(entranceSelects.nth(1)).toHaveValue('zoom');
+});
+
+test('bulk "Hide every step after" Apply/Never hide toggle auto-hide for every step at once', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await addComponentByName(page, 'Redis Cache');
+  await openAnimationPanel(page);
+  await page.locator('button', { hasText: '+ Add All' }).click();
+
+  await page.locator('.animation-bulk-row input[type=number]').fill('3');
+  await page.locator('.animation-bulk-row button', { hasText: 'Apply' }).click();
+  const hideChecks = page.locator('.animation-step-appearance-row .field-checkbox input');
+  await expect(hideChecks.nth(0)).toBeChecked();
+  await expect(hideChecks.nth(1)).toBeChecked();
+
+  await page.locator('.animation-bulk-row button', { hasText: 'Never hide' }).click();
+  await expect(hideChecks.nth(0)).not.toBeChecked();
+  await expect(hideChecks.nth(1)).not.toBeChecked();
+});
+
+test('"Remove All" clears every step from the active animation (with confirmation for 2+)', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await addComponentByName(page, 'Redis Cache');
+  await openAnimationPanel(page);
+  await page.locator('button', { hasText: '+ Add All' }).click();
+  await expect(page.locator('.animation-step-row')).toHaveCount(2);
+
+  await page.locator('.animation-remove-all-btn').click();
+  await expect(page.locator('.confirm-modal')).toBeVisible();
+  await page.locator('.confirm-modal button', { hasText: 'Remove' }).click();
+
+  await expect(page.locator('.animation-step-row')).toHaveCount(0);
+  await expect(page.locator('.animation-play-btn')).toBeDisabled();
+});
+
+test('"Remove All" on a single step skips the confirmation dialog', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await openAnimationPanel(page);
+  await page.locator('.animation-add-row', { hasText: 'API Gateway' }).locator('button', { hasText: '+ Add' }).click();
+
+  await page.locator('.animation-remove-all-btn').click();
+  await expect(page.locator('.confirm-modal')).toHaveCount(0);
+  await expect(page.locator('.animation-step-row')).toHaveCount(0);
+});
+
+test('checking steps in "In animation" scopes every bulk action to just the selection, and the row labels/button text reflect the count', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await addComponentByName(page, 'Redis Cache');
+  await addComponentByName(page, 'PostgreSQL');
+  await openAnimationPanel(page);
+  await page.locator('button', { hasText: '+ Add All' }).click();
+  await expect(page.locator('.animation-step-row')).toHaveCount(3);
+
+  // Nothing checked yet — every label/button reads "all steps".
+  await expect(page.locator('.animation-bulk-label').first()).toHaveText('Set all steps to:');
+  await expect(page.locator('.animation-remove-all-btn')).toHaveText('🗑️ Remove All');
+
+  const stepChecks = page.locator('.animation-step-select');
+  await stepChecks.nth(0).check();
+  await stepChecks.nth(1).check();
+
+  await expect(page.locator('.animation-bulk-label').first()).toHaveText('Set 2 selected steps to:');
+  await expect(page.locator('.animation-remove-all-btn')).toHaveText('🗑️ Remove Selected (2)');
+
+  // Applying a bulk change now only touches the 2 checked steps.
+  await page.locator('.animation-bulk-row select').selectOption('zoom');
+  const entranceSelects = page.locator('.animation-step-appearance-row select');
+  await expect(entranceSelects.nth(0)).toHaveValue('zoom');
+  await expect(entranceSelects.nth(1)).toHaveValue('zoom');
+  await expect(entranceSelects.nth(2)).toHaveValue('fade'); // untouched — not checked
+
+  // Removing while 2 are checked only removes those 2.
+  await page.locator('.animation-remove-all-btn').click();
+  await page.locator('.confirm-modal button', { hasText: 'Remove' }).click();
+  await expect(page.locator('.animation-step-row')).toHaveCount(1);
+  await expect(page.locator('.animation-step-row')).toContainText('PostgreSQL');
+});
+
+test('"Select all" checks every step at once, and unchecking one step drops it back to a partial selection', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await addComponentByName(page, 'Redis Cache');
+  await openAnimationPanel(page);
+  await page.locator('button', { hasText: '+ Add All' }).click();
+
+  await page.locator('.field-checkbox', { hasText: 'Select all' }).locator('input').check();
+  const stepChecks = page.locator('.animation-step-select');
+  await expect(stepChecks.nth(0)).toBeChecked();
+  await expect(stepChecks.nth(1)).toBeChecked();
+  await expect(page.locator('.animation-remove-all-btn')).toHaveText('🗑️ Remove Selected (2)');
+
+  await stepChecks.nth(0).uncheck();
+  await expect(page.locator('.field-checkbox', { hasText: 'Select all' }).locator('input')).not.toBeChecked();
+  await expect(page.locator('.animation-remove-all-btn')).toHaveText('🗑️ Remove Selected (1)');
+});
+
+test('entranceStyle and hideAfterMs survive a full project JSON export/import round-trip', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await openAnimationPanel(page);
+  await page.locator('.animation-add-row', { hasText: 'API Gateway' }).locator('button', { hasText: '+ Add' }).click();
+  await page.locator('.animation-step-appearance-row select').selectOption('zoom');
+  await page.locator('.animation-step-appearance-row .field-checkbox input').check();
+  await page.locator('.animation-step-appearance-row input[type=number]').fill('7');
+  await page.locator('.animation-close').click();
+
+  await page.locator('.toolbar-dropdown-trigger', { hasText: 'File' }).click();
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.locator('.toolbar-dropdown-panel button', { hasText: 'Export JSON' }).click(),
+  ]);
+  const path = await download.path();
+
+  await page.reload();
+  await dismissHints(page);
+  await page.locator('.toolbar-dropdown-trigger', { hasText: 'File' }).click();
+  const fileChooserPromise = page.waitForEvent('filechooser');
+  await page.locator('.toolbar-dropdown-panel button', { hasText: 'Import JSON' }).click();
+  const fileChooser = await fileChooserPromise;
+  await fileChooser.setFiles(path);
+
+  await openAnimationPanel(page);
+  await expect(page.locator('.animation-step-appearance-row select')).toHaveValue('zoom');
+  await expect(page.locator('.animation-step-appearance-row .field-checkbox input')).toBeChecked();
+  await expect(page.locator('.animation-step-appearance-row input[type=number]')).toHaveValue('7');
 });
 
 test('"Auto-Play Diagram" builds a walkthrough from the whole canvas and starts playing immediately, with no manual setup', async ({ page }) => {

@@ -1066,6 +1066,36 @@ export function removeAnimationStep(stepId) {
   });
 }
 
+// Every bulk step-action below (remove, and the reveal-mode/entrance-style/
+// hide-after setters further down) takes an optional `stepIds` (a Set/array
+// of step ids) as its last argument: omitted (or null/undefined) means
+// "every step in the active animation," matching each function's original,
+// still-most-common behavior; passed, only the named steps are touched.
+// panel/animationPanel.js's own bulk rows decide which meaning applies —
+// "every step" while nothing is checked in the "In animation" list,
+// "checked steps only" the moment 1+ are checked — and relabel themselves
+// accordingly so it's never ambiguous which one a click will do.
+function toStepIdSet(stepIds) {
+  return stepIds ? (stepIds instanceof Set ? stepIds : new Set(stepIds)) : null;
+}
+
+/** Bulk sibling of removeAnimationStep — panel/animationPanel.js's "🗑️
+ * Remove All"/"Remove Selected". Returns the number of steps actually
+ * removed, so the panel can skip a confirmation dialog or a toast for a
+ * no-op call. */
+export function removeAnimationSteps(stepIds = null) {
+  const ids = toStepIdSet(stepIds);
+  let removed = 0;
+  store.dispatch((draft) => {
+    const a = (draft.animations || []).find((x) => x.id === draft.activeAnimationId);
+    if (!a) return;
+    const before = a.steps.length;
+    a.steps = ids ? a.steps.filter((s) => !ids.has(s.id)) : [];
+    removed = before - a.steps.length;
+  });
+  return removed;
+}
+
 /** Removes one target from within a (possibly grouped) step, dropping the
  * whole step once that leaves it with no targets — the context menu's
  * "Remove from Animation" and a per-target ✕ in the panel's grouped-step
@@ -1157,15 +1187,42 @@ export function addAllToActiveAnimation() {
  * createAnimationStep's default); switching to 'click' leaves `delayMs`
  * alone since it's simply unused in that mode and switching back to 'auto'
  * later should restore whatever delay was set before, not reset to default. */
-export function setAllStepsRevealMode(revealMode) {
+export function setAllStepsRevealMode(revealMode, stepIds = null) {
+  const ids = toStepIdSet(stepIds);
   store.dispatch((draft) => {
     const a = (draft.animations || []).find((x) => x.id === draft.activeAnimationId);
     if (!a) return;
-    a.steps = a.steps.map((s) => ({
+    a.steps = a.steps.map((s) => (ids && !ids.has(s.id) ? s : {
       ...s,
       revealMode,
       delayMs: revealMode === 'auto' && !s.delayMs ? 2000 : s.delayMs,
     }));
+  });
+}
+
+/** Bulk counterpart to a step's own "Entrance" dropdown (panel/animationPanel.js) —
+ * same one-click convenience as setAllStepsRevealMode above, for picking one
+ * consistent entrance look across a whole walkthrough instead of setting
+ * each step by hand. */
+export function setAllStepsEntranceStyle(entranceStyle, stepIds = null) {
+  const ids = toStepIdSet(stepIds);
+  store.dispatch((draft) => {
+    const a = (draft.animations || []).find((x) => x.id === draft.activeAnimationId);
+    if (!a) return;
+    a.steps = a.steps.map((s) => (ids && !ids.has(s.id) ? s : { ...s, entranceStyle }));
+  });
+}
+
+/** Bulk counterpart to a step's own "Hide after" checkbox+field — e.g. for a
+ * "flash card" style walkthrough where every step should disappear again a
+ * few seconds after it appears. `hideAfterMs` of 0 turns auto-hide back off
+ * for every targeted step. */
+export function setAllStepsHideAfterMs(hideAfterMs, stepIds = null) {
+  const ids = toStepIdSet(stepIds);
+  store.dispatch((draft) => {
+    const a = (draft.animations || []).find((x) => x.id === draft.activeAnimationId);
+    if (!a) return;
+    a.steps = a.steps.map((s) => (ids && !ids.has(s.id) ? s : { ...s, hideAfterMs }));
   });
 }
 
@@ -1302,24 +1359,88 @@ export function clearAnimationExportVisibility() {
   for (const [, elRef] of edgeElements) elRef.classList.remove('anim-hidden');
 }
 
+/** Restores a `.edge-line`'s own true border-style dash pattern (the
+ * `stroke-dasharray` *attribute* connector.js sets on every render from the
+ * edge's own `dash` field) by clearing whatever inline *style* value
+ * applyEdgeDrawEntrance may have layered on top — an inline style always
+ * wins over the same property set as a plain attribute, so leaving it set
+ * would permanently flatten a dashed/dotted connector to solid the moment
+ * a 'draw' step ever touched it. */
+function resetEdgeDrawStyle(line) {
+  if (!line) return;
+  if (line.style.strokeDasharray) line.style.strokeDasharray = '';
+  if (line.style.strokeDashoffset) line.style.strokeDashoffset = '';
+}
+
+/** Drives the 'draw' entrance style (see core/project.js#ANIMATION_ENTRANCE_STYLES):
+ * the connector's line visibly extends from start to end as it reveals,
+ * via the standard SVG stroke-dasharray/stroke-dashoffset "draw" trick
+ * (dashoffset animates from the path's own full length down to 0). Only
+ * ever applied to a *solid* edge — layering our own dasharray on top of a
+ * dashed/dotted one would silently override the user's own chosen pattern
+ * (an inline style always beats the same property set as a presentation
+ * attribute), so anything else just falls back to the plain group-opacity
+ * fade every entrance style already gets from `.edge.anim-hidden`. */
+function applyEdgeDrawEntrance(elRef, key, edge, entranceStyle, hidden, revealedKeys) {
+  const line = elRef.querySelector('.edge-line');
+  if (!line || entranceStyle !== 'draw' || !edge || edge.dash !== 'solid' || typeof line.getTotalLength !== 'function') {
+    resetEdgeDrawStyle(line);
+    return;
+  }
+  if (hidden.has(key)) {
+    const len = line.getTotalLength();
+    if (!len) return;
+    line.style.strokeDasharray = `${len}`;
+    line.style.strokeDashoffset = `${len}`;
+  } else if (revealedKeys.has(key) && line.style.strokeDashoffset !== '0') {
+    if (!line.style.strokeDasharray) {
+      const len = line.getTotalLength();
+      if (!len) return;
+      line.style.strokeDasharray = `${len}`;
+      line.style.strokeDashoffset = `${len}`;
+      void line.getBoundingClientRect(); // force a reflow so the drop to 0 below actually transitions instead of snapping
+    }
+    line.style.strokeDashoffset = '0';
+  }
+}
+
 function applyAnimationVisibility(state) {
   if (!isAnimationPlaying()) {
-    for (const [, elRef] of nodeElements) elRef.classList.remove('anim-hidden', 'anim-just-revealed');
-    for (const [, elRef] of edgeElements) elRef.classList.remove('anim-hidden', 'anim-just-revealed');
+    for (const [, elRef] of nodeElements) { elRef.classList.remove('anim-hidden', 'anim-just-revealed'); delete elRef.dataset.animEntrance; }
+    for (const [, elRef] of edgeElements) {
+      elRef.classList.remove('anim-hidden', 'anim-just-revealed');
+      delete elRef.dataset.animEntrance;
+      resetEdgeDrawStyle(elRef.querySelector('.edge-line'));
+    }
     previouslyRevealedAnimKeys = new Set();
     return;
   }
-  const { steps, revealedCount } = getAnimationPlaybackState();
-  const hidden = new Set(steps.slice(revealedCount).flatMap((s) => s.targets).map((t) => `${t.targetType}:${t.targetId}`));
-  const revealedKeys = new Set(steps.slice(0, revealedCount).flatMap((s) => s.targets).map((t) => `${t.targetType}:${t.targetId}`));
+  const { steps, revealedCount, expiredStepIds } = getAnimationPlaybackState();
+  const revealedSteps = steps.slice(0, revealedCount).filter((s) => !expiredStepIds.has(s.id));
+  const revealedKeys = new Set(revealedSteps.flatMap((s) => s.targets).map((t) => `${t.targetType}:${t.targetId}`));
+  const hidden = new Set(
+    steps.flatMap((s) => s.targets).map((t) => `${t.targetType}:${t.targetId}`),
+  );
+  for (const key of revealedKeys) hidden.delete(key);
+  // Every target's own step, so a still-hidden node/edge knows which
+  // entrance style to pre-position itself in (see the CSS/JS comments on
+  // .anim-hidden[data-anim-entrance] in css/node.css) even before it's
+  // actually revealed.
+  const entranceStyleByKey = new Map();
+  for (const s of steps) for (const t of s.targets) entranceStyleByKey.set(`${t.targetType}:${t.targetId}`, s.entranceStyle || 'fade');
+  const edgesById = new Map(state.edges.map((e) => [e.id, e]));
+
   for (const [id, elRef] of nodeElements) {
     const key = `node:${id}`;
     elRef.classList.toggle('anim-hidden', hidden.has(key));
+    if (hidden.has(key)) elRef.dataset.animEntrance = entranceStyleByKey.get(key) || 'fade';
     applyRevealPulse(elRef, key, revealedKeys);
   }
   for (const [id, elRef] of edgeElements) {
     const key = `edge:${id}`;
     elRef.classList.toggle('anim-hidden', hidden.has(key));
+    if (hidden.has(key)) elRef.dataset.animEntrance = entranceStyleByKey.get(key) || 'fade';
+    applyEdgeDrawEntrance(elRef, key, edgesById.get(id), entranceStyleByKey.get(key), hidden, revealedKeys);
     applyRevealPulse(elRef, key, revealedKeys);
   }
   previouslyRevealedAnimKeys = revealedKeys;

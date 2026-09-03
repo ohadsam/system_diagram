@@ -1,5 +1,12 @@
+/* stroke-dashoffset here is for Diagram Animation's 'draw' entrance style
+   (core/project.js#ANIMATION_ENTRANCE_STYLES, canvas.js#applyEdgeDrawEntrance)
+   — the actual stroke-dasharray/stroke-dashoffset values are computed and
+   set inline per edge in JS (they depend on that specific path's own
+   length, via getTotalLength()), this only supplies the transition so
+   animating dashoffset down to 0 visibly draws the line instead of
+   snapping straight to fully-drawn. */
 .edge-line {
-  transition: stroke 0.1s;
+  transition: stroke 0.1s, stroke-dashoffset 550ms ease;
 }
 
 .edge {

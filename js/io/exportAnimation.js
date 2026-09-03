@@ -11,7 +11,7 @@
 // Every id in the file (step ids, animation ids) is ignored on import —
 // fresh ones are always assigned, same as a project's own JSON import.
 import { downloadJSON, sanitizeFilename } from '../utils/download.js';
-import { createAnimation, createAnimationStep, ANIMATION_REVEAL_MODES } from '../core/project.js';
+import { createAnimation, createAnimationStep, ANIMATION_REVEAL_MODES, ANIMATION_ENTRANCE_STYLES } from '../core/project.js';
 
 const KIND = 'sdb-diagram-animation';
 const FORMAT_VERSION = 2;
@@ -42,6 +42,8 @@ export function exportAnimation(animations, projectName, nodesById, edgesById) {
         })),
         revealMode: s.revealMode,
         delayMs: s.delayMs,
+        entranceStyle: s.entranceStyle,
+        hideAfterMs: s.hideAfterMs,
         notes: s.notes,
       })),
     })),
@@ -67,6 +69,8 @@ function stepFromImportedRaw(raw, existingNodeIds, existingEdgeIds) {
   const step = createAnimationStep(targets, {
     revealMode: ANIMATION_REVEAL_MODES.includes(raw.revealMode) ? raw.revealMode : 'click',
     delayMs: Number.isFinite(raw.delayMs) && raw.delayMs > 0 ? raw.delayMs : 2000,
+    entranceStyle: ANIMATION_ENTRANCE_STYLES.includes(raw.entranceStyle) ? raw.entranceStyle : 'fade',
+    hideAfterMs: Number.isFinite(raw.hideAfterMs) && raw.hideAfterMs > 0 ? raw.hideAfterMs : 0,
     notes: typeof raw.notes === 'string' ? raw.notes : '',
   });
   return { step, appliedCount: targets.length, skippedCount };

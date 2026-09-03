@@ -3686,6 +3686,169 @@ adding it to that same list — worth remembering if a future feature adds
 another fixed-position toast or banner: it needs adding there too, not just
 to whatever list existed when it was written.
 
+### Entrance styles and auto-hide-after-time
+
+Two more per-step fields, alongside `revealMode`/`delayMs` above:
+`entranceStyle` (`core/project.js#ANIMATION_ENTRANCE_STYLES` — `'fade'`
+default, `'slide-up'`/`'zoom'`/`'draw'`) and `hideAfterMs` (0 = never, the
+default). Both are optional/additive — a step created before this existed,
+or read from an older export file, simply defaults to the exact behavior
+it always had (`validateAnimationStep` in `core/project.js`,
+`stepFromImportedRaw` in `io/exportAnimation.js`).
+
+**Entrance style** is purely a rendering concern — `canvas.js#applyAnimationVisibility`
+builds a `entranceStyleByKey` map (target key → that step's `entranceStyle`)
+from every step (not just the hidden ones, since a step already revealed
+needs no further lookup) and sets `data-anim-entrance` on a node/edge
+element *while it's still `.anim-hidden`*, so the "pre-reveal" offset is
+already in place the instant hiding starts — removing `.anim-hidden` on
+reveal then transitions it back to the element's own default (no
+transform), reusing `.node`'s already-existing `transition` (now also
+covering `transform`, which nothing else on `.node` itself ever sets —
+positioning uses plain left/top, and the per-node "Rotation" field applies
+to the *inner* `.node-body` instead, so this can never fight another
+feature). `'draw'` is edge-only, and only actually applies to a *solid*
+connector: `canvas.js#applyEdgeDrawEntrance` computes `.edge-line`'s own
+`getTotalLength()` once and sets `stroke-dasharray`/`stroke-dashoffset`
+*inline* (full length while hidden, `0` once revealed, transitioned via
+`css/connector.css`) — a Dashed/Dotted connector's own pattern is a
+presentation *attribute* (`connector.js` sets it via `setAttribute`), and
+an inline *style* value always wins over the same property set as an
+attribute, so drawing on top of one would silently flatten it to solid for
+the rest of the diagram's life; anything that isn't a solid edge just
+falls back to the plain group-opacity fade every entrance style already
+gets from `.edge.anim-hidden`, rather than a broken half-effect.
+`resetEdgeDrawStyle` clears that inline style once playback stops, so a
+'draw' edge's true dash pattern is never left clobbered outside of an
+actual playback session.
+
+**Auto-hide-after-time** needed a genuinely new piece of playback state,
+not just a rendering tweak — a step's targets have to disappear again on
+their own, independent of `revealedCount` (which only ever tracks *how far
+forward* the presentation has gotten). `core/animationPlayback.js` adds
+`expiredStepIds` (a `Set`) plus a `stepId → setTimeout handle` map,
+completely separate from the existing `timerHandle` (which only ever
+tracks the *next-step* auto-advance) since a step can be doing both at
+once — auto-advancing to the next step *and* independently counting down
+its own hide timer. The tricky part is keeping this in sync with
+backward/forward navigation without the mental overhead of tracking
+partial elapsed time: `syncExpiryToRevealedCount(oldCount, newCount)`
+(called from `nextStep`/`prevStep`/`jumpToStep`, comparing before/after)
+arms a *fresh, full-duration* countdown for every step newly entering
+`[oldCount, newCount)` and cancels-and-un-expires every step falling *out*
+of revealed range — so stepping back before an already-hidden step, then
+forward again later, always replays its full reveal→countdown→hide cycle
+rather than picking up wherever an old timer left off or staying
+permanently expired. `setFrozen` extends the exact same "always a fresh
+window, never a resumed remainder" philosophy its own doc comment already
+states for the next-step timer: freezing cancels every pending hide timer
+outright (without touching `expiredStepIds`, so an already-hidden step
+stays hidden), and unfreezing re-arms a full fresh countdown for every
+currently-revealed, not-yet-expired step — a presenter who pauses to talk
+through a step should never come back to find it vanished, or watch it
+vanish moments later from a countdown that silently kept running while
+paused. The loop-restart branch inside `scheduleCurrent()` (which sets
+`revealedCount = 0` directly, bypassing `nextStep`/`jumpToStep`) needed its
+own explicit `expiredStepIds` reset for the same reason — an unpatched
+call site here would have left an auto-hide step permanently hidden on
+every subsequent lap. `canvas.js#applyAnimationVisibility` folds
+`expiredStepIds`' targets into the same `hidden` set a not-yet-reached
+step's targets already populate, so from the rendering side an "expired"
+target and a "not yet revealed" one are handled identically — no separate
+code path needed there.
+
+Both fields also get bulk-apply counterparts in the panel
+(`canvas.js#setAllStepsEntranceStyle`/`setAllStepsHideAfterMs`), matching
+the existing bulk `revealMode` change (`setAllStepsRevealMode`) — a plain
+`store.dispatch` mapping every step in the active animation, no different
+mechanically from a hand-edited single step.
+
+**Bulk actions can also be scoped to a checked subset, not just "every
+step."** Every one of `setAllStepsRevealMode`/`setAllStepsEntranceStyle`/
+`setAllStepsHideAfterMs` (and the new `removeAnimationSteps`, below) takes
+an optional trailing `stepIds` (a Set or array of step ids), normalized by
+a shared `toStepIdSet` helper: omitted/null means "every step" (each
+function's original, still-most-common meaning, so every pre-existing call
+site needed no change), passed means "only these." `panel/animationPanel.js`
+tracks which steps are checked in a module-level `selectedStepIds` Set (a
+checkbox per row in "In animation," plus a "Select all" toggle above the
+bulk rows — same ephemeral, panel-session-only lifetime as `selectedForGroup`
+in the "Add more" section, cleared on close and pruned each render against
+steps that still actually exist) and computes once per render: `scopeIds =
+selectedStepIds.size ? selectedStepIds : null`. Every bulk row's own label
+and button text is built from the same `scopeLabel` ("all steps" vs. "3
+selected steps"), so which meaning a click will use is never ambiguous —
+this was a deliberate design response to the alternative (an always-on
+"applies to selection if any, else everything" rule with no visible cue),
+which tested as genuinely confusing to click without first checking
+whether anything happened to be selected.
+
+`removeAnimationSteps(stepIds = null)` is `removeAnimationStep`'s bulk
+sibling — "🗑️ Remove All"/"Remove Selected (N)" in the panel — and returns
+the number of steps actually removed so the panel can skip a toast for a
+true no-op. Removing 2+ steps at once goes through `confirmAction` first
+(matching `deleteAnimation`'s own confirmation for the more drastic
+"delete the whole animation"); removing exactly one (via either button
+with only one step in scope) skips it, consistent with the existing
+per-step ✕ button already having no confirmation of its own.
+
+**Deliberately out of scope: neither field affects the PPTX/video
+exports.** `io/exportAnimationPptx.js` and `io/exportAnimationVideo.js`
+don't go through `animationPlayback.js`/`applyAnimationVisibility` at
+all — they drive `canvas.js#applyAnimationExportVisibility` directly with
+their own manually-accumulated `revealed` Set, capturing one static
+`captureDiagramCanvas()` frame per step after only a single
+`requestAnimationFrame` wait (`nextFrame()`), not a real transition. That
+was already true before this feature existed (a fade/pulse reveal was
+never actually visible as a transition in an exported video either, only
+as an instant before/after state), so entrance styles simply have nothing
+to animate in a static per-step frame — an acceptable no-op, not a
+regression. `hideAfterMs` is a different story: that `revealed` Set only
+ever grows, by design (the export's whole mental model is "the diagram
+cumulatively builds up," matching PPTX's own one-slide-adds-more
+narrative), so an auto-hidden step stays visible in every subsequent
+exported frame/slide even though live playback would have hidden it.
+Reproducing that faithfully would mean subdividing a step's own export
+dwell time into "before/after its own hide" sub-frames — real scope beyond
+what this feature asked for, so it's left as a known, documented gap
+rather than half-implemented; if a future batch wants export parity here,
+this is the place to start.
+
+### Quick-add row: "+ Add All" / "+ Add Selected From Canvas"
+
+`panel/animationPanel.js#buildQuickAddRow` renders right after "Play
+Animation" — a discoverability fix, not a new capability underneath: "+
+Add All" is the *exact same* `addAllToActiveAnimation()` call
+`buildAddMoreSection` used to render inline near the bottom of the panel,
+just **moved**, not duplicated — a second button with the same accessible
+name would both read as confusing and break every existing `hasText: '+
+Add All'` e2e locator in this suite, which assume exactly one match (see
+docs/AI_AGENT_GUIDE.md's "Common pitfalls" on cloning vs. moving a button
+for the precedent this follows). It was found genuinely easy to miss once
+an animation had a handful of steps and the "In animation" list (now
+longer still, after the bulk-selection rows above) pushed it well below
+the fold. Unlike its old conditionally-rendered home (only shown at all
+once 2+ candidates existed), the moved button always renders, showing "+
+Add All (0)" and disabling itself once nothing is left — deliberately more
+visible/predictable than vanishing outright.
+
+"+ Add Selected From Canvas" is genuinely new: `store.getSelection()` read
+directly (not from `steps`/`state` — this is the *canvas* selection, a
+different thing entirely from the "In animation" step-selection checkboxes
+covered above, and also different from the "Add more" section's own
+per-row checkboxes used for "+ Add Selected as one step") and passed to
+the same `addAnimationStep(targetsInput)` an array already groups into one
+step — the exact mechanism the canvas right-click menu's "Add Selection to
+Animation" already used, just reachable from inside the panel too, for
+anyone who wouldn't think to right-click. Its own count has to stay live
+while the panel is open, which needed a second store subscription: `open()`
+already subscribes to `'change'` (project edits) via `render`, and now also
+subscribes to `'selection'` (a separate event `store.js#select` emits,
+covering just marquee/click/Ctrl-click selection changes, not project
+data) — without it, selecting/deselecting something on the canvas while
+the panel is already open would leave this button's count stale until some
+unrelated edit happened to trigger a re-render.
+
 ## Flow Simulation (`canvas/canvas.js#setFlowSimulationEnabled`, `canvas/connector.js`)
 
 Every edge's `<g class="edge">` (built once, in `connector.js#createEdgeEl`) carries a small

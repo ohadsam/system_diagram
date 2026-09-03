@@ -3,6 +3,50 @@
 All notable changes to this project. Format: date, then bullet list.
 Keep this in sync with `PLAN.md` as stages complete.
 
+## v1.59.0 (2026-09-03)
+
+- **New: Diagram Animation entrance styles.** Each step now has its own
+  "Entrance" dropdown — Fade (the original, default behavior), Slide up,
+  Zoom in (both for components), or Draw (a connector's line visibly
+  extends from start to end via the standard SVG stroke-drawing technique;
+  only applies to a solid-style connector, so a Dashed/Dotted one's own
+  pattern is never clobbered — it just falls back to Fade). A new "Entrance
+  for all steps" bulk control applies one style to every step in the
+  active animation at once.
+- **New: "Hide after" auto-hide timer.** Any step can now be set to
+  disappear again a chosen number of seconds after it reveals, independent
+  of whether that step advances the presentation automatically or waits
+  for a click — enabling a "flash card" style walkthrough where each item
+  appears, then fades away again. A new "Hide every step after" bulk
+  control (with "Apply"/"Never hide") sets or clears this across every
+  step at once. Freezing the presentation to draw on it pauses the
+  countdown rather than letting it silently run out unseen, and stepping
+  backward past an already-hidden step and forward again always gives it a
+  full, fresh countdown rather than an instantly-elapsed one.
+- Both new fields round-trip through a project's own JSON export/import
+  and Diagram Animation's standalone export/import file.
+- **New: "Remove All" and per-step selection for bulk actions.** A new
+  "🗑️ Remove All" button clears every step from the active animation in
+  one click (confirming first once 2+ steps would be removed). Each step
+  in the "In animation" list now has its own checkbox (plus a "Select all"
+  toggle) — checking any of them scopes *every* bulk action (reveal mode,
+  entrance style, hide-after, and Remove) to just the checked steps
+  instead of the whole animation, with each row's label and button text
+  updating live ("Set 3 selected steps to:", "Remove Selected (3)") so
+  it's always clear which one a click will do.
+- **Fix: "+ Add All" was easy to miss once a walkthrough had grown a
+  handful of steps** — it lived at the bottom of the "Add more" section,
+  below the entire (now longer) "In animation" list. Moved (not
+  duplicated) to a new quick-add row right under "Play Animation," always
+  visible with a live count, disabling itself once nothing is left to add
+  instead of disappearing outright.
+- **New: "+ Add Selected From Canvas"**, alongside "+ Add All" in that same
+  quick-add row — adds whatever is currently selected on the canvas as one
+  step that reveals together, the panel's own reachable equivalent of
+  right-clicking a multi-selection and choosing "Add Selection to
+  Animation." Its count updates live as the canvas selection changes while
+  the panel stays open.
+
 ## v1.58.4 (2026-09-03)
 
 - **Fix: searching the component library (sidebar or ⌘/Ctrl+K Quick Actions)

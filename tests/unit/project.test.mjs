@@ -994,11 +994,13 @@ test('createEmptyProject includes an empty animations array and no active animat
   assert.equal(p.activeAnimationId, null);
 });
 
-test('createAnimationStep normalizes a single target into a one-element array, and defaults revealMode/delayMs/notes', () => {
+test('createAnimationStep normalizes a single target into a one-element array, and defaults revealMode/delayMs/entranceStyle/hideAfterMs/notes', () => {
   const step = createAnimationStep({ targetType: 'node', targetId: 'node_1' });
   assert.deepEqual(step.targets, [{ targetType: 'node', targetId: 'node_1' }]);
   assert.equal(step.revealMode, 'click');
   assert.equal(step.delayMs, 2000);
+  assert.equal(step.entranceStyle, 'fade');
+  assert.equal(step.hideAfterMs, 0);
   assert.equal(step.notes, '');
   assert.ok(step.id.startsWith('anim_'));
 });
@@ -1028,7 +1030,7 @@ test('validateProject keeps a well-formed animation (grouped step, notes, autoFo
         name: 'Walkthrough',
         autoFocus: true,
         steps: [
-          { targets: [{ targetType: 'node', targetId: n1.id }, { targetType: 'edge', targetId: e1.id }], revealMode: 'auto', delayMs: 1500, notes: 'Say hello' },
+          { targets: [{ targetType: 'node', targetId: n1.id }, { targetType: 'edge', targetId: e1.id }], revealMode: 'auto', delayMs: 1500, entranceStyle: 'zoom', hideAfterMs: 4000, notes: 'Say hello' },
           { id: 'anim_keep', targets: [{ targetType: 'node', targetId: n2.id }], revealMode: 'click', delayMs: 500 },
         ],
       },
@@ -1044,12 +1046,16 @@ test('validateProject keeps a well-formed animation (grouped step, notes, autoFo
   assert.equal(anim.steps[0].targets.length, 2);
   assert.equal(anim.steps[0].revealMode, 'auto');
   assert.equal(anim.steps[0].delayMs, 1500);
+  assert.equal(anim.steps[0].entranceStyle, 'zoom');
+  assert.equal(anim.steps[0].hideAfterMs, 4000);
   assert.equal(anim.steps[0].notes, 'Say hello');
   assert.equal(anim.steps[1].id, 'anim_keep');
+  assert.equal(anim.steps[1].entranceStyle, 'fade', 'a step with no entranceStyle at all still defaults, same as a pre-this-field project');
+  assert.equal(anim.steps[1].hideAfterMs, 0);
   assert.equal(result.project.activeAnimationId, anim.id);
 });
 
-test('validateProject drops a target referencing a node/edge that does not exist, dropping the whole step once empty, and clamps invalid revealMode/delayMs/notes', () => {
+test('validateProject drops a target referencing a node/edge that does not exist, dropping the whole step once empty, and clamps invalid revealMode/delayMs/entranceStyle/hideAfterMs/notes', () => {
   const n1 = createNode(null, 0, 0);
   const result = validateProject({
     nodes: [n1],
@@ -1057,7 +1063,7 @@ test('validateProject drops a target referencing a node/edge that does not exist
     animations: [{
       name: 'A',
       steps: [
-        { targets: [{ targetType: 'node', targetId: n1.id }], revealMode: 'bogus', delayMs: -5, notes: 42 },
+        { targets: [{ targetType: 'node', targetId: n1.id }], revealMode: 'bogus', delayMs: -5, entranceStyle: 'bogus', hideAfterMs: -5, notes: 42 },
         { targets: [{ targetType: 'node', targetId: 'no-such-node' }], revealMode: 'auto', delayMs: 1000 },
         { targets: [{ targetType: 'edge', targetId: 'no-such-edge' }], revealMode: 'auto', delayMs: 1000 },
         { targets: [{ targetType: 'nonsense', targetId: n1.id }] },
@@ -1070,6 +1076,8 @@ test('validateProject drops a target referencing a node/edge that does not exist
   assert.equal(steps.length, 2, 'only steps with at least one surviving target survive');
   assert.equal(steps[0].revealMode, 'click', 'an invalid revealMode falls back to the default');
   assert.equal(steps[0].delayMs, 2000, 'a non-positive delayMs falls back to the default');
+  assert.equal(steps[0].entranceStyle, 'fade', 'an invalid entranceStyle falls back to the default');
+  assert.equal(steps[0].hideAfterMs, 0, 'a non-positive hideAfterMs falls back to "never" (0)');
   assert.equal(steps[0].notes, '', 'a non-string notes value falls back to empty');
   assert.equal(steps[1].targets.length, 1, 'a grouped step keeps its surviving target and drops the missing one');
 });
