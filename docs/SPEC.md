@@ -59,7 +59,18 @@ owner; code/UI/comments are English only.
   Layers & Roles, Design Patterns, State Machines, Misc).
 - Categories sorted A→Z; components inside each category sorted A→Z.
 - Search box filters across all categories by name/tag/description, with
-  live highlighting and auto-expanding matched categories.
+  live highlighting and auto-expanding matched categories. Within a
+  category (and when deciding which category's matches sort first), an
+  exact name match ranks first, then any other name match ranked by
+  coverage (how little of the name is left over once the query is
+  removed — not simply "prefix beats substring," which would rank a much
+  longer, more specific item ahead of the actual short product name it
+  happens to also start with), and a description/tag-only match ranks
+  last — otherwise an alphabetically-earlier component that only mentions
+  the query in its description (or shares some of the same letters) could
+  outrank the actual named product (`js/sidebar/search.js#rankComponents`).
+  The same ranking applies to the Command Palette's (4.20) component-add
+  results.
 - "★ Popular only" toggle narrows the built-in categories to just their
   `popular: true` components (see 4.2 below for the flag itself) —
   Favorites and My Components are unaffected, since `popular` is a
@@ -1295,7 +1306,12 @@ panel, leaving a full-bleed view of just the canvas — useful for presenting
 or screen-sharing a diagram without the editing chrome visible. A small
 floating "✕ Exit Presenter Mode" button (the only chrome left on screen)
 or the Escape key returns to the normal editing view. The setting is not
-remembered across a page reload.
+remembered across a page reload. If a component or connector is still
+selected when Presenter Mode is entered (or when Diagram Animation
+playback starts, which reuses this same chrome-hiding), the floating
+style/arrow editor row is hidden too, even though it mounts outside the
+toolbar's own DOM subtree in its default display mode — otherwise it would
+sit on top of the presentation.
 
 ### 4.33 Large-diagram rendering performance
 Components far outside the current view no longer cost meaningful rendering

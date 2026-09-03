@@ -94,6 +94,27 @@
     box-shadow: var(--shadow-lg);
   }
 
+  /* toolbar.js#positionFloatingRow keeps the floating style/arrow editor
+     inside #canvas-viewport's own bounding box specifically so it can never
+     cover the details/AI-review/AI-chat/outline/animation panels — a
+     guarantee that only holds on a desktop-width layout, where those panels
+     are flex siblings that actually shrink #canvas-viewport. At this width
+     every one of them switches to an absolute overlay (the five rules
+     above/nearby) that no longer shrinks #canvas-viewport's own box at all,
+     so the editor's "available space" math never learns about them and can
+     render right underneath one — most easily hit via Diagram Animation,
+     whose own workflow is "select something on the canvas while the panel
+     is open." Simplest correct fix at this width: hide the editor outright
+     while any of these panels is open, the same way kiosk-mode already
+     hides it outright rather than trying to dodge every other overlay. */
+  body:has(#details-panel.open) .toolbar-row-context,
+  body:has(#ai-review-panel.open) .toolbar-row-context,
+  body:has(#ai-chat-panel.open) .toolbar-row-context,
+  body:has(#outline-panel.open) .toolbar-row-context,
+  body:has(#animation-panel.open) .toolbar-row-context {
+    display: none;
+  }
+
   .toolbar-row-main {
     row-gap: var(--space-2);
   }

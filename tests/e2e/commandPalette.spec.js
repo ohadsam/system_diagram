@@ -41,6 +41,17 @@ test('typing a component name shows an "Add a component" result that adds it to 
   await expect.poll(() => nodeCount(page)).toBe(before + 1);
 });
 
+test('typing an exact component name ranks it ahead of an alphabetically-earlier component whose name merely contains the same letters (js/sidebar/search.js#rankComponents)', async ({ page }) => {
+  // "Preact" sorts before "React" and technically contains "react" as a
+  // substring too — without ranking by match quality, "Add Preact" would
+  // show (and be capped into the top results) ahead of the real "Add React".
+  await page.keyboard.press('ControlOrMeta+k');
+  await page.locator('.command-palette-input').fill('React');
+  await expect(page.locator('.command-palette-heading', { hasText: 'Add a component' })).toBeVisible();
+  const componentItems = page.locator('.command-palette-item', { hasText: /Add \S/ });
+  await expect(componentItems.first()).toContainText('Add React');
+});
+
 test('selecting a component first shows its contextual actions ahead of general results', async ({ page }) => {
   await addComponentByName(page, 'Redis Cache');
   await page.locator('.node').first().click();

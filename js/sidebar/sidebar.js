@@ -12,7 +12,7 @@ import {
   countFolderContents, deleteFolder,
 } from '../io/favorites.js';
 import { el, clear } from '../utils/dom.js';
-import { filterComponents, normalize, componentMatches } from './search.js';
+import { filterComponents, normalize, componentMatches, nameMatchRank, rankComponents } from './search.js';
 import { makeDraggable } from './dragSource.js';
 import { attachPatternPreview, shouldShowPreview, hidePatternPreview } from './patternPreview.js';
 import { showContextMenu } from '../canvas/contextMenu.js';
@@ -163,9 +163,33 @@ function renderList() {
   const hiddenCategoryIds = new Set(
     Object.entries(HIDEABLE_CATEGORIES).filter(([settingKey]) => librarySettings[settingKey]).map(([, categoryId]) => categoryId),
   );
+  const builtinCategories = CATEGORIES.filter((cat) => !hiddenCategoryIds.has(cat.id)).map((cat) => ({ ...cat, components: COMPONENTS_BY_CATEGORY.get(cat.id) || [] }));
+  // While actively searching, float a category by how well it matches the
+  // query *by name* — otherwise the plain alphabetical-by-label category
+  // order can surface an unrelated-by-name component first just because its
+  // category label happens to sort earlier. Two levels of this bit for
+  // real:
+  //  1. A name match (any tier) outranks a component that only matches by
+  //     description/tags — e.g. typing "Redis" surfaces the Databases
+  //     category ahead of AWS's ElastiCache, whose *description* mentions
+  //     "managed Redis or Memcached store" but whose name doesn't.
+  //  2. Among name matches, an exact/prefix match outranks a mere substring
+  //     one — e.g. typing "Device" (the literal UML Deployment component)
+  //     must not lose to "IoT Device" just because its own category
+  //     ("Client & Frontend") happens to sort alphabetically earlier than
+  //     "UML Deployment".
+  // A stable sort keeps each rank group's own alphabetical order; browsing
+  // with an empty query is completely unaffected.
+  if (q) {
+    const bestRank = (cat) => cat.components.reduce((best, c) => {
+      const rank = nameMatchRank(c, q);
+      return rank === null ? best : Math.min(best, rank);
+    }, Infinity);
+    builtinCategories.sort((a, b) => bestRank(a) - bestRank(b));
+  }
   const categories = [
     { ...CUSTOM_CATEGORY, components: custom },
-    ...CATEGORIES.filter((cat) => !hiddenCategoryIds.has(cat.id)).map((cat) => ({ ...cat, components: COMPONENTS_BY_CATEGORY.get(cat.id) || [] })),
+    ...builtinCategories,
   ];
 
   let anyMatch = false;
@@ -190,7 +214,7 @@ function renderList() {
 
   for (const cat of categories) {
     if (!showBuiltinCategories && cat.id !== CUSTOM_CATEGORY.id) continue;
-    let matches = filterComponents(cat.components, query);
+    let matches = rankComponents(filterComponents(cat.components, query), query);
     // "Popular only" is scoped to the built-in library — `popular` is a
     // curated per-component data flag (see data/schema.js), not something
     // "My Components" (the user's own, unrated) or Favorites (already a

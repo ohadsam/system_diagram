@@ -84,6 +84,7 @@ this repo" quick-start.
 | Change the Replicate create/join/break UI            | `js/modals/replicationModal.js` (UI) + `js/canvas/canvas.js` (`createReplicationPairFromSelection`, `addSelectionToReplicationSide`, `breakReplicationPair`, `getReplicationInfoForNode`). The node context menu's "🔁 Join replication..." shortcut dispatches a `sdb:open-replication` window event (listened for in `replicationModal.js`) rather than importing the modal directly — see docs/ARCHITECTURE.md's Live Replication section for why. |
 | Change the group/replication-side background boundary | `js/canvas/groupBackgrounds.js` (`computeGroupBounds`, pure) + `js/canvas/canvas.js#renderGroupBackgrounds` (DOM) — see docs/ARCHITECTURE.md's "Group backgrounds" section. Dismissing one is session-only (`hiddenGroupBackgrounds`, not part of the project schema). |
 | Add/adjust the sidebar's "★ Popular only" filter     | `js/sidebar/sidebar.js` (`popularOnly` module state, the toggle button in `initSidebar`, the filter inside `renderList`) — scoped to built-in categories only, not Favorites/My Components |
+| Change component-search relevance (sidebar library search or ⌘/Ctrl+K) | `js/sidebar/search.js#nameMatchRank`/`rankComponents` (exact name match ranks 0/best; below that, ranked by *coverage* — how little of the name is left over once the query is removed — not just prefix-vs-substring position; `null`/unranked for a description/tag-only match) — used by both `js/sidebar/sidebar.js#renderList` (ranks components within a category, and ranks which category sorts first when searching) and `js/modals/commandPaletteModal.js#computeResults`. See "Common pitfalls" below before assuming `componentMatches`/`filterComponents` alone give you match-quality order, and before reverting to a naive prefix-beats-substring rule. |
 | Let a predefined component pin its own `textPosition`/`iconVisible` default | `js/data/schema.js#c()` (accepts the opts, only include them if set) + `js/core/project.js#createNode` (reads `def.textPosition`/`def.iconVisible` *after* spreading `overrides`, so the def wins over the user's global Default Settings) — see docs/ARCHITECTURE.md's "A component's own textPosition/iconVisible default" |
 | Add an AWS cluster/node/pod-style component or an HA design pattern | `js/data/categories/aws.js` (plain `c(...)`) or `js/data/categories/design-patterns.js` (`definePattern(...)`) |
 | Change the contextual style row's floating/pinned-top/pinned-bottom display mode | `js/io/uiPrefs.js` (storage, `CONTEXT_ROW_MODES`) + `js/toolbar/toolbar.js` (`mountContextRow`, `positionFloatingRow`, the 📌 pin button) + `js/modals/defaultSettingsModal.js` ("Style editor" section, the only way to reach `pinned-bottom`). See "Common pitfalls" below before touching `positionFloatingRow`. |
@@ -1304,3 +1305,70 @@ npm test
   dynamic-title button to a `recentScopeId`-enabled dropdown, no action is
   needed (the snapshot happens automatically for every button in the
   panel), but don't be tempted to "simplify" it into a live `.title` read.
+- **`js/sidebar/search.js#componentMatches`/`filterComponents` filter, they
+  don't rank.** Both just check "does this component match at all" (by
+  name, description, or tags) with no notion of match quality, and every
+  caller used to trust whatever order that left components in — usually
+  each category's own alphabetical order. That silently surfaces the
+  *wrong* result first whenever a query is also a substring of an
+  alphabetically-earlier component: searching "Redis" showed AWS
+  ElastiCache first (a description-only mention, in a category that sorts
+  before "Databases"); searching "Device" showed "IoT Device" first (a
+  same-tier name match, just alphabetically earlier); searching "React"
+  showed "Preact" first, in the *same* category. All three were the same
+  root cause found via three different creative QA scenarios, not one
+  bug fixed three times. Fixed with `nameMatchRank`/`rankComponents`,
+  applied by both `sidebar.js#renderList` (within each category's own
+  result list, and to decide which category sorts first) and
+  `commandPaletteModal.js#computeResults`. If you add a third place that
+  searches the component library, rank its results the same way rather
+  than trusting `filterComponents`' output order.
+  **A naive "exact, then prefix, then substring" tiering for
+  `nameMatchRank` is itself wrong**, and shipped briefly before a full
+  e2e run caught it: this library has both a real "Apache Kafka" component
+  (a *substring* match for the query "Kafka") and a "Kafka Consumer-Group
+  Rebalance" sequence-diagram template (a *prefix* match, but 26 characters
+  longer) — a plain prefix-beats-substring rule ranks the much longer,
+  far-more-specific template ahead of the actual product, so
+  `addComponentByName(page, 'Kafka')`-style search-and-click-first-match
+  helpers across ~10 unrelated e2e specs started instantiating a whole
+  lifeline cluster instead of adding the single expected component,
+  inflating `nodeCount`/`edgeCount` by many times the expected value. The
+  fix ranks below "exact" primarily by *coverage* — how little of the
+  name is left over once the query is removed — with prefix-vs-substring
+  position only as a tiebreak for equal coverage; see `nameMatchRank`'s own
+  doc comment and `tests/unit/search.test.mjs`'s Kafka-named test for the
+  concrete numbers. If you ever touch this ranking again, re-run the
+  **full** e2e suite (not just the sidebar/command-palette specs) before
+  considering it done — this exact class of regression is invisible to any
+  test that doesn't happen to add a component whose name is also a prefix
+  of some other library item's own name.
+- **A floating/absolutely-positioned UI element that mounts outside the
+  container a "hide everything" class targets (`body.kiosk-mode #toolbar`,
+  etc.) needs its own selector in that hide rule — hiding the container
+  doesn't hide a non-descendant.** The contextual style/arrow editor row
+  (`.toolbar-row-context`) mounts as a direct child of `<body>` in its
+  default 'floating' display mode (see docs/ARCHITECTURE.md's "Display
+  modes" section) — hiding `#toolbar` for Presenter Mode/Diagram Animation
+  playback left it sitting on top of the presentation if something was
+  still selected on entry. If you add another top-level UI mode that
+  hides "everything," audit it against every element known to live outside
+  the normal container tree (this row, `contextMenu.js`, `toolbarDropdown.js`
+  panels), not just the containers with an id.
+- **A component/layout invariant computed relative to one element's box
+  (`#canvas-viewport`'s bounding rect, used by `positionFloatingRow` to
+  guarantee the floating context row never covers the details/AI-review/
+  AI-chat/outline/animation panels) can silently stop holding once a
+  different breakpoint changes what that box actually contains.** Those
+  five panels are flex siblings that shrink `#canvas-viewport` on desktop,
+  but at mobile width (`css/responsive.css`) they switch to `position:
+  absolute` overlays that don't shrink it at all — so the "stay inside
+  #canvas-viewport" guarantee quietly stopped applying to them the moment
+  the layout switched, without anything about the containment logic itself
+  changing. Found by opening Diagram Animation with a connector selected at
+  390px width, not by reading the positioning code. When a component's
+  safety guarantee is phrased as "stays inside element X's box," re-check
+  it explicitly at every breakpoint where X's own children might change
+  from in-flow to `position: absolute`/`fixed` (or back), since that's
+  exactly the kind of change a layout-only responsive pass tends not to
+  flag as relevant.

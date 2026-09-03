@@ -181,7 +181,16 @@
    same as every other piece of editing chrome. .suggestion-banner is also
    hidden here: it's a fixed bottom-of-screen toast (js/canvas/suggestions.js)
    that otherwise visually collides with the animation playback controls,
-   which occupy that same screen area during a presentation. */
+   which occupy that same screen area during a presentation. .toolbar-row-
+   -context (the floating/pinned style-and-arrow editor for whatever's
+   selected) is targeted by its own class rather than a container id: its
+   'floating' mode (the default) mounts it as a direct child of <body>, and
+   its 'pinned-bottom' mode mounts it inside #app — neither is a descendant
+   of #toolbar, so hiding #toolbar alone leaves a full color/width/routing
+   editor sitting on top of the presentation if something was still
+   selected when Presenter Mode was entered ('pinned-top' mode does mount
+   inside #toolbar and would already be covered by that rule, but this
+   catches it too for a single, mode-independent guarantee). */
 body.kiosk-mode #toolbar,
 body.kiosk-mode #sidebar,
 body.kiosk-mode #details-panel,
@@ -189,6 +198,7 @@ body.kiosk-mode #outline-panel,
 body.kiosk-mode #ai-review-panel,
 body.kiosk-mode #ai-chat-panel,
 body.kiosk-mode #animation-panel,
+body.kiosk-mode .toolbar-row-context,
 body.kiosk-mode .suggestion-banner {
   display: none;
 }

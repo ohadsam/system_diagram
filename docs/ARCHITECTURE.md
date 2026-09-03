@@ -1668,6 +1668,53 @@ during the release-checklist's own review pass — `addCustomShapeNode` (the
 "Add Shape" modal) — before it ever became a user-visible bug there; fixed
 the same way, reusing `findClearCenter` rather than duplicating the logic.
 
+**Gotcha found in review #6: the row's mount point means "hide the
+toolbar" doesn't hide it, and a desktop-only sizing assumption breaks on
+mobile.** Both found during a dedicated QA sweep of creative, unusual
+scenarios rather than a normal feature review. `'floating'` mode (the
+default) mounts the row as a direct child of `<body>`, and `'pinned-bottom'`
+mounts it inside `#app` — neither is a descendant of `#toolbar`, so
+Presenter Mode and Diagram Animation playback (both built on the same
+`body.kiosk-mode` chrome-hiding class, see `css/layout.css`) hiding
+`#toolbar` left a full color/width/routing editor sitting on top of the
+presentation if something was still selected on entry. Fixed by targeting
+`.toolbar-row-context` by its own class in the kiosk-mode rule, mode-
+independent. Separately, at mobile width the details/AI-review/AI-chat/
+outline/animation panels switch from desktop flex-siblings (which shrink
+`#canvas-viewport`, the box `positionFloatingRow` clamps into) to
+`position: absolute` overlays that don't shrink it at all — so the row's
+"stay inside the canvas box" guarantee silently stopped covering these
+panels the moment the layout switched, most easily hit by selecting a
+connector then opening Diagram Animation. Simplest correct fix at that
+width: hide the row outright while any of those panels is open
+(`body:has(#details-panel.open) .toolbar-row-context { display: none; }`
+and siblings in `css/responsive.css`), the same blunt approach kiosk-mode
+already uses rather than trying to extend the containment math to cover a
+layout mode it was never designed for.
+
+While regression-testing the fix above, an unrelated pre-existing test —
+"collapsing the contextual row on mobile frees up most of the canvas
+height" — turned out to fail deterministically (confirmed via `git stash`
+on just the CSS changes: identical failure with or without them). Root
+cause: adding Redis triggers the Smart Suggestions banner (it has a
+curated companion), and the height-cap logic from gotcha #4 item 6 quite
+correctly shrinks the row's available space to stay clear of it — down
+far enough, in this specific scenario, to hit the row's own `Math.max(120,
+...)` floor before the field grid ever gets to show its real size, so the
+test's "collapsed height is <30% of expanded" assertion was comparing
+against an already-artificially-small "expanded" state. Worth noting for
+its own sake: dismissing the banner mid-test doesn't lift that cap back
+off either — `hide()` calls `notifyVisibilityChange(false)` immediately on
+click, a tick before the 200ms fade-out actually finishes and the element
+gains `hidden`, so a reposition triggered right at that notification still
+finds the banner via the same `:not([hidden])` query gotcha #4 item 6
+relies on and keeps trimming — the mirror image of that same item's second
+follow-up bug (there, the *appear* notification fired a beat too early;
+here, the *disappear* one does). The test fix was to turn Smart
+Suggestions off for that one scenario rather than to chase the banner
+timing, since the row's floor-clamped, banner-avoiding behavior here is
+correct, intentional product behavior, not a bug to work around.
+
 ## Details panel (`panel/detailsPanel.js`)
 
 Opened via a node's ⓘ button or right-click "Open details" (both fire a

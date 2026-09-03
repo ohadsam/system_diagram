@@ -3,6 +3,38 @@
 All notable changes to this project. Format: date, then bullet list.
 Keep this in sync with `PLAN.md` as stages complete.
 
+## v1.58.4 (2026-09-03)
+
+- **Fix: searching the component library (sidebar or ⌘/Ctrl+K Quick Actions)
+  for an exact or near-exact product name could surface an unrelated,
+  lower-quality match first.** `js/sidebar/search.js#componentMatches`/
+  `filterComponents` only ever filtered (matches or doesn't), leaving
+  results in whatever order they arrived in — usually each category's own
+  alphabetical order — with no notion of match quality. Three real
+  instances of the same bug, found via three different QA scenarios:
+  searching "Redis" surfaced AWS ElastiCache first (a description-only
+  mention, alphabetically-earlier category); searching "Device" surfaced
+  "IoT Device" first (a same-tier name match, alphabetically earlier);
+  searching "React" surfaced "Preact" first, in the same category. Fixed
+  with a new `nameMatchRank`/`rankComponents` (exact match ranks highest,
+  then prefix, then substring, unranked otherwise), applied by both the
+  sidebar (within each category, and to decide which category sorts
+  first) and the Command Palette.
+- **Fix: Presenter Mode and Diagram Animation playback didn't hide the
+  floating style/arrow editor** if a component or connector was still
+  selected when either was entered — it stayed on top of the presentation.
+  The row mounts as a direct child of `<body>` in its default display
+  mode, not inside `#toolbar`, so the existing "hide the toolbar" rule
+  never reached it; now targeted by its own class.
+- **Fix: on a mobile-width screen, opening the details/AI-review/AI-chat/
+  outline/animation panel while a component or connector was selected left
+  the same floating editor overlapping the panel**, both unreadable — most
+  easily hit by selecting a connector, then opening Diagram Animation. The
+  editor's "stay inside the canvas" positioning assumes those panels are
+  desktop flex-siblings that shrink the canvas; at mobile width they're
+  full overlays that don't, so the editor now hides outright while any of
+  them is open, the same way it already does in Presenter Mode.
+
 ## v1.58.3 (2026-09-03)
 
 - **Fix: an attached flow-diagram miniature didn't move when its host

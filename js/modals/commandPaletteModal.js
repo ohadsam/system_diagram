@@ -16,7 +16,7 @@ import { el, clear } from '../utils/dom.js';
 import * as store from '../core/store.js';
 import { createEmptyProject } from '../core/project.js';
 import { ALL_COMPONENTS, getRelatedComponents, getRelatedLayers, getRelatedPatterns } from '../data/index.js';
-import { componentMatches } from '../sidebar/search.js';
+import { componentMatches, rankComponents } from '../sidebar/search.js';
 import { filterCommands } from '../toolbar/commandPalette.js';
 import {
   deleteSelection, duplicateSelection, autoArrangeAll, distributeSequenceDiagram, duplicateProjectAsNew,
@@ -336,7 +336,7 @@ export function openCommandPaletteModal() {
     const matchedContextual = filterCommands(contextualCommands, q);
     const matchedApp = filterCommands(appCommands, q);
     const matchedComponents = q
-      ? ALL_COMPONENTS.filter((c) => componentMatches(c, q)).slice(0, MAX_COMPONENT_RESULTS).map(componentToCommand)
+      ? rankComponents(ALL_COMPONENTS.filter((c) => componentMatches(c, q)), q).slice(0, MAX_COMPONENT_RESULTS).map(componentToCommand)
       : [];
     const sections = [];
     // Recently-run actions, shown only while browsing (no query yet) — same

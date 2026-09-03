@@ -45,11 +45,50 @@ test.describe('mobile viewport (390x844)', () => {
     expect(info.scroll).toBeLessThanOrEqual(info.inner);
   });
 
+  // The floating context row only avoids covering the details/AI-review/
+  // AI-chat/outline/animation panels via a desktop-only assumption
+  // (positionFloatingRow keeps inside #canvas-viewport's own box, which
+  // those panels only shrink on a desktop-width layout — at this width
+  // they're absolute overlays that don't shrink it at all), so it must be
+  // hidden outright here instead (css/responsive.css) — found via a
+  // creative-scenario screenshot review: selecting a connector then
+  // opening Diagram Animation left a full color/width/routing editor
+  // sitting on top of the panel, both unreadable.
+  test('the floating context row is hidden (not left overlapping) once a full-width mobile panel opens over a live selection', async ({ page }) => {
+    await addComponentOnMobile(page, 'API Gateway');
+    await addComponentOnMobile(page, 'PostgreSQL');
+    await page.locator('.node').first().click();
+    await expect(page.locator('.toolbar-row-context')).toBeVisible();
+
+    await page.locator('#toolbar button.toolbar-dropdown-trigger', { hasText: 'Tools' }).click();
+    await page.locator('#toolbar button', { hasText: 'Diagram Animation' }).click();
+    await expect(page.locator('#animation-panel')).toHaveClass(/open/);
+    await expect(page.locator('.toolbar-row-context')).toBeHidden();
+  });
+
   // The contextual style-editor row's field grid can otherwise take up
   // most of a 390px-tall viewport (see docs/ARCHITECTURE.md "Contextual
   // style-editor row") — collapsing it via the header's › toggle should
   // free up most of that space for the canvas underneath.
+  //
+  // Regression (found via Round 4 QA investigation): adding 'Redis' here
+  // triggers the Smart Suggestions banner (canvas/suggestions.js — Redis has
+  // a curated companion), which toolbar.js#positionFloatingRow deliberately
+  // treats as a height ceiling for the floating row so the two never overlap
+  // — that's correct, wanted behavior, but it confounds *this* test by
+  // capping "expanded" down to the row's own 120px minimum floor before the
+  // 30%-reduction assertion below ever gets a real expanded height to work
+  // with (and, separately, dismissing the banner mid-test doesn't lift that
+  // cap back off — canvas/suggestions.js#hide notifies listeners the instant
+  // the close button is clicked, a tick before its own fade-out actually
+  // finishes and the element gains `hidden`, so positionFloatingRow's
+  // `:not([hidden])` check still sees it and keeps trimming). Turning Smart
+  // Suggestions off up front avoids the banner entirely so this test
+  // measures what it actually means to check.
   test('collapsing the contextual row on mobile frees up most of the canvas height', async ({ page }) => {
+    await page.evaluate(() => localStorage.setItem('sdb:v1:librarySettings', JSON.stringify({ suggestionsEnabled: false })));
+    await page.reload();
+    await dismissHints(page);
     await addComponentOnMobile(page, 'Redis');
     await page.locator('.node').first().click();
     const expandedHeight = await page.locator('.toolbar-row-context').evaluate((elRef) => elRef.getBoundingClientRect().height);

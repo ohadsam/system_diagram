@@ -2,9 +2,18 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.58.3';
+export const APP_VERSION = '1.58.4';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.58.4',
+    date: '2026-09-03',
+    highlights: [
+      '🔎 Searching the component library (sidebar or ⌘/Ctrl+K Quick Actions) for an exact or near-exact product name — e.g. "Redis", "Device", "React" — now surfaces that component first, ahead of an alphabetically-earlier component that only mentions the term in its description or shares some of the same letters (e.g. "React" no longer gets buried behind "Preact").',
+      '🖥️ Presenter Mode and Diagram Animation playback now also hide the floating style/arrow editor if something was still selected when you entered — previously it stayed on top of the presentation.',
+      '📱 On mobile-width screens, opening the details/AI-review/AI-chat/outline/animation panel while a component or connector is selected now hides that same floating editor instead of leaving it overlapping the panel.',
+    ],
+  },
   {
     version: '1.58.3',
     date: '2026-09-03',
