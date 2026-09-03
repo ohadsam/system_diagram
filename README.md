@@ -309,7 +309,10 @@ Or open `index.html` directly in a browser.
   in the URL (no backend, nothing uploaded) — opening it loads an
   independent local copy for whoever opens it.
 - **Recently Used** — the sidebar's pinned "Recently Used" section shows the
-  last 8 components you actually placed on the canvas, most recent first.
+  last 20 components you actually placed on the canvas, most recent first.
+  The Command Palette and every toolbar menu (File/Create/Tools/Help) have
+  their own "🕐 Recently Used" section too — how many entries each one
+  remembers is configurable in "🎛️ Default Settings".
 - **Diagram Versions & Presentations** — save named snapshots of a diagram
   ("📸 Version History"), revert to one or compare any two side-by-side
   ("💬 Explain this diff with AI" narrates what changed in plain language),
@@ -322,7 +325,9 @@ Or open `index.html` directly in a browser.
   that drops in as one grouped cluster.
 - **Command Palette** — "⌘" toolbar button or Ctrl/Cmd+K opens a searchable
   box covering every app action and the whole component library at once,
-  with context-aware results when a component is selected.
+  with context-aware results when a component is selected, plus a
+  "🕐 Recently Used" section of your most-run actions while the search box
+  is empty.
 - **Estimated cost & label chips** — set a $/mo cost estimate on any
   component (shown as a badge, rolled into a "💰 Cost Breakdown" total, with
   an "🤖 Ask AI to reduce this cost" button right there), and free-form

@@ -1785,6 +1785,24 @@
   margin-bottom: var(--space-4);
 }
 
+/* "🕐 Recently Used" settings (modals/defaultSettingsModal.js) — one number
+   input per io/recentItems.js#RECENT_SCOPES entry, same boxed-section look
+   as .ai-auto-suggest-settings above. */
+.recent-items-settings {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+  margin: var(--space-3) 0;
+}
+
+.recent-items-settings .modal-subheading {
+  margin-top: 0;
+}
+
+.recent-items-settings input[type="number"] {
+  width: 70px;
+}
+
 .feature-pack-list {
   display: flex;
   flex-direction: column;

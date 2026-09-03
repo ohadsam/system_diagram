@@ -441,6 +441,29 @@
   margin-top: 0;
 }
 
+/* toolbar/toolbarDropdown.js's opt-in `recentScopeId` — a "🕐 Recently Used"
+   section of proxy buttons mirroring this same panel's own most-recently-
+   clicked actions, rebuilt fresh every time the panel opens. Sits above
+   every real button/pack section (including any search box), so `.toolbar-
+   dropdown-section-label` here needs no top border/margin of its own,
+   unlike the pack-section version above which sits between other sections. */
+.toolbar-dropdown-recent-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.toolbar-dropdown-recent-wrap .toolbar-dropdown-section-label {
+  border-top: none;
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.toolbar-dropdown-separator {
+  border-top: 1px solid var(--color-border);
+  margin: 4px 0 2px;
+}
+
 /* toolbar/toolbarDropdown.js's opt-in "Search actions..." box (only the
    Tools dropdown passes `searchable: true` — this app's one dropdown long
    enough, 24+ buttons, for a search box to earn its own row). */

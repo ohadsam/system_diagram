@@ -9,6 +9,7 @@ import { TEXT_POSITIONS, SUBCOMPONENTS_DISPLAY_MODES } from '../core/project.js'
 import { getNodeDefaults, saveNodeDefaults } from '../io/nodeDefaults.js';
 import { getLibrarySettings, saveLibrarySettings } from '../io/librarySettings.js';
 import { getUiPrefs, saveUiPrefs, CONTEXT_ROW_MODES } from '../io/uiPrefs.js';
+import { RECENT_SCOPES, getRecentItemLimits, saveRecentItemLimits, clearRecentItems } from '../io/recentItems.js';
 import {
   AI_SEND_MODES, DIRECT_CAPABLE_PROVIDERS, LOCAL_MODEL_CHOICES, getAiProviderSettings, setAiSendMode,
   setProviderCredentials, addCustomProvider, updateCustomProvider, removeCustomProvider,
@@ -91,6 +92,8 @@ export function openDefaultSettingsModal({ scrollToAiProviders = false, scrollTo
           'Compact sidebar: show only Favorites, Recently Used and My Components by default (same toggle as the sidebar\'s own 🗂️ button)',
         ));
 
+        form.appendChild(buildRecentItemsSection());
+
         form.appendChild(buildFeatureLevelSection(renderForm));
 
         form.appendChild(buildAiProvidersSection(renderForm));
@@ -163,6 +166,35 @@ function applyDefaultsToAllNodes(defaults) {
     }
   });
   return count;
+}
+
+/** "🕐 Recently Used" section — how many entries each "Recently Used" area
+ * remembers (io/recentItems.js#RECENT_SCOPES): the components sidebar, the
+ * Command Palette, and each toolbar dropdown (File/Create/Tools/Help).
+ * Every field saves immediately (same convention as the Component library
+ * checkboxes above) rather than waiting for this modal's own "Save" button —
+ * a limit change should apply the moment it's typed, including trimming an
+ * already-longer stored list back down (see saveRecentItemLimits). */
+function buildRecentItemsSection() {
+  const limits = getRecentItemLimits();
+  const wrap = el('div', { class: 'recent-items-settings' });
+  wrap.appendChild(el('h3', { class: 'modal-subheading', text: '🕐 Recently Used' }));
+  wrap.appendChild(el('p', { class: 'modal-hint', text: 'How many recent entries each "Recently Used" area remembers — the components sidebar, the Command Palette (⌘/Ctrl+K), and each toolbar menu.' }));
+  for (const scope of RECENT_SCOPES) {
+    wrap.appendChild(field(scope.label, numberInput(limits[scope.id], scope.min, scope.max, 1, (value) => {
+      saveRecentItemLimits({ [scope.id]: value });
+    })));
+  }
+  wrap.appendChild(el('div', { class: 'field-row' }, [
+    el('button', {
+      type: 'button', class: 'btn btn-secondary', text: '🗑️ Clear all "Recently Used" lists',
+      onClick: () => {
+        for (const scope of RECENT_SCOPES) clearRecentItems(scope.id);
+        showToast('Cleared every "Recently Used" list.', 'success');
+      },
+    }),
+  ]));
+  return wrap;
 }
 
 /** "🧩 Feature Level" section — the Basic/Advanced/Custom toggle from

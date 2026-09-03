@@ -2521,6 +2521,41 @@ voice-narration feature was suggested too but the user decided not to build it):
   rotation field (4.93) when exactly one node is selected. A second finger cancels whatever
   single-finger pan the first one had already started, rather than fighting it.
 
+### 4.95 Configurable "Recently Used" sections (Command Palette + toolbar menus)
+A generic, reusable "recently used" tracker (`io/recentItems.js`) extends the existing components-
+sidebar "Recently Used" section (4.55-ish, `io/recentComponents.js`) to the Command Palette and
+every toolbar dropdown, with a per-area configurable retention count instead of one hardcoded
+number:
+
+- **`io/recentItems.js`** — `RECENT_SCOPES` lists every area with its own scope id, human label, and
+  `[min, max]`/default retention limit: `components` (sidebar, default 20), `commands` (Command
+  Palette, default 5), and `file-menu`/`create-menu`/`tools-menu`/`help-menu` (each default 5, except
+  `help-menu` default 3). `getRecentItemIds(scopeId)`/`recordItemUsed(scopeId, id)` do the actual
+  move-to-front/cap bookkeeping; `getRecentItemLimits()`/`saveRecentItemLimits(partial)` read/write
+  the configured limits (clamped per scope), immediately trimming an already-longer stored list down
+  to a newly-lowered limit rather than waiting for the next `recordItemUsed` call.
+  `io/recentComponents.js` is now a thin wrapper around the `'components'` scope, keeping its
+  existing call sites (`sidebar.js`, `canvas.js`) and tests unchanged.
+- **Command Palette** (`modals/commandPaletteModal.js`) — running any app-level command (not a
+  per-selection contextual command or a component-add, both of which have their own recency surface
+  already) records it under the `'commands'` scope. While the search box is empty, a "🕐 Recently
+  Used" section appears first, before the contextual/component/action sections; it disappears the
+  moment a real query is typed.
+- **Toolbar dropdowns** (`toolbar/toolbarDropdown.js`) — `buildToolbarDropdown`'s new `recentScopeId`
+  option (wired for all four: File/Create/Tools/Help) adds a "🕐 Recently Used" section + a
+  separator above every other button, rebuilt fresh each time the panel opens. Each real button's
+  *initial* title/text (captured once, before anything can mutate it — several buttons, e.g. Theme/
+  Language, rewrite their own title on click) becomes a stable `data-recent-key`, avoiding the need
+  for an explicit id at every one of the ~70 button call sites across those four dropdowns. A
+  "recent" entry **moves** the real button into the section (never clones it — a duplicate with the
+  same accessible name broke a wide swath of this suite's pre-existing toolbar-button locators; see
+  docs/AI_AGENT_GUIDE.md) and is excluded if its real button currently sits inside a feature-level
+  pack section hidden by Basic/Custom mode (`core/featureLevels.js`) — recent history never lets a
+  hidden action run. Reopening the panel restores every moved button to its original position first.
+- **Default Settings** (`modals/defaultSettingsModal.js`) — a new "🕐 Recently Used" section lists a
+  number input per scope (saving immediately, like the Component library checkboxes above it) plus
+  a "Clear all" button.
+
 ## 7. Out of scope for v1 (ideas for later, see PLAN.md §7)
 
 Versioned history beyond in-session undo/redo (superseded by 4.17/4.63

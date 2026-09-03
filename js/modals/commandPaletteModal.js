@@ -87,7 +87,9 @@ import { toggleKioskMode } from '../core/kioskMode.js';
 import { setScene3DActive } from '../core/scene3dMode.js';
 import { getLanguage, setLanguage, t } from '../io/i18n.js';
 import { LANGUAGES } from '../io/uiPrefs.js';
+import { getRecentItemIds, recordItemUsed } from '../io/recentItems.js';
 
+const RECENT_SCOPE = 'commands';
 const MAX_COMPONENT_RESULTS = 8;
 const MAX_RELATED_PER_KIND = 3;
 
@@ -337,6 +339,16 @@ export function openCommandPaletteModal() {
       ? ALL_COMPONENTS.filter((c) => componentMatches(c, q)).slice(0, MAX_COMPONENT_RESULTS).map(componentToCommand)
       : [];
     const sections = [];
+    // Recently-run actions, shown only while browsing (no query yet) — same
+    // "recent first, gone once you start typing a real search" convention a
+    // browser's own address bar uses. Only ever built from `appCommands`
+    // (not the per-selection contextual list, whose ids are only meaningful
+    // for whatever node is currently selected).
+    if (!q) {
+      const recentIds = getRecentItemIds(RECENT_SCOPE);
+      const recentCommands = recentIds.map((id) => appCommands.find((c) => c.id === id)).filter(Boolean);
+      if (recentCommands.length) sections.push({ heading: '🕐 Recently Used', commands: recentCommands });
+    }
     if (matchedContextual.length) sections.push({ heading: `For "${contextDef?.name || 'this component'}"`, commands: matchedContextual });
     if (matchedComponents.length) sections.push({ heading: 'Add a component', commands: matchedComponents });
     if (matchedApp.length) sections.push({ heading: 'Actions', commands: matchedApp });
@@ -346,6 +358,11 @@ export function openCommandPaletteModal() {
   function runResult(index) {
     const cmd = results[index];
     if (!cmd) return;
+    // Only real app-level actions feed "Recently Used" — a component-add or
+    // per-selection contextual command already has its own recency surface
+    // (the sidebar's "Recently Used" components section) and its id isn't
+    // meaningful outside the context it was built in.
+    if (appCommands.some((c) => c.id === cmd.id)) recordItemUsed(RECENT_SCOPE, cmd.id);
     api.close();
     cmd.run();
   }

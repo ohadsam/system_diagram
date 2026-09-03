@@ -3,6 +3,28 @@
 All notable changes to this project. Format: date, then bullet list.
 Keep this in sync with `PLAN.md` as stages complete.
 
+## v1.58.0 (2026-09-03)
+
+- **Configurable "Recently Used" sections** across the app, built on a new generic
+  `js/io/recentItems.js` scoped tracker (`RECENT_SCOPES`) instead of one hardcoded
+  cap per surface:
+  - The components sidebar's existing "Recently Used" section (`js/io/recentComponents.js`,
+    now a thin wrapper around the new module) remembers up to 20 entries by default
+    (previously a fixed 8).
+  - **Command Palette** (`js/modals/commandPaletteModal.js`): running any app-level
+    action now records it, and a "🕐 Recently Used" section appears at the top of
+    the results while the search box is empty (gone the moment you type a query).
+  - **Toolbar menus** (`js/toolbar/toolbarDropdown.js`'s new `recentScopeId` option,
+    wired for File/Create/Tools/Help in `js/toolbar/toolbar.js`): each dropdown now
+    gets its own "🕐 Recently Used" section + separator above its regular buttons,
+    rebuilt fresh on every open, with recent entries excluded if their real action
+    is currently hidden by the Basic/Advanced/Custom feature-level setting.
+  - **Default Settings** (`js/modals/defaultSettingsModal.js`): a new "🕐 Recently
+    Used" section lets each area's retention limit be tuned individually, plus a
+    "Clear all" button for every list at once.
+  - Tests: `tests/unit/recentItems.test.mjs` (new), `tests/unit/recentComponents.test.mjs`
+    (updated cap), `tests/e2e/recentItems.spec.js` (new).
+
 ## v1.57.0 (2026-09-02)
 
 - **8 UX/UI additions** (a "creative suggestions" batch, all implemented except a

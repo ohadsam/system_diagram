@@ -5360,6 +5360,66 @@ A batch of small, independent creative UX suggestions, all implemented in one pa
   on release, the same drag-gesture convention `nodeInteractions.js`'s own
   resize/activation-resize handlers already use.
 
+## Configurable "Recently Used" sections (`io/recentItems.js`, `toolbar/toolbarDropdown.js`)
+`io/recentComponents.js` (the sidebar's existing "Recently Used" category) was the only "remember
+what was used recently" surface in the app, with its cap hardcoded (`MAX_RECENT = 8`). Generalizing
+it into a single reusable module, rather than copy-pasting the same move-to-front/cap logic into the
+Command Palette and every toolbar dropdown, is what makes "how many to remember" a single
+per-area user setting instead of N separately-hardcoded numbers:
+
+- `io/recentItems.js#RECENT_SCOPES` is the one place every "recent" area and its `[min, max]`/
+  default limit is declared. `getRecentItemIds`/`recordItemUsed` do the per-scope move-to-front/cap
+  bookkeeping (mirroring `recentComponents.js`'s original logic almost verbatim); `recentComponents.js`
+  itself is now a two-line wrapper around the `'components'` scope, so `sidebar.js`/`canvas.js` and
+  their existing tests didn't need to change at all.
+- `getRecentItemLimits`/`saveRecentItemLimits` read/write the configured limits (clamped per scope)
+  — lowering a limit immediately trims any already-longer stored list, rather than only capping
+  future writes, so Default Settings' number input and the sidebar/palette/dropdown it affects never
+  visibly disagree.
+- **Command Palette** only ever feeds its `'commands'` scope from `buildAppCommands()`'s own ids
+  (never the per-selection contextual list or a component-add result) — those ids are only
+  meaningful for whatever's currently selected, and a component-add already has its own recency
+  surface (the sidebar). The "🕐 Recently Used" section only renders while the search box is empty;
+  the moment there's a query it's treated like any other non-matching section and disappears.
+- **Toolbar dropdowns** are the trickier case: `toolbar.js` builds ~70 individual buttons across
+  File/Create/Tools/Help, none of which carry an explicit stable id (unlike Command Palette's
+  `{id, label, run}` entries) — adding one at every call site was judged not worth the surface area
+  to keep in sync. Instead, `buildToolbarDropdown`'s new `recentScopeId` option snapshots each real
+  button's *initial* `title`/text as `data-recent-key`, once, the moment the panel is first built —
+  before anything has a chance to mutate it. This matters because a few buttons rewrite their own
+  title on click to reflect new state (Tools' Theme/Language toggles: `"Theme: System (click to
+  switch)"` → `"Theme: Light (click to switch)"`, etc.) — recording and looking a button back up by
+  its *current* title would silently go stale the moment that title changed. Stamping the key once
+  and never touching it again means both sides of the lookup always agree, for the life of that
+  button element (these buttons are all built once at `initToolbar()` and never recreated). The
+  panel's own existing "close on any button click" listener also does the recording, and a fresh
+  "🕐 Recently Used" section is rebuilt right before the panel opens each time, mirroring how the
+  searchable Tools dropdown already resets its own search box on open.
+
+  `buildRecentSection` **moves** each real button into the section rather than cloning it — an
+  earlier version cloned (`cloneNode(true)` + a click handler redirecting to `original.click()`),
+  which put a second element with the exact same title/accessible-name into the DOM the instant an
+  action had been used once. That silently broke a wide swath of this suite's *pre-existing* e2e
+  tests: nearly every one of them locates a toolbar button by its text/title with no `.first()` (a
+  completely reasonable assumption when a label is normally unique in its dropdown), so the moment a
+  test used the same File/Create/Tools/Help action twice, Playwright's strict-mode locator started
+  throwing "resolved to 2 elements" — discovered only by actually running the full suite (42+
+  failures), not by the feature's own new tests, which never happened to reuse an action twice
+  within one test. Moving the one real node instead of cloning it means the accessible name only
+  ever exists once, so it can never drift out of sync with what the button does either.
+  `restoreTrackedPositions()` (called at the start of every `buildRecentSection()`) puts everything
+  back exactly where it started — each button's original `{parent, next-sibling}` was captured once
+  at construction — walking the tracked list in *reverse* of original discovery order, which
+  guarantees a button's recorded `next` sibling is already back in its real parent (or was never
+  moved) by the time it's used as the `insertBefore` anchor; restoring in forward order can instead
+  try to anchor against a still-relocated sibling and throw. A second correctness gotcha: a hidden
+  ancestor doesn't stop `.click()` from still firing a button's handler, so a naive version would let
+  a Basic-mode user re-run an Advanced/Custom-only action straight from "Recently Used" even though
+  the dropdown itself hides it — `buildRecentSection` explicitly filters out any real button
+  currently inside a `.toolbar-dropdown-pack-section[hidden]`. Search (Tools' `searchable: true`)
+  also needed its own pass in `filterDropdownPanel` for the recent section specifically, since its
+  buttons have no `.toolbar-dropdown-section-body` wrapper the existing pack-section logic expects.
+
 ## Security notes
 
 - No `innerHTML` is ever fed unsanitized/user-provided strings; text

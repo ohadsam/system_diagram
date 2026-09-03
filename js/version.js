@@ -2,9 +2,18 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.57.0';
+export const APP_VERSION = '1.58.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.58.0',
+    date: '2026-09-03',
+    highlights: [
+      '🕐 "Recently Used" sections in the Command Palette (⌘/Ctrl+K) and in every toolbar menu (File/Create/Tools/Help) — the actions you\'ve run most recently now appear at the top, above a separator, so a frequently-used action never needs a full search.',
+      '🕐 The components sidebar\'s existing "Recently Used" section now remembers up to 20 components (previously a fixed 8).',
+      '⚙️ Default Settings has a new "🕐 Recently Used" section to configure how many entries each of those areas remembers, plus a one-click "Clear all" for every list.',
+    ],
+  },
   {
     version: '1.57.0',
     date: '2026-09-02',

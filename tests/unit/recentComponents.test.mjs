@@ -23,11 +23,11 @@ test('recordComponentUsed moves an already-recorded defId back to the front inst
   assert.deepEqual(getRecentComponentIds(), ['shape-server', 'shape-database']);
 });
 
-test('recordComponentUsed caps the list at 8 entries, dropping the oldest', () => {
-  for (let i = 0; i < 10; i++) recordComponentUsed(`shape-${i}`);
+test('recordComponentUsed caps the list at the "components" scope\'s default limit (20), dropping the oldest', () => {
+  for (let i = 0; i < 22; i++) recordComponentUsed(`shape-${i}`);
   const ids = getRecentComponentIds();
-  assert.equal(ids.length, 8);
-  assert.deepEqual(ids, ['shape-9', 'shape-8', 'shape-7', 'shape-6', 'shape-5', 'shape-4', 'shape-3', 'shape-2']);
+  assert.equal(ids.length, 20);
+  assert.deepEqual(ids, Array.from({ length: 20 }, (_, i) => `shape-${21 - i}`));
 });
 
 test('recordComponentUsed ignores a falsy defId', () => {

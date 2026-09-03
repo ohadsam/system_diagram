@@ -229,16 +229,16 @@ export function initToolbar(root) {
   row1.appendChild(buildCommandPaletteGroup());
   row1.appendChild(buildNavToolGroup());
   row1.appendChild(buildQuickCreateGroup());
-  const fileDropdown = buildToolbarDropdown(t('toolbar.file'), '🗂️', t('toolbar.file.title'), buildFileGroupButtons());
-  const createDropdown = buildToolbarDropdown(t('toolbar.create'), '✨', t('toolbar.create.title'), buildCreateGroupButtons());
+  const fileDropdown = buildToolbarDropdown(t('toolbar.file'), '🗂️', t('toolbar.file.title'), buildFileGroupButtons(), { recentScopeId: 'file-menu' });
+  const createDropdown = buildToolbarDropdown(t('toolbar.create'), '✨', t('toolbar.create.title'), buildCreateGroupButtons(), { recentScopeId: 'create-menu' });
   row1.appendChild(fileDropdown);
   row1.appendChild(createDropdown);
   const spacer = el('div', { class: 'toolbar-spacer' });
   row1.appendChild(spacer);
   row1.appendChild(renderZoomControls());
-  const toolsDropdown = buildToolbarDropdown(t('toolbar.tools'), '🛠️', t('toolbar.tools.title'), buildToolsGroupButtons(), { searchable: true });
+  const toolsDropdown = buildToolbarDropdown(t('toolbar.tools'), '🛠️', t('toolbar.tools.title'), buildToolsGroupButtons(), { searchable: true, recentScopeId: 'tools-menu' });
   row1.appendChild(toolsDropdown);
-  row1.appendChild(buildToolbarDropdown(t('toolbar.help'), '❓', t('toolbar.help.title'), buildHelpGroupButtons()));
+  row1.appendChild(buildToolbarDropdown(t('toolbar.help'), '❓', t('toolbar.help.title'), buildHelpGroupButtons(), { recentScopeId: 'help-menu' }));
   // Every pack's buttons are always built (see buildGatedButtonList) —
   // only their `.toolbar-dropdown-pack-section` wrapper's `hidden` reflects
   // the current Basic/Advanced/Custom choice. So a settings change never

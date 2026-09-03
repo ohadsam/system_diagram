@@ -15,8 +15,9 @@
 // near the toolbar's row-wrapped edge, or the panel simply being wider
 // than the remaining space); computing fixed viewport coordinates and
 // clamping them is correct regardless of where the trigger ends up.
-import { el } from '../utils/dom.js';
+import { el, clear } from '../utils/dom.js';
 import { getUiPrefs, onUiPrefsChange } from '../io/uiPrefs.js';
+import { getRecentItemIds, recordItemUsed } from '../io/recentItems.js';
 
 const EDGE_MARGIN = 8;
 
@@ -109,6 +110,23 @@ function filterDropdownPanel(panel, noResultsEl, query) {
     if (body) body.classList.toggle('search-force-open', !!q && sectionMatch);
     if (sectionMatch && !section.hidden) anyVisible = true;
   });
+  // "Recently Used" section (toolbarDropdown.js's `recentScopeId` option) —
+  // its buttons are ordinary top-level buttons, just nested one level inside
+  // `.toolbar-dropdown-recent-wrap` instead of being direct children of
+  // `panel`, so they need the same per-button matching as the loop above
+  // rather than the pack-section treatment (there's no
+  // `.toolbar-dropdown-section-body` wrapper here).
+  const recentWrap = panel.querySelector('.toolbar-dropdown-recent-wrap');
+  if (recentWrap && !recentWrap.hidden) {
+    let recentMatch = false;
+    recentWrap.querySelectorAll('button').forEach((btn) => {
+      const match = !q || matchText(btn);
+      btn.classList.toggle('search-hidden', !match);
+      if (match) recentMatch = true;
+    });
+    recentWrap.classList.toggle('search-hidden', !!q && !recentMatch);
+    if (recentMatch) anyVisible = true;
+  }
   if (noResultsEl) noResultsEl.hidden = !q || anyVisible;
 }
 
@@ -120,14 +138,20 @@ function filterDropdownPanel(panel, noResultsEl, query) {
  *   optionally `.toolbar-dropdown-section-label` header divs, or a
  *   `.toolbar-dropdown-pack-section` wrapper — see toolbar.js's
  *   `buildGatedButtonList`) to show in the panel
- * @param {{searchable?: boolean}} [opts] `searchable: true` prepends a
- *   "Search actions..." box that live-filters `buttons` — opt-in per
- *   dropdown rather than a blanket default, since it's only worth the
- *   extra chrome on this app's longest dropdown (Tools); see toolbar.js's
- *   `initToolbar`.
+ * @param {{searchable?: boolean, recentScopeId?: string}} [opts]
+ *   `searchable: true` prepends a "Search actions..." box that live-filters
+ *   `buttons` — opt-in per dropdown rather than a blanket default, since
+ *   it's only worth the extra chrome on this app's longest dropdown
+ *   (Tools); see toolbar.js's `initToolbar`. `recentScopeId` (an
+ *   io/recentItems.js scope id) adds a "🕐 Recently Used" section + a
+ *   separator above everything else, rebuilt fresh each time the panel
+ *   opens from whichever of this panel's own buttons were most recently
+ *   clicked — see buildRecentSection below for how a button is identified
+ *   without every call site needing its own explicit id, and why it MOVES
+ *   the real button rather than cloning it.
  */
 export function buildToolbarDropdown(label, icon, title, buttons, opts = {}) {
-  const { searchable = false } = opts;
+  const { searchable = false, recentScopeId = null } = opts;
   const root = el('div', { class: 'toolbar-dropdown' });
   const panel = el('div', { class: 'toolbar-dropdown-panel', role: 'menu', hidden: true });
   let searchInput = null;
@@ -150,18 +174,103 @@ export function buildToolbarDropdown(label, icon, title, buttons, opts = {}) {
     panel.appendChild(searchInput);
     panel.appendChild(noResultsEl);
   }
+  // Placeholder for buildRecentSection() to fill in on each open, sitting
+  // above every real button — see its own comment for why it's rebuilt on
+  // open rather than kept live.
+  const recentWrap = recentScopeId ? el('div', { class: 'toolbar-dropdown-recent-wrap', hidden: true }) : null;
+  if (recentWrap) panel.appendChild(recentWrap);
   for (const b of buttons) panel.appendChild(b);
+  // Recently-Used bookkeeping: capture each real action button's *original*
+  // position (parent + next-sibling, so it can be put back exactly where it
+  // came from) and a stable identity key, once, right now — before anything
+  // in this panel has ever been clicked or moved. The key is the button's
+  // *current* title/text, snapshotted before it can change: several buttons
+  // here (e.g. the Theme/Language toggles in Tools) rewrite their own
+  // `.title`/text on every click to reflect new state, so recording/looking
+  // a button up by whatever its title happens to be *right now* would
+  // silently disagree the moment that title changed — see
+  // docs/AI_AGENT_GUIDE.md's pitfall entry. An explicit per-button id at
+  // every one of the ~70 call sites across File/Create/Tools/Help would be
+  // more precise but is a lot of surface area to keep in sync; this
+  // piggybacks on the convention this app already enforces (every button
+  // needs a clear, distinct title).
+  const trackedButtons = [];
+  let recentByKey = null;
+  if (recentScopeId) {
+    panel.querySelectorAll('button').forEach((btn) => {
+      if (btn.classList.contains('toolbar-dropdown-section-toggle')) return;
+      btn.dataset.recentKey = (btn.title || btn.textContent || '').trim();
+      trackedButtons.push({ btn, parent: btn.parentElement, next: btn.nextSibling });
+    });
+    recentByKey = new Map(trackedButtons.map(({ btn }) => [btn.dataset.recentKey, btn]));
+  }
   const applyDescriptions = (enabled) => panel.querySelectorAll('button').forEach((btn) => updateButtonDescription(btn, enabled));
   applyDescriptions(getUiPrefs().showActionDescriptions);
   onUiPrefsChange((prefs) => applyDescriptions(prefs.showActionDescriptions));
   // Close the panel once one of its own buttons has been used, so it
   // doesn't sit open over the canvas after the action already ran — except
   // a section-collapse toggle (`.toolbar-dropdown-section-toggle`), which a
-  // user very plausibly clicks several times in a row while browsing.
+  // user very plausibly clicks several times in a row while browsing. Also
+  // records this click into the "Recently Used" scope, if any — whether the
+  // button was clicked in its normal spot or from the recent section itself
+  // makes no difference, since buildRecentSection moves the one real
+  // element rather than cloning it (see its own comment for why).
   panel.addEventListener('click', (e) => {
-    if (e.target.closest('.toolbar-dropdown-section-toggle')) return;
-    if (e.target.closest('button')) closeOpenPanel();
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    if (btn.classList.contains('toolbar-dropdown-section-toggle')) return;
+    if (recentScopeId && btn.dataset.recentKey) recordItemUsed(recentScopeId, btn.dataset.recentKey);
+    closeOpenPanel();
   });
+
+  /** Rebuilds the "Recently Used" section from whatever's currently
+   * recorded for `recentScopeId`, called fresh each time the panel opens
+   * (not kept live while it's already open) — same "reset on open" treatment
+   * `searchInput` already gets just below.
+   *
+   * MOVES each real button into the section rather than cloning it — an
+   * earlier version cloned, which put a second element with the exact same
+   * title/accessible-name into the DOM the moment an action had been used
+   * once. That silently broke a wide swath of this suite's *pre-existing*
+   * e2e tests, all of which locate a toolbar button by its text/title with
+   * no `.first()` (a totally reasonable assumption when a label is normally
+   * unique) — the instant a test used the same action twice, Playwright's
+   * strict-mode locator started throwing "resolved to 2 elements". Moving
+   * the one real node instead means the accessible name only ever exists
+   * once, so it can never drift out of sync with what that button does
+   * either. `restoreTrackedPositions` puts everything back where it
+   * started, in reverse of the order buttons were originally discovered
+   * (last-discovered first) — required so that a button's recorded `next`
+   * sibling reference is guaranteed to already be back in its real parent
+   * (or was never moved) by the time this restores said button relative to
+   * it; restoring in forward/original order can otherwise try to
+   * `insertBefore` relative to a still-relocated sibling and throw. */
+  function restoreTrackedPositions() {
+    for (let i = trackedButtons.length - 1; i >= 0; i--) {
+      const { btn, parent, next } = trackedButtons[i];
+      parent.insertBefore(btn, next);
+    }
+  }
+
+  function buildRecentSection() {
+    if (!recentWrap) return;
+    restoreTrackedPositions();
+    clear(recentWrap);
+    // Skip anything whose real button currently lives inside a pack section
+    // hidden by the Basic/Advanced/Custom feature-level setting (see
+    // toolbar.js#buildGatedButtonList) — a hidden ancestor doesn't stop
+    // `.click()` from still firing that button's handler, so without this
+    // check a Basic-mode user could run an Advanced-only action straight
+    // from "Recently Used" that the dropdown itself is deliberately hiding.
+    const found = getRecentItemIds(recentScopeId)
+      .map((id) => recentByKey.get(id))
+      .filter((btn) => btn && !btn.closest('.toolbar-dropdown-pack-section[hidden]'));
+    if (!found.length) { recentWrap.hidden = true; return; }
+    recentWrap.hidden = false;
+    recentWrap.appendChild(el('div', { class: 'toolbar-dropdown-section-label', text: '🕐 Recently Used' }));
+    for (const btn of found) recentWrap.appendChild(btn); // moves the real node, doesn't copy it
+    recentWrap.appendChild(el('div', { class: 'toolbar-dropdown-separator' }));
+  }
 
   // Fixed viewport coordinates, clamped to stay fully on-screen — see the
   // module comment above for why this is more robust than CSS `position:
@@ -201,6 +310,7 @@ export function buildToolbarDropdown(label, icon, title, buttons, opts = {}) {
         const willOpen = panel.hidden;
         closeOpenPanel();
         if (!willOpen) return;
+        buildRecentSection();
         if (searchInput) {
           searchInput.value = '';
           filterDropdownPanel(panel, noResultsEl, '');

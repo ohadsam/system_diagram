@@ -222,6 +222,7 @@ this repo" quick-start.
 | Change the "📖 Show Descriptions" toggle | `js/io/uiPrefs.js#showActionDescriptions` + `js/toolbar/toolbarDropdown.js#updateButtonDescription` (appends/removes a `.toolbar-dropdown-btn-desc` span — never rewrites a button's `textContent`, so a button with its own child elements like `lintNudgeBadge` keeps them) + `js/toolbar/toolbar.js`'s `descBtn` (appended last in row1, same width-safety reasoning as the canvas search box). |
 | Change "📖 Explain This Diagram" or a pattern instance's provenance | `js/canvas/canvas.js#instantiatePatternAtPoint` (stamps `sourcePatternId`/`patternInstanceId` on every node it creates — `patternInstanceId` is fresh per instantiation, not per pattern) + `js/core/project.js#validateContent` (the strict per-field allowlist both fields must pass through on save/reload/import) + `js/core/groupExplanation.js` (pure explanation builder, `resolveDef`/`patternDef` injected like `core/diagramDescription.js`) + `js/modals/groupExplanationModal.js` (the modal, self-registers `sdb:open-group-explanation`) + `js/canvas/canvas.js#openNodeContextMenu`/`js/panel/detailsPanel.js` (the two entry points — right-click only, since a plain click on a `groupOnInstantiate` template multi-selects the whole group and the details panel's single-node path never opens; use "Open details" from the context menu to reach a specific node's panel instead). |
 | Change Diagram Animation's "+ Add All" / bulk mode-change / "🪄 Auto-Play Diagram" | `js/canvas/canvas.js#addAllToActiveAnimation` (bulk sibling of `addAnimationStep`, one dispatch) + `#setAllStepsRevealMode` (bulk sibling of `updateAnimationStepSettings`) + `#autoBuildAndPlayAnimation` (reuses `core/animationAutoBuild.js#buildAutoWalkthroughAnimation` against the *current* canvas, then calls `startAnimationPlayback()` immediately) + `js/panel/animationPanel.js`'s `.animation-bulk-row` rows in `buildAddMoreSection`/`buildInAnimationSection`. |
+| Change a "Recently Used" area (sidebar/Command Palette/toolbar menus) or its retention limit | `js/io/recentItems.js` (`RECENT_SCOPES` — add a scope here for a new area) + `js/io/recentComponents.js` (thin `'components'`-scope wrapper, unchanged since this generalization) + `js/modals/commandPaletteModal.js` (`'commands'` scope, only from `buildAppCommands()`'s own ids) + `js/toolbar/toolbarDropdown.js#buildToolbarDropdown`'s `recentScopeId` option (wired for File/Create/Tools/Help in `js/toolbar/toolbar.js`) + `js/modals/defaultSettingsModal.js#buildRecentItemsSection` (the per-scope number inputs). See "Common pitfalls" below re: `data-recent-key` timing before adding a new dynamic-title toolbar button. |
 
 ## Running things locally
 
@@ -1261,3 +1262,44 @@ npm test
   similarly large file needs a generously extended
   `waitForEvent`/`test.setTimeout` (see `tests/e2e/scene3d.spec.js`'s pptx
   export test) rather than a tight one that reads as a hang.
+- **Never add a second DOM element with the same accessible name (text/title)
+  as an existing button/link while the original stays in the page — even in
+  a different container, even only conditionally (e.g. "recently used").**
+  Virtually every e2e test in this suite locates a button by
+  `{ hasText: '...' }` or `[title="..."]` with no `.first()`, because a
+  label is normally unique on the page at any one time — a completely
+  reasonable assumption right up until it isn't. This happened for real: the
+  first version of the toolbar-dropdown "Recently Used" feature
+  (`toolbar/toolbarDropdown.js`) cloned a button into its own section on
+  top of the original still sitting in its normal spot. Every *new* test for
+  the feature passed, because none of them happened to reuse the same
+  action twice in one test — the breakage only showed up when the **full**
+  suite ran, in ~40 completely unrelated pre-existing test files, the moment
+  any one of them clicked the same File/Create/Tools/Help action more than
+  once (common — many tests reopen the same dropdown/modal to check a
+  second state) and Playwright's strict-mode locator started throwing
+  "resolved to 2 elements". The fix was to **move** the real element instead
+  of cloning it (`toolbarDropdown.js#buildRecentSection`/
+  `restoreTrackedPositions`) — its accessible name only ever exists once,
+  wherever it currently lives. If a similar "surface this same item in a
+  second place" feature comes up again (another quick-access shortcut, a
+  favorites shelf, a pinned-recent row), default to relocating the one real
+  node and restoring it on close/rebuild, not `cloneNode`. If cloning is
+  genuinely unavoidable, run the **full** e2e suite (not just the new
+  feature's own tests) before considering it done — a duplicate-only-under-
+  certain-conditions bug like this is invisible to any test that doesn't
+  happen to trigger the duplication.
+- **A toolbar dropdown button's `data-recent-key` (`toolbar/toolbarDropdown.js`'s
+  `recentScopeId` option) must be captured once, at panel-build time, never
+  computed on the fly from a button's current `.title`/text.** Several
+  buttons in the Tools dropdown rewrite their own title on every click to
+  show new state (the Theme/Language toggles: `"Theme: System (click to
+  switch)"` → `"Theme: Light (click to switch)"`); recording and looking a
+  button back up by whatever its title happens to be *right now* would
+  silently disagree the moment that title changed, making the entry
+  intermittently vanish from "Recently Used". The fix already in place
+  snapshots the key immediately when the panel is first built (before
+  anything has clicked it) and never touches it again — if you add a new
+  dynamic-title button to a `recentScopeId`-enabled dropdown, no action is
+  needed (the snapshot happens automatically for every button in the
+  panel), but don't be tempted to "simplify" it into a live `.title` read.
