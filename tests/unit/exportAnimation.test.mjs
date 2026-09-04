@@ -16,6 +16,10 @@ function v2File(animations, activeAnimationName) {
   return JSON.stringify({ formatVersion: 2, kind: 'sdb-diagram-animation', projectName: 'Test', exportedAt: '2026-01-01T00:00:00.000Z', activeAnimationName, animations });
 }
 
+function v3File(animations, activeAnimationName) {
+  return JSON.stringify({ formatVersion: 3, kind: 'sdb-diagram-animation', projectName: 'Test', exportedAt: '2026-01-01T00:00:00.000Z', activeAnimationName, animations });
+}
+
 test('parseAnimationFile rejects invalid JSON', () => {
   const result = parseAnimationFile('not json', new Set(), new Set());
   assert.equal(result.ok, false);
@@ -140,6 +144,51 @@ test('v2: falls back to the first animation when activeAnimationName does not ma
   ], 'Does Not Exist');
   const result = parseAnimationFile(text, new Set(['node_1']), new Set());
   assert.equal(result.activeAnimationId, result.animations[0].id);
+});
+
+test('v3: round-trips a step\'s custom label/annotations and an animation\'s own overview notes', () => {
+  const text = v3File([
+    {
+      name: 'Onboarding',
+      notes: 'Slow down on step 2, the audience always asks about caching here.',
+      steps: [{
+        targets: [{ targetType: 'node', targetId: 'node_1' }],
+        label: 'The client sends a request',
+        annotations: [
+          { id: 'anno_1', type: 'stroke', tool: 'highlighter', color: '#F59E0B', points: [{ x: 10, y: 10 }, { x: 20, y: 30 }] },
+          { id: 'anno_2', type: 'text', x: 5, y: 5, text: 'start here', color: '#EF4444' },
+        ],
+      }],
+    },
+  ], 'Onboarding');
+  const result = parseAnimationFile(text, new Set(['node_1']), new Set());
+  assert.equal(result.ok, true);
+  const anim = result.animations[0];
+  assert.equal(anim.notes, 'Slow down on step 2, the audience always asks about caching here.');
+  const step = anim.steps[0];
+  assert.equal(step.label, 'The client sends a request');
+  assert.equal(step.annotations.length, 2);
+  assert.equal(step.annotations[0].tool, 'highlighter');
+  assert.deepEqual(step.annotations[0].points, [{ x: 10, y: 10 }, { x: 20, y: 30 }]);
+  assert.equal(step.annotations[1].text, 'start here');
+});
+
+test('v3: a malformed annotation (too few points) is dropped, not the whole step', () => {
+  const text = v3File([
+    { name: 'A', steps: [{ targets: [{ targetType: 'node', targetId: 'node_1' }], annotations: [{ type: 'stroke', points: [{ x: 1, y: 1 }] }] }] },
+  ]);
+  const result = parseAnimationFile(text, new Set(['node_1']), new Set());
+  assert.equal(result.animations[0].steps[0].annotations.length, 0);
+});
+
+test('v2 (pre-label/annotations/notes export): a file without them still imports cleanly with sensible defaults', () => {
+  const text = v2File([
+    { name: 'A', steps: [{ targets: [{ targetType: 'node', targetId: 'node_1' }] }] },
+  ]);
+  const result = parseAnimationFile(text, new Set(['node_1']), new Set());
+  assert.equal(result.animations[0].notes, '');
+  assert.equal(result.animations[0].steps[0].label, null);
+  assert.deepEqual(result.animations[0].steps[0].annotations, []);
 });
 
 test('v2: falls back to defaults for an invalid revealMode/delayMs/entranceStyle/hideAfterMs', () => {

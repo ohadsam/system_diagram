@@ -3,6 +3,43 @@
 All notable changes to this project. Format: date, then bullet list.
 Keep this in sync with `PLAN.md` as stages complete.
 
+## v1.60.0 (2026-09-04)
+
+- **New: Animation-only content.** Any component or connector can now be
+  marked "Animation-only" (details panel, "Diagram Animation" section) —
+  hidden from the normal editing canvas and every PNG/PDF/SVG/other-tool
+  export, but fully usable and visible while the animation panel is open or
+  an animation is playing. Build extra titles, callouts, or sticky notes
+  that exist only to tell the story, without cluttering the real diagram.
+- **New: estimated duration + presenter overview notes.** The Diagram
+  Animation panel now shows an estimated total duration for the active
+  animation, and a new presenter-only "overview notes" field (separate from
+  each step's own notes) is shown for the whole presentation during
+  playback.
+- **New: Restart and independent Pause/Play controls.** A ⏮ Restart button
+  (also bound to Home) jumps straight back to the beginning, and a new
+  ⏸/▶ Pause/Play button (Space) pauses the presentation without opening the
+  draw overlay — previously the only way to pause was the 🖊️ draw toggle.
+- **New: Highlighter and Text tools, and persisted presenter markup.** The
+  freeze-and-draw overlay now offers Pen, Highlighter, and Text (previously
+  pen-only). Every mark is now saved with the step it was drawn on — it
+  automatically reappears the next time that step is shown in a later
+  playback, round-trips through the standalone Diagram Animation JSON
+  export/import, and is baked directly into the exported PPTX slides and
+  video frames.
+- **New: Duplicate step, Duplicate Animation, custom step labels, and
+  more.** A "⧉" button duplicates a single step or a whole animation; a
+  step can now have a custom label overriding its auto-derived name; a
+  "🎲 Randomize" bulk button gives each step its own independently-random
+  entrance style; a "👁️" Preview button plays a step's entrance style on
+  the canvas without starting the whole animation; and the step list now
+  supports drag-to-reorder alongside the existing ▲/▼ buttons.
+- Deferred for a future batch (flagged, not silently dropped): AI-assisted
+  entrance/timing suggestions, collaborative animation editing, a shareable
+  read-only presentation link, touch-friendlier mobile playback controls, a
+  full timeline/scrubber view, and complete PPTX/video export parity for
+  `hideAfterMs` (an export frame is always one whole step).
+
 ## v1.59.0 (2026-09-03)
 
 - **New: Diagram Animation entrance styles.** Each step now has its own

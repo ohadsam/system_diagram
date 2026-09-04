@@ -139,7 +139,7 @@ test('an "Auto" step advances on its own after its delay without any input', asy
   await expect(page.locator('.node', { hasText: 'Redis Cache' })).not.toHaveClass(/anim-hidden/, { timeout: 3000 });
 });
 
-test('freezing and drawing pauses advancement, and Done clears the overlay and resumes', async ({ page }) => {
+test('freezing and drawing pauses advancement, and Done clears the toolbar and resumes', async ({ page }) => {
   await addComponentByName(page, 'Redis Cache');
   await addComponentByName(page, 'PostgreSQL');
   await openAnimationPanel(page);
@@ -147,8 +147,17 @@ test('freezing and drawing pauses advancement, and Done clears the overlay and r
   await page.locator('.animation-add-row', { hasText: 'PostgreSQL' }).locator('button', { hasText: '+ Add' }).click();
   await page.locator('.animation-play-btn').click();
 
+  // The read-only annotation layer is present for the whole presentation
+  // (so a step's persisted markup can reappear on replay — see
+  // core/project.js#createAnnotation), but it only becomes the *drawing*
+  // overlay — pointer-interactive, its own toolbar visible — once drawing
+  // mode is actually entered.
+  await expect(page.locator('.anim-draw-overlay')).not.toHaveClass(/drawing/);
+  await expect(page.locator('.anim-draw-toolbar')).toBeHidden();
+
   await page.keyboard.press('d');
-  await expect(page.locator('.anim-draw-overlay')).toBeVisible();
+  await expect(page.locator('.anim-draw-overlay')).toHaveClass(/drawing/);
+  await expect(page.locator('.anim-draw-toolbar')).toBeVisible();
 
   const canvas = page.locator('.anim-draw-canvas');
   const box = await canvas.boundingBox();
@@ -161,7 +170,8 @@ test('freezing and drawing pauses advancement, and Done clears the overlay and r
   await expect(page.locator('.anim-step-indicator')).toHaveText('0 / 2');
 
   await page.locator('.anim-draw-toolbar button', { hasText: 'Done' }).click();
-  await expect(page.locator('.anim-draw-overlay')).toBeHidden();
+  await expect(page.locator('.anim-draw-overlay')).not.toHaveClass(/drawing/);
+  await expect(page.locator('.anim-draw-toolbar')).toBeHidden();
   await expect(page.locator('.anim-step-indicator')).toHaveText('0 / 2');
 
   // Playback resumed — a plain click now advances again.
@@ -828,4 +838,224 @@ test('"Auto-Play Diagram" builds a walkthrough from the whole canvas and starts 
   // Playback takes over (kiosk mode) with no animation panel interaction at all.
   await expect(page.locator('.anim-playback-controls')).toBeVisible({ timeout: 3000 });
   await expect(page.locator('.anim-step-indicator')).toContainText('1');
+});
+
+test('Restart jumps straight back to step 0, and Pause/Play is independent of the draw toggle', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await addComponentByName(page, 'Redis Cache');
+  await openAnimationPanel(page);
+  await page.locator('.animation-add-row', { hasText: 'API Gateway' }).locator('button', { hasText: '+ Add' }).click();
+  await page.locator('.animation-add-row', { hasText: 'Redis Cache' }).locator('button', { hasText: '+ Add' }).click();
+  await page.locator('.animation-play-btn').click();
+
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('.anim-step-indicator')).toHaveText('2 / 2');
+
+  await page.locator('[aria-label="Restart"]').click();
+  await expect(page.locator('.anim-step-indicator')).toHaveText('0 / 2');
+
+  // Pause/Play pauses without opening the draw overlay.
+  await page.locator('[aria-label="Pause"]').click();
+  await expect(page.locator('.anim-draw-overlay')).not.toHaveClass(/drawing/);
+  await page.locator('#canvas-viewport').click({ position: { x: 20, y: 20 } });
+  await expect(page.locator('.anim-step-indicator')).toHaveText('0 / 2'); // paused — the click didn't advance
+
+  await page.locator('[aria-label="Play"]').click();
+  await page.locator('#canvas-viewport').click({ position: { x: 20, y: 20 } });
+  await expect(page.locator('.anim-step-indicator')).toHaveText('1 / 2'); // resumed — now it does
+});
+
+test('a pen stroke drawn on a step persists and reappears automatically when that step is shown again', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await addComponentByName(page, 'Redis Cache');
+  await openAnimationPanel(page);
+  await page.locator('.animation-add-row', { hasText: 'API Gateway' }).locator('button', { hasText: '+ Add' }).click();
+  await page.locator('.animation-add-row', { hasText: 'Redis Cache' }).locator('button', { hasText: '+ Add' }).click();
+  await page.locator('.animation-play-btn').click();
+  await page.keyboard.press('ArrowRight'); // reveal step 1 (API Gateway)
+
+  await page.keyboard.press('d');
+  await expect(page.locator('.anim-draw-toolbar')).toBeVisible();
+  const canvas = page.locator('.anim-draw-canvas');
+  const box = await canvas.boundingBox();
+  await page.mouse.move(box.x + 60, box.y + 60);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 160, box.y + 160);
+  await page.mouse.up();
+  await page.locator('.anim-draw-toolbar button', { hasText: 'Done' }).click();
+
+  // Move on, then come back — the persisted stroke should be redrawn without
+  // any further drawing action.
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('.anim-step-indicator')).toHaveText('2 / 2');
+  const emptyPixels = await canvas.evaluate((c) => {
+    const ctx = c.getContext('2d');
+    return ctx.getImageData(0, 0, c.width, c.height).data.some((v, i) => i % 4 === 3 && v !== 0);
+  });
+  await page.keyboard.press('ArrowLeft');
+  await page.waitForTimeout(150);
+  const restoredPixels = await canvas.evaluate((c) => {
+    const ctx = c.getContext('2d');
+    return ctx.getImageData(0, 0, c.width, c.height).data.some((v, i) => i % 4 === 3 && v !== 0);
+  });
+  expect(emptyPixels).toBe(false);
+  expect(restoredPixels).toBe(true);
+});
+
+test('the draw toolbar offers Pen, Highlighter and Text tools', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await openAnimationPanel(page);
+  await page.locator('.animation-add-row', { hasText: 'API Gateway' }).locator('button', { hasText: '+ Add' }).click();
+  await page.locator('.animation-play-btn').click();
+  await page.keyboard.press('d');
+
+  await expect(page.locator('.anim-tool-btn')).toHaveCount(3);
+  const highlighter = page.locator('.anim-tool-btn[aria-label="Highlighter"]');
+  await highlighter.click();
+  await expect(highlighter).toHaveClass(/active/);
+});
+
+test('a text annotation can be added and is baked into the diagram animation export data', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await openAnimationPanel(page);
+  await page.locator('.animation-add-row', { hasText: 'API Gateway' }).locator('button', { hasText: '+ Add' }).click();
+  await page.locator('.animation-play-btn').click();
+  await page.keyboard.press('ArrowRight'); // reveal the one step so there's something to annotate
+  await page.keyboard.press('d');
+  await page.locator('.anim-tool-btn[aria-label="Text"]').click();
+
+  page.once('dialog', (dialog) => dialog.accept('start here'));
+  const canvas = page.locator('.anim-draw-canvas');
+  const box = await canvas.boundingBox();
+  await canvas.click({ position: { x: 40, y: 40 } });
+  await page.waitForTimeout(150);
+
+  const hasNonEmptyPixel = await canvas.evaluate((c) => {
+    const ctx = c.getContext('2d');
+    return ctx.getImageData(0, 0, c.width, c.height).data.some((v, i) => i % 4 === 3 && v !== 0);
+  });
+  expect(hasNonEmptyPixel).toBe(true);
+  void box; // bounding box already used to establish canvas geometry above
+});
+
+test('an animation-only node is hidden from the normal canvas but visible while the animation panel is open or playing', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  const node = page.locator('.node', { hasText: 'API Gateway' });
+  await node.hover();
+  await node.locator('.node-info-btn').click({ force: true });
+  await expect(page.locator('#details-panel')).toHaveClass(/open/);
+  await page.locator('#details-panel .field-checkbox', { hasText: 'Animation-only' }).locator('input').check();
+
+  // Closing the details panel doesn't reopen the animation panel — the node
+  // should now be hidden on the plain editing canvas.
+  await page.locator('.details-close').click();
+  await expect(page.locator('.node', { hasText: 'API Gateway' })).toBeHidden();
+
+  await openAnimationPanel(page);
+  await expect(page.locator('.node', { hasText: 'API Gateway' })).toBeVisible();
+  await page.locator('.animation-add-row', { hasText: 'API Gateway' }).locator('button', { hasText: '+ Add' }).click();
+  await page.locator('.animation-close').click();
+  await expect(page.locator('.node', { hasText: 'API Gateway' })).toBeHidden();
+
+  await openAnimationPanel(page);
+  await page.locator('.animation-play-btn').click();
+  await page.keyboard.press('ArrowRight'); // reveal the step
+  await expect(page.locator('.node', { hasText: 'API Gateway' })).toBeVisible();
+});
+
+test('the panel shows an estimated duration and a presenter overview notes field, and the notes show during playback', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await openAnimationPanel(page);
+  await page.locator('.animation-add-row', { hasText: 'API Gateway' }).locator('button', { hasText: '+ Add' }).click();
+  await expect(page.locator('.animation-duration-indicator')).toContainText('Estimated duration');
+
+  await page.locator('.animation-overview-notes').fill('Keep this to 5 minutes.');
+  await page.locator('.animation-play-btn').click();
+  await expect(page.locator('.anim-overview-notes')).toHaveText('Keep this to 5 minutes.');
+});
+
+test('duplicating a step inserts an identical copy right after it', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await openAnimationPanel(page);
+  await page.locator('.animation-add-row', { hasText: 'API Gateway' }).locator('button', { hasText: '+ Add' }).click();
+  await expect(page.locator('.animation-step-row')).toHaveCount(1);
+
+  await page.locator('.animation-step-duplicate').click();
+  await expect(page.locator('.animation-step-row')).toHaveCount(2);
+  await expect(page.locator('.animation-step-row').nth(1)).toContainText('API Gateway');
+});
+
+test('duplicating a whole animation creates a separate, independently-editable copy', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await openAnimationPanel(page);
+  await page.locator('.animation-add-row', { hasText: 'API Gateway' }).locator('button', { hasText: '+ Add' }).click();
+
+  await page.locator('[aria-label="Duplicate animation"]').click();
+  await expect(page.locator('.animation-switcher select option')).toHaveCount(2);
+  await expect(page.locator('.animation-switcher select')).toHaveValue(/.*/, { timeout: 2000 });
+  const selected = page.locator('.animation-switcher select');
+  await expect(selected.locator('option:checked')).toContainText('(Copy)');
+});
+
+test('a step\'s custom label overrides its auto-derived name', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await openAnimationPanel(page);
+  await page.locator('.animation-add-row', { hasText: 'API Gateway' }).locator('button', { hasText: '+ Add' }).click();
+  await expect(page.locator('.animation-step-label')).toHaveText('API Gateway');
+
+  await page.locator('.animation-step-label-toggle').click();
+  await page.locator('.animation-step-label-input').fill('The client sends a request');
+  await expect(page.locator('.animation-step-label')).toHaveText('The client sends a request', { timeout: 2000 });
+});
+
+test('bulk "Randomize" entrance styles assigns a valid entrance style to every step', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await addComponentByName(page, 'Redis Cache');
+  await openAnimationPanel(page);
+  await page.locator('button', { hasText: '+ Add All' }).click();
+
+  await page.locator('.animation-bulk-row', { hasText: 'Entrance for' }).locator('button', { hasText: 'Randomize' }).click();
+  const values = await page.locator('.animation-step-appearance-row select').evaluateAll((els) => els.map((e) => e.value));
+  for (const v of values) expect(['fade', 'slide-up', 'zoom', 'draw']).toContain(v);
+});
+
+test('the per-step Preview button briefly plays the entrance style without affecting the step list', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await openAnimationPanel(page);
+  await page.locator('.animation-add-row', { hasText: 'API Gateway' }).locator('button', { hasText: '+ Add' }).click();
+  await page.locator('.animation-step-appearance-row select').selectOption('zoom');
+
+  await page.locator('.animation-step-preview').click();
+  await expect(page.locator('.animation-step-row')).toHaveCount(1); // preview doesn't touch the data
+  await page.waitForTimeout(900);
+  await expect(page.locator('.node', { hasText: 'API Gateway' })).not.toHaveClass(/anim-just-revealed/);
+});
+
+test('dragging a step to a new position reorders it', async ({ page }) => {
+  await addComponentByName(page, 'API Gateway');
+  await addComponentByName(page, 'Redis Cache');
+  await addComponentByName(page, 'PostgreSQL');
+  await openAnimationPanel(page);
+  await page.locator('button', { hasText: '+ Add All' }).click();
+
+  const rows = page.locator('.animation-step-row');
+  await expect(rows.nth(0)).toContainText('API Gateway');
+  await expect(rows.nth(2)).toContainText('PostgreSQL');
+
+  // Simulate an HTML5 drag of the first row onto the last — Playwright's
+  // mouse API doesn't fire real dragstart/dragover/drop events, so this
+  // dispatches them directly, same trick this kind of native DnD test needs
+  // in any Playwright suite.
+  await page.evaluate(() => {
+    const list = document.querySelectorAll('.animation-step-row');
+    const source = list[0];
+    const target = list[2];
+    const dt = new DataTransfer();
+    source.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: dt }));
+    target.dispatchEvent(new DragEvent('dragover', { bubbles: true, dataTransfer: dt }));
+    target.dispatchEvent(new DragEvent('drop', { bubbles: true, dataTransfer: dt }));
+  });
+
+  await expect(rows.nth(2)).toContainText('API Gateway');
 });

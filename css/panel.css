@@ -989,6 +989,21 @@ body.resizing-details-panel {
   margin: var(--space-2) 0 0;
 }
 
+.animation-duration-indicator {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-align: center;
+  margin: var(--space-2) 0 0;
+}
+
+.animation-overview-notes {
+  width: 100%;
+  resize: vertical;
+  font: inherit;
+  font-size: 13px;
+}
+
 .animation-section {
   margin-top: var(--space-4);
 }
@@ -1106,7 +1121,8 @@ body.resizing-details-panel {
 }
 
 .animation-step-move,
-.animation-step-remove {
+.animation-step-remove,
+.animation-step-duplicate {
   flex: 0 0 auto;
   font-size: 11px;
   padding: 2px 5px;
@@ -1115,9 +1131,30 @@ body.resizing-details-panel {
 }
 
 .animation-step-move:hover,
-.animation-step-remove:hover {
+.animation-step-remove:hover,
+.animation-step-duplicate:hover {
   background: var(--color-surface-alt);
   color: var(--color-text);
+}
+
+/* Drag-to-reorder (panel/animationPanel.js's step list) — a visual affordance
+   only; the row itself carries `draggable`, not just this handle. */
+.animation-step-drag-handle {
+  flex: 0 0 auto;
+  cursor: grab;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  line-height: 1;
+}
+
+.animation-step-row.dragging {
+  opacity: 0.4;
+}
+
+.animation-step-preview {
+  flex: 0 0 auto;
+  font-size: 12px;
+  padding: 2px 5px;
 }
 
 .animation-search {
@@ -1225,9 +1262,32 @@ body.resizing-details-panel {
   padding: 0 var(--space-2) var(--space-1);
 }
 
-.animation-step-notes-input {
+.animation-step-notes-input,
+.animation-step-label-input {
   width: 100%;
   font-size: 12px;
+}
+
+.animation-step-label-toggle {
+  flex: 0 0 auto;
+  font-size: 12px;
+  padding: 2px 5px;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  opacity: 0.5;
+}
+
+.animation-step-label-toggle:hover {
+  background: var(--color-surface-alt);
+  opacity: 1;
+}
+
+/* A step with a custom label (core/project.js#createAnimationStep's `label`
+   field) stays legible at all times rather than only on hover — same
+   convention as .animation-step-notes-toggle.has-notes above. */
+.animation-step-label-toggle.has-notes {
+  opacity: 1;
+  color: var(--color-primary);
 }
 
 /* Only rendered for a step with 2+ targets (a "reveal together" group —

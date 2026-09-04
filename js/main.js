@@ -12,7 +12,8 @@ import { initOutlinePanel } from './panel/outlinePanel.js';
 import { initAnimationPanel } from './panel/animationPanel.js';
 import { initAnimationOverlay } from './canvas/animationOverlay.js';
 import {
-  isAnimationPlaying, isAnimationFrozen, nextStep, prevStep, setFrozen,
+  isAnimationPlaying, isAnimationFrozen, isDrawingActive, nextStep, prevStep, setFrozen,
+  setDrawingActive, goToStart,
 } from './core/animationPlayback.js';
 import { initAutosave, restoreAutosavedProject } from './io/autosave.js';
 import { initStorageBackend } from './io/storage.js';
@@ -73,9 +74,13 @@ function initKeyboardShortcuts() {
       // be interacted with except the animation itself.
       if (e.key === 'Escape') {
         e.preventDefault();
-        // One level at a time: exit drawing first if that's active, only
-        // stop the whole presentation on a second Escape.
-        if (isAnimationFrozen()) setFrozen(false);
+        // One level at a time: exit drawing first if that's active (back to
+        // plain paused, not resumed — matching the draw overlay's own
+        // "Done" vs. toggling the 🖊️ button off distinction), then resume
+        // from a plain pause, only stopping the whole presentation once
+        // neither drawing nor paused.
+        if (isDrawingActive()) setDrawingActive(false);
+        else if (isAnimationFrozen()) setFrozen(false);
         else stopAnimationPlayback();
         return;
       }
@@ -89,9 +94,19 @@ function initKeyboardShortcuts() {
         prevStep();
         return;
       }
-      if (e.key.toLowerCase() === 'd') {
+      if (e.key === ' ' || e.code === 'Space') {
         e.preventDefault();
         setFrozen(!isAnimationFrozen());
+        return;
+      }
+      if (!isDrawingActive() && (e.key === 'Home' || e.key.toLowerCase() === 'r')) {
+        e.preventDefault();
+        goToStart();
+        return;
+      }
+      if (e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        setDrawingActive(!isDrawingActive());
         return;
       }
       return;

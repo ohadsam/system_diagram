@@ -2,7 +2,7 @@
 // store, and owns pan/zoom/marquee-selection. See docs/ARCHITECTURE.md
 // "Canvas rendering".
 import * as store from '../core/store.js';
-import { createEdge, nextZIndex, removeNode as removeNodeFromProject, removeEdge as removeEdgeFromProject, createNode, duplicateProject, createVersionSnapshot, removeVersion as removeVersionFromProject, createComment, createReply, createAnimationStep, createAnimation, createProjectLink, upsertGroupMeta } from '../core/project.js';
+import { createEdge, nextZIndex, removeNode as removeNodeFromProject, removeEdge as removeEdgeFromProject, createNode, duplicateProject, createVersionSnapshot, removeVersion as removeVersionFromProject, createComment, createReply, createAnimationStep, createAnimation, createProjectLink, upsertGroupMeta, validateAnnotations, ANIMATION_ENTRANCE_STYLES } from '../core/project.js';
 import { copyVersionToBranch } from '../core/versionBranches.js';
 import { onAnimationChange, isAnimationPlaying, getAnimationPlaybackState, startPlayback, stopPlayback } from '../core/animationPlayback.js';
 import { buildAutoWalkthroughAnimation } from '../core/animationAutoBuild.js';
@@ -190,6 +190,7 @@ export function initCanvas(root) {
     const nodesById = new Map(state.nodes.map((n) => [n.id, n]));
     renderAnimationBadges(state, nodesById);
     applyAnimationVisibility(state);
+    applyAnimationOnlyVisibility(state);
     maybeAutoFocusOnReveal(state, nodesById);
   });
 }
@@ -641,6 +642,7 @@ export function render(state) {
   applyFocusDimming(store.getSelection());
   renderAnimationBadges(state, nodesById);
   applyAnimationVisibility(state);
+  applyAnimationOnlyVisibility(state);
 }
 
 // ---- Focus Mode ----
@@ -960,6 +962,63 @@ export function deletePresentation(presentationId) {
   });
 }
 
+// Whether the animation-editing UI (panel/animationPanel.js) currently has
+// its own animation open — set via setAnimationEditingActive below, called
+// from the panel's own open()/close() (canvas.js can't import that panel
+// module directly: it already imports canvas.js, so this stays a plain
+// setter canvas.js exposes rather than a circular import).
+let animationEditingActive = false;
+
+/** Called by panel/animationPanel.js whenever it opens/closes, so
+ * `animationOnly` nodes (see core/project.js#createNode) become visible for
+ * editing/dragging into a step the moment the panel is open, not just while
+ * an animation is actually playing. */
+export function setAnimationEditingActive(active) {
+  const value = !!active;
+  if (animationEditingActive === value) return;
+  animationEditingActive = value;
+  render(store.getState());
+}
+
+/** An `animationOnly` node (core/project.js#createNode) is only ever shown
+ * on the normal editing canvas — and therefore only ever included in a
+ * PNG/PDF/SVG/other-tool export, which just captures whatever the live DOM
+ * currently shows — while Diagram Animation's own UI is actively in use:
+ * either its panel is open (so it can be dragged into a step) or an
+ * animation is actually playing (so it appears on cue). Otherwise it's
+ * `display: none` (see render()'s node loop below), exactly like a shrunk
+ * group's hidden member, just for a different reason. A non-flagged node
+ * always passes this trivially. */
+function isAnimationOnlyVisible(node) {
+  return !node.animationOnly || animationEditingActive || isAnimationPlaying();
+}
+
+/** Toggles `.anim-only-hidden` (css/node.css — plain `display: none`) on
+ * every node/edge element per isAnimationOnlyVisible above. A dedicated
+ * pass — not folded into render()'s own hiddenNodeIds/style.display
+ * handling — because starting/stopping Diagram Animation playback
+ * deliberately never touches the store (see core/animationPlayback.js's own
+ * header comment), so it never fires a 'change' event and never runs
+ * render() on its own; this needs its own call from the onAnimationChange
+ * listener below so an animationOnly node still appears the instant
+ * playback starts, not only on the next unrelated edit. */
+function applyAnimationOnlyVisibility(state) {
+  const nodesById = new Map(state.nodes.map((n) => [n.id, n]));
+  for (const [id, elRef] of nodeElements) {
+    const node = nodesById.get(id);
+    if (node) elRef.classList.toggle('anim-only-hidden', !isAnimationOnlyVisible(node));
+  }
+  const edgesById = new Map(state.edges.map((e) => [e.id, e]));
+  for (const [id, elRef] of edgeElements) {
+    const edge = edgesById.get(id);
+    if (!edge) continue;
+    const fromNode = nodesById.get(edge.from);
+    const toNode = nodesById.get(edge.to);
+    const hidden = (fromNode && !isAnimationOnlyVisible(fromNode)) || (toNode && !isAnimationOnlyVisible(toNode));
+    elRef.classList.toggle('anim-only-hidden', hidden);
+  }
+}
+
 // ---- Diagram Animation ----
 // Any number of named, independently-playable reveal sequences over this
 // project's own nodes/edges — see core/project.js's `animations`/
@@ -1019,6 +1078,36 @@ export function deleteAnimation(animationId) {
   });
 }
 
+/** Copies a whole animation — every step, its targets, timing, entrance
+ * style, notes and annotations — as a new, independently-editable animation
+ * named "<original> (Copy)", and makes it active. For building a second
+ * variant (e.g. a "Failure scenario" that starts the same way a "Normal
+ * flow" does) without rebuilding every step by hand. Fresh ids throughout,
+ * same "never share an id with what it was copied from" rule as
+ * duplicateProject. */
+export function duplicateAnimation(animationId) {
+  const source = getAnimations().find((a) => a.id === animationId);
+  if (!source) return null;
+  const copy = createAnimation(`${source.name} (Copy)`, {
+    autoFocus: source.autoFocus,
+    notes: source.notes,
+    steps: source.steps.map((s) => createAnimationStep(s.targets, {
+      revealMode: s.revealMode,
+      delayMs: s.delayMs,
+      entranceStyle: s.entranceStyle,
+      hideAfterMs: s.hideAfterMs,
+      notes: s.notes,
+      label: s.label,
+      annotations: s.annotations,
+    })),
+  });
+  store.dispatch((draft) => {
+    draft.animations = [...(draft.animations || []), copy];
+    draft.activeAnimationId = copy.id;
+  });
+  return copy;
+}
+
 export function setActiveAnimation(animationId) {
   store.dispatch((draft) => { draft.activeAnimationId = animationId; });
 }
@@ -1063,6 +1152,33 @@ export function removeAnimationStep(stepId) {
   store.dispatch((draft) => {
     const a = (draft.animations || []).find((x) => x.id === draft.activeAnimationId);
     if (a) a.steps = a.steps.filter((s) => s.id !== stepId);
+  });
+}
+
+/** Copies one step (same targets/timing/entrance/notes/label — everything
+ * except its persisted annotations, which are markup specific to *that*
+ * moment in a past playback and wouldn't make sense pre-attached to a step
+ * that hasn't been shown yet) and inserts the copy immediately after the
+ * original — panel/animationPanel.js's per-step duplicate button, for
+ * quickly building a run of similar steps (e.g. revealing several very
+ * similar components one at a time) without repeating the add-and-configure
+ * flow each time. */
+export function duplicateAnimationStep(stepId) {
+  store.dispatch((draft) => {
+    const a = (draft.animations || []).find((x) => x.id === draft.activeAnimationId);
+    if (!a) return;
+    const idx = a.steps.findIndex((s) => s.id === stepId);
+    if (idx === -1) return;
+    const source = a.steps[idx];
+    const copy = createAnimationStep(source.targets, {
+      revealMode: source.revealMode,
+      delayMs: source.delayMs,
+      entranceStyle: source.entranceStyle,
+      hideAfterMs: source.hideAfterMs,
+      notes: source.notes,
+      label: source.label,
+    });
+    a.steps = [...a.steps.slice(0, idx + 1), copy, ...a.steps.slice(idx + 1)];
   });
 }
 
@@ -1132,12 +1248,58 @@ export function reorderAnimationStep(stepId, direction) {
   });
 }
 
+/** Moves one step to an arbitrary position in one move — reorderAnimationStep's
+ * more general sibling, for panel/animationPanel.js's drag-to-reorder (a
+ * single drag can cross several positions at once, unlike the ▲/▼ buttons'
+ * one-at-a-time swap). `targetIndex` is clamped and is the position the
+ * step should occupy *after* it's removed from its old one, matching how a
+ * drag-and-drop "insert before this row" gesture reads. No-op if it wouldn't
+ * actually change anything. */
+export function moveAnimationStepToIndex(stepId, targetIndex) {
+  const steps = getAnimationSteps();
+  const idx = steps.findIndex((s) => s.id === stepId);
+  if (idx === -1) return;
+  const next = [...steps];
+  const [moved] = next.splice(idx, 1);
+  const clamped = Math.max(0, Math.min(next.length, targetIndex));
+  next.splice(clamped, 0, moved);
+  store.dispatch((draft) => {
+    const a = (draft.animations || []).find((x) => x.id === draft.activeAnimationId);
+    if (a) a.steps = next;
+  });
+}
+
 /** Patches one step's own settings (`revealMode`/`delayMs`/`notes`) — the
  * panel's per-row controls call this on every change. */
 export function updateAnimationStepSettings(stepId, patch) {
   store.dispatch((draft) => {
     const a = (draft.animations || []).find((x) => x.id === draft.activeAnimationId);
     if (a) a.steps = a.steps.map((s) => (s.id === stepId ? { ...s, ...patch } : s));
+  });
+}
+
+/** Persists a presenter's freehand/text markup (canvas/animationOverlay.js's
+ * freeze+draw overlay) onto one step, so the same markup automatically
+ * reappears the next time that step is revealed in a *future* playback
+ * session — unlike this app's original ephemeral, cleared-on-exit drawing.
+ * Runs the raw annotation list through validateAnnotations the same as any
+ * other persisted, potentially-imported data would be, even though today's
+ * only caller already builds well-formed objects via createAnnotation. */
+export function saveAnimationStepAnnotations(stepId, rawAnnotations) {
+  const annotations = validateAnnotations(rawAnnotations);
+  store.dispatch((draft) => {
+    const a = (draft.animations || []).find((x) => x.id === draft.activeAnimationId);
+    if (a) a.steps = a.steps.map((s) => (s.id === stepId ? { ...s, annotations } : s));
+  });
+  return annotations;
+}
+
+/** Presenter-only overview note for a whole animation (distinct from each
+ * step's own per-step `notes`) — see core/project.js#createAnimation. */
+export function setAnimationNotes(animationId, notes) {
+  store.dispatch((draft) => {
+    const a = (draft.animations || []).find((x) => x.id === animationId);
+    if (a) a.notes = typeof notes === 'string' ? notes : '';
   });
 }
 
@@ -1210,6 +1372,23 @@ export function setAllStepsEntranceStyle(entranceStyle, stepIds = null) {
     const a = (draft.animations || []).find((x) => x.id === draft.activeAnimationId);
     if (!a) return;
     a.steps = a.steps.map((s) => (ids && !ids.has(s.id) ? s : { ...s, entranceStyle }));
+  });
+}
+
+/** A more playful sibling of setAllStepsEntranceStyle above — instead of
+ * setting every targeted step to the *same* entrance style, gives each one
+ * its own independently-random pick, for a walkthrough that visibly varies
+ * how each step arrives rather than reading as one uniform effect repeated
+ * throughout. */
+export function randomizeStepsEntranceStyle(stepIds = null) {
+  const ids = toStepIdSet(stepIds);
+  store.dispatch((draft) => {
+    const a = (draft.animations || []).find((x) => x.id === draft.activeAnimationId);
+    if (!a) return;
+    a.steps = a.steps.map((s) => (ids && !ids.has(s.id) ? s : {
+      ...s,
+      entranceStyle: ANIMATION_ENTRANCE_STYLES[Math.floor(Math.random() * ANIMATION_ENTRANCE_STYLES.length)],
+    }));
   });
 }
 
@@ -1402,6 +1581,45 @@ function applyEdgeDrawEntrance(elRef, key, edge, entranceStyle, hidden, revealed
     }
     line.style.strokeDashoffset = '0';
   }
+}
+
+/** Briefly plays one step's own chosen entrance style on its own targets in
+ * isolation, without touching playback state at all —
+ * panel/animationPanel.js's per-step 👁️ "Preview" button, so a presenter can
+ * see what an entrance actually looks like before committing to it rather
+ * than only finding out once the whole animation is playing. Reuses the
+ * exact same .anim-hidden/data-anim-entrance/.anim-just-revealed mechanism
+ * live playback itself uses (see applyAnimationVisibility just below) —
+ * applied and reverted by hand to just this one step's targets instead of
+ * being driven by core/animationPlayback.js's revealedCount. */
+export function previewStepEntrance(step) {
+  const targets = step.targets
+    .map((t) => ({ ...t, elRef: (t.targetType === 'node' ? nodeElements : edgeElements).get(t.targetId) }))
+    .filter((t) => t.elRef);
+  if (!targets.length) return;
+  const style = step.entranceStyle || 'fade';
+  const edgesById = new Map(store.getState().edges.map((e) => [e.id, e]));
+  const key = (t) => `${t.targetType}:${t.targetId}`;
+  for (const t of targets) {
+    t.elRef.classList.add('anim-hidden');
+    t.elRef.dataset.animEntrance = style;
+    if (t.targetType === 'edge') applyEdgeDrawEntrance(t.elRef, key(t), edgesById.get(t.targetId), style, new Set([key(t)]), new Set());
+  }
+  void nodeLayer.getBoundingClientRect(); // force a reflow so the reveal below actually transitions instead of snapping straight to revealed
+  requestAnimationFrame(() => {
+    for (const t of targets) {
+      t.elRef.classList.remove('anim-hidden');
+      t.elRef.classList.add('anim-just-revealed');
+      if (t.targetType === 'edge') applyEdgeDrawEntrance(t.elRef, key(t), edgesById.get(t.targetId), style, new Set(), new Set([key(t)]));
+    }
+    setTimeout(() => {
+      for (const t of targets) {
+        t.elRef.classList.remove('anim-just-revealed');
+        delete t.elRef.dataset.animEntrance;
+        if (t.targetType === 'edge') resetEdgeDrawStyle(t.elRef.querySelector('.edge-line'));
+      }
+    }, 750);
+  });
 }
 
 function applyAnimationVisibility(state) {
@@ -2960,7 +3178,11 @@ export function getContentBounds() {
 
   const xs = [];
   const ys = [];
-  for (const n of nodes) { xs.push(n.x, n.x + n.w); ys.push(n.y, n.y + n.h); }
+  // A currently-hidden animationOnly node (see isAnimationOnlyVisible)
+  // contributes nothing to "what does this diagram look like right now" —
+  // without this filter, "Fit to Screen"/a plain PNG export would reserve
+  // extra blank space for content the viewer never actually sees.
+  for (const n of nodes) { if (isAnimationOnlyVisible(n)) { xs.push(n.x, n.x + n.w); ys.push(n.y, n.y + n.h); } }
   // A comment pin has a real on-screen footprint (~26px, see .comment-pin in
   // css/canvas.css) even though it's stored as a single point — pad by half
   // that so "Fit to Screen"/PNG export don't crop a pin sitting outside
@@ -2971,10 +3193,15 @@ export function getContentBounds() {
     xs.push(c.x - COMMENT_PIN_RADIUS, c.x + COMMENT_PIN_RADIUS);
     ys.push(c.y - COMMENT_PIN_RADIUS, c.y + COMMENT_PIN_RADIUS);
   }
-  let minX = Math.min(...xs);
-  let minY = Math.min(...ys);
-  let maxX = Math.max(...xs);
-  let maxY = Math.max(...ys);
+  // Every node could be a currently-hidden animationOnly one with no
+  // comments either — e.g. a diagram that's nothing but animation-only
+  // scaffolding, viewed with the animation panel closed. `xs`/`ys` empty
+  // makes Math.min/max both non-finite; fall through to the edge/label
+  // bounds below (still possibly empty too) rather than propagating NaN.
+  let minX = xs.length ? Math.min(...xs) : Infinity;
+  let minY = ys.length ? Math.min(...ys) : Infinity;
+  let maxX = xs.length ? Math.max(...xs) : -Infinity;
+  let maxY = ys.length ? Math.max(...ys) : -Infinity;
 
   if (edgeLayer) {
     const bbox = edgeLayer.getBBox();
@@ -2996,6 +3223,7 @@ export function getContentBounds() {
     maxY = Math.max(maxY, bottomRight.y);
   }
 
+  if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) return null;
   return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
 }
 

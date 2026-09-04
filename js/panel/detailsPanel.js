@@ -295,6 +295,13 @@ function render(node) {
     body.appendChild(patternSuggestions);
   }
 
+  body.appendChild(el('h3', { text: 'Diagram Animation' }));
+  body.appendChild(checkbox(
+    node.animationOnly === true,
+    (v) => updateNode((n) => { n.animationOnly = v; }),
+    'Animation-only — hide from the normal canvas and every export; only shown while editing or playing Diagram Animation',
+  ));
+
   if (node.shape === 'rows') {
     body.appendChild(el('h3', { text: 'Rows' }));
     body.appendChild(renderRows(node));

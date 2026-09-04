@@ -14,6 +14,8 @@ import {
   addAnimationStep, removeAnimationStep, removeAnimationSteps, removeAnimationTarget, reorderAnimationStep,
   updateAnimationStepSettings, setAnimations, startAnimationPlayback,
   addAllToActiveAnimation, setAllStepsRevealMode, setAllStepsEntranceStyle, setAllStepsHideAfterMs,
+  setAnimationEditingActive, setAnimationNotes, duplicateAnimation, duplicateAnimationStep,
+  randomizeStepsEntranceStyle, previewStepEntrance, moveAnimationStepToIndex,
 } from '../canvas/canvas.js';
 import { exportAnimation, parseAnimationFile } from '../io/exportAnimation.js';
 import { exportAnimationToPptx } from '../io/exportAnimationPptx.js';
@@ -23,6 +25,7 @@ import { confirmAction } from '../modals/confirmModal.js';
 import { promptText } from '../modals/promptModal.js';
 import { showToast } from '../utils/toast.js';
 import { ANIMATION_REVEAL_MODES, ANIMATION_ENTRANCE_STYLES } from '../core/project.js';
+import { computeTotalDurationMs } from '../core/animationVideoTiming.js';
 
 let rootEl = null;
 let isOpen = false;
@@ -34,6 +37,9 @@ let unsubSelection = null;
 // re-render from an unrelated store change should never collapse a textarea
 // the presenter is actively editing).
 const expandedNotesStepIds = new Set();
+// Which steps currently show their custom-label text input expanded — same
+// ephemeral-UI reasoning as expandedNotesStepIds just above.
+const expandedLabelStepIds = new Set();
 // `${targetType}:${targetId}` keys checked in the "Add more" list for the
 // bulk "Add Selected as one step" action — same ephemeral-UI reasoning as
 // expandedNotesStepIds above.
@@ -51,6 +57,11 @@ let bulkHideAfterSeconds = 5;
 // means "every step," same ephemeral-UI reasoning as selectedForGroup
 // above (cleared on close, not part of any step's own saved data).
 const selectedStepIds = new Set();
+// Which step is mid-drag for the step list's drag-to-reorder — a plain
+// module var rather than relying solely on the drop event's own
+// dataTransfer, which some test/automation environments don't populate the
+// same way a real user drag does.
+let draggedStepId = null;
 
 export function initAnimationPanel(root) {
   rootEl = root;
@@ -65,6 +76,10 @@ export function toggleAnimationPanel() {
 function open() {
   isOpen = true;
   rootEl.classList.add('open');
+  // See canvas.js#isAnimationOnlyVisible — an animationOnly node/edge only
+  // shows up on the canvas (to be dragged into a step) while this panel is
+  // open, same as it does during actual playback.
+  setAnimationEditingActive(true);
   unsubChange = store.subscribe('change', render);
   // The "+ Add Selected From Canvas" quick-add button's own count needs to
   // stay live as the user selects/deselects things on the canvas while the
@@ -77,11 +92,13 @@ function open() {
 export function close() {
   isOpen = false;
   rootEl.classList.remove('open');
+  setAnimationEditingActive(false);
   unsubChange?.();
   unsubChange = null;
   unsubSelection?.();
   unsubSelection = null;
   expandedNotesStepIds.clear();
+  expandedLabelStepIds.clear();
   selectedForGroup.clear();
   selectedStepIds.clear();
 }
@@ -115,6 +132,13 @@ function stepHeaderLabel(labels) {
   return `${labels.slice(0, 2).join(', ')}, +${labels.length - 2} more`;
 }
 
+function formatDuration(ms) {
+  const totalSeconds = Math.round(ms / 1000);
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return m > 0 ? `${m}m ${s}s` : `${s}s`;
+}
+
 function render() {
   if (!rootEl || !isOpen) return;
   rerenderPreservingUiState(rootEl, buildContents, '.animation-body');
@@ -145,6 +169,31 @@ function buildContents() {
 
   if (active) {
     body.appendChild(checkbox(active.autoFocus, (v) => setAnimationAutoFocus(active.id, v), '🔎 Auto-focus: pan/zoom to each step as it reveals'));
+  }
+
+  if (steps.length) {
+    const autoCount = steps.filter((s) => s.revealMode === 'auto').length;
+    const clickCount = steps.length - autoCount;
+    const totalMs = computeTotalDurationMs(steps);
+    body.appendChild(el('p', {
+      class: 'animation-duration-indicator',
+      title: 'Auto-advancing steps use their own delay; a click-paced step is estimated at 2s here since a live presenter may pace it differently.',
+      text: `⏱ Estimated duration: ${formatDuration(totalMs)}${clickCount ? ` (${clickCount} click-paced step${clickCount === 1 ? '' : 's'} estimated)` : ''}`,
+    }));
+  }
+
+  if (active) {
+    body.appendChild(el('h3', { text: '📝 Presenter overview notes' }));
+    body.appendChild(el('p', { class: 'modal-hint', text: 'For you only — never shown to the audience or included in any export, unlike a step\'s own notes.' }));
+    const overviewNotes = el('textarea', {
+      class: 'animation-overview-notes',
+      placeholder: 'e.g. "Keep this to 5 minutes — skip step 4 if short on time."',
+      rows: 3,
+      'data-focus-key': 'animation-overview-notes',
+      onInput: (e) => setAnimationNotes(active.id, e.target.value),
+    });
+    overviewNotes.value = active.notes || '';
+    body.appendChild(overviewNotes);
   }
 
   const playBtn = el('button', {
@@ -295,6 +344,17 @@ function buildAnimationSwitcher(animations, active) {
     row.appendChild(el('button', {
       type: 'button',
       class: 'btn btn-sm',
+      title: 'Duplicate this animation — every step, timing, and notes — as a new, independently-editable copy',
+      text: '⧉',
+      'aria-label': 'Duplicate animation',
+      onClick: () => {
+        const copy = duplicateAnimation(active.id);
+        if (copy) showToast(`Duplicated as "${copy.name}".`, 'success', 2000);
+      },
+    }));
+    row.appendChild(el('button', {
+      type: 'button',
+      class: 'btn btn-sm',
       title: 'Delete this animation',
       text: '🗑',
       'aria-label': 'Delete animation',
@@ -427,6 +487,11 @@ function buildInAnimationSection(steps, state, nodesById) {
     (v) => { if (v) setAllStepsEntranceStyle(v, scopeIds); },
     { '': 'Choose…', fade: 'Fade', 'slide-up': 'Slide up', zoom: 'Zoom in', draw: 'Draw (edges only)' },
   ));
+  entranceBulkRow.appendChild(el('button', {
+    type: 'button', class: 'btn btn-sm', text: '🎲 Randomize',
+    title: `Give each of ${scopeLabel} its own independently-random entrance style, instead of one uniform look`,
+    onClick: () => randomizeStepsEntranceStyle(scopeIds),
+  }));
   section.appendChild(entranceBulkRow);
 
   // Bulk auto-hide — a "flash card" style walkthrough (every step appears,
@@ -460,9 +525,31 @@ function buildInAnimationSection(steps, state, nodesById) {
       .map((t) => ({ target: t, label: targetLabel(t, state, nodesById) }))
       .filter((x) => x.label != null); // orphaned reference — validateProject would have already dropped it on load; defensive only
     if (!labeledTargets.length) return;
-    const headerLabel = stepHeaderLabel(labeledTargets.map((x) => x.label));
+    // A custom label (see core/project.js#createAnimationStep's `label`
+    // field) overrides the auto-derived "API Gateway, Redis Cache" name
+    // with real storytelling text — null (the default) keeps deriving it
+    // from the target names, same as every step before this field existed.
+    const headerLabel = step.label || stepHeaderLabel(labeledTargets.map((x) => x.label));
 
-    const row = el('div', { class: 'animation-step-row' });
+    const row = el('div', { class: 'animation-step-row', draggable: true });
+    // Drag-to-reorder — an alternative to the ▲/▼ buttons below for moving a
+    // step several positions in one gesture. `index` is captured from this
+    // forEach's own closure, always the *current* row's position, so a drop
+    // always inserts "at the row currently under the cursor" regardless of
+    // where dragging started.
+    row.addEventListener('dragstart', (e) => {
+      draggedStepId = step.id;
+      e.dataTransfer?.setData('text/plain', step.id);
+      row.classList.add('dragging');
+    });
+    row.addEventListener('dragend', () => { draggedStepId = null; row.classList.remove('dragging'); });
+    row.addEventListener('dragover', (e) => { e.preventDefault(); });
+    row.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const sourceId = draggedStepId || e.dataTransfer?.getData('text/plain');
+      if (sourceId && sourceId !== step.id) moveAnimationStepToIndex(sourceId, index);
+    });
+    row.appendChild(el('span', { class: 'animation-step-drag-handle', 'aria-hidden': 'true', title: 'Drag to reorder', text: '⠿' }));
     row.appendChild(el('input', {
       type: 'checkbox',
       class: 'animation-step-select',
@@ -495,6 +582,16 @@ function buildInAnimationSection(steps, state, nodesById) {
     }
     row.appendChild(controls);
 
+    const labelOpen = expandedLabelStepIds.has(step.id);
+    row.appendChild(el('button', {
+      type: 'button',
+      class: `animation-step-label-toggle${step.label ? ' has-notes' : ''}`,
+      title: 'Custom label for this step (overrides the auto-derived name above)',
+      'aria-label': 'Toggle custom step label',
+      text: '🏷️',
+      onClick: () => { if (labelOpen) expandedLabelStepIds.delete(step.id); else expandedLabelStepIds.add(step.id); render(); },
+    }));
+
     const notesOpen = expandedNotesStepIds.has(step.id);
     row.appendChild(el('button', {
       type: 'button',
@@ -509,8 +606,25 @@ function buildInAnimationSection(steps, state, nodesById) {
     const moveDown = el('button', { type: 'button', class: 'animation-step-move', 'aria-label': 'Move later', text: '▼', disabled: index === steps.length - 1, onClick: () => reorderAnimationStep(step.id, 1) });
     row.appendChild(moveUp);
     row.appendChild(moveDown);
+    row.appendChild(el('button', {
+      type: 'button',
+      class: 'animation-step-duplicate',
+      'aria-label': `Duplicate ${headerLabel}`,
+      title: 'Duplicate this step, inserted right after it',
+      text: '⧉',
+      onClick: () => duplicateAnimationStep(step.id),
+    }));
     row.appendChild(el('button', { type: 'button', class: 'animation-step-remove', 'aria-label': `Remove ${headerLabel} from animation`, text: '✕', onClick: () => removeAnimationStep(step.id) }));
     list.appendChild(row);
+
+    if (labelOpen) {
+      list.appendChild(el('div', { class: 'animation-step-notes-row' }, [
+        textInput(step.label || '', (v) => updateAnimationStepSettings(step.id, { label: v.trim() || null }), {
+          class: 'animation-step-label-input',
+          placeholder: `Custom label — leave empty to auto-derive ("${stepHeaderLabel(labeledTargets.map((x) => x.label))}")`,
+        }),
+      ]));
+    }
 
     // A separate row (rather than cramming into `controls` above, which
     // already governs *when this step advances*) for *how it looks* while
@@ -526,6 +640,14 @@ function buildInAnimationSection(steps, state, nodesById) {
       (v) => updateAnimationStepSettings(step.id, { entranceStyle: v }),
       { fade: 'Fade', 'slide-up': 'Slide up', zoom: 'Zoom in', draw: 'Draw (edges only)' },
     ));
+    appearanceRow.appendChild(el('button', {
+      type: 'button',
+      class: 'btn-icon animation-step-preview',
+      'aria-label': `Preview ${headerLabel}'s entrance style`,
+      title: 'Briefly play this entrance style on the canvas, without starting the whole animation',
+      text: '👁️',
+      onClick: () => previewStepEntrance(step),
+    }));
     appearanceRow.appendChild(checkbox(
       step.hideAfterMs > 0,
       (v) => updateAnimationStepSettings(step.id, { hideAfterMs: v ? 5000 : 0 }),

@@ -2664,6 +2664,94 @@ alongside Diagram Animation's existing reveal-mode/delay fields (4.36):
   position moved, and it now stays visible (disabled, showing "(0)") once
   nothing is left to add, instead of disappearing outright.
 
+### 4.97 Diagram Animation: animation-only content, playback controls, and persisted presenter markup
+A larger round of Diagram Animation additions (building on 4.36/4.62/4.92/4.96):
+
+- **Animation-only content.** `core/project.js#createNode`'s `animationOnly`
+  flag (default `false`, toggled via a "Diagram Animation" checkbox in the
+  details panel) marks any node — any shape, including a plain title/sticky
+  note — as existing *only* for the animation's own story, not the real
+  diagram: `canvas.js#isAnimationOnlyVisible` hides it (via a dedicated
+  `.anim-only-hidden` CSS class, `canvas.js#applyAnimationOnlyVisibility`)
+  from the normal editing canvas and therefore from every PNG/PDF/SVG/
+  other-tool export (which just captures whatever the live DOM currently
+  shows), while keeping it fully visible/usable while the animation panel is
+  open (for dragging into a step) or an animation is actually playing. An
+  edge with either endpoint currently hidden this way is hidden too.
+  `canvas.js#getContentBounds` excludes a currently-hidden animation-only
+  node from "Fit to Screen"/plain-export framing, so it doesn't reserve
+  blank space for content the viewer never sees.
+- **Duration indicator + presenter overview notes.** The panel shows an
+  estimated total duration for the active animation
+  (`core/animationVideoTiming.js#computeTotalDurationMs` — an auto step's own
+  delay, a click step estimated at a fixed 2s since a live presenter may
+  pace it differently). A new `notes` field on `core/project.js#createAnimation`
+  is a presenter-only overview for the *whole* animation (distinct from each
+  step's own per-step `notes`) — editable in the panel, shown for the whole
+  presentation during playback (`canvas/animationOverlay.js`'s
+  `.anim-overview-notes`, separate from the per-step `.anim-step-notes`
+  readout that changes with every reveal).
+- **Restart + independent Pause/Play.** `core/animationPlayback.js#goToStart`
+  (a thin wrapper over `jumpToStep(0)`) backs a new ⏮ Restart button/Home
+  keyboard shortcut. A new `drawingActive` state — a strict subset of
+  `frozen` (drawing always freezes; a plain freeze doesn't imply drawing) —
+  lets Pause/Play (⏸/▶, Space) freeze the presentation to talk without
+  opening the draw overlay, decoupled from the 🖊️ draw toggle
+  (`setDrawingActive`). Resuming (`setFrozen(false)`) always exits drawing
+  too — there's no "still drawing but not frozen" state.
+- **Persisted, vector-based presenter markup.** The freeze-and-draw overlay
+  now offers Pen, Highlighter, and Text tools (previously pen-only,
+  ephemeral raw-canvas strokes cleared on every exit). Marks are recorded as
+  vector data — `core/project.js#createAnnotation`
+  (`{id, type: 'stroke'|'text', tool, color, points|x/y/text}`) validated by
+  `validateAnnotations` (capped at 200 annotations/step, 2000 points/stroke,
+  500 chars/text) — in **canvas/world space** (`viewport.screenToCanvas`),
+  not screen pixels, so a mark stays correctly positioned across a different
+  pan/zoom on replay or in an independently-framed export capture. Stored on
+  each step's own `annotations` field and persisted via
+  `canvas.js#saveAnimationStepAnnotations` every time drawing mode is
+  exited (Done, the 🖊️ toggle, or ending playback mid-draw) — automatically
+  redrawn (`viewport.canvasToScreen`, the exact inverse transform) the next
+  time that step is shown, in the *same* playback session or a future one.
+  Round-trips through a project's own JSON export/import and Diagram
+  Animation's standalone export/import (`io/exportAnimation.js` format v3 —
+  a step's `label`/`annotations` and an animation's own `notes`; an older v1/
+  v2 file imports cleanly with these simply defaulting). Baked directly into
+  the PPTX/video export's captured frames
+  (`io/exportImage.js#captureDiagramCanvas`'s new `annotations` option,
+  applying the exact same world-to-pixel mapping the capture itself just
+  used) — an exported presentation/video shows the same markup a presenter
+  drew during a past playback.
+- **Duplicate step / Duplicate Animation.** `canvas.js#duplicateAnimationStep`
+  copies one step (same targets/timing/entrance/notes/label, not its
+  annotations — markup from a past playback wouldn't make sense pre-attached
+  to an unplayed step) right after itself.
+  `canvas.js#duplicateAnimation` copies a whole animation (every step,
+  including annotations) as a new, independently-editable "<name> (Copy)".
+- **Custom step labels.** A step's own `label` field (`core/project.js#createAnimationStep`,
+  default `null`) overrides the auto-derived "API Gateway, Redis Cache"
+  header with real storytelling text ("The client sends a request") —
+  editable via a 🏷️ toggle next to the existing 📝 notes toggle.
+- **Randomize entrance styles + Preview.** A "🎲 Randomize" bulk button
+  (`canvas.js#randomizeStepsEntranceStyle`) gives each targeted step its own
+  independently-random entrance style rather than one uniform look. A
+  per-step "👁️ Preview" button (`canvas.js#previewStepEntrance`) briefly
+  plays that step's chosen entrance style on its own targets in isolation —
+  reusing the exact same `.anim-hidden`/`data-anim-entrance`/
+  `.anim-just-revealed` mechanism live playback uses, applied and reverted
+  by hand — so a presenter can see what a style looks like without starting
+  the whole animation.
+- **Drag-to-reorder.** `canvas.js#moveAnimationStepToIndex` moves a step to
+  an arbitrary position in one move (native HTML5 drag-and-drop on each
+  step row), alongside the existing one-at-a-time ▲/▼ buttons.
+- **Deferred (not built this round):** AI-assisted entrance/timing
+  suggestions, collaborative (multi-presenter) animation editing, a
+  shareable read-only presentation link, touch-friendlier mobile playback
+  controls, a full timeline/scrubber UI, and complete PPTX/video export
+  parity for `hideAfterMs` (each export frame is one whole step, so a
+  hide-partway-through-a-step effect doesn't yet appear in an exported
+  file the way it does live).
+
 ## 7. Out of scope for v1 (ideas for later, see PLAN.md §7)
 
 Versioned history beyond in-session undo/redo (superseded by 4.17/4.63

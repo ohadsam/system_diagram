@@ -1,7 +1,8 @@
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  startPlayback, stopPlayback, nextStep, prevStep, jumpToStep, setFrozen,
+  startPlayback, stopPlayback, nextStep, prevStep, jumpToStep, setFrozen, goToStart,
+  setDrawingActive, isDrawingActive,
   setAutoPlayAll, isAutoPlayAll, setLoop, isLoopEnabled,
   isAnimationPlaying, isAnimationFrozen, getAnimationPlaybackState, onAnimationChange,
 } from '../../js/core/animationPlayback.js';
@@ -315,4 +316,50 @@ test('looping back to the start clears expiredStepIds so a hideAfterMs step show
       done();
     }, 1400);
   }, 60);
+});
+
+test('goToStart jumps straight back to revealedCount 0 from anywhere', () => {
+  startPlayback([clickStep(), clickStep(), clickStep()]);
+  nextStep();
+  nextStep();
+  assert.equal(getAnimationPlaybackState().revealedCount, 2);
+  goToStart();
+  assert.equal(getAnimationPlaybackState().revealedCount, 0);
+});
+
+test('setDrawingActive(true) also freezes; isDrawingActive/isAnimationFrozen both reflect it', () => {
+  startPlayback([clickStep()]);
+  assert.equal(isDrawingActive(), false);
+  setDrawingActive(true);
+  assert.equal(isDrawingActive(), true);
+  assert.equal(isAnimationFrozen(), true, 'drawing implies frozen');
+});
+
+test('a plain setFrozen(true) does NOT turn on drawingActive — pausing and drawing are independent', () => {
+  startPlayback([clickStep()]);
+  setFrozen(true);
+  assert.equal(isAnimationFrozen(), true);
+  assert.equal(isDrawingActive(), false, 'a plain pause is not "drawing"');
+});
+
+test('resuming (setFrozen(false)) always exits drawing too, even if it was never explicitly turned off', () => {
+  startPlayback([clickStep()]);
+  setDrawingActive(true);
+  setFrozen(false);
+  assert.equal(isAnimationFrozen(), false);
+  assert.equal(isDrawingActive(), false, 'there is no "still drawing but not frozen" state');
+});
+
+test('setDrawingActive is a no-op while not playing', () => {
+  setDrawingActive(true);
+  assert.equal(isDrawingActive(), false);
+});
+
+test('stopPlayback and a fresh startPlayback both reset drawingActive', () => {
+  startPlayback([clickStep()]);
+  setDrawingActive(true);
+  stopPlayback();
+  assert.equal(isDrawingActive(), false);
+  startPlayback([clickStep()]);
+  assert.equal(isDrawingActive(), false);
 });

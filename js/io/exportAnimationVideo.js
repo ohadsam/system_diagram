@@ -55,7 +55,7 @@ export async function exportAnimationToVideo(animation, onProgress) {
       // share the one live canvas.
       await nextFrame();
       // eslint-disable-next-line no-await-in-loop
-      const canvas = await captureDiagramCanvas();
+      const canvas = await captureDiagramCanvas({ annotations: step.annotations });
       if (canvas) frames.push({ canvas, durationMs: computeStepDurationMs(step) });
     }
   } finally {

@@ -169,6 +169,50 @@ export function createAnimationStep(targets, overrides = {}) {
     // canvas/animationOverlay.js) — never part of the diagram content
     // itself, purely a reminder of what to say at this step.
     notes: '',
+    // Overrides the auto-derived "API Gateway, Redis Cache" header label
+    // (panel/animationPanel.js#stepHeaderLabel) with real storytelling text
+    // ("The client sends a request") — null means "keep deriving it from
+    // the target names," the original behavior for every step before this
+    // field existed and still the default for a freshly-added one.
+    label: null,
+    // Freehand/text markup a presenter drew on top of this step during a
+    // past playback session (canvas/animationOverlay.js's freeze+draw
+    // overlay) — see createAnnotation below. Persisted (unlike the
+    // in-session-only drawing this app originally shipped with) so the same
+    // markup reappears automatically the next time this step is revealed,
+    // in this session or a future one, and travels through export/import
+    // like everything else here. Empty for every step until a presenter
+    // actually draws something on it.
+    annotations: [],
+    ...overrides,
+  };
+}
+
+/** One freehand stroke or text note a presenter drew during playback (see
+ * `createAnimationStep`'s `annotations` field and
+ * canvas/animationOverlay.js). `x`/`y`/`points` are stored in *canvas/world*
+ * coordinates (via canvas.js#screenToCanvas at draw time), not raw screen
+ * pixels — the presenter draws while looking at a specific pan/zoom, but an
+ * annotation has to still land in the right place relative to the diagram
+ * later, whether that's a live replay at a *different* pan/zoom, or a static
+ * PPTX/video export frame rendered through its own independent camera fit
+ * (io/exportImage.js#captureDiagramCanvas). Screen-space coordinates would
+ * only ever have been correct for the exact moment they were drawn. */
+export function createAnnotation(overrides = {}) {
+  return {
+    id: nextId('anno'),
+    // 'stroke' (freehand pen/highlighter) or 'text'.
+    type: 'stroke',
+    // 'pen' (thin, opaque) or 'highlighter' (thick, translucent) — only
+    // meaningful for type: 'stroke'.
+    tool: 'pen',
+    color: '#EF4444',
+    // type: 'stroke' only — an array of {x, y} points in canvas coordinates.
+    points: [],
+    // type: 'text' only.
+    x: 0,
+    y: 0,
+    text: '',
     ...overrides,
   };
 }
@@ -177,13 +221,17 @@ export function createAnimationStep(targets, overrides = {}) {
  * above. `autoFocus` is a per-animation authoring choice (not a live
  * playback toggle like the overlay's Autoplay/Loop buttons): pan+zoom the
  * canvas to frame whatever a step just revealed, saved with the diagram
- * since it's part of how that specific sequence is meant to be presented. */
+ * since it's part of how that specific sequence is meant to be presented.
+ * `notes` is a *presenter-only overview* for the whole sequence — shown
+ * throughout playback alongside (not instead of) each step's own note,
+ * e.g. "Focus on the retry path, skip the auth details if short on time." */
 export function createAnimation(name, overrides = {}) {
   return {
     id: nextId('animset'),
     name: (name || '').trim() || 'Animation',
     steps: [],
     autoFocus: false,
+    notes: '',
     ...overrides,
   };
 }
@@ -290,6 +338,20 @@ export function createNode(def, x, y, overrides = {}) {
     // (the four Fragment shapes in sequence-templates.js) always wins over
     // `overrides`.
     fragmentType: null,
+    // Marks this node as existing *only* for Diagram Animation — a title
+    // card, callout, or explanatory text a presenter wants to reveal as a
+    // step without it being part of the actual system diagram. `false`
+    // (the default, and every node before this field existed) behaves
+    // exactly as before: shown on the canvas normally, included in every
+    // export. `true` hides it from the normal editing canvas and from
+    // PNG/PDF/SVG/other-tool exports (canvas.js#isAnimationOnlyVisible
+    // gates this on whether Diagram Animation's own panel/playback is
+    // currently active) while remaining fully addable to a step and fully
+    // visible during animation editing or playback — it's not a second
+    // kind of node, just an ordinary one (any shape — a title, a sticky
+    // note, a plain shape) with this one flag toggled from the details
+    // panel.
+    animationOnly: false,
     ...overrides,
     // A def's own textPosition/iconVisible (data/schema.js#c) describes
     // something structural about that specific shape (e.g. a container/
@@ -668,6 +730,7 @@ function validateContent(rawNodes, rawEdges, rawReplicationPairs) {
               })
           : [],
         fragmentType: FRAGMENT_TYPES.includes(n.fragmentType) ? n.fragmentType : null,
+        animationOnly: n.animationOnly === true,
         // Provenance for modals/groupExplanationModal.js's "📖 Explain This
         // Diagram" — which library pattern this node came from
         // (sourcePatternId, e.g. 'seq-pkce-flow') and which specific
@@ -841,6 +904,45 @@ export function validateAnimationTargets(rawTargets, nodeIds, edgeIds) {
     .map((t) => ({ targetType: t.targetType, targetId: t.targetId }));
 }
 
+// Safety caps on annotation data, same "generous enough for any real use,
+// just a backstop against a malformed/hostile import file" reasoning as
+// MAX_ANIMATIONS_PER_PROJECT/MAX_TARGETS_PER_ANIMATION_STEP above.
+const MAX_ANNOTATIONS_PER_STEP = 200;
+const MAX_POINTS_PER_STROKE = 2000;
+const MAX_ANNOTATION_TEXT_LENGTH = 500;
+
+/** Validates one step's `annotations` array (see
+ * core/project.js#createAnnotation) — exported for io/exportAnimation.js's
+ * import flow, same "validate a freshly-parsed file the same way a project
+ * load would" reasoning as validateAnimationTargets above. Never throws on
+ * malformed input; drops just the offending entry rather than the whole
+ * step. Coordinates aren't checked against any diagram bounds — an
+ * annotation drawn near a component that later moved, or on a step whose
+ * targets partly changed, is still valid data, just possibly no longer
+ * lined up with anything; that's a presenter's own judgment call, not
+ * something a loader can meaningfully validate. */
+export function validateAnnotations(rawAnnotations) {
+  if (!Array.isArray(rawAnnotations)) return [];
+  return rawAnnotations
+    .filter((a) => a && typeof a === 'object')
+    .slice(0, MAX_ANNOTATIONS_PER_STEP)
+    .map((a) => {
+      const color = typeof a.color === 'string' && a.color ? a.color : '#EF4444';
+      const id = typeof a.id === 'string' && a.id ? a.id : nextId('anno');
+      if (a.type === 'text') {
+        const text = typeof a.text === 'string' ? a.text.slice(0, MAX_ANNOTATION_TEXT_LENGTH) : '';
+        if (!text.trim()) return null;
+        return { id, type: 'text', x: Number.isFinite(a.x) ? a.x : 0, y: Number.isFinite(a.y) ? a.y : 0, text, color };
+      }
+      const points = Array.isArray(a.points)
+        ? a.points.filter((p) => p && Number.isFinite(p.x) && Number.isFinite(p.y)).slice(0, MAX_POINTS_PER_STROKE).map((p) => ({ x: p.x, y: p.y }))
+        : [];
+      if (points.length < 2) return null;
+      return { id, type: 'stroke', tool: a.tool === 'highlighter' ? 'highlighter' : 'pen', points, color };
+    })
+    .filter(Boolean);
+}
+
 function validateAnimationStep(raw, nodeIds, edgeIds) {
   if (!raw || typeof raw !== 'object') return null;
   const targets = validateAnimationTargets(raw.targets, nodeIds, edgeIds);
@@ -853,6 +955,8 @@ function validateAnimationStep(raw, nodeIds, edgeIds) {
     entranceStyle: ANIMATION_ENTRANCE_STYLES.includes(raw.entranceStyle) ? raw.entranceStyle : 'fade',
     hideAfterMs: Number.isFinite(raw.hideAfterMs) && raw.hideAfterMs > 0 ? raw.hideAfterMs : 0,
     notes: typeof raw.notes === 'string' ? raw.notes : '',
+    label: typeof raw.label === 'string' && raw.label.trim() ? raw.label.trim() : null,
+    annotations: validateAnnotations(raw.annotations),
   };
 }
 
@@ -865,6 +969,7 @@ function validateAnimation(raw, nodeIds, edgeIds) {
     name: typeof raw.name === 'string' && raw.name.trim() ? raw.name : 'Animation',
     steps,
     autoFocus: raw.autoFocus === true,
+    notes: typeof raw.notes === 'string' ? raw.notes : '',
   };
 }
 

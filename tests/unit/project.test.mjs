@@ -1010,11 +1010,12 @@ test('createAnimationStep accepts an array of targets for a "reveal together" gr
   assert.equal(step.targets.length, 2);
 });
 
-test('createAnimation defaults name, empty steps, and autoFocus false', () => {
+test('createAnimation defaults name, empty steps, autoFocus false, and empty presenter overview notes', () => {
   const a = createAnimation('My Animation');
   assert.equal(a.name, 'My Animation');
   assert.deepEqual(a.steps, []);
   assert.equal(a.autoFocus, false);
+  assert.equal(a.notes, '');
   assert.ok(a.id.startsWith('animset_'));
 });
 

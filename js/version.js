@@ -2,9 +2,20 @@
 // modal (see io/whatsNew.js). Bump APP_VERSION and add an entry here with
 // every user-facing fix or feature — the modal shows entries newer than
 // whatever version the visitor last saw.
-export const APP_VERSION = '1.59.0';
+export const APP_VERSION = '1.60.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.60.0',
+    date: '2026-09-04',
+    highlights: [
+      '🚫 Diagram Animation: any component or connector can now be marked "Animation-only" (details panel) — hidden from the normal editing canvas and every PNG/PDF/SVG/other export, but fully usable and visible while the animation panel is open or an animation is playing. Build scaffolding (extra titles, callouts, sticky notes) that exists only to tell the story, without cluttering the real diagram.',
+      '⏱️ Diagram Animation: the panel now shows an estimated total duration for the active animation, and a new presenter-only "overview notes" field (separate from each step\'s own notes) is shown for the whole presentation during playback.',
+      '⏯️ Diagram Animation playback: new ⏮ Restart and independent ⏸/▶ Pause/Play controls — pausing no longer requires opening the draw overlay, and Restart jumps straight back to the beginning in one click (also bound to Space/Home on the keyboard).',
+      '🖊️ Diagram Animation\'s freeze-and-draw overlay now has Pen, Highlighter and Text tools (previously pen-only), and every mark is now persisted with the step it was drawn on — it automatically reappears the next time that step is shown in a later playback, and is baked directly into the exported PPTX slides and video frames. A round-trip through the standalone Diagram Animation JSON export/import carries it too.',
+      '🔀 Diagram Animation: Duplicate step and Duplicate Animation buttons, a custom per-step label (overrides the auto-derived name), a "🎲 Randomize" bulk button that gives each step its own independently-random entrance style, a "👁️ Preview" button to see a step\'s entrance style on the canvas without playing the whole thing, and drag-to-reorder for the step list (alongside the existing ▲/▼ buttons).',
+    ],
+  },
   {
     version: '1.59.0',
     date: '2026-09-03',

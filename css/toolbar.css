@@ -942,6 +942,8 @@ body.spotlight-mode .kiosk-spotlight {
 
 .anim-playback-row {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   align-items: center;
   gap: var(--space-2);
 }
@@ -1011,6 +1013,26 @@ body.spotlight-mode .kiosk-spotlight {
   outline-offset: 1px;
 }
 
+/* Presenter-only overview for the whole animation (see
+   core/project.js#createAnimation's `notes` field) — visible for the whole
+   presentation, unlike .anim-step-notes below which changes per step. */
+.anim-overview-notes {
+  display: none;
+  max-width: 100%;
+  font-size: 12px;
+  font-style: italic;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+  text-align: center;
+  white-space: pre-wrap;
+  border-bottom: 1px dashed var(--color-border);
+  padding-bottom: var(--space-1);
+}
+
+.anim-overview-notes.visible {
+  display: block;
+}
+
 /* Presenter-only reminder for the most recently revealed step (see
    core/project.js#createAnimationStep's `notes` field) — hidden entirely
    when that step has no notes, rather than reserving empty space. */
@@ -1028,40 +1050,79 @@ body.spotlight-mode .kiosk-spotlight {
   display: block;
 }
 
-/* The free-draw annotation layer (see canvas/animationOverlay.js) — a
-   full-viewport transparent canvas for the presenter to mark up the frozen
-   diagram live. Ephemeral: never part of project data, cleared every time
-   it's closed. */
+/* The presenter markup layer (see canvas/animationOverlay.js) — a
+   full-viewport canvas that shows a step's persisted annotations (see
+   core/project.js#createAnnotation) for as long as an animation is
+   playing, `pointer-events: none` so clicks pass through to advance the
+   presentation. It only becomes pointer-interactive (`.drawing`) while the
+   presenter has the 🖊️ draw tool active, at which point its own toolbar
+   (`.anim-draw-toolbar`) also appears. */
 .anim-draw-overlay {
   display: none;
   position: fixed;
   inset: 0;
   z-index: var(--z-anim-draw);
+  pointer-events: none;
 }
 
 .anim-draw-overlay.visible {
   display: block;
 }
 
+.anim-draw-overlay.drawing {
+  pointer-events: auto;
+}
+
 .anim-draw-canvas {
   position: absolute;
   inset: 0;
+}
+
+.anim-draw-overlay.drawing .anim-draw-canvas {
   cursor: crosshair;
 }
 
 .anim-draw-toolbar {
+  display: none;
   position: fixed;
   left: 50%;
   bottom: calc(var(--space-4) * 2 + 48px);
   transform: translateX(-50%);
-  display: flex;
+  flex-direction: column;
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-round);
+  border-radius: var(--radius-lg);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   box-shadow: var(--shadow-lg);
+}
+
+.anim-draw-toolbar.visible {
+  display: flex;
+}
+
+.anim-draw-tools,
+.anim-draw-swatches {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.anim-tool-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+}
+
+.anim-tool-btn.active {
+  background: var(--color-primary-soft);
+  border-color: var(--color-primary);
 }
 
 .anim-draw-swatch {

@@ -22,6 +22,14 @@ let playing = false;
 let steps = [];
 let revealedCount = 0;
 let frozen = false;
+// Whether the freeze+draw annotation overlay is up — a *subset* of `frozen`
+// (drawing always freezes, since scribbling while the diagram keeps
+// auto-advancing underneath makes no sense) but not the other way around: a
+// presenter can also plain-pause (freeze without drawing) via setFrozen
+// directly, e.g. to pause and talk without opening the drawing canvas.
+// canvas/animationOverlay.js only shows the draw overlay itself while this
+// is true, not merely whenever `frozen` is true.
+let drawingActive = false;
 let autoPlayAll = false;
 let loop = false;
 let timerHandle = null;
@@ -155,6 +163,7 @@ export function startPlayback(newSteps) {
   steps = [...newSteps];
   revealedCount = 0;
   frozen = false;
+  drawingActive = false;
   autoPlayAll = false;
   loop = false;
   expiredStepIds = new Set();
@@ -169,10 +178,20 @@ export function stopPlayback() {
   steps = [];
   revealedCount = 0;
   frozen = false;
+  drawingActive = false;
   autoPlayAll = false;
   loop = false;
   expiredStepIds = new Set();
   notify();
+}
+
+/** Jumps straight back to the very first step (still revealedCount 0, not
+ * "playing" — nothing is auto-revealed) — the panel's/overlay's own
+ * "⏮ Restart" button, a one-move shortcut for what repeated `prevStep()`
+ * calls would already reach. A thin wrapper over `jumpToStep(0)` so it gets
+ * the exact same expire-timer/notify handling for free. */
+export function goToStart() {
+  jumpToStep(0);
 }
 
 export function nextStep() {
@@ -225,6 +244,9 @@ export function setFrozen(next) {
     clearTimer();
     clearAllExpireTimers();
   } else {
+    // Resuming always exits drawing too — there's no such thing as "still
+    // drawing but no longer frozen" (see `drawingActive`'s own comment).
+    drawingActive = false;
     scheduleCurrent();
     rearmExpiryForRevealed();
   }
@@ -261,6 +283,31 @@ export function isAnimationFrozen() {
   return frozen;
 }
 
+/** Toggles the freeze+draw overlay specifically — see `drawingActive`'s own
+ * comment. Turning it on also freezes (drawing while the diagram keeps
+ * advancing makes no sense); turning it off does *not* automatically
+ * resume — canvas/animationOverlay.js's "Done" button explicitly calls
+ * `setFrozen(false)` right after, matching its existing behavior, while a
+ * presenter who exits drawing some *other* way still ends up merely
+ * paused rather than snapping back into a running presentation
+ * unexpectedly. */
+export function setDrawingActive(next) {
+  if (!playing) return;
+  const value = !!next;
+  if (drawingActive === value) return;
+  drawingActive = value;
+  if (value) {
+    frozen = true;
+    clearTimer();
+    clearAllExpireTimers();
+  }
+  notify();
+}
+
+export function isDrawingActive() {
+  return drawingActive;
+}
+
 export function isAutoPlayAll() {
   return autoPlayAll;
 }
@@ -270,7 +317,7 @@ export function isLoopEnabled() {
 }
 
 export function getAnimationPlaybackState() {
-  return { playing, steps, revealedCount, frozen, autoPlayAll, loop, expiredStepIds };
+  return { playing, steps, revealedCount, frozen, drawingActive, autoPlayAll, loop, expiredStepIds };
 }
 
 /** `fn(state)` is called whenever playback starts/stops or the revealed

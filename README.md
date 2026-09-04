@@ -415,7 +415,17 @@ Or open `index.html` directly in a browser.
   to apply one choice to every step at once. "🗑️ Remove All" clears every
   step in one click, and checking any step(s) in the list scopes every
   bulk action (reveal mode, entrance, hide-after, and remove) to just the
-  checked steps instead of the whole animation.
+  checked steps instead of the whole animation. Any component can be marked
+  "Animation-only" (details panel) to hide it from the real diagram/exports
+  while keeping it available just for the animation's own story. The panel
+  shows an estimated total duration and a presenter-only overview note for
+  the whole animation; playback adds ⏮ Restart and an independent ⏸/▶
+  Pause/Play control (Space/Home), and the freeze-and-draw overlay gained
+  Highlighter and Text tools alongside Pen — every mark is now saved with
+  its step and automatically reappears on a future replay, or baked
+  straight into an exported PPTX/video. Steps can be duplicated, given a
+  custom label, reordered by drag, or have their entrance style randomized
+  or previewed in isolation.
 - **🔤 Fix Text Display** — re-spaces overlapping labeled content (a busy
   sequence diagram's messages, or any diagram's cramped connector labels) so
   wrapped text has room to display cleanly, in one undoable step; edge

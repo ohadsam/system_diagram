@@ -3849,6 +3849,115 @@ data) — without it, selecting/deselecting something on the canvas while
 the panel is already open would leave this button's count stale until some
 unrelated edit happened to trigger a re-render.
 
+### Animation-only content, playback controls, and persisted presenter markup
+
+**`isAnimationOnlyVisible`/`applyAnimationOnlyVisibility` — a second, independent
+visibility pass.** `core/project.js#createNode`'s `animationOnly` flag needs to
+hide a node (and any edge touching it) on the normal canvas/exports while
+still showing it whenever Diagram Animation's own UI is in use — either the
+panel is open (`animationEditingActive`, a plain module-level flag
+`canvas.js#setAnimationEditingActive` toggles; `panel/animationPanel.js`
+already imports `canvas.js` so this stays a one-way setter rather than a
+circular import) or `isAnimationPlaying()`. The subtle bit: **starting/
+stopping playback never fires the store's own `'change'` event** (see this
+doc's existing "Diagram Animation" section above) — so `canvas.js`'s
+`render(state)` alone can't be the only place this gets evaluated, or an
+animationOnly node would stay hidden until some *unrelated* edit happened to
+trigger a re-render after Play was clicked. `applyAnimationOnlyVisibility(state)`
+is therefore its own small pass — just a `classList.toggle('anim-only-hidden', ...)`
+per node/edge element (`css/node.css`'s `.anim-only-hidden { display: none; }`,
+kept separate from the pre-existing `elRef.style.display` a shrunk group's
+hidden member uses, so the two mechanisms never fight over the same style
+property) — called from **both** `render()` and the `onAnimationChange`
+listener `initCanvas` already registers for `applyAnimationVisibility`/
+`renderAnimationBadges`. `getContentBounds()` also filters through
+`isAnimationOnlyVisible` before computing "Fit to Screen"/export bounds, with
+a `Number.isFinite` guard on the final result — a diagram that's *entirely*
+animationOnly content, viewed with the panel closed, would otherwise leave
+`xs`/`ys` empty and propagate `Infinity`/`NaN` through `viewport.fitToContent`.
+
+**`viewport.js#canvasToScreen`** is the new exact inverse of the existing
+`screenToCanvas` — added specifically so a persisted, world-space annotation
+(below) can be redrawn at the correct screen position under whatever pan/zoom
+is active *right now*, which may differ from what was active when it was
+drawn. `io/exportImage.js#captureDiagramCanvas`'s own annotation-baking
+(further below) computes the equivalent mapping by hand instead of calling
+this function, since it needs the capture's own temporary `bounds`/`scale`
+(local to that function), not the live viewport `canvasToScreen` reads.
+
+**`drawingActive` (`core/animationPlayback.js`) is a strict subset of
+`frozen`.** Drawing always freezes (scribbling while the diagram keeps
+auto-advancing underneath makes no sense), but a plain `setFrozen(true)`
+does *not* imply drawing — this is what lets the playback overlay's new ⏸/▶
+Pause/Play button (a plain pause, for talking without opening the draw
+overlay) coexist with the pre-existing 🖊️ draw toggle without one silently
+fighting the other. `setDrawingActive(true)` forces `frozen = true` and
+cancels timers itself, exactly mirroring `setFrozen(true)`'s own timer
+cleanup; resuming via `setFrozen(false)` always force-clears `drawingActive`
+too — there's deliberately no "still drawing but not frozen" state to reason
+about anywhere else in the codebase. `goToStart()` is a thin wrapper over
+`jumpToStep(0)`, purely for the overlay's ⏮ Restart button/Home key to get
+the exact same expire-timer/notify handling `jumpToStep` already has, for
+free.
+
+**Presenter markup is vector data, in canvas/world space, not raw pixels.**
+The original freeze-and-draw overlay drew straight to a `<canvas>` 2D context
+in *screen* pixels and cleared it on every exit — fine for something
+ephemeral, but there was no way to persist it across a reveal (or across
+export) without going through `viewport.screenToCanvas` first, since a
+screen-pixel point means nothing once the pan/zoom changes. `core/project.js#createAnnotation`
+(`{id, type: 'stroke'|'text', tool, color, points|x/y/text}`) and its
+validator `validateAnnotations` (dropping malformed entries individually,
+capped at 200/step, 2000 points/stroke, 500 chars/text — the same
+"don't fail the whole import over one bad record" posture every other
+`validate*` function in `core/project.js` takes) store everything in
+canvas-space. `canvas/animationOverlay.js` keeps a session-local
+`sessionAnnotationsByStepId` map — seeded once per step from whatever's
+already persisted on it, then mutated directly as new strokes/text are
+added — since `core/animationPlayback.js`'s own `steps` snapshot is frozen
+at `startPlayback` time and won't reflect a mid-session save. On every
+`drawingActive: true → false` transition (tracked via a `wasDrawingActive`
+comparison inside `render()`, run *before* its own `!state.playing` early
+return so it still fires when playback stops mid-draw) the session's
+current list is handed to `canvas.js#saveAnimationStepAnnotations`, which
+re-validates before dispatching — persisting works no matter which of Done,
+the 🖊️ toggle, or ending the whole presentation actually ended the drawing
+session. A separate, always-present (whenever `state.playing`) read-only
+canvas layer — `pointer-events: none` outside of `drawingActive`, so clicks
+still pass through to advance the presentation — re-renders the current
+step's own annotations via `viewport.canvasToScreen` on every playback-state
+change, every pan/zoom (`viewport.onViewportChange`), and every window
+resize, so persisted marks always land correctly regardless of when or at
+what zoom they were drawn.
+
+**Baked into PPTX/video export frames the same way.**
+`io/exportImage.js#captureDiagramCanvas`'s new `annotations` option draws a
+step's own persisted list onto the just-captured `<canvas>` *before* its
+`finally` block restores the viewport — reusing the exact `bounds`/`scale`
+that capture already computed (`(x - bounds.x + PADDING) * scale`, the
+capture's own temporary-viewport transform expressed directly, since the
+live `viewport.canvasToScreen` reads the *current*, already-restored
+viewport by the time export code could call it). `io/exportAnimationPptx.js`/
+`io/exportAnimationVideo.js` just pass `step.annotations` through on their
+existing per-step `captureDiagramCanvas()` call — no other change needed,
+since every step in one export run shares the same `bounds`/`scale` (the
+export always frames the *whole* diagram, regardless of which step is
+currently being captured).
+
+**Small additions layered on the existing step/animation model, no
+architectural surprises:** `duplicateAnimationStep`/`duplicateAnimation`
+(plain array-splice/object-copy, fresh ids via the same `createAnimationStep`/
+`createAnimation` factories everything else uses), a step's own `label`
+(nullable override read before `stepHeaderLabel`'s auto-derivation),
+`randomizeStepsEntranceStyle` (`setAllStepsEntranceStyle`'s sibling, one
+random pick per step instead of one shared value), `previewStepEntrance`
+(reuses `applyAnimationVisibility`'s own `.anim-hidden`/`data-anim-entrance`/
+`.anim-just-revealed` mechanism by hand, on just one step's own targets, for
+a few hundred milliseconds, entirely outside `core/animationPlayback.js`'s
+state machine), and `moveAnimationStepToIndex` (a splice-to-arbitrary-index
+generalization of the pre-existing one-swap-at-a-time `reorderAnimationStep`,
+backing the step list's new native HTML5 drag-and-drop).
+
 ## Flow Simulation (`canvas/canvas.js#setFlowSimulationEnabled`, `canvas/connector.js`)
 
 Every edge's `<g class="edge">` (built once, in `connector.js#createEdgeEl`) carries a small

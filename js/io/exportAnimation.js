@@ -11,10 +11,13 @@
 // Every id in the file (step ids, animation ids) is ignored on import —
 // fresh ones are always assigned, same as a project's own JSON import.
 import { downloadJSON, sanitizeFilename } from '../utils/download.js';
-import { createAnimation, createAnimationStep, ANIMATION_REVEAL_MODES, ANIMATION_ENTRANCE_STYLES } from '../core/project.js';
+import { createAnimation, createAnimationStep, ANIMATION_REVEAL_MODES, ANIMATION_ENTRANCE_STYLES, validateAnnotations } from '../core/project.js';
 
 const KIND = 'sdb-diagram-animation';
-const FORMAT_VERSION = 2;
+// v3 adds a step's own `label`/`annotations` and an animation's own
+// presenter-overview `notes` — all optional on import, so a v2 (or legacy
+// v1) file still imports cleanly with those fields simply defaulting.
+const FORMAT_VERSION = 3;
 
 export function exportAnimation(animations, projectName, nodesById, edgesById) {
   const targetLabel = (t) => (t.targetType === 'node' ? (nodesById.get(t.targetId)?.text || '') : (edgesById.get(t.targetId)?.label || ''));
@@ -32,6 +35,10 @@ export function exportAnimation(animations, projectName, nodesById, edgesById) {
     animations: animations.map((a) => ({
       name: a.name,
       autoFocus: a.autoFocus,
+      // Presenter-only overview note for the whole animation — see
+      // core/project.js#createAnimation. Distinct from each step's own
+      // per-step `notes` just below.
+      notes: a.notes,
       steps: a.steps.map((s) => ({
         targets: s.targets.map((t) => ({
           targetType: t.targetType,
@@ -45,6 +52,8 @@ export function exportAnimation(animations, projectName, nodesById, edgesById) {
         entranceStyle: s.entranceStyle,
         hideAfterMs: s.hideAfterMs,
         notes: s.notes,
+        label: s.label,
+        annotations: s.annotations,
       })),
     })),
   };
@@ -72,6 +81,8 @@ function stepFromImportedRaw(raw, existingNodeIds, existingEdgeIds) {
     entranceStyle: ANIMATION_ENTRANCE_STYLES.includes(raw.entranceStyle) ? raw.entranceStyle : 'fade',
     hideAfterMs: Number.isFinite(raw.hideAfterMs) && raw.hideAfterMs > 0 ? raw.hideAfterMs : 0,
     notes: typeof raw.notes === 'string' ? raw.notes : '',
+    label: typeof raw.label === 'string' && raw.label.trim() ? raw.label.trim() : null,
+    annotations: validateAnnotations(raw.annotations),
   });
   return { step, appliedCount: targets.length, skippedCount };
 }
@@ -86,7 +97,11 @@ function animationFromImportedRaw(raw, existingNodeIds, existingEdgeIds) {
     skippedCount += result.skippedCount;
     if (result.step) steps.push(result.step);
   }
-  const animation = createAnimation(raw.name, { steps, autoFocus: raw.autoFocus === true });
+  const animation = createAnimation(raw.name, {
+    steps,
+    autoFocus: raw.autoFocus === true,
+    notes: typeof raw.notes === 'string' ? raw.notes : '',
+  });
   return { animation, appliedCount, skippedCount };
 }
 

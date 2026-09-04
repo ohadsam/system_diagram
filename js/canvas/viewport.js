@@ -72,6 +72,20 @@ export function screenToCanvas(clientX, clientY) {
   };
 }
 
+/** Exact inverse of `screenToCanvas` — canvas/world-space `(x, y)` back to
+ * viewport-relative client pixels. Used to re-render persisted, world-space
+ * data (Diagram Animation presenter annotations — see
+ * core/project.js#createAnnotation) at the correct screen position under
+ * whatever pan/zoom is active *right now*, which may differ from the
+ * pan/zoom that was active when the annotation was originally drawn. */
+export function canvasToScreen(x, y) {
+  const rect = viewportEl.getBoundingClientRect();
+  return {
+    x: x * state.zoom + state.x + rect.left,
+    y: y * state.zoom + state.y + rect.top,
+  };
+}
+
 /** Pans so canvas-space point `(x, y)` lands at the center of the
  * viewport, keeping the current zoom level unchanged — unlike
  * `fitToContent`, which also changes zoom to fit a whole bounding box.

@@ -50,7 +50,7 @@ export async function renderAnimationStepsToDataUrls(animation, onProgress) {
       // share the one live canvas.
       await nextFrame();
       // eslint-disable-next-line no-await-in-loop
-      const canvas = await captureDiagramCanvas();
+      const canvas = await captureDiagramCanvas({ annotations: step.annotations });
       results.push({ step, dataUrl: canvas ? canvas.toDataURL('image/png') : null });
     }
   } finally {

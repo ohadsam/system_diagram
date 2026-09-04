@@ -45,6 +45,14 @@
   animation: anim-reveal-pulse 700ms ease-out;
 }
 
+/* An `animationOnly` node/edge (core/project.js#createNode,
+   canvas.js#isAnimationOnlyVisible) — plain `display: none`, same as a
+   shrunk group's hidden member, toggled independently of that mechanism by
+   canvas.js#applyAnimationOnlyVisibility. */
+.anim-only-hidden {
+  display: none;
+}
+
 /* Diagram Animation entrance styles (core/project.js#ANIMATION_ENTRANCE_STYLES,
    canvas.js#applyAnimationVisibility) — `data-anim-entrance` is set on a
    node the moment it's hidden by the current step's own chosen style, so

@@ -20,14 +20,71 @@ async function ensureHtml2Canvas() {
   return window.html2canvas;
 }
 
+/** Draws a Diagram Animation step's persisted presenter markup (see
+ * core/project.js#createAnnotation) onto an already-captured frame, using
+ * the exact same world-to-pixel mapping captureDiagramCanvas itself just
+ * used to produce that frame: a canvas/world-space point `(x, y)` lands at
+ * `((x - bounds.x + PADDING) * scale, (y - bounds.y + PADDING) * scale)` —
+ * the same "shift by the capture's own top-left, then apply its own
+ * html2canvas scale" the temporary `viewport.setViewport` + `scale` above
+ * amount to, just computed directly instead of round-tripping through the
+ * live viewport (which callers baking an *export* frame, sometimes well
+ * after the live viewport has been restored to something else, can't rely
+ * on — see io/exportAnimationPptx.js/exportAnimationVideo.js). */
+function bakeAnnotationsOntoCanvas(canvas, annotations, bounds, scale) {
+  if (!annotations?.length) return;
+  const ctx = canvas.getContext('2d');
+  const toPixel = (x, y) => ({ x: (x - bounds.x + PADDING) * scale, y: (y - bounds.y + PADDING) * scale });
+  for (const anno of annotations) {
+    if (anno.type === 'text') {
+      const pt = toPixel(anno.x, anno.y);
+      ctx.save();
+      ctx.font = `600 ${Math.round(16 * scale)}px sans-serif`;
+      ctx.textBaseline = 'top';
+      const metrics = ctx.measureText(anno.text);
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.fillRect(pt.x - 3 * scale, pt.y - 2 * scale, metrics.width + 6 * scale, 22 * scale);
+      ctx.fillStyle = anno.color;
+      ctx.fillText(anno.text, pt.x, pt.y);
+      ctx.restore();
+      continue;
+    }
+    if (!anno.points || anno.points.length < 2) continue;
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    if (anno.tool === 'highlighter') {
+      ctx.lineWidth = 14 * scale;
+      ctx.globalAlpha = 0.35;
+    } else {
+      ctx.lineWidth = 3 * scale;
+      ctx.globalAlpha = 1;
+    }
+    ctx.strokeStyle = anno.color;
+    ctx.beginPath();
+    const start = toPixel(anno.points[0].x, anno.points[0].y);
+    ctx.moveTo(start.x, start.y);
+    for (let i = 1; i < anno.points.length; i++) {
+      const pt = toPixel(anno.points[i].x, anno.points[i].y);
+      ctx.lineTo(pt.x, pt.y);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
 /** Renders the current diagram to an offscreen <canvas>, or null if the
  * diagram (or, with `nodeIds` given, that specific subset) is empty. Passing
  * `nodeIds` captures *only* those nodes/their internal edges in isolation —
  * used to export each sequence-diagram group as its own separate page/image
  * (see exportPdf.js, exportPNG below, and canvas.js#hideExcept/
  * #getNodesBounds) — everything else on the canvas is hidden for the
- * duration of the capture and restored again immediately after. */
-export async function captureDiagramCanvas({ nodeIds } = {}) {
+ * duration of the capture and restored again immediately after. Passing
+ * `annotations` (a Diagram Animation step's own persisted presenter markup)
+ * bakes it directly into the returned frame — see
+ * io/exportAnimationPptx.js/exportAnimationVideo.js, the only two callers
+ * that use it. */
+export async function captureDiagramCanvas({ nodeIds, annotations } = {}) {
   const bounds = nodeIds ? getNodesBounds(nodeIds) : getContentBounds();
   if (!bounds) return null;
   const html2canvas = await ensureHtml2Canvas();
@@ -52,6 +109,7 @@ export async function captureDiagramCanvas({ nodeIds } = {}) {
   let canvas;
   try {
     canvas = await html2canvas(viewportEl, { backgroundColor: '#ffffff', scale, useCORS: true, logging: false });
+    bakeAnnotationsOntoCanvas(canvas, annotations, bounds, scale);
   } finally {
     viewportEl.classList.remove('exporting');
     viewportEl.style.width = prevStyle.width;
