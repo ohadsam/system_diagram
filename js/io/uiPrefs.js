@@ -72,6 +72,16 @@ export const DEFAULT_UI_PREFS = {
   // present toolbar button, so there's no "empty canvas" cost to defaulting
   // it on the way there would be for those.
   proactiveLintNudges: true,
+  // io/crowdingWatcher.js — a dismissible on-canvas suggestion the moment a
+  // settled edit leaves two components overlapping or an area unevenly
+  // cramped compared to the rest of the diagram, offering a one-click
+  // "Auto-arrange" spacing fix (never a full re-layout — see
+  // core/deOverlap.js's own header comment on why not core/autoLayout.js).
+  // On by default for the same reasoning as proactiveLintNudges above: no
+  // network call, and it only ever appears when there's an actual problem,
+  // so there's no "clutter an otherwise-fine diagram" cost to defaulting it
+  // on.
+  proactiveSpacingNudges: true,
   // toolbar/pinnedActionsBar.js — command ids (matching
   // modals/commandPaletteModal.js#buildAppCommands' own `id`s) the user has
   // chosen to pin as always-visible toolbar buttons, in display order.
@@ -130,6 +140,7 @@ export function getUiPrefs() {
     aiChatBottomHeight: typeof stored.aiChatBottomHeight === 'number' ? stored.aiChatBottomHeight : null,
     aiChatFloatingHeight: typeof stored.aiChatFloatingHeight === 'number' ? stored.aiChatFloatingHeight : null,
     proactiveLintNudges: typeof stored.proactiveLintNudges === 'boolean' ? stored.proactiveLintNudges : DEFAULT_UI_PREFS.proactiveLintNudges,
+    proactiveSpacingNudges: typeof stored.proactiveSpacingNudges === 'boolean' ? stored.proactiveSpacingNudges : DEFAULT_UI_PREFS.proactiveSpacingNudges,
     pinnedActionIds: Array.isArray(stored.pinnedActionIds) ? stored.pinnedActionIds.filter((id) => typeof id === 'string') : DEFAULT_UI_PREFS.pinnedActionIds,
     collapsedToolsSections: Array.isArray(stored.collapsedToolsSections) ? stored.collapsedToolsSections.filter((id) => typeof id === 'string') : DEFAULT_UI_PREFS.collapsedToolsSections,
   };

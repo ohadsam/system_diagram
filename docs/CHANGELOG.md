@@ -3,6 +3,18 @@
 All notable changes to this project. Format: date, then bullet list.
 Keep this in sync with `PLAN.md` as stages complete.
 
+## v1.61.0 (2026-09-09)
+
+- **New: "Spacing Nudges" — proactive overlap/uneven-spacing suggestions.**
+  The moment an edit (dragging a component onto another, or drawing a
+  connector whose label doesn't have room) leaves the diagram overlapping
+  or unevenly spaced, a dismissible suggestion appears with a one-click
+  "📐 Auto-arrange" fix and a "Dismiss" button that leaves the diagram
+  untouched. The fix only ever adjusts spacing — it never reorders
+  anything, unlike the existing full "🗺️ Auto-arrange" re-layout. A new
+  "📐 Spacing Nudges" toolbar toggle (Tools menu) turns it off entirely if
+  preferred.
+
 ## v1.60.0 (2026-09-04)
 
 - **New: Animation-only content.** Any component or connector can now be

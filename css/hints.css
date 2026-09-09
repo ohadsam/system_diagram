@@ -198,3 +198,45 @@
   gap: var(--space-2);
   flex-wrap: wrap;
 }
+
+/* Proactive spacing/overlap nudge (io/crowdingWatcher.js,
+   hints/crowdingSuggestionBanner.js) — bottom-*center*, deliberately a
+   third corner from the progressive-unlock banner above (bottom-right) and
+   the onboarding checklist card (bottom-left), so none of the three can
+   ever stack. Safe from Diagram Animation's own bottom-center playback
+   controls (.anim-playback-controls/.anim-draw-toolbar, css/toolbar.css):
+   those only ever show during animation *playback*, which hides the
+   toolbar/sidebar entirely and is never concurrent with the plain editing
+   this nudge reacts to. RTL has nothing to mirror here since horizontal
+   centering doesn't have a direction-sensitive offset the way a literal
+   left/right does. */
+.crowding-suggestion-banner {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: var(--z-hint);
+  width: 320px;
+  max-width: calc(100vw - 32px);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-3);
+}
+
+.crowding-suggestion-text {
+  margin: 0 0 var(--space-2);
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.crowding-suggestion-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}

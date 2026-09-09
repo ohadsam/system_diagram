@@ -2752,6 +2752,68 @@ A larger round of Diagram Animation additions (building on 4.36/4.62/4.92/4.96):
   hide-partway-through-a-step effect doesn't yet appear in an exported
   file the way it does live).
 
+### 4.98 Proactive spacing/overlap suggestion ("Spacing Nudges")
+A dismissible on-canvas suggestion the moment a settled edit — dragging a
+component onto another, resizing one into a neighbor, or drawing a
+connector whose label doesn't have room — leaves the diagram looking
+crowded, overlapping, or unevenly spaced compared to the rest of it.
+
+- **Detection** (`core/crowdingDetect.js#detectCrowding`, pure/unit-tested):
+  two independent signals, both resolved against the same computed
+  `targetGap` threshold. (1) **Real overlap** — two node bounding boxes
+  actually intersect; always flagged. (2) **Uneven spacing** — a node's
+  nearest-neighbor gap sits far below the diagram's own *median*
+  nearest-neighbor gap (a node dropped right next to an existing one while
+  the rest of the diagram has generous room) — only checked once there are
+  enough nodes for a median to mean anything, and only once that median
+  itself is generous enough that a diagram uniformly tight *by design*
+  isn't flagged just for being consistently snug. A third signal —
+  `core/labelSpacing.js#spreadNodesForLabels`'s existing "this label doesn't
+  have room" check — is folded in by the watcher below, so a cramped
+  connector label counts too even with no node overlap at all. An
+  `animationOnly` node (4.97) is excluded unconditionally — it's invisible
+  on the canvas whenever this would run anyway.
+- **The fix is spacing-only, never a re-layout.** `core/deOverlap.js#computeDeOverlapPositions`
+  pushes only the specific overlapping/too-close pairs apart, just far
+  enough to clear `targetGap`, along whichever axis needs the least
+  movement — an already-well-spaced node is never touched, and order is
+  preserved by construction (each push only ever separates two nodes
+  further in the direction they already lean, never far enough to leapfrog
+  a third). Deliberately **not** `core/autoLayout.js#computeAutoLayout` (the
+  manual "🗺️ Auto-arrange" action) — that's a topological/barycenter
+  re-layout that can and does reorder nodes based on graph structure, which
+  this feature must avoid entirely. `canvas.js#applyAutoSpacingFix` runs
+  the de-overlap pass, then `spreadNodesForLabels` on the result, in one
+  `store.dispatch` (one undo step).
+- **The watcher** (`io/crowdingWatcher.js`) mirrors `io/lintWatcher.js`'s
+  own shape exactly: an 800ms debounce on the store's `'change'` event, a
+  fingerprint (the sorted, joined affected-node-id set) compared against
+  whatever was last shown so the *same* still-unresolved crowding never
+  re-nags, while a genuinely different affected set (or the same one
+  reappearing after being fixed) surfaces again. A diagram already crowded
+  when the page loads is seeded as "already seen," so only crowding that
+  *appears during* the current session interrupts anyone. Gated by a new
+  `proactiveSpacingNudges` preference (`io/uiPrefs.js`, on by default —
+  same reasoning as `proactiveLintNudges`: no network call, and it only
+  ever appears when there's an actual problem), toggled by its own "📐
+  Spacing Nudges" toolbar button (Tools menu) independent of "🔔 Diagram
+  Nudges".
+- **The suggestion itself** (`hints/crowdingSuggestionBanner.js`) is a
+  small fixed, bottom-center card with exactly two buttons — "📐
+  Auto-arrange" (runs the fix) and "Dismiss" (does nothing at all) — per
+  this feature's own explicit brief. Its vertical position is measured
+  live against `hints/onboardingChecklistWidget.js`'s and
+  `hints/featureSuggestionBanner.js`'s own current on-screen rects and
+  pushed up to clear whichever one actually overlaps it horizontally,
+  rather than a guessed static offset (see docs/AI_AGENT_GUIDE.md's
+  "guessed pixel offset from a sibling" pitfall) — both of those other
+  cards can independently be on screen at the same time, and one of them
+  (the checklist) shifts its own horizontal position depending on the
+  sidebar's current width.
+- Also reachable directly, without waiting for the suggestion:
+  `canvas.js#applyAutoSpacingFix` has its own Command Palette entry ("📐
+  Fix Spacing / Overlaps").
+
 ## 7. Out of scope for v1 (ideas for later, see PLAN.md §7)
 
 Versioned history beyond in-session undo/redo (superseded by 4.17/4.63

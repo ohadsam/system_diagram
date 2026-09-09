@@ -29,6 +29,7 @@ index.html ──► js/main.js
                  ├─ io/*.js              (localStorage/IndexedDB, file, image/pdf/svg export, incl. io/projectTabs.js, io/duplicateTabWarning.js, io/exportAnimation.js, io/aiEditDesign.js, io/aiConversationStore.js, io/aiAutoSend.js, io/customLintRules.js, io/i18n.js, io/storage.js, io/indexedDbStore.js, io/exportSvg.js, io/globalProjectSearch.js, io/sqlDdlImport.js, io/serviceWorker.js, io/exportPulumi.js, io/exportCloudFormation.js, io/exportKubernetes.js, io/autoSuggest.js, io/autoSuggestWatcher.js, io/exportAnimationPptx.js, io/exportAnimationVideo.js, io/aiLayoutSuggest.js, io/aiDiffExplain.js, io/aiCostOptimize.js, io/export3dVideo.js, io/export3dPptx.js)
                  ├─ core/animationAutoBuild.js (Diagram Animation's post-AI-generation walkthrough builder, also reused by canvas.js#autoBuildAndPlayAnimation's on-demand "🪄 Auto-Play Diagram")
                  ├─ core/labelWrap.js (pure multi-line label wrapping — canvas/connector.js's edge-label <tspan> rendering), core/labelSpacing.js (pure node-nudging for "🔤 Fix Text Display")
+                 ├─ core/crowdingDetect.js (pure overlap/uneven-spacing detector), core/deOverlap.js (pure order-preserving push-apart fix), io/crowdingWatcher.js, hints/crowdingSuggestionBanner.js (Spacing Nudges)
                  ├─ core/groupExplanation.js (pure per-template explanation builder), modals/groupExplanationModal.js ("📖 Explain This Diagram")
                  ├─ core/animationVideoTiming.js (pure per-step screen-time math for io/exportAnimationVideo.js)
                  ├─ core/diagramDescription.js, core/diagramHealth.js, core/versionBranches.js
@@ -5523,6 +5524,39 @@ DOM layer" split so each has plain `node:test` coverage:
   it defaults to **on** (`io/uiPrefs.js#proactiveLintNudges`). The badge is
   cleared as soon as the button is clicked, whether or not the modal is
   actually opened afterward.
+- **Spacing Nudges** (`io/crowdingWatcher.js`) — the identical debounced-
+  `store`-`'change'` shape as Diagram Nudges above, but surfacing a
+  dismissible on-canvas card (`hints/crowdingSuggestionBanner.js`) instead
+  of a toolbar badge, since the payload here is an *action* ("📐
+  Auto-arrange" / "Dismiss"), not something to open later. Detection
+  (`core/crowdingDetect.js#detectCrowding` — real node-bounding-box overlap,
+  plus a node's nearest-neighbor gap sitting far below the diagram's own
+  median once that median is itself generous enough to compare against) is
+  folded together with `core/labelSpacing.js#spreadNodesForLabels`'s
+  pre-existing "this label doesn't have room" signal by
+  `pickCrowdingSuggestion`, the pure decision core (mirroring
+  `pickNewFinding` above, just tracking one current fingerprint — the
+  sorted, joined affected-node-id set — rather than a growing seen-id list,
+  since this feature only ever has one "current" suggestion rather than an
+  independent list of findings). The fix itself
+  (`canvas.js#applyAutoSpacingFix`, via `core/deOverlap.js#computeDeOverlapPositions`)
+  is deliberately **not** `core/autoLayout.js#computeAutoLayout` (Auto-arrange,
+  below) — it only nudges the specific too-close pairs apart by the
+  minimum needed to clear a shared gap threshold, along whichever axis
+  needs the least movement, so order is preserved by construction and an
+  already-well-spaced part of the diagram is never touched; `computeAutoLayout`
+  is a topological/barycenter re-layout that can and does reorder nodes,
+  which this feature exists specifically to avoid. Also defaults to **on**
+  (`io/uiPrefs.js#proactiveSpacingNudges`), gated by its own "📐 Spacing
+  Nudges" toolbar toggle independent of Diagram Nudges' toggle. The
+  banner's own fixed position is computed live against whatever else is
+  currently on screen (`crowdingSuggestionBanner.js#avoidCollisions` —
+  same "measure the sibling's real rendered rect rather than guess a
+  static pixel offset" principle release-checklist's own "Tests" section
+  already warns about for a different floating panel) rather than assuming
+  its bottom-center corner is always free — `hints/onboardingChecklistWidget.js`'s
+  card shifts rightward past the sidebar at desktop widths and can reach
+  far enough to actually collide with it otherwise.
 - **Smart default edge labels** (`core/smartEdgeLabels.js`) — pure
   `suggestEdgeLabel(fromDef, toDef)` looked up by `connectorInteractions.js`
   each time a connector is completed; skipped for sequence-diagram message

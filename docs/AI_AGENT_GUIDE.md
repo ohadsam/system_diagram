@@ -232,6 +232,7 @@ this repo" quick-start.
 | Change Diagram Animation's Restart/Pause-Play controls or the freeze+draw overlay's tools | `js/core/animationPlayback.js`'s `goToStart`/`setDrawingActive`/`isDrawingActive`/`drawingActive` (a strict *subset* of `frozen` — drawing always freezes, a plain pause does not draw) + `js/canvas/animationOverlay.js` (Restart/Pause-Play buttons, the Pen/Highlighter/Text tool row) + `js/main.js#initKeyboardShortcuts` (Space = pause/play, Home/`r` = restart, `d` = draw toggle, Escape now unwinds drawing → paused → stopped one level at a time). |
 | Change persisted presenter annotations (drawings/text that reappear on replay, or get baked into PPTX/video export) | `js/core/project.js#createAnnotation`/`validateAnnotations` (canvas/world-space, **not** screen pixels — see `viewport.js#screenToCanvas`/`canvasToScreen`) + `js/canvas/canvas.js#saveAnimationStepAnnotations` (validates before persisting) + `js/canvas/animationOverlay.js`'s `sessionAnnotationsByStepId`/`redrawAnnotationLayer` (session-local override, since `animationPlayback.js`'s own `steps` snapshot is frozen at `startPlayback` time) + `js/io/exportImage.js#captureDiagramCanvas`'s `annotations` option (bakes them into an exported frame using the capture's own `bounds`/`scale`) + `js/io/exportAnimationPptx.js`/`js/io/exportAnimationVideo.js` (pass `step.annotations` through) + `js/io/exportAnimation.js` format v3 (`label`/`annotations`/an animation's own `notes`). **Read** docs/ARCHITECTURE.md's "Animation-only content, playback controls, and persisted presenter markup" section before changing the coordinate space — getting this wrong silently misplaces every mark the moment the viewport differs from when it was drawn. |
 | Change Diagram Animation's duration indicator, presenter overview notes, Duplicate step/Animation, custom step labels, Randomize/Preview entrance, or drag-to-reorder | `js/core/animationVideoTiming.js#computeTotalDurationMs` (duration) + `js/core/project.js#createAnimation`'s `notes` (overview, distinct from a step's own `notes`) + `js/canvas/canvas.js#duplicateAnimationStep`/`#duplicateAnimation`/`#randomizeStepsEntranceStyle`/`#previewStepEntrance`/`#moveAnimationStepToIndex` + `js/panel/animationPanel.js` (all the corresponding buttons/fields, plus the step row's native HTML5 `draggable` wiring). |
+| Change the "📐 Spacing Nudges" proactive overlap/uneven-spacing suggestion, or its Auto-arrange fix | `js/core/crowdingDetect.js#detectCrowding` (pure overlap/uneven-spacing detector) + `js/core/deOverlap.js#computeDeOverlapPositions` (pure order-preserving push-apart fix — **not** `js/core/autoLayout.js`, which reorders) + `js/io/crowdingWatcher.js#pickCrowdingSuggestion` (pure decision core, mirrors `js/io/lintWatcher.js#pickNewFinding`) + `js/hints/crowdingSuggestionBanner.js` (the two-button card, incl. `avoidCollisions` — see "Common pitfalls" below) + `js/canvas/canvas.js#applyAutoSpacingFix` + `js/io/uiPrefs.js#proactiveSpacingNudges`. **Read** docs/ARCHITECTURE.md's "Automatic/proactive assists" section's Spacing Nudges entry before touching any of this. |
 
 ## Running things locally
 
@@ -1399,3 +1400,37 @@ npm test
   uses and convert at the two boundaries only: `screenToCanvas` when
   recording a pointer event, `canvasToScreen` (or the export capture's own
   equivalent `bounds`/`scale` math) when drawing it back.
+- **A new toolbar button's own `title` text containing another button's
+  exact label as a substring breaks every `page.locator('#toolbar
+  button', { hasText: '<that label>' })` e2e locator for the *other*
+  button, but only once "📖 Show Descriptions" is toggled on** (`io/uiPrefs.js#showActionDescriptions`
+  appends each button's own `title` as visible text via `.toolbar-dropdown-btn-desc`
+  — see `toolbarDropdown.js#updateButtonDescription`). Playwright's `hasText`
+  matches substrings case-insensitively against the whole rendered text
+  content, so a brand-new "📐 Spacing Nudges" button whose `title` happened
+  to read "...get a suggestion to **auto-arrange** the diagram..." made
+  `hasText: 'Auto-arrange'` resolve to *two* buttons the moment descriptions
+  were on — the real "🗺️ Auto-arrange" button and this unrelated new one —
+  breaking `tests/e2e/toolbarDescriptions.spec.js` with no obvious link to
+  what actually changed. Before writing a new button's `title`, grep the
+  exact text of every *other* toolbar button's own label/description for
+  it (and vice versa) rather than assuming "different button" means
+  "different matchable text."
+- **A new fixed-position floating card can't just claim an apparently-free
+  corner/edge without checking what else might already be there** — several
+  independent fixed-position nudges/banners (`hints/onboardingChecklistWidget.js`,
+  `hints/featureSuggestionBanner.js`, `hints/crowdingSuggestionBanner.js`, Diagram
+  Animation's playback controls) can each decide independently whether to
+  render, so a screenshot taken without deliberately provoking more than
+  one at once can miss a real collision. Concretely, the onboarding
+  checklist card's own `left` shifts from `16px` to `calc(var(--sidebar-width)
+  + 16px)` at desktop widths (`css/hints.css`) specifically to clear the
+  sidebar — which incidentally reaches much closer to the horizontal center
+  of the screen than its narrow-width position would suggest, colliding
+  with a naively-added bottom-*center* card that looked safe when only
+  checked at one width. `crowdingSuggestionBanner.js#avoidCollisions` fixes
+  this the general way: measure whichever of the other known cards are
+  actually in the DOM right now via `getBoundingClientRect()`, and only
+  push this card up if one of them genuinely overlaps it horizontally —
+  cheaper and more robust than trying to enumerate every combination of
+  "which cards can appear together, at which widths" by hand.

@@ -217,6 +217,13 @@ Or open `index.html` directly in a browser.
   evaluated alongside the built-in checks. "🔔 Diagram Nudges" (on by
   default) shows a quiet toolbar badge the moment a new finding would
   appear, so you don't have to remember to open this yourself.
+- **📐 Spacing Nudges** (on by default) — the moment an edit leaves the
+  diagram with two components overlapping, or an area unevenly cramped
+  compared to the rest of it, a dismissible suggestion offers a one-click
+  "Auto-arrange" spacing fix — it only ever adjusts spacing, never
+  reorders anything, unlike a full "🗺️ Auto-arrange" re-layout. "Dismiss"
+  leaves the diagram exactly as it is; a toolbar toggle turns the whole
+  thing off if you'd rather fix spacing by hand.
 - **🔎 Find & Replace** — renames a term across every component/connector
   label and notes field in one undoable step.
 - **📌 Manage Pinned Toolbar Actions** (Ctrl/Cmd+K) — pin your most-used

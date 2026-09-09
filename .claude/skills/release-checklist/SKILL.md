@@ -150,6 +150,35 @@ concrete examples). Do all three, in order, every single time this skill runs:
      against a node, script a real click on it (not just a screenshot) as part of this UI/UX pass —
      ideally on a diagram with more than one node, so the target isn't accidentally the
      lowest-z-index one by coincidence.
+   - **A new toolbar button's own `title` containing another button's exact label as a substring
+     breaks `hasText`-based e2e locators for that *other* button — but only once "📖 Show
+     Descriptions" is on**, since that preference appends every button's `title` as literal visible
+     text (`toolbarDropdown.js#updateButtonDescription`), and Playwright's `hasText` matches
+     case-insensitive substrings against a whole element's rendered text content. A new "📐 Spacing
+     Nudges" button whose title read "...get a suggestion to auto-arrange the diagram..." made
+     `page.locator('#toolbar button', { hasText: 'Auto-arrange' })` resolve to two elements the
+     moment descriptions were toggled on — the real "🗺️ Auto-arrange" button and this unrelated new
+     one — failing `tests/e2e/toolbarDescriptions.spec.js` with zero apparent connection to what had
+     actually changed. Before finalizing a new button's `title`/label text, grep every *other*
+     toolbar button's own label and title for it verbatim (and vice versa) — this is easy to miss
+     since the two buttons look and behave nothing alike, and the collision only manifests with
+     descriptions on, a mode most manual testing during a batch never turns on.
+   - **A new fixed-position floating card can't assume an apparently-free corner/edge is actually
+     free without checking what else might already be there, at the width you happen to be testing.**
+     Several independent nudges/banners in this app (`hints/onboardingChecklistWidget.js`,
+     `hints/featureSuggestionBanner.js`, Diagram Animation's playback controls, and now
+     `hints/crowdingSuggestionBanner.js`) each decide independently whether to render, so a single
+     screenshot can miss a real collision that only shows up once more than one is provoked onto
+     screen at the same time. Concretely: the onboarding checklist card's own `left` shifts from
+     `16px` to `calc(var(--sidebar-width) + 16px)` at desktop widths specifically to clear the
+     sidebar (`css/hints.css`) — which incidentally reaches much closer to the horizontal center of
+     the screen than its narrow-width position would suggest, colliding with a new bottom-*center*
+     card that looked safe when checked at only one width. Fix this the general way rather than
+     guessing a bigger static offset (see the "guessed pixel offset from a sibling" entry under
+     Tests below, for the identical class of bug in a different floating panel): measure whichever
+     of the other known cards are actually in the DOM right now via `getBoundingClientRect()`, and
+     only push the new card away if one of them genuinely overlaps it — see
+     `crowdingSuggestionBanner.js#avoidCollisions` for the pattern.
 
 Fix everything found before moving on. If a pass finds nothing, say so and continue — don't
 manufacture a finding.

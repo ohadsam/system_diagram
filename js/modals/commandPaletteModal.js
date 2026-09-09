@@ -22,7 +22,7 @@ import {
   deleteSelection, duplicateSelection, autoArrangeAll, distributeSequenceDiagram, duplicateProjectAsNew,
   addRelatedComponent, addLayerToNode, instantiatePatternNearNode, instantiatePatternAtCenter, addComponentAtCenter,
   resolveComponentDef, clearCanvas, setFocusMode, addCommentAtCenter, fitToSelection, fitToScreen, fixTextDisplay,
-  autoBuildAndPlayAnimation, addStickyNote, render as renderCanvas,
+  autoBuildAndPlayAnimation, addStickyNote, render as renderCanvas, applyAutoSpacingFix,
 } from '../canvas/canvas.js';
 import * as viewport from '../canvas/viewport.js';
 import { openSaveAsModal } from './saveAsModal.js';
@@ -127,6 +127,7 @@ export function buildAppCommands() {
     { id: 'import-mermaid', label: '📥 Import from Mermaid', keywords: ['import', 'mermaid', 'sequence'], run: openImportSequenceMermaidModal },
     { id: 'replicate', label: '🔁 Replicate', keywords: ['replicate', 'mirror', 'ha', 'active-active', 'high availability'], run: openReplicationModal },
     { id: 'auto-arrange', label: '🗺️ Auto-arrange', keywords: ['arrange', 'layout', 'tidy', 'order', 'sort'], run: autoArrangeAll },
+    { id: 'auto-space-fix', label: '📐 Fix Spacing / Overlaps', keywords: ['space', 'spacing', 'overlap', 'crowded', 'crowding', 'even', 'declutter'], run: applyAutoSpacingFix },
     { id: 'distribute', label: '↔️ Distribute Evenly', keywords: ['distribute', 'space', 'even'], run: distributeSequenceDiagram },
     { id: 'scale', label: '📐 Scale Diagram', keywords: ['scale', 'resize'], run: openScaleDiagramModal },
     { id: 'fix-text-display', label: '🔤 Fix Text Display', keywords: ['fix', 'text', 'wrap', 'label', 'overlap', 'readable'], run: fixTextDisplay },
@@ -245,6 +246,14 @@ export function buildAppCommands() {
         const next = !getUiPrefs().proactiveLintNudges;
         saveUiPrefs({ proactiveLintNudges: next });
         document.querySelector('#toolbar button[title^="Diagram Nudges"]')?.classList.toggle('active', next);
+      },
+    },
+    {
+      id: 'toggle-spacing-nudges', label: '📐 Toggle Spacing Nudges', keywords: ['spacing', 'nudge', 'overlap', 'crowded', 'notification', 'arrange'],
+      run: () => {
+        const next = !getUiPrefs().proactiveSpacingNudges;
+        saveUiPrefs({ proactiveSpacingNudges: next });
+        document.querySelector('#toolbar button[title^="Spacing Nudges"]')?.classList.toggle('active', next);
       },
     },
     {

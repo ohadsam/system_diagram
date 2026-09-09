@@ -11,6 +11,8 @@ import { buildReplicationPair } from '../core/replication.js';
 import { computeAutoLayout } from '../core/autoLayout.js';
 import { layoutLifelines, distributeLifelineColumns, distributeMessages, spaceMessagesForLabels, layoutImportedSequenceDiagram, GAP as LIFELINE_GAP } from '../core/sequenceDiagram.js';
 import { spreadNodesForLabels } from '../core/labelSpacing.js';
+import { detectCrowding, MIN_BREATHING_GAP_PX } from '../core/crowdingDetect.js';
+import { computeDeOverlapPositions } from '../core/deOverlap.js';
 import { layoutErTables } from '../core/erDiagramLayout.js';
 import { layoutC4Context } from '../core/c4Context.js';
 import { buildDemoProject } from '../core/demoProjects.js';
@@ -3376,6 +3378,45 @@ export function fixTextDisplay() {
     });
   }
   showToast('Adjusted spacing so every label displays clearly.', 'success', 2200);
+}
+
+/** The "📐 Auto-arrange" button inside io/crowdingWatcher.js's proactive
+ * suggestion banner (see hints/crowdingSuggestionBanner.js) — and also
+ * reachable directly, for fixing spacing without waiting for the nudge to
+ * appear on its own. Deliberately NOT autoArrangeAll() below: this only
+ * nudges positions apart just enough to clear an overlap or an unevenly
+ * tight gap (core/deOverlap.js), on top of the same label-fit nudge
+ * fixTextDisplay() above already applies (core/labelSpacing.js), so the
+ * user's own left-to-right/top-to-bottom arrangement is always preserved —
+ * autoArrangeAll() runs a full topological re-layout that can and does
+ * reorder nodes, which is exactly what this feature must avoid. Recomputes
+ * fresh from the live store rather than trusting whatever snapshot the
+ * banner was originally built from, in case anything shifted between the
+ * suggestion appearing and the button actually being clicked. One dispatch
+ * either way, so it's a single undo step. */
+export function applyAutoSpacingFix() {
+  const state = store.getState();
+  const crowding = detectCrowding(state.nodes);
+  const targetGap = crowding?.targetGap ?? MIN_BREATHING_GAP_PX;
+  const deOverlapMoves = computeDeOverlapPositions(state.nodes, targetGap);
+  const afterDeOverlap = state.nodes.map((n) => {
+    const p = deOverlapMoves.get(n.id);
+    return p ? { ...n, x: p.x, y: p.y } : n;
+  });
+  const labelMoves = spreadNodesForLabels(afterDeOverlap, state.edges);
+  if (!deOverlapMoves.size && !labelMoves.size) {
+    showToast('Nothing to space out — it already looks fine.', 'info', 2200);
+    return;
+  }
+  store.dispatch((draft) => {
+    for (const n of draft.nodes) {
+      const p1 = deOverlapMoves.get(n.id);
+      if (p1) { n.x = p1.x; n.y = p1.y; }
+      const p2 = labelMoves.get(n.id);
+      if (p2) { n.x = p2.x; n.y = p2.y; }
+    }
+  });
+  showToast('Spaced things out — nothing was reordered.', 'success', 2200);
 }
 
 /** "Scale Diagram" (Tools dropdown → modals/scaleDiagramModal.js) —

@@ -18,6 +18,7 @@ import {
   deleteSelection, duplicateSelection, groupSelection, ungroupSelection, selectionHasGroup, duplicateProjectAsNew,
   getSelectionScreenRect, autoArrangeAll, distributeSequenceDiagram, setFocusMode, setFlowSimulationEnabled,
   resolveComponentDef, fixTextDisplay, autoBuildAndPlayAnimation, addStickyNote, render as renderCanvas,
+  applyAutoSpacingFix,
 } from '../canvas/canvas.js';
 import { getBaseToolMode, setToolMode, onToolModeChange } from '../canvas/toolMode.js';
 import { onViewportChange, centerOn } from '../canvas/viewport.js';
@@ -92,6 +93,8 @@ import { toggleAiChatPanel } from '../panel/aiChatPanel.js';
 import { openCliSetupModal } from '../modals/cliSetupModal.js';
 import { initAutoSuggestWatcher } from '../io/autoSuggestWatcher.js';
 import { initLintWatcher } from '../io/lintWatcher.js';
+import { initCrowdingWatcher } from '../io/crowdingWatcher.js';
+import { showCrowdingSuggestionBanner } from '../hints/crowdingSuggestionBanner.js';
 import { openGenerateDesignModal } from '../modals/generateDesignModal.js';
 import { openImportFromImageModal } from '../modals/importFromImageModal.js';
 import { openQuickStartModal } from '../modals/quickStartModal.js';
@@ -934,6 +937,22 @@ function buildToolsGroupButtons() {
     lintNudgeBadge.textContent = String(totalCount);
     lintNudgeBadge.hidden = false;
   });
+  const spacingNudgesBtn = el('button', {
+    type: 'button', class: `btn${getUiPrefs().proactiveSpacingNudges !== false ? ' active' : ''}`,
+    title: 'Spacing Nudges: get a dismissible suggestion to tidy up spacing the moment an edit leaves the diagram overlapping or unevenly spaced',
+    text: '📐 Spacing Nudges',
+    onClick: () => {
+      const next = !spacingNudgesBtn.classList.contains('active');
+      saveUiPrefs({ proactiveSpacingNudges: next });
+      spacingNudgesBtn.classList.toggle('active', next);
+    },
+  });
+  initCrowdingWatcher(() => {
+    showCrowdingSuggestionBanner(
+      () => { applyAutoSpacingFix(); },
+      () => {},
+    );
+  });
   const costBtn = el('button', {
     type: 'button', class: 'btn', title: 'Cost Breakdown: list every component with an estimated monthly cost (set per-component in its details panel) and the running total', text: '💰 Cost Breakdown',
     onClick: openCostBreakdownModal,
@@ -1036,7 +1055,7 @@ function buildToolsGroupButtons() {
       { packId: 'ai-tools', buttons: [aiReviewBtn, aiChatBtn, aiLayoutBtn] },
       { packId: 'collaboration', buttons: [collabBtn] },
       { packId: 'analysis', buttons: [lintBtn, lintNudgesBtn, inlineLintBadgesBtn, costBtn, describeBtn, interviewBtn, reviewStatusBtn] },
-      { packId: 'layout-tools', buttons: [autoArrangeBtn, distributeBtn, scaleBtn, findReplaceBtn, fixTextDisplayBtn] },
+      { packId: 'layout-tools', buttons: [autoArrangeBtn, distributeBtn, scaleBtn, findReplaceBtn, fixTextDisplayBtn, spacingNudgesBtn] },
       { packId: 'visual-extras', buttons: [minimapBtn, focusModeBtn, sketchModeBtn, diagramThemeBtn, presenterModeBtn, animationBtn, autoPlayBtn, flowSimBtn, scene3dBtn] },
     ],
   );
